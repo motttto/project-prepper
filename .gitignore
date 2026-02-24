@@ -18,6 +18,9 @@ npm-debug.log*
 # env files
 .env*.local
 
+# credentials
+project-prepper_cred.rtf
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
