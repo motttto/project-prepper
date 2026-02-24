@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
+import { useOrg } from "@/contexts/org-context";
 import type { InventoryItem } from "@/types/database";
 import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage } from "@/components/ui/icons";
 import { ExcelImport } from "@/components/inventory/excel-import";
@@ -43,6 +44,7 @@ const categoryIcons: Record<string, string> = {
 
 export default function InventoryPage() {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
@@ -80,14 +82,16 @@ export default function InventoryPage() {
   }
 
   const loadItems = useCallback(async () => {
+    if (!orgId) return;
     const { data } = await supabase
       .from("inventory_items")
       .select("*")
+      .eq("org_id", orgId)
       .order("category")
       .order("name");
     if (data) setItems(data as InventoryItem[]);
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   useEffect(() => {
     loadItems();
@@ -96,6 +100,7 @@ export default function InventoryPage() {
   // Realtime: Live-Synchronisation
   useRealtimeTable({
     table: "inventory_items",
+    orgFilter: orgId || undefined,
     onDataChange: loadItems,
   });
 
@@ -112,6 +117,7 @@ export default function InventoryPage() {
       condition: formCondition,
       cost_per_day: formCostPerDay,
       location: formLocation || null,
+      org_id: orgId,
     });
     if (!error) {
       setFormInventoryNumber(""); setFormName(""); setFormDescription(""); setFormCategory("");
@@ -270,7 +276,7 @@ export default function InventoryPage() {
                   className="w-full px-3 py-2 rounded-lg text-sm font-mono"
                   style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
                   placeholder={formCategory ? generateNextNumber(formCategory, items) : "z.B. PRO-001"} />
-                <p className="text-[10px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                <p className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
                   Leer lassen für Auto-Vergabe
                 </p>
               </div>
@@ -363,7 +369,7 @@ export default function InventoryPage() {
         <div className="flex gap-2 mb-5 flex-wrap">
           <button
             onClick={() => setFilter("")}
-            className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+            className="px-3 py-1.5 rounded-full text-sm font-medium transition-all"
             style={{
               background: !filter ? "var(--color-primary)" : "var(--color-surface)",
               color: !filter ? "#fff" : "var(--color-muted-foreground)",
@@ -378,7 +384,7 @@ export default function InventoryPage() {
               <button
                 key={cat}
                 onClick={() => setFilter(filter === cat ? "" : cat)}
-                className="px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1"
+                className="px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1"
                 style={{
                   background: filter === cat ? "var(--color-primary)" : "var(--color-surface)",
                   color: filter === cat ? "#fff" : "var(--color-muted-foreground)",
@@ -395,7 +401,7 @@ export default function InventoryPage() {
 
       {/* Stats Row */}
       <div className="flex gap-4 mb-5">
-        <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+        <div className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
           {filtered.length} Artikel &middot; {totalQuantity} Teile &middot;
           Tageswert: {totalValue.toFixed(0)} &euro;
         </div>
@@ -417,14 +423,14 @@ export default function InventoryPage() {
             <thead>
               <tr style={{ borderBottom: "1px solid var(--color-border-light)" }}>
                 <th className="w-14 px-3 py-3"></th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Inv.-Nr.</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Artikel</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Kategorie</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Menge</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Zustand</th>
-                <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>&euro;/Tag</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Pate</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Ort</th>
+                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Inv.-Nr.</th>
+                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Artikel</th>
+                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Kategorie</th>
+                <th className="text-center px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Menge</th>
+                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Zustand</th>
+                <th className="text-right px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>&euro;/Tag</th>
+                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Pate</th>
+                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Ort</th>
                 <th className="w-10 px-4 py-3"></th>
               </tr>
             </thead>
@@ -438,7 +444,7 @@ export default function InventoryPage() {
                   onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-hover)"}
                   onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                 >
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3.5">
                     {item.image_url ? (
                       <img
                         src={item.image_url}
@@ -455,13 +461,13 @@ export default function InventoryPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="font-mono text-xs px-1.5 py-0.5 rounded"
+                  <td className="px-4 py-3.5">
+                    <span className="font-mono text-sm px-1.5 py-0.5 rounded"
                       style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
                       {item.inventory_number}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3.5">
                     <div className="font-medium text-sm">{item.name}</div>
                     {item.description && (
                       <div className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
@@ -469,15 +475,15 @@ export default function InventoryPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3">
-                    <span className="text-xs flex items-center gap-1">
+                  <td className="px-4 py-3.5">
+                    <span className="text-sm flex items-center gap-1">
                       <span>{categoryIcons[item.category] || "📁"}</span>
                       {item.category}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-4 py-3.5 text-center">
                     <span
-                      className="inline-flex items-center justify-center w-8 h-6 rounded text-xs font-semibold"
+                      className="inline-flex items-center justify-center w-8 h-6 rounded text-sm font-semibold"
                       style={{
                         background: item.quantity > 5 ? "var(--color-success-light)" : item.quantity > 1 ? "var(--color-info-light)" : "var(--color-warning-light)",
                         color: item.quantity > 5 ? "var(--color-success)" : item.quantity > 1 ? "var(--color-info)" : "var(--color-warning)",
@@ -486,31 +492,31 @@ export default function InventoryPage() {
                       {item.quantity}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3.5">
                     <span
-                      className="text-[11px] px-2 py-0.5 rounded-full font-medium"
+                      className="text-xs px-2 py-0.5 rounded-full font-medium"
                       style={conditionStyles[item.condition]}
                     >
                       {conditionLabels[item.condition]}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-right text-sm tabular-nums">
+                  <td className="px-4 py-3.5 text-right text-sm tabular-nums">
                     {Number(item.cost_per_day).toFixed(2)} &euro;
                   </td>
-                  <td className="px-4 py-3 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                  <td className="px-4 py-3.5 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
                     {item.purchased_by || "–"}
                   </td>
-                  <td className="px-4 py-3 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                  <td className="px-4 py-3.5 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
                     {item.location || "–"}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3.5">
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded transition-opacity"
                       style={{ color: "var(--color-destructive)" }}
                       title="Löschen"
                     >
-                      <IconTrash size={14} />
+                      <IconTrash size={15} />
                     </button>
                   </td>
                 </tr>

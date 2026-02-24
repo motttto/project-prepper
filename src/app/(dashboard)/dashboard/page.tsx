@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useOrg } from "@/contexts/org-context";
 import type { Project, InventoryItem, CostItem, Booking } from "@/types/database";
 import {
   IconProjects,
@@ -34,6 +35,7 @@ export default function DashboardPage() {
   const supabase = createClient();
   const router = useRouter();
   const currentUser = useCurrentUser();
+  const { orgId } = useOrg();
   const [projects, setProjects] = useState<Project[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [costs, setCosts] = useState<CostItem[]>([]);
@@ -44,13 +46,15 @@ export default function DashboardPage() {
   const isAdmin = currentUser?.roleName === "admin";
 
   const loadData = useCallback(async () => {
+    if (!orgId) return;
     const [projectsRes, inventoryRes, costsRes, bookingsRes, membersRes] =
       await Promise.all([
         supabase
           .from("projects")
           .select("*")
+          .eq("org_id", orgId)
           .order("date_start", { ascending: false }),
-        supabase.from("inventory_items").select("*"),
+        supabase.from("inventory_items").select("*").eq("org_id", orgId),
         // RLS filtert automatisch: nur Kosten aus Projekten, an denen User Mitglied ist
         supabase.from("cost_items").select("*"),
         supabase.from("bookings").select("*").neq("status", "returned"),
@@ -66,7 +70,7 @@ export default function DashboardPage() {
       setMyProjectIds(new Set(membersRes.data.map((m: { project_id: string }) => m.project_id)));
     }
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   useEffect(() => {
     loadData();
@@ -153,7 +157,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="text-3xl font-bold">{activeProjects.length}</div>
-          <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+          <div className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
             von {projects.length} gesamt
           </div>
         </div>
@@ -183,7 +187,7 @@ export default function DashboardPage() {
               <div className="text-3xl font-bold">
                 {totalPlanned.toLocaleString("de-DE")} &euro;
               </div>
-              <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+              <div className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
                 Ist: {totalActual.toLocaleString("de-DE")} &euro;
                 {!isAdmin && " · Meine Projekte"}
               </div>
@@ -193,7 +197,7 @@ export default function DashboardPage() {
               <div className="text-lg font-medium" style={{ color: "var(--color-muted-foreground)" }}>
                 —
               </div>
-              <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+              <div className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
                 Werde Projektmitglied um Kosten zu sehen
               </div>
             </>
@@ -221,7 +225,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="text-3xl font-bold">{inventory.length}</div>
-          <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+          <div className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
             {totalInventory} Teile gesamt
           </div>
         </div>
@@ -247,7 +251,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="text-3xl font-bold">{activeBookings.length}</div>
-          <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+          <div className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
             Equipment unterwegs
           </div>
         </div>
@@ -293,7 +297,7 @@ export default function DashboardPage() {
             <h2 className="font-semibold">Anstehende Events</h2>
             <button
               onClick={() => router.push("/projects")}
-              className="text-xs font-medium flex items-center gap-1 transition-colors"
+              className="text-sm font-medium flex items-center gap-1 transition-colors"
               style={{ color: "var(--color-primary)" }}
             >
               Alle anzeigen <IconChevronRight size={14} />
@@ -336,7 +340,7 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <span
-                    className="text-[11px] px-2 py-0.5 rounded-full font-medium"
+                    className="text-xs px-2 py-0.5 rounded-full font-medium"
                     style={{
                       background: project.status === "active" ? "var(--color-success-light)" : "var(--color-info-light)",
                       color: project.status === "active" ? "var(--color-success)" : "var(--color-info)",
@@ -363,7 +367,7 @@ export default function DashboardPage() {
             style={{ borderColor: "var(--color-border-light)" }}
           >
             <h2 className="font-semibold">Zuletzt abgeschlossen</h2>
-            <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+            <span className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
               {projects.filter((p) => p.status === "completed").length} Events
             </span>
           </div>

@@ -374,7 +374,7 @@ export function TabSchedule({ projectId, project }: TabScheduleProps) {
                           </div>
                           {duration && (
                             <div
-                              className="text-[10px] mt-0.5 font-medium"
+                              className="text-xs mt-0.5 font-medium"
                               style={{ color: "var(--color-primary)" }}
                             >
                               {duration}

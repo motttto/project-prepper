@@ -7,6 +7,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 interface UseRealtimeTableOptions {
   table: string;
   filter?: { column: string; value: string };
+  orgFilter?: string; // org_id Filter für Org-Scoping
   onDataChange: () => void;
   enabled?: boolean;
 }
@@ -14,6 +15,7 @@ interface UseRealtimeTableOptions {
 export function useRealtimeTable({
   table,
   filter,
+  orgFilter,
   onDataChange,
   enabled = true,
 }: UseRealtimeTableOptions): void {
@@ -27,13 +29,20 @@ export function useRealtimeTable({
     const supabase = createClient();
 
     // Eindeutiger Channel-Name pro Tabelle + Filter
-    const channelName = filter
-      ? `realtime:${table}:${filter.column}=eq.${filter.value}`
+    const filterParts: string[] = [];
+    if (filter) filterParts.push(`${filter.column}=eq.${filter.value}`);
+    if (orgFilter) filterParts.push(`org_id=eq.${orgFilter}`);
+
+    const channelName = filterParts.length > 0
+      ? `realtime:${table}:${filterParts.join(",")}`
       : `realtime:${table}`;
 
+    // Supabase Realtime unterstützt nur einen Filter — wir nehmen den spezifischeren
     const pgFilter = filter
       ? `${filter.column}=eq.${filter.value}`
-      : undefined;
+      : orgFilter
+        ? `org_id=eq.${orgFilter}`
+        : undefined;
 
     const channelConfig: {
       event: string;
@@ -64,5 +73,5 @@ export function useRealtimeTable({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [table, filter?.column, filter?.value, enabled]);
+  }, [table, filter?.column, filter?.value, orgFilter, enabled]);
 }

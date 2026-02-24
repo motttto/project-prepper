@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
+import { useOrg } from "@/contexts/org-context";
 import type { CostItem, Project } from "@/types/database";
 import { IconPlus, IconX, IconTrash, IconFilter } from "@/components/ui/icons";
 
@@ -23,6 +24,7 @@ const categoryColors: Record<CostItem["category"], { bg: string; color: string }
 
 export default function CostsPage() {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const [costs, setCosts] = useState<CostItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>("all");
@@ -38,14 +40,15 @@ export default function CostsPage() {
   const [formActual, setFormActual] = useState("");
 
   const loadData = useCallback(async () => {
+    if (!orgId) return;
     const [costsRes, projectsRes] = await Promise.all([
       supabase.from("cost_items").select("*").order("created_at"),
-      supabase.from("projects").select("id, name").order("name"),
+      supabase.from("projects").select("id, name").eq("org_id", orgId).order("name"),
     ]);
     if (costsRes.data) setCosts(costsRes.data as CostItem[]);
     if (projectsRes.data) setProjects(projectsRes.data as Project[]);
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   useEffect(() => {
     loadData();
@@ -287,7 +290,7 @@ export default function CostsPage() {
                       <td className="px-4 py-3 text-sm">{projectName(cost.project_id)}</td>
                     )}
                     <td className="px-4 py-3">
-                      <span className="text-[11px] px-2 py-0.5 rounded-full font-medium"
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium"
                         style={categoryColors[cost.category]}>
                         {categoryLabels[cost.category]}
                       </span>

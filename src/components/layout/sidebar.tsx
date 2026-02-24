@@ -13,7 +13,8 @@ import {
   IconZap,
   IconX,
 } from "@/components/ui/icons";
-import { InvitationBell } from "@/components/layout/invitation-bell";
+import { OrgSwitcher } from "@/components/layout/org-switcher";
+import { useOrg } from "@/contexts/org-context";
 
 const navItems = [
   { href: "/team", label: "Team", icon: IconUsers },
@@ -31,38 +32,37 @@ interface SidebarProps {
 export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const supabase = createClient();
-  const [userId, setUserId] = useState<string | undefined>();
   const [pendingCount, setPendingCount] = useState(0);
+  const { orgId } = useOrg();
 
   useEffect(() => {
-    async function getUser() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (user) {
-        setUserId(user.id);
+    if (!orgId) return;
 
-        // Pending-Mitglieder zählen
-        const { count } = await supabase
-          .from("profiles")
-          .select("*", { count: "exact", head: true })
-          .eq("is_active", false);
-        setPendingCount(count || 0);
-      }
+    async function load() {
+      // Nur echte Beitritte zählen (inaktiv + nie freigegeben, in aktueller Org)
+      const { count } = await supabase
+        .from("org_memberships")
+        .select("*", { count: "exact", head: true })
+        .eq("org_id", orgId)
+        .eq("is_active", false)
+        .is("approved_at", null);
+      setPendingCount(count || 0);
     }
-    getUser();
+    load();
 
     // Realtime: Pending-Count aktualisieren
     const channel = supabase
       .channel("sidebar-pending")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "profiles" },
+        { event: "*", schema: "public", table: "org_memberships" },
         async () => {
           const { count } = await supabase
-            .from("profiles")
+            .from("org_memberships")
             .select("*", { count: "exact", head: true })
-            .eq("is_active", false);
+            .eq("org_id", orgId)
+            .eq("is_active", false)
+            .is("approved_at", null);
           setPendingCount(count || 0);
         }
       )
@@ -71,7 +71,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   // Sidebar auf Mobile schließen bei Navigation
   useEffect(() => {
@@ -111,7 +111,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               Dunkelstrom
             </div>
             <div
-              className="text-[11px] -mt-0.5"
+              className="text-xs -mt-0.5"
               style={{ color: "var(--color-sidebar-text-muted)" }}
             >
               Projektplanner
@@ -125,6 +125,11 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         >
           <IconX size={20} />
         </button>
+      </div>
+
+      {/* Org-Switcher */}
+      <div className="pt-3">
+        <OrgSwitcher />
       </div>
 
       {/* Navigation */}
@@ -165,7 +170,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               <span className="text-[14px] font-medium">{item.label}</span>
               {showBadge && (
                 <span
-                  className="ml-auto w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                  className="ml-auto w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
                   style={{ background: "var(--color-destructive)" }}
                 >
                   {pendingCount}
@@ -176,19 +181,6 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* Einladungen */}
-      <div
-        className="px-3 py-4 flex items-center gap-3 mx-3 rounded-lg"
-        style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
-      >
-        <InvitationBell userId={userId} />
-        <span
-          className="text-[13px]"
-          style={{ color: "var(--color-sidebar-text-muted)" }}
-        >
-          Einladungen
-        </span>
-      </div>
     </aside>
   );
 }

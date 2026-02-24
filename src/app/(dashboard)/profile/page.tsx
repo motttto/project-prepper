@@ -2,14 +2,15 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase";
+import { useOrg } from "@/contexts/org-context";
 import {
   IconSave,
   IconCamera,
   IconMail,
   IconUser,
-  IconShield,
 } from "@/components/ui/icons";
 import imageCompression from "browser-image-compression";
+import { RoleBadge, RoleBadgeGroup, orgBadgeStyles } from "@/components/ui/role-badge";
 
 type ProfileData = {
   id: string;
@@ -17,37 +18,21 @@ type ProfileData = {
   email: string;
   avatar_url: string | null;
   is_active: boolean;
+  is_system: boolean;
   approved_at: string | null;
   created_at: string;
-  roles?: { name: string } | { name: string }[] | null;
 };
 
-const roleLabels: Record<string, string> = {
-  admin: "Admin",
-  manager: "Manager",
-  member: "Mitglied",
-};
-
-const roleBadgeStyles: Record<string, { bg: string; color: string }> = {
-  admin: {
-    bg: "var(--color-destructive-light)",
-    color: "var(--color-destructive)",
-  },
-  manager: {
-    bg: "var(--color-warning-light)",
-    color: "var(--color-warning)",
-  },
-  member: {
-    bg: "var(--color-muted)",
-    color: "var(--color-muted-foreground)",
-  },
-};
+const roleBadgeStyles = orgBadgeStyles;
 
 export default function ProfilePage() {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [orgRoleName, setOrgRoleName] = useState("member");
+  const [orgApprovedAt, setOrgApprovedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -66,13 +51,6 @@ export default function ProfilePage() {
   const hasEmailChange = email !== authEmail;
   const hasChanges = hasNameChange || hasEmailChange;
 
-  function getRoleName(p: ProfileData): string {
-    const r = p.roles as { name: string } | { name: string }[] | null;
-    if (!r) return "member";
-    if (Array.isArray(r)) return r[0]?.name || "member";
-    return r.name || "member";
-  }
-
   const loadProfile = useCallback(async () => {
     const {
       data: { user },
@@ -81,9 +59,10 @@ export default function ProfilePage() {
 
     setAuthEmail(user.email || "");
 
+    // Profil laden
     const { data } = await supabase
       .from("profiles")
-      .select("*, roles(name)")
+      .select("id, name, email, avatar_url, is_active, is_system, approved_at, created_at")
       .eq("id", user.id)
       .single();
 
@@ -93,8 +72,26 @@ export default function ProfilePage() {
       setName(p.name);
       setEmail(p.email);
     }
+
+    // Org-Rolle laden
+    if (orgId) {
+      const { data: membership } = await supabase
+        .from("org_memberships")
+        .select("approved_at, roles(name)")
+        .eq("profile_id", user.id)
+        .eq("org_id", orgId)
+        .single();
+
+      if (membership) {
+        const r = membership.roles as { name: string } | { name: string }[] | null;
+        const rName = Array.isArray(r) ? r[0]?.name : r?.name;
+        setOrgRoleName(rName || "member");
+        setOrgApprovedAt(membership.approved_at);
+      }
+    }
+
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   useEffect(() => {
     loadProfile();
@@ -245,7 +242,7 @@ export default function ProfilePage() {
     );
   }
 
-  const roleName = getRoleName(profile);
+  const roleName = orgRoleName;
   const badgeStyle = roleBadgeStyles[roleName] || roleBadgeStyles.member;
 
   return (
@@ -351,13 +348,14 @@ export default function ProfilePage() {
               </p>
 
               <div className="flex items-center gap-2 mt-3">
-                <span
-                  className="px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1"
-                  style={{ background: badgeStyle.bg, color: badgeStyle.color }}
-                >
-                  <IconShield size={11} />
-                  {roleLabels[roleName] || roleName}
-                </span>
+                {profile.is_system ? (
+                  <RoleBadgeGroup badges={[
+                    { role: "system", type: "org" },
+                    { role: roleName, type: "org" },
+                  ]} />
+                ) : (
+                  <RoleBadge role={roleName} type="org" />
+                )}
               </div>
 
               <p
@@ -366,7 +364,7 @@ export default function ProfilePage() {
               >
                 Mitglied seit{" "}
                 {new Date(
-                  profile.approved_at || profile.created_at
+                  orgApprovedAt || profile.approved_at || profile.created_at
                 ).toLocaleDateString("de-DE", {
                   month: "long",
                   year: "numeric",

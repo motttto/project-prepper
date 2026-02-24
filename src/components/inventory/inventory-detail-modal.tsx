@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase";
+import { useOrg } from "@/contexts/org-context";
 import type { InventoryItem } from "@/types/database";
 import { IconX, IconSave } from "@/components/ui/icons";
 import { InventoryImageUpload } from "@/components/inventory/inventory-image-upload";
@@ -27,6 +28,7 @@ export function InventoryDetailModal({
   onItemUpdated,
 }: InventoryDetailModalProps) {
   const supabase = createClient();
+  const { orgId } = useOrg();
 
   // Editierbare Felder
   const [name, setName] = useState(item.name);
@@ -71,17 +73,26 @@ export function InventoryDetailModal({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  // Profile laden für Technikpat:in Dropdown
+  // Profile laden für Technikpat:in Dropdown — via org_memberships
   useEffect(() => {
     async function loadProfiles() {
+      if (!orgId) return;
       const { data } = await supabase
-        .from("profiles")
-        .select("id, name, is_active")
-        .order("name");
-      if (data) setAllProfiles(data);
+        .from("org_memberships")
+        .select("profile_id, is_active, profiles(id, name)")
+        .eq("org_id", orgId);
+      if (data) {
+        setAllProfiles(
+          data.map((m: any) => ({
+            id: m.profiles?.id || m.profile_id,
+            name: m.profiles?.name || "",
+            is_active: m.is_active,
+          }))
+        );
+      }
     }
     loadProfiles();
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   async function handleSave() {
     setSaving(true);
@@ -171,6 +182,7 @@ export function InventoryDetailModal({
             </label>
             <InventoryImageUpload
               itemId={item.id}
+              orgId={orgId || undefined}
               currentImageUrl={imageUrl}
               onUploadComplete={(newUrl) => {
                 setImageUrl(newUrl);

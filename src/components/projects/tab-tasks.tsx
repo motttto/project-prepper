@@ -509,7 +509,7 @@ export function TabTasks({ projectId }: TabTasksProps) {
                     {/* Status Badge (nur wenn nicht done/todo) */}
                     {task.status === "in_progress" && (
                       <span
-                        className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                        className="text-xs px-1.5 py-0.5 rounded-full font-medium"
                         style={{ background: statusStyles.in_progress.bg, color: statusStyles.in_progress.color }}
                       >
                         {statusStyles.in_progress.label}
@@ -517,7 +517,7 @@ export function TabTasks({ projectId }: TabTasksProps) {
                     )}
                     {/* Priority Badge */}
                     <span
-                      className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
+                      className="text-xs px-1.5 py-0.5 rounded-full font-medium"
                       style={{ background: priorityStyles[task.priority].bg, color: priorityStyles[task.priority].color }}
                     >
                       {priorityStyles[task.priority].label}
@@ -566,7 +566,7 @@ export function TabTasks({ projectId }: TabTasksProps) {
                             task.status === "todo" ? "in_progress" : "done"
                           )
                         }
-                        className="text-[10px] px-1.5 py-0.5 rounded-full font-medium opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="text-xs px-1.5 py-0.5 rounded-full font-medium opacity-0 group-hover:opacity-100 transition-opacity"
                         style={{
                           background:
                             task.status === "todo"

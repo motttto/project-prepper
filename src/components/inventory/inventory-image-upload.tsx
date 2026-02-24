@@ -7,6 +7,7 @@ import { IconCamera, IconImage } from "@/components/ui/icons";
 
 interface InventoryImageUploadProps {
   itemId: string;
+  orgId?: string;
   currentImageUrl: string | null;
   onUploadComplete: (newUrl: string) => void;
   size?: "small" | "large";
@@ -16,6 +17,7 @@ type UploadState = "idle" | "compressing" | "uploading" | "done";
 
 export function InventoryImageUpload({
   itemId,
+  orgId,
   currentImageUrl,
   onUploadComplete,
   size = "large",
@@ -68,7 +70,9 @@ export function InventoryImageUpload({
       // Upload
       setState("uploading");
       const supabase = createClient();
-      const filePath = `${itemId}/${Date.now()}.webp`;
+      const filePath = orgId
+        ? `${orgId}/${itemId}/${Date.now()}.webp`
+        : `${itemId}/${Date.now()}.webp`;
 
       // Alte Datei löschen
       if (currentImageUrl) {

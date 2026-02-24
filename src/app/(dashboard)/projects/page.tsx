@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { useOrg } from "@/contexts/org-context";
 import type { Project } from "@/types/database";
 import { IconPlus, IconSearch, IconX, IconChevronRight, IconTrash } from "@/components/ui/icons";
 
@@ -27,6 +28,7 @@ type StatusFilter = "all" | Project["status"];
 export default function ProjectsPage() {
   const supabase = createClient();
   const router = useRouter();
+  const { orgId } = useOrg();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -42,13 +44,15 @@ export default function ProjectsPage() {
   const [saving, setSaving] = useState(false);
 
   const loadProjects = useCallback(async () => {
+    if (!orgId) return;
     const { data } = await supabase
       .from("projects")
       .select("*")
+      .eq("org_id", orgId)
       .order("date_start", { ascending: false });
     if (data) setProjects(data as Project[]);
     setLoading(false);
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   useEffect(() => {
     loadProjects();
@@ -112,6 +116,7 @@ export default function ProjectsPage() {
       date_end: formDateEnd || null,
       status: formStatus,
       created_by: user?.id,
+      org_id: orgId,
     });
 
     if (!error) {
@@ -298,7 +303,7 @@ export default function ProjectsPage() {
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+              className="px-3 py-1.5 rounded-md text-sm font-medium transition-all"
               style={{
                 background: statusFilter === status ? "var(--color-surface)" : "transparent",
                 boxShadow: statusFilter === status ? "var(--shadow-sm)" : "none",
@@ -339,7 +344,7 @@ export default function ProjectsPage() {
                   {year}
                 </h3>
                 <div className="flex-1 h-px" style={{ background: "var(--color-border-light)" }} />
-                <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                <span className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
                   {yearProjects.length} Projekte
                 </span>
               </div>
@@ -375,7 +380,7 @@ export default function ProjectsPage() {
                       <div className="font-medium text-sm">{project.name}</div>
                       {project.description && (
                         <div
-                          className="text-xs truncate mt-0.5"
+                          className="text-sm truncate mt-0.5"
                           style={{ color: "var(--color-muted-foreground)" }}
                         >
                           {project.description}
@@ -385,7 +390,7 @@ export default function ProjectsPage() {
 
                     {/* Date */}
                     {project.date_start && (
-                      <div className="text-xs shrink-0" style={{ color: "var(--color-muted-foreground)" }}>
+                      <div className="text-sm shrink-0" style={{ color: "var(--color-muted-foreground)" }}>
                         {new Date(project.date_start).toLocaleDateString("de-DE", {
                           day: "numeric",
                           month: "short",
@@ -400,7 +405,7 @@ export default function ProjectsPage() {
 
                     {/* Status Badge */}
                     <span
-                      className="text-[11px] px-2 py-0.5 rounded-full font-medium shrink-0"
+                      className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
                       style={{
                         background:
                           project.status === "completed" ? "var(--color-muted)" :

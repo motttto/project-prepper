@@ -35,6 +35,7 @@ export async function middleware(request: NextRequest) {
   const isHomePage = pathname === "/";
   const isPendingPage = pathname === "/pending";
   const isAuthCallback = pathname.startsWith("/auth/callback");
+  const isOrgPage = pathname.startsWith("/org/");
 
   // Nicht eingeloggt? → Weiterleitung zum Login
   // (außer man ist bereits auf /login, Startseite oder Auth-Callback)
@@ -44,36 +45,78 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Eingeloggt → Profil-Status prüfen
+  // Eingeloggt → Org-Status prüfen
   if (user) {
-    // Profil laden (einfacher PK-Lookup, < 5ms)
+    // Profil laden
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_active")
+      .select("is_system")
       .eq("id", user.id)
       .single();
 
-    const isActive = profile?.is_active ?? false;
+    const isSystem = profile?.is_system ?? false;
+
+    // System-User hat immer Zugang
+    if (isSystem) {
+      if (isAuthPage) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/dashboard";
+        return NextResponse.redirect(url);
+      }
+      return supabaseResponse;
+    }
+
+    // Org-Mitgliedschaften prüfen
+    const { data: memberships } = await supabase
+      .from("org_memberships")
+      .select("org_id, is_active")
+      .eq("profile_id", user.id);
+
+    const hasAnyOrg = memberships && memberships.length > 0;
 
     // Eingeloggt auf Login-Seite → weiterleiten
     if (isAuthPage) {
       const url = request.nextUrl.clone();
-      url.pathname = isActive ? "/dashboard" : "/pending";
+      if (!hasAnyOrg) {
+        url.pathname = "/org/new";
+      } else {
+        const hasActiveOrg = memberships.some((m) => m.is_active);
+        url.pathname = hasActiveOrg ? "/dashboard" : "/pending";
+      }
       return NextResponse.redirect(url);
     }
 
-    // Inaktiver User auf geschützten Seiten → /pending
-    if (!isActive && !isPendingPage && !isHomePage && !isAuthCallback) {
+    // Keine Orgs → /org/new (außer man ist schon dort)
+    if (!hasAnyOrg && !isOrgPage && !isPendingPage && !isHomePage && !isAuthCallback) {
       const url = request.nextUrl.clone();
-      url.pathname = "/pending";
+      url.pathname = "/org/new";
       return NextResponse.redirect(url);
     }
 
-    // Aktiver User auf /pending → /dashboard
-    if (isActive && isPendingPage) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      return NextResponse.redirect(url);
+    // Hat Orgs → Prüfe ob aktiv in aktueller Org
+    if (hasAnyOrg && !isOrgPage) {
+      const orgIdCookie = request.cookies.get("pp_org_id")?.value;
+      const currentOrgMembership = orgIdCookie
+        ? memberships.find((m) => m.org_id === orgIdCookie)
+        : null;
+
+      const isActiveInCurrentOrg = currentOrgMembership?.is_active;
+      const isActiveInAnyOrg = memberships.some((m) => m.is_active);
+      const isActive = isActiveInCurrentOrg || isActiveInAnyOrg;
+
+      // Inaktiv → /pending
+      if (!isActive && !isPendingPage && !isHomePage && !isAuthCallback) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/pending";
+        return NextResponse.redirect(url);
+      }
+
+      // Aktiv auf /pending → /dashboard
+      if (isActive && isPendingPage) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/dashboard";
+        return NextResponse.redirect(url);
+      }
     }
   }
 

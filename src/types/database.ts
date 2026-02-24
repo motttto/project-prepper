@@ -17,6 +17,7 @@ export type User = {
   name: string;
   role_id: string;
   is_active: boolean;
+  is_system: boolean;
   approved_at: string | null;
   avatar_url: string | null;
   created_at: string;
@@ -24,6 +25,7 @@ export type User = {
 
 export type Project = {
   id: string;
+  org_id: string;
   name: string;
   description: string | null;
   status: "draft" | "planning" | "active" | "completed" | "cancelled";
@@ -62,6 +64,7 @@ export type Project = {
 
 export type InventoryItem = {
   id: string;
+  org_id: string;
   inventory_number: string;
   name: string;
   description: string | null;
@@ -238,5 +241,35 @@ export type TeamVote = {
   id: string;
   candidate_id: string;
   voter_id: string;
+  org_id: string;
   created_at: string;
+};
+
+// === Organisationen (Multi-Tenant) ===
+
+export type Organization = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  logo_url: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type OrgRoleName = "admin" | "manager" | "member";
+
+export type OrgMembership = {
+  id: string;
+  org_id: string;
+  profile_id: string;
+  role_id: string;
+  is_active: boolean;
+  approved_at: string | null;
+  created_at: string;
+  // Joined data
+  organizations?: { name: string; slug: string };
+  profiles?: { name: string; email: string; avatar_url: string | null };
+  roles?: { name: string };
 };

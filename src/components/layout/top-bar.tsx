@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { IconLogout, IconUser, IconMenu } from "@/components/ui/icons";
+import { useOrg } from "@/contexts/org-context";
 
 interface TopBarProps {
   onMenuToggle?: () => void;
@@ -13,9 +14,11 @@ interface TopBarProps {
 export function TopBar({ onMenuToggle }: TopBarProps) {
   const router = useRouter();
   const supabase = createClient();
+  const { orgId, orgName } = useOrg();
   const [userName, setUserName] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [roleName, setRoleName] = useState<string>("");
+  const [isSystemUser, setIsSystemUser] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -24,18 +27,32 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
       } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Profil-Basisdaten
       const { data: profile } = await supabase
         .from("profiles")
-        .select("name, avatar_url, roles(name)")
+        .select("name, avatar_url, is_system")
         .eq("id", user.id)
         .single();
 
       if (profile) {
         setUserName(profile.name || user.email?.split("@")[0] || "User");
         setAvatarUrl(profile.avatar_url || null);
-        const r = (profile as any).roles;
-        if (r) {
-          const name = Array.isArray(r) ? r[0]?.name : r.name;
+        setIsSystemUser(!!(profile as any).is_system);
+      }
+
+      // Rolle aus org_memberships laden
+      if (orgId) {
+        const { data: membership } = await supabase
+          .from("org_memberships")
+          .select("roles(name)")
+          .eq("profile_id", user.id)
+          .eq("org_id", orgId)
+          .single();
+
+        if (membership) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const r = membership.roles as any;
+          const name = Array.isArray(r) ? r[0]?.name : r?.name;
           setRoleName(name || "");
         }
       }
@@ -68,7 +85,7 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase]);
+  }, [supabase, orgId]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -111,9 +128,10 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
             <div className="text-sm font-medium leading-tight truncate max-w-[100px] sm:max-w-none">{userName}</div>
             {roleName && (
               <div
-                className="text-[10px] leading-tight hidden sm:block"
+                className="text-xs leading-tight hidden sm:block"
                 style={{ color: "var(--color-muted-foreground)" }}
               >
+                {isSystemUser ? "System · " : ""}
                 {roleName === "admin"
                   ? "Admin"
                   : roleName === "manager"
