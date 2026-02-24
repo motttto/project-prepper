@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import {
@@ -9,12 +9,13 @@ import {
   IconProjects,
   IconInventory,
   IconCosts,
-  IconLogout,
-  IconUser,
+  IconUsers,
   IconZap,
 } from "@/components/ui/icons";
+import { InvitationBell } from "@/components/layout/invitation-bell";
 
 const navItems = [
+  { href: "/team", label: "Team", icon: IconUsers },
   { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
   { href: "/projects", label: "Projekte", icon: IconProjects },
   { href: "/inventory", label: "Inventar", icon: IconInventory },
@@ -23,9 +24,9 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const supabase = createClient();
-  const [userName, setUserName] = useState<string>("");
+  const [userId, setUserId] = useState<string | undefined>();
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     async function getUser() {
@@ -33,19 +34,38 @@ export function Sidebar() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        setUserName(
-          user.user_metadata?.name || user.email?.split("@")[0] || "User"
-        );
+        setUserId(user.id);
+
+        // Pending-Mitglieder zählen
+        const { count } = await supabase
+          .from("profiles")
+          .select("*", { count: "exact", head: true })
+          .eq("is_active", false);
+        setPendingCount(count || 0);
       }
     }
     getUser();
-  }, [supabase.auth]);
 
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
-  }
+    // Realtime: Pending-Count aktualisieren
+    const channel = supabase
+      .channel("sidebar-pending")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "profiles" },
+        async () => {
+          const { count } = await supabase
+            .from("profiles")
+            .select("*", { count: "exact", head: true })
+            .eq("is_active", false);
+          setPendingCount(count || 0);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
 
   return (
     <aside
@@ -86,6 +106,7 @@ export function Sidebar() {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
+          const showBadge = item.href === "/team" && pendingCount > 0;
 
           return (
             <Link
@@ -115,55 +136,22 @@ export function Sidebar() {
             >
               <Icon size={20} />
               <span className="text-[14px] font-medium">{item.label}</span>
+              {showBadge && (
+                <span
+                  className="ml-auto w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                  style={{ background: "var(--color-destructive)" }}
+                >
+                  {pendingCount}
+                </span>
+              )}
             </Link>
           );
         })}
       </nav>
 
-      {/* User */}
-      <div
-        className="px-3 py-4 border-t"
-        style={{ borderColor: "rgba(255,255,255,0.08)" }}
-      >
-        <div className="flex items-center gap-3 px-3 py-2">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
-            style={{
-              background: "var(--color-sidebar-hover)",
-              color: "var(--color-sidebar-text)",
-            }}
-          >
-            {userName ? (
-              userName.charAt(0).toUpperCase()
-            ) : (
-              <IconUser size={16} />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div
-              className="text-sm font-medium truncate"
-              style={{ color: "var(--color-sidebar-text)" }}
-            >
-              {userName || "Laden..."}
-            </div>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="p-1.5 rounded-md transition-colors"
-            style={{ color: "var(--color-sidebar-text-muted)" }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "var(--color-sidebar-hover)";
-              e.currentTarget.style.color = "var(--color-sidebar-text)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-              e.currentTarget.style.color = "var(--color-sidebar-text-muted)";
-            }}
-            title="Abmelden"
-          >
-            <IconLogout size={18} />
-          </button>
-        </div>
+      {/* Einladungen */}
+      <div className="px-3 py-4 flex justify-center">
+        <InvitationBell userId={userId} />
       </div>
     </aside>
   );

@@ -3,7 +3,10 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import type { InventoryItem } from "@/types/database";
-import { IconPlus, IconSearch, IconX, IconTrash, IconDownload } from "@/components/ui/icons";
+import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage } from "@/components/ui/icons";
+import { ExcelImport } from "@/components/inventory/excel-import";
+import { InventoryDetailModal } from "@/components/inventory/inventory-detail-modal";
+import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import * as XLSX from "xlsx";
 
 const conditionLabels: Record<InventoryItem["condition"], string> = {
@@ -45,6 +48,8 @@ export default function InventoryPage() {
   const [filter, setFilter] = useState("");
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Formular-State
@@ -88,6 +93,12 @@ export default function InventoryPage() {
     loadItems();
   }, [loadItems]);
 
+  // Realtime: Live-Synchronisation
+  useRealtimeTable({
+    table: "inventory_items",
+    onDataChange: loadItems,
+  });
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -111,9 +122,16 @@ export default function InventoryPage() {
     setSaving(false);
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete(item: InventoryItem) {
     if (!confirm("Artikel wirklich löschen?")) return;
-    await supabase.from("inventory_items").delete().eq("id", id);
+    // Storage-Datei löschen falls vorhanden
+    if (item.image_url) {
+      const path = item.image_url.split("/inventory-images/")[1];
+      if (path) {
+        await supabase.storage.from("inventory-images").remove([decodeURIComponent(path)]);
+      }
+    }
+    await supabase.from("inventory_items").delete().eq("id", item.id);
     loadItems();
   }
 
@@ -130,7 +148,8 @@ export default function InventoryPage() {
           i.name.toLowerCase().includes(q) ||
           i.description?.toLowerCase().includes(q) ||
           i.category.toLowerCase().includes(q) ||
-          i.location?.toLowerCase().includes(q)
+          i.location?.toLowerCase().includes(q) ||
+          i.purchased_by?.toLowerCase().includes(q)
       );
     }
     return result;
@@ -150,6 +169,7 @@ export default function InventoryPage() {
       "Preis/Tag (€)": Number(item.cost_per_day),
       Lagerort: item.location || "",
       Eigentümer: item.owner || "",
+      Pate: item.purchased_by || "",
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -165,6 +185,7 @@ export default function InventoryPage() {
       { wch: 14 }, // Preis/Tag
       { wch: 16 }, // Lagerort
       { wch: 16 }, // Eigentümer
+      { wch: 16 }, // Pate
     ];
 
     const wb = XLSX.utils.book_new();
@@ -194,6 +215,16 @@ export default function InventoryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowImport(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+          >
+            <IconUpload size={16} />
+            Excel-Import
+          </button>
           <button
             onClick={handleExportXLS}
             className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
@@ -381,12 +412,14 @@ export default function InventoryPage() {
           <table className="w-full">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--color-border-light)" }}>
+                <th className="w-14 px-3 py-3"></th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Inv.-Nr.</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Artikel</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Kategorie</th>
                 <th className="text-center px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Menge</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Zustand</th>
                 <th className="text-right px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>&euro;/Tag</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Pate</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Ort</th>
                 <th className="w-10 px-4 py-3"></th>
               </tr>
@@ -395,11 +428,29 @@ export default function InventoryPage() {
               {filtered.map((item) => (
                 <tr
                   key={item.id}
-                  className="transition-colors group"
+                  className="transition-colors group cursor-pointer"
                   style={{ borderBottom: "1px solid var(--color-border-light)" }}
+                  onClick={() => setSelectedItem(item)}
                   onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-hover)"}
                   onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                 >
+                  <td className="px-3 py-3">
+                    {item.image_url ? (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="w-10 h-10 rounded-lg object-cover"
+                        style={{ border: "1px solid var(--color-border-light)" }}
+                      />
+                    ) : (
+                      <div
+                        className="w-10 h-10 rounded-lg flex items-center justify-center"
+                        style={{ background: "var(--color-muted)" }}
+                      >
+                        <IconImage size={16} style={{ color: "var(--color-muted-foreground)" }} />
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     <span className="font-mono text-xs px-1.5 py-0.5 rounded"
                       style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
@@ -443,11 +494,14 @@ export default function InventoryPage() {
                     {Number(item.cost_per_day).toFixed(2)} &euro;
                   </td>
                   <td className="px-4 py-3 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                    {item.purchased_by || "–"}
+                  </td>
+                  <td className="px-4 py-3 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
                     {item.location || "–"}
                   </td>
                   <td className="px-4 py-3">
                     <button
-                      onClick={() => handleDelete(item.id)}
+                      onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
                       className="opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity"
                       style={{ color: "var(--color-destructive)" }}
                       title="Löschen"
@@ -460,6 +514,28 @@ export default function InventoryPage() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {/* Excel Import Modal */}
+      {showImport && (
+        <ExcelImport
+          existingItems={items}
+          onClose={() => setShowImport(false)}
+          onImportComplete={loadItems}
+          categoryPrefixes={categoryPrefixes}
+        />
+      )}
+
+      {/* Detail Modal */}
+      {selectedItem && (
+        <InventoryDetailModal
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onItemUpdated={() => {
+            loadItems();
+            setSelectedItem(null);
+          }}
+        />
       )}
     </div>
   );

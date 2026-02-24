@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/layout/sidebar";
+import { TopBar } from "@/components/layout/top-bar";
 
 export default function DashboardLayout({
   children,
@@ -10,6 +11,7 @@ export default function DashboardLayout({
       <Sidebar />
       <main className="flex-1 p-8 overflow-auto" style={{ background: "var(--color-background)" }}>
         <div className="max-w-6xl">
+          <TopBar />
           {children}
         </div>
       </main>

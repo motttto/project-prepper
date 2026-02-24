@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import type { Project, InventoryItem, CostItem, Booking } from "@/types/database";
 import {
   IconProjects,
@@ -32,28 +33,38 @@ const statusDots: Record<Project["status"], string> = {
 export default function DashboardPage() {
   const supabase = createClient();
   const router = useRouter();
+  const currentUser = useCurrentUser();
   const [projects, setProjects] = useState<Project[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [costs, setCosts] = useState<CostItem[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [myProjectIds, setMyProjectIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
+  const isAdmin = currentUser?.roleName === "admin";
+
   const loadData = useCallback(async () => {
-    const [projectsRes, inventoryRes, costsRes, bookingsRes] =
+    const [projectsRes, inventoryRes, costsRes, bookingsRes, membersRes] =
       await Promise.all([
         supabase
           .from("projects")
           .select("*")
           .order("date_start", { ascending: false }),
         supabase.from("inventory_items").select("*"),
+        // RLS filtert automatisch: nur Kosten aus Projekten, an denen User Mitglied ist
         supabase.from("cost_items").select("*"),
         supabase.from("bookings").select("*").neq("status", "returned"),
+        // Meine Projekt-Mitgliedschaften laden
+        supabase.from("project_members").select("project_id"),
       ]);
 
     if (projectsRes.data) setProjects(projectsRes.data as Project[]);
     if (inventoryRes.data) setInventory(inventoryRes.data as InventoryItem[]);
     if (costsRes.data) setCosts(costsRes.data as CostItem[]);
     if (bookingsRes.data) setBookings(bookingsRes.data as Booking[]);
+    if (membersRes.data) {
+      setMyProjectIds(new Set(membersRes.data.map((m: { project_id: string }) => m.project_id)));
+    }
     setLoading(false);
   }, [supabase]);
 
@@ -78,6 +89,7 @@ export default function DashboardPage() {
   const activeProjects = projects.filter(
     (p) => p.status === "active" || p.status === "planning"
   );
+  // cost_items sind durch RLS bereits auf "meine" Projekte gefiltert
   const totalPlanned = costs.reduce(
     (sum, c) => sum + Number(c.amount_planned),
     0
@@ -86,8 +98,12 @@ export default function DashboardPage() {
     (sum, c) => sum + (c.amount_actual !== null ? Number(c.amount_actual) : 0),
     0
   );
+  const hasCostAccess = costs.length > 0 || isAdmin;
   const activeBookings = bookings.filter((b) => b.status !== "returned");
   const totalInventory = inventory.reduce((sum, i) => sum + i.quantity, 0);
+  const myActiveCount = activeProjects.filter(
+    (p) => isAdmin || myProjectIds.has(p.id)
+  ).length;
 
   // Nächste anstehende Projekte (planning/active, sortiert nach Startdatum)
   const upcomingProjects = projects
@@ -142,7 +158,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Budget */}
+        {/* Budget — nur sichtbar wenn User Kosten-Zugriff hat */}
         <div
           className="p-5 rounded-xl"
           style={{
@@ -162,12 +178,26 @@ export default function DashboardPage() {
               <IconCosts size={18} />
             </div>
           </div>
-          <div className="text-3xl font-bold">
-            {totalPlanned.toLocaleString("de-DE")} &euro;
-          </div>
-          <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-            Ist: {totalActual.toLocaleString("de-DE")} &euro;
-          </div>
+          {hasCostAccess ? (
+            <>
+              <div className="text-3xl font-bold">
+                {totalPlanned.toLocaleString("de-DE")} &euro;
+              </div>
+              <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                Ist: {totalActual.toLocaleString("de-DE")} &euro;
+                {!isAdmin && " · Meine Projekte"}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-lg font-medium" style={{ color: "var(--color-muted-foreground)" }}>
+                —
+              </div>
+              <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                Werde Projektmitglied um Kosten zu sehen
+              </div>
+            </>
+          )}
         </div>
 
         {/* Inventar */}
@@ -223,8 +253,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Budget-Warnung */}
-      {totalActual > totalPlanned && totalPlanned > 0 && (
+      {/* Budget-Warnung — nur bei Kosten-Zugriff */}
+      {hasCostAccess && totalActual > totalPlanned && totalPlanned > 0 && (
         <div
           className="p-4 rounded-xl mb-8 flex items-center gap-3"
           style={{
