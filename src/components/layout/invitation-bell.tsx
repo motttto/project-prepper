@@ -65,7 +65,7 @@ export function InvitationBell({ userId }: InvitationBellProps) {
 
       {open && (
         <div
-          className="absolute left-full ml-2 bottom-0 w-80 rounded-xl shadow-xl z-50 overflow-hidden"
+          className="absolute bottom-full mb-2 left-0 w-72 sm:w-80 rounded-xl shadow-xl z-50 overflow-hidden"
           style={{
             background: "var(--color-surface)",
             border: "1px solid var(--color-border)",
@@ -95,25 +95,25 @@ export function InvitationBell({ userId }: InvitationBellProps) {
                     Eingeladen von {inv.profiles?.name || "Unbekannt"} — als{" "}
                     {inv.role === "editor" ? "Bearbeiter" : "Betrachter"}
                   </p>
-                  <div className="flex gap-2 mt-2">
+                  <div className="flex gap-2 mt-3">
                     <button
                       onClick={() => handleAccept(inv.id, inv.project_id)}
                       disabled={processing === inv.id}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
                       style={{ background: "var(--color-primary)", color: "white" }}
                     >
-                      <IconCheck size={12} /> Annehmen
+                      <IconCheck size={14} /> Annehmen
                     </button>
                     <button
                       onClick={() => handleDecline(inv.id)}
                       disabled={processing === inv.id}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium disabled:opacity-50"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
                       style={{
                         border: "1px solid var(--color-border)",
                         color: "var(--color-text-muted)",
                       }}
                     >
-                      <IconX size={12} /> Ablehnen
+                      <IconX size={14} /> Ablehnen
                     </button>
                   </div>
                 </div>

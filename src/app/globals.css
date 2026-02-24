@@ -118,6 +118,14 @@ body {
   border-radius: var(--radius-sm);
 }
 
+/* Input Focus — subtile Border-Änderung */
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--color-primary) !important;
+  outline: none;
+}
+
 /* Animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }

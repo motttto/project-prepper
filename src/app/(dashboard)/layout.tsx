@@ -27,8 +27,10 @@ export default function DashboardLayout({
         className="flex-1 p-4 sm:p-6 lg:p-8 overflow-auto min-w-0"
         style={{ background: "var(--color-background)" }}
       >
-        <TopBar onMenuToggle={() => setSidebarOpen(true)} />
-        {children}
+        <div className="max-w-7xl mx-auto">
+          <TopBar onMenuToggle={() => setSidebarOpen(true)} />
+          {children}
+        </div>
       </main>
     </div>
   );

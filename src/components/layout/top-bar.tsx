@@ -107,11 +107,11 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
           }
           title="Profil bearbeiten"
         >
-          <div className="text-right hidden sm:block">
-            <div className="text-sm font-medium leading-tight">{userName}</div>
+          <div className="text-right">
+            <div className="text-sm font-medium leading-tight truncate max-w-[100px] sm:max-w-none">{userName}</div>
             {roleName && (
               <div
-                className="text-[10px] leading-tight"
+                className="text-[10px] leading-tight hidden sm:block"
                 style={{ color: "var(--color-muted-foreground)" }}
               >
                 {roleName === "admin"
@@ -146,7 +146,7 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
         </Link>
         <button
           onClick={handleLogout}
-          className="p-1.5 rounded-md transition-colors"
+          className="p-2 rounded-lg transition-colors"
           style={{ color: "var(--color-muted-foreground)" }}
           onMouseEnter={(e) => {
             e.currentTarget.style.background = "var(--color-muted)";
