@@ -265,7 +265,7 @@ export default function ProjectsPage() {
       )}
 
       {/* Search + Filter Bar */}
-      <div className="flex items-center gap-3 mb-5">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-5">
         {/* Search */}
         <div className="relative flex-1 max-w-sm">
           <IconSearch
@@ -293,7 +293,7 @@ export default function ProjectsPage() {
         </div>
 
         {/* Status Filter Tabs */}
-        <div className="flex gap-1 rounded-lg p-1" style={{ background: "var(--color-muted)" }}>
+        <div className="flex gap-1 rounded-lg p-1 overflow-x-auto" style={{ background: "var(--color-muted)" }}>
           {(["all", "planning", "active", "completed"] as StatusFilter[]).map((status) => (
             <button
               key={status}

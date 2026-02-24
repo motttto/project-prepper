@@ -207,43 +207,46 @@ export default function InventoryPage() {
   return (
     <div className="animate-fadeIn">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl font-bold">Inventar</h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
             {items.length} Artikel &middot; {totalQuantity} Teile gesamt
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={() => setShowImport(true)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
             style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
             onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
             onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
           >
             <IconUpload size={16} />
-            Excel-Import
+            <span className="hidden sm:inline">Excel-Import</span>
+            <span className="sm:hidden">Import</span>
           </button>
           <button
             onClick={handleExportXLS}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
             style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
             onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
             onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
           >
             <IconDownload size={16} />
-            Excel-Export
+            <span className="hidden sm:inline">Excel-Export</span>
+            <span className="sm:hidden">Export</span>
           </button>
           <button
             onClick={() => setShowCreate(!showCreate)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
             style={{ background: "var(--color-primary)" }}
             onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
             onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
           >
             <IconPlus size={16} />
-            Neuer Artikel
+            <span className="hidden sm:inline">Neuer Artikel</span>
+            <span className="sm:hidden">Neu</span>
           </button>
         </div>
       </div>
@@ -409,7 +412,8 @@ export default function InventoryPage() {
           className="rounded-xl overflow-hidden"
           style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)", boxShadow: "var(--shadow-sm)" }}
         >
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[800px]">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--color-border-light)" }}>
                 <th className="w-14 px-3 py-3"></th>
@@ -513,6 +517,7 @@ export default function InventoryPage() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

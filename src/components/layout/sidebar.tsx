@@ -11,6 +11,7 @@ import {
   IconCosts,
   IconUsers,
   IconZap,
+  IconX,
 } from "@/components/ui/icons";
 import { InvitationBell } from "@/components/layout/invitation-bell";
 
@@ -22,7 +23,12 @@ const navItems = [
   { href: "/costs", label: "Kosten", icon: IconCosts },
 ];
 
-export function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const supabase = createClient();
   const [userId, setUserId] = useState<string | undefined>();
@@ -67,38 +73,59 @@ export function Sidebar() {
     };
   }, [supabase]);
 
+  // Sidebar auf Mobile schließen bei Navigation
+  useEffect(() => {
+    if (onClose) onClose();
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
     <aside
-      className="w-[260px] min-h-screen flex flex-col"
+      className={`
+        fixed inset-y-0 left-0 z-50 w-[260px] min-h-screen flex flex-col
+        transform transition-transform duration-200 ease-in-out
+        lg:relative lg:translate-x-0 lg:z-auto
+        ${isOpen ? "translate-x-0" : "-translate-x-full"}
+      `}
       style={{ background: "var(--color-sidebar)" }}
     >
-      {/* Logo */}
-      <Link
-        href="/dashboard"
-        className="flex items-center gap-3 px-6 py-5 border-b"
+      {/* Logo + Close Button (mobile) */}
+      <div
+        className="flex items-center justify-between px-6 py-5 border-b"
         style={{ borderColor: "rgba(255,255,255,0.08)" }}
       >
-        <div
-          className="w-9 h-9 rounded-lg flex items-center justify-center"
-          style={{ background: "var(--color-sidebar-active)" }}
+        <Link
+          href="/dashboard"
+          className="flex items-center gap-3"
         >
-          <IconZap size={20} className="text-white" />
-        </div>
-        <div>
           <div
-            className="font-bold text-[15px]"
-            style={{ color: "var(--color-sidebar-text)" }}
+            className="w-9 h-9 rounded-lg flex items-center justify-center"
+            style={{ background: "var(--color-sidebar-active)" }}
           >
-            Dunkelstrom
+            <IconZap size={20} className="text-white" />
           </div>
-          <div
-            className="text-[11px] -mt-0.5"
-            style={{ color: "var(--color-sidebar-text-muted)" }}
-          >
-            Projektplanner
+          <div>
+            <div
+              className="font-bold text-[15px]"
+              style={{ color: "var(--color-sidebar-text)" }}
+            >
+              Dunkelstrom
+            </div>
+            <div
+              className="text-[11px] -mt-0.5"
+              style={{ color: "var(--color-sidebar-text-muted)" }}
+            >
+              Projektplanner
+            </div>
           </div>
-        </div>
-      </Link>
+        </Link>
+        <button
+          onClick={onClose}
+          className="lg:hidden p-1.5 rounded-md transition-colors"
+          style={{ color: "var(--color-sidebar-text-muted)" }}
+        >
+          <IconX size={20} />
+        </button>
+      </div>
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
