@@ -1,0 +1,444 @@
+"use client";
+
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
+import type { Project } from "@/types/database";
+import { IconPlus, IconSearch, IconX, IconChevronRight, IconTrash } from "@/components/ui/icons";
+
+const statusLabels: Record<Project["status"], string> = {
+  draft: "Entwurf",
+  planning: "Planung",
+  active: "Aktiv",
+  completed: "Abgeschlossen",
+  cancelled: "Abgebrochen",
+};
+
+const statusDots: Record<Project["status"], string> = {
+  draft: "#9ca3af",
+  planning: "#3b82f6",
+  active: "#10b981",
+  completed: "#6b7280",
+  cancelled: "#ef4444",
+};
+
+type StatusFilter = "all" | Project["status"];
+
+export default function ProjectsPage() {
+  const supabase = createClient();
+  const router = useRouter();
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+
+  // Formular-State
+  const [formName, setFormName] = useState("");
+  const [formDescription, setFormDescription] = useState("");
+  const [formDateStart, setFormDateStart] = useState("");
+  const [formDateEnd, setFormDateEnd] = useState("");
+  const [formStatus, setFormStatus] = useState<Project["status"]>("draft");
+  const [saving, setSaving] = useState(false);
+
+  const loadProjects = useCallback(async () => {
+    const { data } = await supabase
+      .from("projects")
+      .select("*")
+      .order("date_start", { ascending: false });
+    if (data) setProjects(data as Project[]);
+    setLoading(false);
+  }, [supabase]);
+
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  // Filtered & Grouped
+  const filtered = useMemo(() => {
+    let result = projects;
+    if (statusFilter !== "all") {
+      result = result.filter((p) => p.status === statusFilter);
+    }
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      result = result.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          p.description?.toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [projects, statusFilter, search]);
+
+  // Group by year
+  const grouped = useMemo(() => {
+    const groups: Record<string, Project[]> = {};
+    filtered.forEach((p) => {
+      const year = p.date_start
+        ? new Date(p.date_start).getFullYear().toString()
+        : "Ohne Datum";
+      if (!groups[year]) groups[year] = [];
+      groups[year].push(p);
+    });
+    // Sort years descending
+    return Object.entries(groups).sort(([a], [b]) => {
+      if (a === "Ohne Datum") return 1;
+      if (b === "Ohne Datum") return -1;
+      return Number(b) - Number(a);
+    });
+  }, [filtered]);
+
+  // Status counts
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: projects.length };
+    projects.forEach((p) => {
+      counts[p.status] = (counts[p.status] || 0) + 1;
+    });
+    return counts;
+  }, [projects]);
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    const { error } = await supabase.from("projects").insert({
+      name: formName,
+      description: formDescription || null,
+      date_start: formDateStart || null,
+      date_end: formDateEnd || null,
+      status: formStatus,
+      created_by: user?.id,
+    });
+
+    if (!error) {
+      setFormName("");
+      setFormDescription("");
+      setFormDateStart("");
+      setFormDateEnd("");
+      setFormStatus("draft");
+      setShowCreate(false);
+      loadProjects();
+    }
+    setSaving(false);
+  }
+
+  async function handleDelete(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    if (!confirm("Projekt wirklich löschen?")) return;
+    await supabase.from("projects").delete().eq("id", id);
+    loadProjects();
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-8 w-48 skeleton" />
+        <div className="h-10 skeleton rounded-lg" />
+        {[1, 2, 3, 4, 5].map((i) => (
+          <div key={i} className="h-16 skeleton rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="animate-fadeIn">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Projekte</h1>
+          <p className="text-sm mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
+            {projects.length} Projekte insgesamt
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreate(!showCreate)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
+          style={{ background: "var(--color-primary)" }}
+          onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
+        >
+          <IconPlus size={16} />
+          Neues Projekt
+        </button>
+      </div>
+
+      {/* Create Form */}
+      {showCreate && (
+        <div
+          className="mb-6 p-6 rounded-xl animate-slideDown"
+          style={{
+            background: "var(--color-surface)",
+            boxShadow: "var(--shadow-md)",
+            border: "1px solid var(--color-border)",
+          }}
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">Neues Projekt anlegen</h2>
+            <button onClick={() => setShowCreate(false)} style={{ color: "var(--color-muted-foreground)" }}>
+              <IconX size={20} />
+            </button>
+          </div>
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Name</label>
+              <input
+                type="text"
+                value={formName}
+                onChange={(e) => setFormName(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                placeholder="Projektname"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1.5">Beschreibung</label>
+              <textarea
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                rows={2}
+                placeholder="Kontakt, Equipment, Notizen..."
+              />
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Start</label>
+                <input
+                  type="date"
+                  value={formDateStart}
+                  onChange={(e) => setFormDateStart(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Ende</label>
+                <input
+                  type="date"
+                  value={formDateEnd}
+                  onChange={(e) => setFormDateEnd(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Status</label>
+                <select
+                  value={formStatus}
+                  onChange={(e) => setFormStatus(e.target.value as Project["status"])}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                >
+                  {Object.entries(statusLabels).map(([key, label]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                style={{ background: "var(--color-primary)" }}
+              >
+                {saving ? "Wird gespeichert..." : "Anlegen"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCreate(false)}
+                className="px-4 py-2 rounded-lg text-sm"
+                style={{ border: "1px solid var(--color-border)" }}
+              >
+                Abbrechen
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Search + Filter Bar */}
+      <div className="flex items-center gap-3 mb-5">
+        {/* Search */}
+        <div className="relative flex-1 max-w-sm">
+          <IconSearch
+            size={16}
+            className="absolute left-3 top-1/2 -translate-y-1/2"
+            style={{ color: "var(--color-muted-foreground)" } as React.CSSProperties}
+          />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Projekte suchen..."
+            className="w-full pl-9 pr-3 py-2 rounded-lg text-sm"
+            style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2"
+              style={{ color: "var(--color-muted-foreground)" }}
+            >
+              <IconX size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Status Filter Tabs */}
+        <div className="flex gap-1 rounded-lg p-1" style={{ background: "var(--color-muted)" }}>
+          {(["all", "planning", "active", "completed"] as StatusFilter[]).map((status) => (
+            <button
+              key={status}
+              onClick={() => setStatusFilter(status)}
+              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
+              style={{
+                background: statusFilter === status ? "var(--color-surface)" : "transparent",
+                boxShadow: statusFilter === status ? "var(--shadow-sm)" : "none",
+                color: statusFilter === status ? "var(--color-foreground)" : "var(--color-muted-foreground)",
+              }}
+            >
+              {status === "all" ? "Alle" : statusLabels[status]}
+              <span className="ml-1 opacity-60">
+                {statusCounts[status] || 0}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Project List */}
+      {filtered.length === 0 ? (
+        <div
+          className="text-center py-16 rounded-xl"
+          style={{ border: "2px dashed var(--color-border)", color: "var(--color-muted-foreground)" }}
+        >
+          <p className="text-lg mb-1">
+            {search ? "Keine Treffer" : "Noch keine Projekte"}
+          </p>
+          <p className="text-sm">
+            {search
+              ? `Keine Projekte für "${search}" gefunden`
+              : "Erstelle dein erstes Projekt mit dem Button oben."}
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {grouped.map(([year, yearProjects]) => (
+            <div key={year}>
+              {/* Year Header */}
+              <div className="flex items-center gap-3 mb-3">
+                <h3 className="text-sm font-semibold" style={{ color: "var(--color-muted-foreground)" }}>
+                  {year}
+                </h3>
+                <div className="flex-1 h-px" style={{ background: "var(--color-border-light)" }} />
+                <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                  {yearProjects.length} Projekte
+                </span>
+              </div>
+
+              {/* Project Cards */}
+              <div className="space-y-2">
+                {yearProjects.map((project) => (
+                  <div
+                    key={project.id}
+                    onClick={() => router.push(`/projects/${project.id}`)}
+                    className="flex items-center gap-4 px-4 py-3 rounded-xl cursor-pointer transition-all group"
+                    style={{
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-border-light)",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.borderColor = "var(--color-primary-muted)";
+                      e.currentTarget.style.boxShadow = "var(--shadow-sm)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.borderColor = "var(--color-border-light)";
+                      e.currentTarget.style.boxShadow = "none";
+                    }}
+                  >
+                    {/* Status Dot */}
+                    <div
+                      className="w-2.5 h-2.5 rounded-full shrink-0"
+                      style={{ background: statusDots[project.status] }}
+                    />
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm">{project.name}</div>
+                      {project.description && (
+                        <div
+                          className="text-xs truncate mt-0.5"
+                          style={{ color: "var(--color-muted-foreground)" }}
+                        >
+                          {project.description}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Date */}
+                    {project.date_start && (
+                      <div className="text-xs shrink-0" style={{ color: "var(--color-muted-foreground)" }}>
+                        {new Date(project.date_start).toLocaleDateString("de-DE", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                        {project.date_end && project.date_end !== project.date_start &&
+                          ` – ${new Date(project.date_end).toLocaleDateString("de-DE", {
+                            day: "numeric",
+                            month: "short",
+                          })}`}
+                      </div>
+                    )}
+
+                    {/* Status Badge */}
+                    <span
+                      className="text-[11px] px-2 py-0.5 rounded-full font-medium shrink-0"
+                      style={{
+                        background:
+                          project.status === "completed" ? "var(--color-muted)" :
+                          project.status === "active" ? "var(--color-success-light)" :
+                          project.status === "planning" ? "var(--color-info-light)" :
+                          project.status === "cancelled" ? "var(--color-destructive-light)" :
+                          "var(--color-muted)",
+                        color:
+                          project.status === "completed" ? "var(--color-muted-foreground)" :
+                          project.status === "active" ? "var(--color-success)" :
+                          project.status === "planning" ? "var(--color-info)" :
+                          project.status === "cancelled" ? "var(--color-destructive)" :
+                          "var(--color-muted-foreground)",
+                      }}
+                    >
+                      {statusLabels[project.status]}
+                    </span>
+
+                    {/* Delete + Arrow */}
+                    <button
+                      onClick={(e) => handleDelete(e, project.id)}
+                      className="opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity"
+                      style={{ color: "var(--color-destructive)" }}
+                      title="Löschen"
+                    >
+                      <IconTrash size={14} />
+                    </button>
+                    <IconChevronRight
+                      size={16}
+                      className="opacity-30 group-hover:opacity-60 transition-opacity shrink-0"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
