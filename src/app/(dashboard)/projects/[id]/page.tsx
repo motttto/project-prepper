@@ -19,7 +19,10 @@ import { usePresence } from "@/hooks/use-presence";
 import { useProjectRole } from "@/hooks/use-project-role";
 import { PresenceAvatars } from "@/components/ui/presence-avatars";
 import { ProjectMembersPanel } from "@/components/projects/project-members-panel";
-import { IconUsers } from "@/components/ui/icons";
+import { ProjectPartnersPanel } from "@/components/projects/project-partners-panel";
+import { useProjectOrgs } from "@/hooks/use-project-orgs";
+import { useOrg } from "@/contexts/org-context";
+import { IconUsers, IconHandshake } from "@/components/ui/icons";
 
 const statusLabels: Record<Project["status"], string> = {
   draft: "Entwurf",
@@ -39,10 +42,14 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
   const [showMembers, setShowMembers] = useState(false);
+  const [showPartners, setShowPartners] = useState(false);
 
   const currentUser = useCurrentUser();
+  const { orgId } = useOrg();
   const presenceUsers = usePresence({ projectId, currentUser });
   const { canViewCosts, isOwner, loading: roleLoading } = useProjectRole(projectId);
+  const { acceptedOrgs } = useProjectOrgs(projectId);
+  const partnerCount = acceptedOrgs.filter((o) => o.role === "partner").length;
 
   // Tabs dynamisch berechnen
   const tabs = useMemo(() => {
@@ -147,6 +154,26 @@ export default function ProjectDetailPage() {
         <div className="flex items-center gap-3">
           <PresenceAvatars users={presenceUsers} currentUserId={currentUser?.id} />
           <button
+            onClick={() => setShowPartners(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm"
+            style={{
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text-muted)",
+            }}
+            title="Partner-Organisationen"
+          >
+            <IconHandshake size={16} />
+            Partner
+            {partnerCount > 0 && (
+              <span
+                className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}
+              >
+                {partnerCount}
+              </span>
+            )}
+          </button>
+          <button
             onClick={() => setShowMembers(true)}
             className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm"
             style={{
@@ -177,7 +204,7 @@ export default function ProjectDetailPage() {
         <TabSchedule projectId={projectId} project={project} />
       )}
       {activeTab === "equipment" && (
-        <TabEquipment projectId={projectId} project={project} />
+        <TabEquipment projectId={projectId} project={project} currentOrgId={orgId} />
       )}
       {activeTab === "team" && (
         <TabTeam projectId={projectId} />
@@ -194,6 +221,14 @@ export default function ProjectDetailPage() {
       {activeTab === "tasks" && (
         <TabTasks projectId={projectId} />
       )}
+
+      {/* Partner-Panel */}
+      <ProjectPartnersPanel
+        projectId={projectId}
+        isOwner={isOwner}
+        show={showPartners}
+        onClose={() => setShowPartners(false)}
+      />
 
       {/* Mitglieder-Panel */}
       <ProjectMembersPanel

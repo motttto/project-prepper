@@ -14,7 +14,9 @@ import {
   IconX,
 } from "@/components/ui/icons";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
+import { InvitationBell } from "@/components/layout/invitation-bell";
 import { useOrg } from "@/contexts/org-context";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 const navItems = [
   { href: "/team", label: "Team", icon: IconUsers },
@@ -34,6 +36,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const supabase = createClient();
   const [pendingCount, setPendingCount] = useState(0);
   const { orgId } = useOrg();
+  const currentUser = useCurrentUser();
 
   useEffect(() => {
     if (!orgId) return;
@@ -181,6 +184,13 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         })}
       </nav>
 
+      {/* Benachrichtigungen */}
+      <div
+        className="px-4 py-3"
+        style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
+      >
+        <InvitationBell userId={currentUser?.id} orgId={orgId} />
+      </div>
     </aside>
   );
 }

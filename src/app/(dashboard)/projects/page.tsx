@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import type { Project } from "@/types/database";
-import { IconPlus, IconSearch, IconX, IconChevronRight, IconTrash } from "@/components/ui/icons";
+import { IconPlus, IconSearch, IconX, IconChevronRight, IconTrash, IconHandshake } from "@/components/ui/icons";
+import { DateInput } from "@/components/ui/date-input";
 
 const statusLabels: Record<Project["status"], string> = {
   draft: "Entwurf",
@@ -29,7 +30,7 @@ export default function ProjectsPage() {
   const supabase = createClient();
   const router = useRouter();
   const { orgId } = useOrg();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<(Project & { isPartner?: boolean })[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
@@ -45,12 +46,44 @@ export default function ProjectsPage() {
 
   const loadProjects = useCallback(async () => {
     if (!orgId) return;
-    const { data } = await supabase
+
+    // 1. Eigene Projekte laden
+    const { data: ownData } = await supabase
       .from("projects")
       .select("*")
       .eq("org_id", orgId)
       .order("date_start", { ascending: false });
-    if (data) setProjects(data as Project[]);
+
+    const ownProjects = (ownData || []).map((p) => ({ ...p, isPartner: false }));
+    const ownIds = new Set(ownProjects.map((p) => p.id));
+
+    // 2. Partner-Projekte laden (wo unsere Org eingeladen und accepted ist)
+    const { data: partnerOrgs } = await supabase
+      .from("project_orgs")
+      .select("project_id")
+      .eq("org_id", orgId)
+      .eq("status", "accepted")
+      .neq("role", "creator");
+
+    const partnerIds = (partnerOrgs || [])
+      .map((po) => po.project_id)
+      .filter((id) => !ownIds.has(id));
+
+    let partnerProjects: (Project & { isPartner: boolean })[] = [];
+    if (partnerIds.length > 0) {
+      const { data: partnerData } = await supabase
+        .from("projects")
+        .select("*")
+        .in("id", partnerIds)
+        .order("date_start", { ascending: false });
+      partnerProjects = (partnerData || []).map((p) => ({
+        ...(p as Project),
+        isPartner: true,
+      }));
+    }
+
+    // 3. Merge
+    setProjects([...ownProjects, ...partnerProjects] as (Project & { isPartner?: boolean })[]);
     setLoading(false);
   }, [supabase, orgId]);
 
@@ -215,22 +248,16 @@ export default function ProjectsPage() {
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium mb-1.5">Start</label>
-                <input
-                  type="date"
+                <DateInput
                   value={formDateStart}
-                  onChange={(e) => setFormDateStart(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                  onChange={setFormDateStart}
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1.5">Ende</label>
-                <input
-                  type="date"
+                <DateInput
                   value={formDateEnd}
-                  onChange={(e) => setFormDateEnd(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                  onChange={setFormDateEnd}
                 />
               </div>
               <div>
@@ -377,7 +404,18 @@ export default function ProjectsPage() {
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm">{project.name}</div>
+                      <div className="font-medium text-sm flex items-center gap-2">
+                        {project.name}
+                        {(project as Project & { isPartner?: boolean }).isPartner && (
+                          <span
+                            className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium"
+                            style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}
+                          >
+                            <IconHandshake size={10} />
+                            Partner
+                          </span>
+                        )}
+                      </div>
                       {project.description && (
                         <div
                           className="text-sm truncate mt-0.5"

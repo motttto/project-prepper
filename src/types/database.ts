@@ -80,6 +80,8 @@ export type InventoryItem = {
   created_at: string;
 };
 
+export type BookingApprovalStatus = "pending" | "approved" | "rejected";
+
 export type Booking = {
   id: string;
   project_id: string;
@@ -89,6 +91,13 @@ export type Booking = {
   date_to: string;
   status: "reserved" | "checked_out" | "returned";
   notes: string | null;
+  // Approval-Workflow (Cross-Org)
+  requested_by: string | null;
+  approval_status: BookingApprovalStatus;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
+  source_org_id: string | null;
   created_at: string;
 };
 
@@ -259,6 +268,24 @@ export type Organization = {
 };
 
 export type OrgRoleName = "admin" | "manager" | "member";
+
+// === Cross-Org Collaboration ===
+
+export type ProjectOrgRole = "creator" | "partner";
+export type ProjectOrgStatus = "pending" | "accepted" | "declined" | "removed";
+
+export type ProjectOrg = {
+  id: string;
+  project_id: string;
+  org_id: string;
+  role: ProjectOrgRole;
+  status: ProjectOrgStatus;
+  invited_by: string | null;
+  responded_at: string | null;
+  created_at: string;
+  // Joined data
+  organizations?: { name: string; slug: string; logo_url: string | null };
+};
 
 export type OrgMembership = {
   id: string;

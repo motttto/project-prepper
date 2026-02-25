@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import type { Project, ScheduleEntry } from "@/types/database";
 import { IconPlus, IconTrash } from "@/components/ui/icons";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
+import { DateInput } from "@/components/ui/date-input";
 
 interface TabScheduleProps {
   projectId: string;
@@ -215,15 +216,9 @@ export function TabSchedule({ projectId, project }: TabScheduleProps) {
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1">Datum *</label>
-                <input
-                  type="date"
+                <DateInput
                   value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={{
-                    border: "1px solid var(--color-border)",
-                    background: "var(--color-background)",
-                  }}
+                  onChange={setFormDate}
                   required
                 />
               </div>

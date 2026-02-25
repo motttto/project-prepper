@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import type { ProjectTask, TaskStatus, TaskPriority } from "@/types/database";
 import { IconPlus, IconX, IconTrash, IconEdit, IconCheck } from "@/components/ui/icons";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
+import { DateInput } from "@/components/ui/date-input";
 
 const statusStyles: Record<TaskStatus, { bg: string; color: string; label: string }> = {
   todo: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)", label: "Offen" },
@@ -304,12 +305,9 @@ export function TabTasks({ projectId }: TabTasksProps) {
                 <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>
                   Fällig bis
                 </label>
-                <input
-                  type="date"
+                <DateInput
                   value={formDueDate}
-                  onChange={(e) => setFormDueDate(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg text-sm"
-                  style={inputStyle}
+                  onChange={setFormDueDate}
                 />
               </div>
             </div>
@@ -437,12 +435,9 @@ export function TabTasks({ projectId }: TabTasksProps) {
                         <option key={m.id} value={m.id}>{m.name}</option>
                       ))}
                     </select>
-                    <input
-                      type="date"
+                    <DateInput
                       value={editDueDate}
-                      onChange={(e) => setEditDueDate(e.target.value)}
-                      className="px-3 py-2 rounded-lg text-sm"
-                      style={inputStyle}
+                      onChange={setEditDueDate}
                     />
                   </div>
                   <div className="flex gap-2">

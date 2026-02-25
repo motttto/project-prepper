@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { IconEdit, IconSave } from "@/components/ui/icons";
+import { DateInput } from "@/components/ui/date-input";
 import type { Project } from "@/types/database";
 
 interface TabOverviewProps {
@@ -192,6 +193,17 @@ export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget
     field: keyof Project;
     type?: string;
   }) {
+    if (type === "date") {
+      return (
+        <div>
+          <FieldLabel>{label}</FieldLabel>
+          <DateInput
+            value={(form[field] as string) ?? ""}
+            onChange={(val) => updateField(field, val || null)}
+          />
+        </div>
+      );
+    }
     return (
       <div>
         <FieldLabel>{label}</FieldLabel>

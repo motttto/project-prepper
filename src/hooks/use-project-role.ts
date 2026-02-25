@@ -58,9 +58,20 @@ export function useProjectRole(projectId: string): UseProjectRoleResult {
         ? rolesRaw[0] ?? null
         : rolesRaw ?? null;
       if (orgRole?.name === "admin") {
-        setRole("admin");
-        setLoading(false);
-        return;
+        // Prüfe ob die Org direkt das Projekt besitzt ODER ein akzeptierter Partner ist
+        const { data: projectOrg } = await supabase
+          .from("project_orgs")
+          .select("id")
+          .eq("project_id", projectId)
+          .eq("org_id", orgId)
+          .eq("status", "accepted")
+          .maybeSingle();
+
+        if (projectOrg) {
+          setRole("admin");
+          setLoading(false);
+          return;
+        }
       }
     }
 

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import type { InventoryItem } from "@/types/database";
 import { IconX, IconSave } from "@/components/ui/icons";
+import { DateInput } from "@/components/ui/date-input";
 import { InventoryImageUpload } from "@/components/inventory/inventory-image-upload";
 
 const conditionLabels: Record<InventoryItem["condition"], string> = {
@@ -342,12 +343,9 @@ export function InventoryDetailModal({
                 style={{ color: "var(--color-muted-foreground)" }}>
                 Anschaffungsdatum
               </label>
-              <input
-                type="date"
+              <DateInput
                 value={purchasedAt}
-                onChange={(e) => setPurchasedAt(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={inputStyle}
+                onChange={setPurchasedAt}
               />
             </div>
           </div>
