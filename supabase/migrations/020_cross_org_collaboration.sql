@@ -1,16 +1,18 @@
--- ── Migration 020: Cross-Org Collaboration ──────────────────────────────────
+-- ── Migration 020: Cross-Org Collaboration (IDEMPOTENT) ─────────────────────
 -- Ermöglicht Freelancer-Collaboration: Mehrere Orgs können als Partner an
 -- einem Projekt teilnehmen und gegenseitig Equipment buchen (mit Genehmigung).
 --
 -- Neue Tabelle: project_orgs (Projekt ↔ Org Zuordnung)
 -- Neue Spalten: bookings bekommt Approval-Workflow
 -- RLS-Updates: Cross-Org Zugriff auf Projekte + Inventar + Kind-Tabellen
+--
+-- HINWEIS: Diese Migration ist idempotent und kann mehrfach ausgeführt werden.
 
 -- ============================================================================
 -- 1. NEUE TABELLE: project_orgs
 -- ============================================================================
 
-CREATE TABLE public.project_orgs (
+CREATE TABLE IF NOT EXISTS public.project_orgs (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   project_id uuid REFERENCES public.projects(id) ON DELETE CASCADE NOT NULL,
   org_id uuid REFERENCES public.organizations(id) ON DELETE CASCADE NOT NULL,
@@ -24,9 +26,9 @@ CREATE TABLE public.project_orgs (
   UNIQUE(project_id, org_id)
 );
 
-CREATE INDEX idx_project_orgs_project ON public.project_orgs(project_id);
-CREATE INDEX idx_project_orgs_org ON public.project_orgs(org_id);
-CREATE INDEX idx_project_orgs_status ON public.project_orgs(project_id, status);
+CREATE INDEX IF NOT EXISTS idx_project_orgs_project ON public.project_orgs(project_id);
+CREATE INDEX IF NOT EXISTS idx_project_orgs_org ON public.project_orgs(org_id);
+CREATE INDEX IF NOT EXISTS idx_project_orgs_status ON public.project_orgs(project_id, status);
 ALTER TABLE public.project_orgs ENABLE ROW LEVEL SECURITY;
 
 -- ============================================================================
@@ -43,6 +45,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_project_created_add_org ON public.projects;
 CREATE TRIGGER on_project_created_add_org
   AFTER INSERT ON public.projects
   FOR EACH ROW EXECUTE PROCEDURE public.handle_new_project_org();
@@ -60,16 +63,25 @@ ON CONFLICT (project_id, org_id) DO NOTHING;
 -- 4. BOOKING APPROVAL SPALTEN
 -- ============================================================================
 
-ALTER TABLE public.bookings ADD COLUMN requested_by uuid REFERENCES public.profiles(id);
-ALTER TABLE public.bookings ADD COLUMN approval_status text NOT NULL DEFAULT 'approved'
-  CHECK (approval_status IN ('pending', 'approved', 'rejected'));
-ALTER TABLE public.bookings ADD COLUMN approved_by uuid REFERENCES public.profiles(id);
-ALTER TABLE public.bookings ADD COLUMN approved_at timestamptz;
-ALTER TABLE public.bookings ADD COLUMN rejection_reason text;
-ALTER TABLE public.bookings ADD COLUMN source_org_id uuid REFERENCES public.organizations(id);
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS requested_by uuid REFERENCES public.profiles(id);
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS approval_status text DEFAULT 'approved';
+-- CHECK Constraint separat (idempotent via DO block)
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.check_constraints
+    WHERE constraint_name = 'bookings_approval_status_check'
+  ) THEN
+    ALTER TABLE public.bookings ADD CONSTRAINT bookings_approval_status_check
+      CHECK (approval_status IN ('pending', 'approved', 'rejected'));
+  END IF;
+END $$;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS approved_by uuid REFERENCES public.profiles(id);
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS approved_at timestamptz;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS rejection_reason text;
+ALTER TABLE public.bookings ADD COLUMN IF NOT EXISTS source_org_id uuid REFERENCES public.organizations(id);
 
-CREATE INDEX idx_bookings_approval ON public.bookings(approval_status);
-CREATE INDEX idx_bookings_source_org ON public.bookings(source_org_id);
+CREATE INDEX IF NOT EXISTS idx_bookings_approval ON public.bookings(approval_status);
+CREATE INDEX IF NOT EXISTS idx_bookings_source_org ON public.bookings(source_org_id);
 
 -- ============================================================================
 -- 5. HELPER-FUNKTIONEN
@@ -111,6 +123,7 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 -- ============================================================================
 
 -- SELECT: Sichtbar für alle Projekt-Beteiligten (eigene Org ODER akzeptierter Partner)
+DROP POLICY IF EXISTS "project_orgs_select" ON public.project_orgs;
 CREATE POLICY "project_orgs_select" ON public.project_orgs
   FOR SELECT TO authenticated
   USING (
@@ -119,6 +132,7 @@ CREATE POLICY "project_orgs_select" ON public.project_orgs
   );
 
 -- INSERT: Nur Projekt-Owner oder Org-Admin der Creator-Org
+DROP POLICY IF EXISTS "project_orgs_insert" ON public.project_orgs;
 CREATE POLICY "project_orgs_insert" ON public.project_orgs
   FOR INSERT TO authenticated
   WITH CHECK (
@@ -139,6 +153,7 @@ CREATE POLICY "project_orgs_insert" ON public.project_orgs
   );
 
 -- UPDATE: Eingeladene Org kann annehmen/ablehnen (Mitglied der eingeladenen Org)
+DROP POLICY IF EXISTS "project_orgs_update" ON public.project_orgs;
 CREATE POLICY "project_orgs_update" ON public.project_orgs
   FOR UPDATE TO authenticated
   USING (
@@ -147,6 +162,7 @@ CREATE POLICY "project_orgs_update" ON public.project_orgs
   );
 
 -- DELETE: Creator-Org Owner/Admin
+DROP POLICY IF EXISTS "project_orgs_delete" ON public.project_orgs;
 CREATE POLICY "project_orgs_delete" ON public.project_orgs
   FOR DELETE TO authenticated
   USING (
@@ -186,6 +202,7 @@ CREATE POLICY "projects_select" ON public.projects
 
 -- Bestehende inventory_select bleibt (eigene Org sieht alles)
 -- Neue Policy: Partner-Org Inventar sichtbar wenn beide Orgs in einem Projekt sind
+DROP POLICY IF EXISTS "inventory_select_cross_org" ON public.inventory_items;
 CREATE POLICY "inventory_select_cross_org" ON public.inventory_items
   FOR SELECT TO authenticated
   USING (
@@ -606,6 +623,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS on_project_org_status_change ON public.project_orgs;
 CREATE TRIGGER on_project_org_status_change
   AFTER UPDATE ON public.project_orgs
   FOR EACH ROW
@@ -616,7 +634,12 @@ CREATE TRIGGER on_project_org_status_change
 -- 13. REALTIME
 -- ============================================================================
 
-ALTER PUBLICATION supabase_realtime ADD TABLE public.project_orgs;
+-- Idempotent: ignoriert Fehler wenn Table schon in Publication ist
+DO $$ BEGIN
+  ALTER PUBLICATION supabase_realtime ADD TABLE public.project_orgs;
+EXCEPTION WHEN duplicate_object THEN
+  NULL;
+END $$;
 
 -- ============================================================================
 -- 14. FERTIG
