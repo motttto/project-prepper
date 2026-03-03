@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOrg } from "@/contexts/org-context";
-import type { Project, InventoryItem, CostItem, Booking } from "@/types/database";
+import type { Project, InventoryItem, CostItem, Booking, ProjectTask, Inquiry } from "@/types/database";
 import {
   IconProjects,
   IconCosts,
@@ -13,7 +13,11 @@ import {
   IconActivity,
   IconChevronRight,
   IconTrendingUp,
+  IconClipboardCheck,
+  IconClock,
+  IconInbox,
 } from "@/components/ui/icons";
+import { DashboardCard } from "@/components/dashboard/dashboard-card";
 
 const statusLabels: Record<Project["status"], string> = {
   draft: "Entwurf",
@@ -40,6 +44,8 @@ export default function DashboardPage() {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [costs, setCosts] = useState<CostItem[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [tasks, setTasks] = useState<ProjectTask[]>([]);
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [myProjectIds, setMyProjectIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +53,7 @@ export default function DashboardPage() {
 
   const loadData = useCallback(async () => {
     if (!orgId) return;
-    const [projectsRes, inventoryRes, costsRes, bookingsRes, membersRes] =
+    const [projectsRes, inventoryRes, costsRes, bookingsRes, membersRes, tasksRes, inquiriesRes] =
       await Promise.all([
         supabase
           .from("projects")
@@ -60,12 +66,22 @@ export default function DashboardPage() {
         supabase.from("bookings").select("*").neq("status", "returned"),
         // Meine Projekt-Mitgliedschaften laden
         supabase.from("project_members").select("project_id"),
+        // Alle offenen Aufgaben laden (todo + in_progress)
+        supabase.from("project_tasks").select("id, status, due_date, project_id").neq("status", "done"),
+        // Offene Anfragen laden
+        supabase
+          .from("inquiries")
+          .select("id, status, offer_amount")
+          .eq("org_id", orgId)
+          .not("status", "in", '("accepted","rejected","archived")'),
       ]);
 
     if (projectsRes.data) setProjects(projectsRes.data as Project[]);
     if (inventoryRes.data) setInventory(inventoryRes.data as InventoryItem[]);
     if (costsRes.data) setCosts(costsRes.data as CostItem[]);
     if (bookingsRes.data) setBookings(bookingsRes.data as Booking[]);
+    if (tasksRes.data) setTasks(tasksRes.data as ProjectTask[]);
+    if (inquiriesRes.data) setInquiries(inquiriesRes.data as Inquiry[]);
     if (membersRes.data) {
       setMyProjectIds(new Set(membersRes.data.map((m: { project_id: string }) => m.project_id)));
     }
@@ -80,8 +96,8 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6">
         <div className="h-8 w-48 skeleton" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 sm:gap-5">
+          {[1, 2, 3, 4, 5, 6, 7].map((i) => (
             <div key={i} className="h-32 skeleton rounded-xl" />
           ))}
         </div>
@@ -105,9 +121,21 @@ export default function DashboardPage() {
   const hasCostAccess = costs.length > 0 || isAdmin;
   const activeBookings = bookings.filter((b) => b.status !== "returned");
   const totalInventory = inventory.reduce((sum, i) => sum + i.quantity, 0);
-  const myActiveCount = activeProjects.filter(
-    (p) => isAdmin || myProjectIds.has(p.id)
-  ).length;
+
+  // Org-Projekt-IDs für Task-Filterung
+  const orgProjectIds = new Set(projects.map((p) => p.id));
+  const orgTasks = tasks.filter((t) => orgProjectIds.has(t.project_id));
+  const openTaskCount = orgTasks.length;
+  const inProgressCount = orgTasks.filter((t) => t.status === "in_progress").length;
+
+  // Überfällige Aufgaben: due_date < heute & Status != done
+  const today = new Date().toISOString().split("T")[0];
+  const overdueTasks = orgTasks.filter((t) => t.due_date && t.due_date < today);
+  const overdueCount = overdueTasks.length;
+
+  // Anfragen-Statistiken
+  const openInquiryCount = inquiries.length;
+  const inquiriesWithOffer = inquiries.filter((i) => i.status === "offer_sent").length;
 
   // Nächste anstehende Projekte (planning/active, sortiert nach Startdatum)
   const upcomingProjects = projects
@@ -130,131 +158,94 @@ export default function DashboardPage() {
       <div className="mb-8">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-          Willkommen bei Dunkelstrom Projektplanner
+          Willkommen bei Project Prepper
         </p>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5 mb-8">
-        {/* Aktive Projekte */}
-        <div
-          className="p-5 rounded-xl"
-          style={{
-            background: "var(--color-surface)",
-            boxShadow: "var(--shadow-sm)",
-            border: "1px solid var(--color-border-light)",
-          }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium" style={{ color: "var(--color-muted-foreground)" }}>
-              Aktive Projekte
-            </span>
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center"
-              style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}
-            >
-              <IconProjects size={18} />
-            </div>
-          </div>
-          <div className="text-3xl font-bold">{activeProjects.length}</div>
-          <div className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-            von {projects.length} gesamt
-          </div>
-        </div>
+      {/* KPI Cards — 7 klickbare Kacheln */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 sm:gap-5 mb-8">
+        {/* 1. Aktive Projekte */}
+        <DashboardCard
+          label="Aktive Projekte"
+          value={activeProjects.length}
+          subtext={`von ${projects.length} gesamt`}
+          icon={<IconProjects size={18} />}
+          iconBg="var(--color-primary-light)"
+          iconColor="var(--color-primary)"
+          href="/projects"
+        />
 
-        {/* Budget — nur sichtbar wenn User Kosten-Zugriff hat */}
-        <div
-          className="p-5 rounded-xl"
-          style={{
-            background: "var(--color-surface)",
-            boxShadow: "var(--shadow-sm)",
-            border: "1px solid var(--color-border-light)",
-          }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium" style={{ color: "var(--color-muted-foreground)" }}>
-              Budget (Soll)
-            </span>
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center"
-              style={{ background: "var(--color-success-light)", color: "var(--color-success)" }}
-            >
-              <IconCosts size={18} />
-            </div>
-          </div>
-          {hasCostAccess ? (
-            <>
-              <div className="text-3xl font-bold">
-                {totalPlanned.toLocaleString("de-DE")} &euro;
-              </div>
-              <div className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-                Ist: {totalActual.toLocaleString("de-DE")} &euro;
-                {!isAdmin && " · Meine Projekte"}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="text-lg font-medium" style={{ color: "var(--color-muted-foreground)" }}>
-                —
-              </div>
-              <div className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-                Werde Projektmitglied um Kosten zu sehen
-              </div>
-            </>
-          )}
-        </div>
+        {/* 2. Budget (Soll) */}
+        <DashboardCard
+          label="Budget (Soll)"
+          value={hasCostAccess ? `${totalPlanned.toLocaleString("de-DE")} €` : "—"}
+          subtext={
+            hasCostAccess
+              ? `Ist: ${totalActual.toLocaleString("de-DE")} €${!isAdmin ? " · Meine Projekte" : ""}`
+              : "Werde Projektmitglied"
+          }
+          icon={<IconCosts size={18} />}
+          iconBg="var(--color-success-light)"
+          iconColor="var(--color-success)"
+          href={hasCostAccess ? "/costs" : undefined}
+          disabled={!hasCostAccess}
+        />
 
-        {/* Inventar */}
-        <div
-          className="p-5 rounded-xl"
-          style={{
-            background: "var(--color-surface)",
-            boxShadow: "var(--shadow-sm)",
-            border: "1px solid var(--color-border-light)",
-          }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium" style={{ color: "var(--color-muted-foreground)" }}>
-              Inventar
-            </span>
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center"
-              style={{ background: "var(--color-warning-light)", color: "var(--color-warning)" }}
-            >
-              <IconPackage size={18} />
-            </div>
-          </div>
-          <div className="text-3xl font-bold">{inventory.length}</div>
-          <div className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-            {totalInventory} Teile gesamt
-          </div>
-        </div>
+        {/* 3. Inventar */}
+        <DashboardCard
+          label="Inventar"
+          value={inventory.length}
+          subtext={`${totalInventory} Teile gesamt`}
+          icon={<IconPackage size={18} />}
+          iconBg="var(--color-warning-light)"
+          iconColor="var(--color-warning)"
+          href="/inventory"
+        />
 
-        {/* Buchungen */}
-        <div
-          className="p-5 rounded-xl"
-          style={{
-            background: "var(--color-surface)",
-            boxShadow: "var(--shadow-sm)",
-            border: "1px solid var(--color-border-light)",
-          }}
-        >
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm font-medium" style={{ color: "var(--color-muted-foreground)" }}>
-              Aktive Buchungen
-            </span>
-            <div
-              className="w-9 h-9 rounded-lg flex items-center justify-center"
-              style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}
-            >
-              <IconActivity size={18} />
-            </div>
-          </div>
-          <div className="text-3xl font-bold">{activeBookings.length}</div>
-          <div className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-            Equipment unterwegs
-          </div>
-        </div>
+        {/* 4. Aktive Ausleihen */}
+        <DashboardCard
+          label="Aktive Ausleihen"
+          value={activeBookings.length}
+          subtext="Equipment ausgeliehen"
+          icon={<IconActivity size={18} />}
+          iconBg="var(--color-info-light)"
+          iconColor="var(--color-info)"
+          href="/inventory"
+        />
+
+        {/* 5. Offene Aufgaben */}
+        <DashboardCard
+          label="Offene Aufgaben"
+          value={openTaskCount}
+          subtext={`${inProgressCount} in Arbeit`}
+          icon={<IconClipboardCheck size={18} />}
+          iconBg="var(--color-primary-light)"
+          iconColor="var(--color-primary)"
+          href="/projects"
+        />
+
+        {/* 6. Überfällig */}
+        <DashboardCard
+          label="Überfällig"
+          value={overdueCount}
+          subtext="Aufgaben überfällig"
+          icon={<IconClock size={18} />}
+          iconBg="var(--color-destructive-light)"
+          iconColor="var(--color-destructive)"
+          href="/projects"
+          urgent={overdueCount > 0}
+        />
+
+        {/* 7. Offene Anfragen */}
+        <DashboardCard
+          label="Offene Anfragen"
+          value={openInquiryCount}
+          subtext={`${inquiriesWithOffer} mit Angebot`}
+          icon={<IconInbox size={18} />}
+          iconBg="var(--color-primary-light)"
+          iconColor="var(--color-primary)"
+          href="/inquiries"
+        />
       </div>
 
       {/* Budget-Warnung — nur bei Kosten-Zugriff */}
