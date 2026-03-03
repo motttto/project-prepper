@@ -13,7 +13,16 @@ Erstelle eine neue SQL-Migration für das Projekt.
    - Realtime aktivieren: `ALTER PUBLICATION supabase_realtime ADD TABLE new_table;`
    - Trigger für `updated_at` falls nötig
 4. Zeige die fertige Migration und frage ob sie passt
-5. Erinnere den User daran, `types/database.ts` zu aktualisieren (oder schlage `/db-types` vor)
+5. Führe die Migration auf Supabase aus:
+   ```bash
+   npx supabase db push
+   ```
+   Falls `db push` fehlschlägt, Fallback via Management API:
+   ```bash
+   TOKEN=$(security find-generic-password -s "Supabase CLI" -w | sed 's/go-keyring-base64://' | base64 -d)
+   node -e "const sql=require('fs').readFileSync('MIGRATION_FILE','utf8'); fetch('https://api.supabase.com/v1/projects/wiywvuurxzkctvpwkncj/database/query',{method:'POST',headers:{'Authorization':'Bearer TOKEN','Content-Type':'application/json'},body:JSON.stringify({query:sql})}).then(r=>r.text().then(t=>console.log('HTTP',r.status,t)))"
+   ```
+6. Erinnere den User daran, `types/database.ts` zu aktualisieren (oder schlage `/db-types` vor)
 
 ## Konventionen
 - Tabellennamen: snake_case, Plural
