@@ -3,12 +3,26 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
-import type { InventoryItem } from "@/types/database";
-import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage } from "@/components/ui/icons";
+import type { InventoryItem, Booking } from "@/types/database";
+import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity } from "@/components/ui/icons";
 import { ExcelImport } from "@/components/inventory/excel-import";
 import { InventoryDetailModal } from "@/components/inventory/inventory-detail-modal";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import * as XLSX from "xlsx";
+
+// Booking-Info pro Inventar-Artikel (aggregiert)
+interface BookingInfo {
+  bookingId: string;
+  projectName: string;
+  quantity: number;
+  status: string;
+  dateFrom: string;
+  dateTo: string;
+}
+interface ItemBookingData {
+  bookedQty: number;
+  bookings: BookingInfo[];
+}
 
 const conditionLabels: Record<InventoryItem["condition"], string> = {
   new: "Neu",
@@ -46,8 +60,10 @@ export default function InventoryPage() {
   const supabase = createClient();
   const { orgId } = useOrg();
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [bookingMap, setBookingMap] = useState<Map<string, ItemBookingData>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
+  const [loanFilter, setLoanFilter] = useState(false);
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [showImport, setShowImport] = useState(false);
@@ -83,13 +99,51 @@ export default function InventoryPage() {
 
   const loadItems = useCallback(async () => {
     if (!orgId) return;
-    const { data } = await supabase
-      .from("inventory_items")
-      .select("*")
-      .eq("org_id", orgId)
-      .order("category")
-      .order("name");
-    if (data) setItems(data as InventoryItem[]);
+    const [itemsRes, bookingsRes] = await Promise.all([
+      supabase
+        .from("inventory_items")
+        .select("*")
+        .eq("org_id", orgId)
+        .order("category")
+        .order("name"),
+      // Aktive Buchungen laden (reserved oder checked_out)
+      supabase
+        .from("bookings")
+        .select("id, inventory_item_id, quantity, status, date_from, date_to, projects(name)")
+        .in("status", ["reserved", "checked_out"]),
+    ]);
+
+    if (itemsRes.data) setItems(itemsRes.data as InventoryItem[]);
+
+    // Booking-Map aufbauen: itemId → { bookedQty, bookings[] }
+    if (bookingsRes.data) {
+      const today = new Date().toISOString().split("T")[0];
+      const map = new Map<string, ItemBookingData>();
+
+      for (const b of bookingsRes.data) {
+        // Nur Buchungen zählen die heute aktiv sind ODER status=checked_out
+        const isCheckedOut = b.status === "checked_out";
+        const isInDateRange = b.date_from <= today && b.date_to >= today;
+        if (!isCheckedOut && !isInDateRange) continue;
+
+        const itemId = b.inventory_item_id;
+        const proj = b.projects as unknown as { name: string } | { name: string }[] | null;
+        const projectName = Array.isArray(proj) ? proj[0]?.name : proj?.name || "Unbekannt";
+        const existing = map.get(itemId) || { bookedQty: 0, bookings: [] };
+        existing.bookedQty += b.quantity;
+        existing.bookings.push({
+          bookingId: b.id,
+          projectName,
+          quantity: b.quantity,
+          status: b.status,
+          dateFrom: b.date_from,
+          dateTo: b.date_to,
+        });
+        map.set(itemId, existing);
+      }
+      setBookingMap(map);
+    }
+
     setLoading(false);
   }, [supabase, orgId]);
 
@@ -101,6 +155,12 @@ export default function InventoryPage() {
   useRealtimeTable({
     table: "inventory_items",
     orgFilter: orgId || undefined,
+    onDataChange: loadItems,
+  });
+
+  // Bookings Realtime: bei Änderungen neu laden
+  useRealtimeTable({
+    table: "bookings",
     onDataChange: loadItems,
   });
 
@@ -143,8 +203,19 @@ export default function InventoryPage() {
 
   const categories = useMemo(() => [...new Set(items.map((i) => i.category))].sort(), [items]);
 
+  // Anzahl ausgeliehener Items (für Filter-Pill)
+  const loanedItemCount = useMemo(
+    () => items.filter((i) => bookingMap.has(i.id)).length,
+    [items, bookingMap]
+  );
+  const totalBookedQty = useMemo(
+    () => Array.from(bookingMap.values()).reduce((sum, b) => sum + b.bookedQty, 0),
+    [bookingMap]
+  );
+
   const filtered = useMemo(() => {
     let result = items;
+    if (loanFilter) result = result.filter((i) => bookingMap.has(i.id));
     if (filter) result = result.filter((i) => i.category === filter);
     if (search.trim()) {
       const q = search.toLowerCase();
@@ -159,7 +230,7 @@ export default function InventoryPage() {
       );
     }
     return result;
-  }, [items, filter, search]);
+  }, [items, filter, loanFilter, search, bookingMap]);
 
   const totalQuantity = filtered.reduce((sum, i) => sum + i.quantity, 0);
   const totalValue = filtered.reduce((sum, i) => sum + Number(i.cost_per_day) * i.quantity, 0);
@@ -218,6 +289,7 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-bold">Inventar</h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
             {items.length} Artikel &middot; {totalQuantity} Teile gesamt
+            {loanedItemCount > 0 && <> &middot; <span style={{ color: "var(--color-info)" }}>{loanedItemCount} ausgeliehen</span></>}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -364,20 +436,41 @@ export default function InventoryPage() {
         </div>
       </div>
 
-      {/* Category Pills */}
-      {categories.length > 0 && (
-        <div className="flex gap-2 mb-5 flex-wrap">
-          <button
-            onClick={() => setFilter("")}
-            className="px-3 py-1.5 rounded-full text-sm font-medium transition-all"
-            style={{
-              background: !filter ? "var(--color-primary)" : "var(--color-surface)",
-              color: !filter ? "#fff" : "var(--color-muted-foreground)",
-              border: !filter ? "none" : "1px solid var(--color-border-light)",
-            }}
-          >
-            Alle ({items.length})
-          </button>
+      {/* Status-Filter + Category Pills */}
+      <div className="flex gap-2 mb-5 flex-wrap items-center">
+        {/* Ausgeliehen-Filter */}
+        {loanedItemCount > 0 && (
+          <>
+            <button
+              onClick={() => setLoanFilter(!loanFilter)}
+              className="px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5"
+              style={{
+                background: loanFilter ? "var(--color-info)" : "var(--color-surface)",
+                color: loanFilter ? "#fff" : "var(--color-info)",
+                border: loanFilter ? "none" : "1px solid var(--color-info)",
+              }}
+            >
+              <IconActivity size={13} />
+              Ausgeliehen ({loanedItemCount})
+            </button>
+            <div
+              className="w-px h-6"
+              style={{ background: "var(--color-border-light)" }}
+            />
+          </>
+        )}
+
+        <button
+          onClick={() => setFilter("")}
+          className="px-3 py-1.5 rounded-full text-sm font-medium transition-all"
+          style={{
+            background: !filter ? "var(--color-primary)" : "var(--color-surface)",
+            color: !filter ? "#fff" : "var(--color-muted-foreground)",
+            border: !filter ? "none" : "1px solid var(--color-border-light)",
+          }}
+        >
+          Alle ({items.length})
+        </button>
           {categories.map((cat) => {
             const count = items.filter((i) => i.category === cat).length;
             return (
@@ -396,14 +489,16 @@ export default function InventoryPage() {
               </button>
             );
           })}
-        </div>
-      )}
+      </div>
 
       {/* Stats Row */}
       <div className="flex gap-4 mb-5">
         <div className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-          {filtered.length} Artikel &middot; {totalQuantity} Teile &middot;
-          Tageswert: {totalValue.toFixed(0)} &euro;
+          {filtered.length} Artikel &middot; {totalQuantity} Teile
+          {totalBookedQty > 0 && (
+            <> &middot; <span style={{ color: "var(--color-info)" }}>{totalBookedQty} ausgeliehen</span></>
+          )}
+          {" "}&middot; Tageswert: {totalValue.toFixed(0)} &euro;
         </div>
       </div>
 
@@ -419,7 +514,7 @@ export default function InventoryPage() {
           style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)", boxShadow: "var(--shadow-sm)" }}
         >
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
+          <table className="w-full min-w-[900px]">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--color-border-light)" }}>
                 <th className="w-14 px-3 py-3"></th>
@@ -427,6 +522,7 @@ export default function InventoryPage() {
                 <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Artikel</th>
                 <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Kategorie</th>
                 <th className="text-center px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Menge</th>
+                <th className="text-center px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Verfügbar</th>
                 <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Zustand</th>
                 <th className="text-right px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>&euro;/Tag</th>
                 <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Pate</th>
@@ -474,6 +570,25 @@ export default function InventoryPage() {
                         {item.description}
                       </div>
                     )}
+                    {/* Ausleihe-Info */}
+                    {bookingMap.has(item.id) && (() => {
+                      const bd = bookingMap.get(item.id)!;
+                      if (bd.bookings.length === 1) {
+                        const b = bd.bookings[0];
+                        return (
+                          <div className="text-xs mt-1 flex items-center gap-1" style={{ color: "var(--color-info)" }}>
+                            <IconActivity size={11} />
+                            {b.projectName} ({b.quantity}x)
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="text-xs mt-1 flex items-center gap-1" style={{ color: "var(--color-info)" }}>
+                          <IconActivity size={11} />
+                          {bd.bookings.length} Ausleihen aktiv
+                        </div>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3.5">
                     <span className="text-sm flex items-center gap-1">
@@ -491,6 +606,47 @@ export default function InventoryPage() {
                     >
                       {item.quantity}
                     </span>
+                  </td>
+                  {/* Verfügbar-Spalte */}
+                  <td className="px-4 py-3.5 text-center">
+                    {(() => {
+                      const booked = bookingMap.get(item.id)?.bookedQty || 0;
+                      const available = Math.max(0, item.quantity - booked);
+                      if (booked === 0) {
+                        // Nichts ausgeliehen → grüner Haken
+                        return (
+                          <span
+                            className="inline-flex items-center justify-center px-2 h-6 rounded text-xs font-semibold"
+                            style={{ background: "var(--color-success-light)", color: "var(--color-success)" }}
+                            title={`${item.quantity} verfügbar`}
+                          >
+                            {item.quantity} ✓
+                          </span>
+                        );
+                      }
+                      if (available === 0) {
+                        // Alles ausgeliehen → Rot
+                        return (
+                          <span
+                            className="inline-flex items-center justify-center px-2 h-6 rounded text-xs font-semibold"
+                            style={{ background: "var(--color-destructive-light)", color: "var(--color-destructive)" }}
+                            title={`0 von ${item.quantity} verfügbar`}
+                          >
+                            0 frei
+                          </span>
+                        );
+                      }
+                      // Teilweise ausgeliehen → Warning
+                      return (
+                        <span
+                          className="inline-flex items-center justify-center px-2 h-6 rounded text-xs font-semibold"
+                          style={{ background: "var(--color-warning-light)", color: "var(--color-warning)" }}
+                          title={`${available} von ${item.quantity} verfügbar`}
+                        >
+                          {available}/{item.quantity}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3.5">
                     <span
