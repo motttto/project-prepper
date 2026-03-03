@@ -249,6 +249,35 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 
 ---
 
+## Multi-Machine Workflow
+
+Dieses Projekt wird von **mehreren Rechnern** aus bearbeitet (gleicher GitHub-Account, SSH-Auth).
+
+### Session-Start (PFLICHT)
+```bash
+git pull origin main
+```
+**Immer zuerst pullen**, bevor Änderungen gemacht werden. Verhindert Merge-Konflikte.
+
+### Session-Ende
+Alle Änderungen committen und pushen, damit der andere Rechner den aktuellen Stand hat:
+```bash
+git add .
+git commit -m "Beschreibung der Änderungen"
+git push origin main
+```
+
+### Regeln
+- **Ein Branch:** `main` — keine Feature-Branches, kein PR-Workflow
+- **Immer pushen** am Ende einer Session — nichts uncommitted lassen
+- **Immer pullen** am Anfang einer Session — vor jeder Code-Änderung
+- **Bei Konflikten:** Nicht blind mergen, sondern Dateien vergleichen und manuell lösen
+
+### Claude Code Hinweis
+Wenn Claude Code eine neue Session auf einem Rechner startet, soll als **erstes** `git pull origin main` ausgeführt werden, um sicherzustellen, dass der lokale Stand aktuell ist.
+
+---
+
 ## Storage (Supabase)
 
 | Bucket | Zweck | Public |
