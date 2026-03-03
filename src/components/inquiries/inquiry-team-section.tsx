@@ -8,6 +8,7 @@ import {
   IconX,
   IconCheck,
 } from "@/components/ui/icons";
+import { TelegramShareButton } from "@/components/inquiries/telegram-share-button";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types
@@ -26,6 +27,8 @@ interface InquiryTeamSectionProps {
   orgId: string;
   isCreator: boolean;
   isAdmin: boolean;
+  telegramChatId: number | null;
+  telegramMessageId: number | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -77,6 +80,8 @@ export function InquiryTeamSection({
   orgId,
   isCreator,
   isAdmin,
+  telegramChatId,
+  telegramMessageId,
 }: InquiryTeamSectionProps) {
   const supabase = createClient();
   const canInvite = isCreator || isAdmin;
@@ -166,24 +171,34 @@ export function InquiryTeamSection({
   return (
     <div className="p-4 rounded-xl mb-4" style={cardStyle}>
       {/* Header */}
-      <div className="flex items-center gap-2 mb-3">
-        <IconUserCheck size={16} style={{ color: "var(--color-muted-foreground)" }} />
-        <h3
-          className="text-sm font-semibold uppercase tracking-wider"
-          style={{ color: "var(--color-muted-foreground)" }}
-        >
-          Team-Verfügbarkeit
-        </h3>
-        {invitations.length > 0 && (
-          <span
-            className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <IconUserCheck size={16} style={{ color: "var(--color-muted-foreground)" }} />
+          <h3
+            className="text-sm font-semibold uppercase tracking-wider"
+            style={{ color: "var(--color-muted-foreground)" }}
+          >
+            Team-Verfügbarkeit
+          </h3>
+          {invitations.length > 0 && (
+            <span
+              className="text-xs px-1.5 py-0.5 rounded-full font-medium"
             style={{
               background: "var(--color-success-light)",
               color: "var(--color-success)",
             }}
           >
             {acceptedCount}/{totalMembers}
-          </span>
+            </span>
+          )}
+        </div>
+
+        {/* Telegram-Button */}
+        {canInvite && telegramChatId && invitations.length > 0 && (
+          <TelegramShareButton
+            inquiryId={inquiryId}
+            telegramMessageId={telegramMessageId}
+          />
         )}
       </div>
 

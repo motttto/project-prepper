@@ -20,6 +20,7 @@ export type User = {
   is_system: boolean;
   approved_at: string | null;
   avatar_url: string | null;
+  telegram_user_id: number | null;
   created_at: string;
 };
 
@@ -262,6 +263,7 @@ export type Organization = {
   slug: string;
   description: string | null;
   logo_url: string | null;
+  telegram_chat_id: number | null;
   created_by: string;
   created_at: string;
   updated_at: string;
@@ -327,6 +329,7 @@ export type Inquiry = {
   next_follow_up: string | null;
   notes: string | null;
   project_id: string | null;
+  telegram_message_id: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

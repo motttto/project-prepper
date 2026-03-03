@@ -8,6 +8,8 @@ import {
   IconCamera,
   IconMail,
   IconUser,
+  IconTelegram,
+  IconX,
 } from "@/components/ui/icons";
 import imageCompression from "browser-image-compression";
 import { RoleBadge, RoleBadgeGroup, orgBadgeStyles } from "@/components/ui/role-badge";
@@ -20,6 +22,7 @@ type ProfileData = {
   is_active: boolean;
   is_system: boolean;
   approved_at: string | null;
+  telegram_user_id: number | null;
   created_at: string;
 };
 
@@ -62,7 +65,7 @@ export default function ProfilePage() {
     // Profil laden
     const { data } = await supabase
       .from("profiles")
-      .select("id, name, email, avatar_url, is_active, is_system, approved_at, created_at")
+      .select("id, name, email, avatar_url, is_active, is_system, approved_at, telegram_user_id, created_at")
       .eq("id", user.id)
       .single();
 
@@ -458,6 +461,93 @@ export default function ProfilePage() {
                 {saving ? "Wird gespeichert..." : "Änderungen speichern"}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* ────────────── Telegram-Verknüpfung ────────────── */}
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{
+            background: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+          }}
+        >
+          <div className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <IconTelegram size={20} style={{ color: "#229ED9" }} />
+              <h2 className="text-base font-semibold">Telegram</h2>
+            </div>
+
+            {profile?.telegram_user_id ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ background: "var(--color-success)" }}
+                  />
+                  <span className="text-sm">Telegram verknüpft</span>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      background: "var(--color-success-light)",
+                      color: "var(--color-success)",
+                    }}
+                  >
+                    ID: {profile.telegram_user_id}
+                  </span>
+                </div>
+                <button
+                  onClick={async () => {
+                    await supabase
+                      .from("profiles")
+                      .update({ telegram_user_id: null })
+                      .eq("id", profile.id);
+                    setProfile({ ...profile, telegram_user_id: null });
+                  }}
+                  className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors"
+                  style={{ color: "var(--color-muted-foreground)" }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "var(--color-destructive)")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color =
+                      "var(--color-muted-foreground)")
+                  }
+                >
+                  <IconX size={12} />
+                  Trennen
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p
+                  className="text-sm mb-3"
+                  style={{ color: "var(--color-muted-foreground)" }}
+                >
+                  Verknüpfe dein Telegram-Konto, um Anfragen-Einladungen direkt
+                  in Telegram zu beantworten.
+                </p>
+                <div
+                  className="p-3 rounded-lg text-sm"
+                  style={{
+                    background: "var(--color-muted)",
+                    border: "1px solid var(--color-border)",
+                  }}
+                >
+                  <p className="font-medium mb-1">So geht&apos;s:</p>
+                  <ol
+                    className="list-decimal list-inside space-y-1 text-xs"
+                    style={{ color: "var(--color-muted-foreground)" }}
+                  >
+                    <li>Öffne den Bot in Telegram</li>
+                    <li>
+                      Sende <code className="px-1 py-0.5 rounded" style={{ background: "var(--color-surface)" }}>/start</code>
+                    </li>
+                    <li>Klicke auf den Link, den der Bot dir schickt</li>
+                  </ol>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

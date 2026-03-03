@@ -153,6 +153,18 @@ function InquiryDetailContent({
   const { orgId } = useOrg();
   const currentUser = useCurrentUser();
 
+  // Telegram-Chat-ID der Org laden
+  const [telegramChatId, setTelegramChatId] = useState<number | null>(null);
+  useEffect(() => {
+    if (!orgId) return;
+    supabase
+      .from("organizations")
+      .select("telegram_chat_id")
+      .eq("id", orgId)
+      .single()
+      .then(({ data }) => setTelegramChatId(data?.telegram_chat_id ?? null));
+  }, [supabase, orgId]);
+
   // ─────────────────────────────────────────────────────────────────────────
   // Field Tracking
   // ─────────────────────────────────────────────────────────────────────────
@@ -521,6 +533,8 @@ function InquiryDetailContent({
           orgId={orgId}
           isCreator={inquiry.created_by === currentUser.id}
           isAdmin={currentUser.roleName === "admin"}
+          telegramChatId={telegramChatId}
+          telegramMessageId={localData.telegram_message_id ?? null}
         />
       )}
 
