@@ -124,13 +124,7 @@ export default function PendingPage() {
                 className="font-bold text-lg"
                 style={{ color: "var(--color-sidebar-text)" }}
               >
-                Dunkelstrom
-              </div>
-              <div
-                className="text-xs"
-                style={{ color: "var(--color-sidebar-text-muted)" }}
-              >
-                Projektplanner
+                Project Prepper
               </div>
             </div>
           </div>
@@ -152,7 +146,7 @@ export default function PendingPage() {
           className="text-xs"
           style={{ color: "var(--color-sidebar-text-muted)" }}
         >
-          Dunkelstrom Events &middot; seit 2017
+          Project Prepper &middot; Projektmanagement
         </div>
       </div>
 
@@ -167,7 +161,7 @@ export default function PendingPage() {
             >
               <IconZap size={20} className="text-white" />
             </div>
-            <span className="font-bold text-lg">Dunkelstrom</span>
+            <span className="font-bold text-lg">Project Prepper</span>
           </div>
 
           {loading ? (

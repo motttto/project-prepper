@@ -132,7 +132,7 @@ export default function NewOrgPage() {
             type="text"
             value={name}
             onChange={(e) => handleNameChange(e.target.value)}
-            placeholder="z.B. Dunkelstrom Events"
+            placeholder="z.B. Meine Firma"
             required
             className="w-full px-3 py-2.5 rounded-lg text-sm"
             style={{
@@ -158,7 +158,7 @@ export default function NewOrgPage() {
               setSlug(slugify(e.target.value));
               setSlugEdited(true);
             }}
-            placeholder="dunkelstrom-events"
+            placeholder="meine-firma"
             className="w-full px-3 py-2.5 rounded-lg text-sm font-mono"
             style={{
               background: "var(--color-muted)",

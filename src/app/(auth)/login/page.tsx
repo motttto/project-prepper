@@ -78,10 +78,7 @@ export default function LoginPage() {
             </div>
             <div>
               <div className="font-bold text-lg" style={{ color: "var(--color-sidebar-text)" }}>
-                Dunkelstrom
-              </div>
-              <div className="text-xs" style={{ color: "var(--color-sidebar-text-muted)" }}>
-                Projektplanner
+                Project Prepper
               </div>
             </div>
           </div>
@@ -96,12 +93,12 @@ export default function LoginPage() {
             Kosten im Blick.
           </h2>
           <p className="text-sm leading-relaxed" style={{ color: "var(--color-sidebar-text-muted)" }}>
-            Das Tool für Licht- & AV-Kollektive. Projekte anlegen,
-            Inventar buchen, Budgets kalkulieren – alles an einem Ort.
+            Projekte anlegen, Inventar buchen, Budgets kalkulieren
+            – alles an einem Ort.
           </p>
         </div>
         <div className="text-xs" style={{ color: "var(--color-sidebar-text-muted)" }}>
-          Dunkelstrom Events &middot; seit 2017
+          Project Prepper &middot; Projektmanagement
         </div>
       </div>
 
@@ -116,7 +113,7 @@ export default function LoginPage() {
             >
               <IconZap size={20} className="text-white" />
             </div>
-            <span className="font-bold text-lg">Dunkelstrom</span>
+            <span className="font-bold text-lg">Project Prepper</span>
           </div>
 
           <div className="text-center lg:text-left">
@@ -188,7 +185,7 @@ export default function LoginPage() {
                   border: "1px solid var(--color-border)",
                   background: "var(--color-surface)",
                 }}
-                placeholder="name@dunkelstrom.de"
+                placeholder="name@beispiel.de"
                 required
               />
             </div>

@@ -12,6 +12,7 @@ import {
   IconUsers,
   IconZap,
   IconX,
+  IconInbox,
 } from "@/components/ui/icons";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { InvitationBell } from "@/components/layout/invitation-bell";
@@ -21,6 +22,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 const navItems = [
   { href: "/team", label: "Team", icon: IconUsers },
   { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
+  { href: "/inquiries", label: "Anfragen", icon: IconInbox },
   { href: "/projects", label: "Projekte", icon: IconProjects },
   { href: "/inventory", label: "Inventar", icon: IconInventory },
   { href: "/costs", label: "Kosten", icon: IconCosts },
@@ -111,13 +113,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
               className="font-bold text-[15px]"
               style={{ color: "var(--color-sidebar-text)" }}
             >
-              Dunkelstrom
-            </div>
-            <div
-              className="text-xs -mt-0.5"
-              style={{ color: "var(--color-sidebar-text-muted)" }}
-            >
-              Projektplanner
+              Project Prepper
             </div>
           </div>
         </Link>
