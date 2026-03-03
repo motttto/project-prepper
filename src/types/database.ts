@@ -331,3 +331,21 @@ export type Inquiry = {
   created_at: string;
   updated_at: string;
 };
+
+// === Anfragen-Einladungen (Inquiry Team) ===
+
+export type InquiryInvitationStatus = "pending" | "accepted" | "declined";
+
+export type InquiryInvitation = {
+  id: string;
+  inquiry_id: string;
+  invited_by: string;
+  invited_profile_id: string;
+  status: InquiryInvitationStatus;
+  created_at: string;
+  responded_at: string | null;
+  // Joined data
+  inquiries?: { title: string };
+  profiles?: { name: string; email: string; avatar_url: string | null };
+  inviters?: { name: string };
+};

@@ -5,12 +5,14 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useInvitations } from "@/hooks/use-invitations";
 import { useBookingApprovals } from "@/hooks/use-booking-approvals";
+import { useInquiryInvitations } from "@/hooks/use-inquiry-invitations";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import {
   IconBell,
   IconCheck,
   IconX,
   IconHandshake,
+  IconInbox,
 } from "@/components/ui/icons";
 
 interface InvitationBellProps {
@@ -38,6 +40,13 @@ export function InvitationBell({ userId, orgId }: InvitationBellProps) {
     approve: approveBooking,
     reject: rejectBooking,
   } = useBookingApprovals(orgId);
+
+  const {
+    invitations: inquiryInvitations,
+    pendingCount: inquiryPendingCount,
+    accept: acceptInquiry,
+    decline: declineInquiry,
+  } = useInquiryInvitations({ userId });
 
   const [partnerInvites, setPartnerInvites] = useState<PartnerInvite[]>([]);
   const [open, setOpen] = useState(false);
@@ -71,7 +80,7 @@ export function InvitationBell({ userId, orgId }: InvitationBellProps) {
   });
 
   const totalCount =
-    projectPendingCount + partnerInvites.length + bookingPendingCount;
+    projectPendingCount + partnerInvites.length + bookingPendingCount + inquiryPendingCount;
 
   // Click-Outside schließt Dropdown
   useEffect(() => {
@@ -126,6 +135,21 @@ export function InvitationBell({ userId, orgId }: InvitationBellProps) {
       .eq("id", invite.id);
     setProcessing(null);
     loadPartnerInvites();
+  }
+
+  // --- Anfragen-Einladungen ---
+  async function handleAcceptInquiry(id: string, inquiryId: string) {
+    setProcessing(id);
+    await acceptInquiry(id);
+    setProcessing(null);
+    router.push(`/inquiries/${inquiryId}`);
+    setOpen(false);
+  }
+
+  async function handleDeclineInquiry(id: string) {
+    setProcessing(id);
+    await declineInquiry(id);
+    setProcessing(null);
   }
 
   // --- Buchungsanfragen ---
@@ -201,6 +225,68 @@ export function InvitationBell({ userId, orgId }: InvitationBellProps) {
               </div>
             ) : (
               <>
+                {/* Sektion: Anfragen-Einladungen */}
+                {inquiryPendingCount > 0 && (
+                  <div>
+                    <div
+                      className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5"
+                      style={{
+                        color: "var(--color-text-muted)",
+                        background: "var(--color-muted)",
+                      }}
+                    >
+                      <IconInbox size={12} />
+                      Anfragen-Verfügbarkeit
+                    </div>
+                    {inquiryInvitations.map((inv) => (
+                      <div
+                        key={inv.id}
+                        className="p-3"
+                        style={{
+                          borderBottom: "1px solid var(--color-border)",
+                        }}
+                      >
+                        <p className="text-sm font-medium">
+                          {inv.inquiries?.title || "Anfrage"}
+                        </p>
+                        <p
+                          className="text-xs mt-0.5"
+                          style={{ color: "var(--color-text-muted)" }}
+                        >
+                          {inv.profiles?.name || "Jemand"} fragt nach
+                          deiner Verfügbarkeit
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={() =>
+                              handleAcceptInquiry(inv.id, inv.inquiry_id)
+                            }
+                            disabled={processing === inv.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+                            style={{
+                              background: "var(--color-success)",
+                              color: "white",
+                            }}
+                          >
+                            <IconCheck size={14} /> Zusagen
+                          </button>
+                          <button
+                            onClick={() => handleDeclineInquiry(inv.id)}
+                            disabled={processing === inv.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+                            style={{
+                              border: "1px solid var(--color-border)",
+                              color: "var(--color-text-muted)",
+                            }}
+                          >
+                            <IconX size={14} /> Absagen
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Sektion: Partner-Einladungen */}
                 {partnerInvites.length > 0 && (
                   <div>

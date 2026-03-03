@@ -10,6 +10,8 @@ import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { SaveIndicator } from "@/components/ui/save-indicator";
 import { StaleDataBanner } from "@/components/ui/stale-data-banner";
 import { DateInput } from "@/components/ui/date-input";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import { InquiryTeamSection } from "@/components/inquiries/inquiry-team-section";
 import type { Inquiry, InquiryStatus } from "@/types/database";
 import {
   IconChevronLeft,
@@ -149,6 +151,7 @@ function InquiryDetailContent({
   const supabase = createClient();
   const router = useRouter();
   const { orgId } = useOrg();
+  const currentUser = useCurrentUser();
 
   // ─────────────────────────────────────────────────────────────────────────
   // Field Tracking
@@ -507,6 +510,19 @@ function InquiryDetailContent({
           })}
         </div>
       </div>
+
+      {/* ================================================================== */}
+      {/* Team-Verfügbarkeit */}
+      {/* ================================================================== */}
+      {currentUser && orgId && (
+        <InquiryTeamSection
+          inquiryId={inquiry.id}
+          currentUserId={currentUser.id}
+          orgId={orgId}
+          isCreator={inquiry.created_by === currentUser.id}
+          isAdmin={currentUser.roleName === "admin"}
+        />
+      )}
 
       <div className="space-y-4">
         {/* ================================================================== */}
