@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase";
-import type { Project } from "@/types/database";
+import type { Project, Inquiry } from "@/types/database";
 import { TabBar } from "@/components/ui/tabs";
 import { TabOverview } from "@/components/projects/tab-overview";
 import { TabSchedule } from "@/components/projects/tab-schedule";
@@ -22,7 +23,7 @@ import { ProjectMembersPanel } from "@/components/projects/project-members-panel
 import { ProjectPartnersPanel } from "@/components/projects/project-partners-panel";
 import { useProjectOrgs } from "@/hooks/use-project-orgs";
 import { useOrg } from "@/contexts/org-context";
-import { IconUsers, IconHandshake } from "@/components/ui/icons";
+import { IconUsers, IconHandshake, IconInbox } from "@/components/ui/icons";
 
 const statusLabels: Record<Project["status"], string> = {
   draft: "Entwurf",
@@ -31,6 +32,16 @@ const statusLabels: Record<Project["status"], string> = {
   completed: "Abgeschlossen",
   cancelled: "Abgebrochen",
 };
+
+const statusColors: Record<Project["status"], { bg: string; color: string }> = {
+  draft: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)" },
+  planning: { bg: "var(--color-info-light)", color: "var(--color-info)" },
+  active: { bg: "var(--color-success-light)", color: "var(--color-success)" },
+  completed: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)" },
+  cancelled: { bg: "var(--color-destructive-light)", color: "var(--color-destructive)" },
+};
+
+const statusOrder: Project["status"][] = ["draft", "planning", "active", "completed", "cancelled"];
 
 export default function ProjectDetailPage() {
   const params = useParams();
@@ -43,10 +54,17 @@ export default function ProjectDetailPage() {
   const [activeTab, setActiveTab] = useState("overview");
   const [showMembers, setShowMembers] = useState(false);
   const [showPartners, setShowPartners] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [pendingRemoteUpdate, setPendingRemoteUpdate] = useState(false);
+  const [sourceInquiry, setSourceInquiry] = useState<Inquiry | null>(null);
+
+  // Ref: true wenn TabOverview gerade sichtbar ist (für smarten Realtime-Callback)
+  const overviewActiveRef = useRef(activeTab === "overview");
+  overviewActiveRef.current = activeTab === "overview";
 
   const currentUser = useCurrentUser();
   const { orgId } = useOrg();
-  const presenceUsers = usePresence({ projectId, currentUser });
+  const { users: presenceUsers } = usePresence({ projectId, currentUser });
   const { canViewCosts, isOwner, loading: roleLoading } = useProjectRole(projectId);
   const { acceptedOrgs } = useProjectOrgs(projectId);
   const partnerCount = acceptedOrgs.filter((o) => o.role === "partner").length;
@@ -90,11 +108,29 @@ export default function ProjectDetailPage() {
     loadProject();
   }, [loadProject]);
 
+  // Prüfe ob Projekt aus einer Anfrage erstellt wurde
+  useEffect(() => {
+    if (!projectId) return;
+    supabase
+      .from("inquiries")
+      .select("id, title, client_name")
+      .eq("project_id", projectId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setSourceInquiry(data as Inquiry);
+      });
+  }, [supabase, projectId]);
+
   // Realtime: Projekt-Daten live synchronisieren
+  // Wenn Overview-Tab aktiv ist → loadProject (field-tracking merged dort intelligent)
+  const handleRealtimeProjectChange = useCallback(() => {
+    loadProject();
+  }, [loadProject]);
+
   useRealtimeTable({
     table: "projects",
     filter: { column: "id", value: projectId },
-    onDataChange: loadProject,
+    onDataChange: handleRealtimeProjectChange,
   });
 
   if (loading || roleLoading) {
@@ -124,6 +160,19 @@ export default function ProjectDetailPage() {
     setProject(updated);
   }
 
+  async function changeStatus(newStatus: Project["status"]) {
+    setShowStatusMenu(false);
+    const { data, error } = await supabase
+      .from("projects")
+      .update({ status: newStatus })
+      .eq("id", projectId)
+      .select()
+      .single();
+    if (!error && data) {
+      setProject(data as Project);
+    }
+  }
+
   return (
     <div>
       {/* Header */}
@@ -139,10 +188,69 @@ export default function ProjectDetailPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">{project.name}</h1>
-          <div className="flex items-center gap-3 mt-2 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-            <span className="px-2 py-0.5 rounded-full text-xs" style={{ background: "var(--color-muted)" }}>
-              {statusLabels[project.status]}
-            </span>
+          <div className="flex items-center gap-3 mt-2 text-sm flex-wrap" style={{ color: "var(--color-muted-foreground)" }}>
+            {sourceInquiry && (
+              <Link
+                href={`/inquiries/${sourceInquiry.id}`}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium transition-opacity hover:opacity-80"
+                style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}
+              >
+                <IconInbox size={12} />
+                Aus Anfrage erstellt
+              </Link>
+            )}
+            <div className="relative">
+              <button
+                onClick={() => setShowStatusMenu(!showStatusMenu)}
+                className="px-2.5 py-1 rounded-full text-xs font-medium cursor-pointer transition-opacity hover:opacity-80"
+                style={{
+                  background: statusColors[project.status].bg,
+                  color: statusColors[project.status].color,
+                }}
+              >
+                {statusLabels[project.status]} ▾
+              </button>
+              {showStatusMenu && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setShowStatusMenu(false)}
+                  />
+                  <div
+                    className="absolute top-full left-0 mt-1 z-50 py-1 rounded-lg min-w-[160px]"
+                    style={{
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-border)",
+                      boxShadow: "var(--shadow-lg)",
+                    }}
+                  >
+                    {statusOrder.map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => changeStatus(s)}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors"
+                        style={{
+                          color: s === project.status ? statusColors[s].color : "var(--color-foreground)",
+                          background: s === project.status ? statusColors[s].bg : "transparent",
+                        }}
+                        onMouseEnter={(e) => {
+                          if (s !== project.status) e.currentTarget.style.background = "var(--color-muted)";
+                        }}
+                        onMouseLeave={(e) => {
+                          if (s !== project.status) e.currentTarget.style.background = "transparent";
+                        }}
+                      >
+                        <span
+                          className="w-2 h-2 rounded-full flex-shrink-0"
+                          style={{ background: statusColors[s].color }}
+                        />
+                        {statusLabels[s]}
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
             {project.date_start && (
               <span>
                 {new Date(project.date_start).toLocaleDateString("de-DE")}
@@ -198,6 +306,8 @@ export default function ProjectDetailPage() {
           project={project}
           onProjectUpdate={handleProjectUpdate}
           canViewBudget={canViewCosts}
+          hasPendingRemoteUpdate={pendingRemoteUpdate}
+          onClearPendingRemoteUpdate={() => setPendingRemoteUpdate(false)}
         />
       )}
       {activeTab === "schedule" && (

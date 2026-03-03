@@ -24,6 +24,16 @@ const statusDots: Record<Project["status"], string> = {
   cancelled: "#ef4444",
 };
 
+const statusColors: Record<Project["status"], { bg: string; color: string }> = {
+  draft: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)" },
+  planning: { bg: "var(--color-info-light)", color: "var(--color-info)" },
+  active: { bg: "var(--color-success-light)", color: "var(--color-success)" },
+  completed: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)" },
+  cancelled: { bg: "var(--color-destructive-light)", color: "var(--color-destructive)" },
+};
+
+const statusOrder: Project["status"][] = ["draft", "planning", "active", "completed", "cancelled"];
+
 type StatusFilter = "all" | Project["status"];
 
 export default function ProjectsPage() {
@@ -43,6 +53,7 @@ export default function ProjectsPage() {
   const [formDateEnd, setFormDateEnd] = useState("");
   const [formStatus, setFormStatus] = useState<Project["status"]>("draft");
   const [saving, setSaving] = useState(false);
+  const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
 
   const loadProjects = useCallback(async () => {
     if (!orgId) return;
@@ -162,6 +173,20 @@ export default function ProjectsPage() {
       loadProjects();
     }
     setSaving(false);
+  }
+
+  async function handleStatusChange(e: React.MouseEvent, projectId: string, newStatus: Project["status"]) {
+    e.stopPropagation();
+    setStatusMenuId(null);
+    const { error } = await supabase
+      .from("projects")
+      .update({ status: newStatus })
+      .eq("id", projectId);
+    if (!error) {
+      setProjects((prev) =>
+        prev.map((p) => (p.id === projectId ? { ...p, status: newStatus } : p))
+      );
+    }
   }
 
   async function handleDelete(e: React.MouseEvent, id: string) {
@@ -441,26 +466,62 @@ export default function ProjectsPage() {
                       </div>
                     )}
 
-                    {/* Status Badge */}
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full font-medium shrink-0"
-                      style={{
-                        background:
-                          project.status === "completed" ? "var(--color-muted)" :
-                          project.status === "active" ? "var(--color-success-light)" :
-                          project.status === "planning" ? "var(--color-info-light)" :
-                          project.status === "cancelled" ? "var(--color-destructive-light)" :
-                          "var(--color-muted)",
-                        color:
-                          project.status === "completed" ? "var(--color-muted-foreground)" :
-                          project.status === "active" ? "var(--color-success)" :
-                          project.status === "planning" ? "var(--color-info)" :
-                          project.status === "cancelled" ? "var(--color-destructive)" :
-                          "var(--color-muted-foreground)",
-                      }}
-                    >
-                      {statusLabels[project.status]}
-                    </span>
+                    {/* Status Switcher */}
+                    <div className="relative shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setStatusMenuId(statusMenuId === project.id ? null : project.id);
+                        }}
+                        className="text-xs px-2.5 py-1 rounded-full font-medium transition-opacity hover:opacity-80"
+                        style={{
+                          background: statusColors[project.status].bg,
+                          color: statusColors[project.status].color,
+                        }}
+                      >
+                        {statusLabels[project.status]} ▾
+                      </button>
+                      {statusMenuId === project.id && (
+                        <>
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={(e) => { e.stopPropagation(); setStatusMenuId(null); }}
+                          />
+                          <div
+                            className="absolute top-full right-0 mt-1 z-50 py-1 rounded-lg min-w-[160px]"
+                            style={{
+                              background: "var(--color-surface)",
+                              border: "1px solid var(--color-border)",
+                              boxShadow: "var(--shadow-lg)",
+                            }}
+                          >
+                            {statusOrder.map((s) => (
+                              <button
+                                key={s}
+                                onClick={(e) => handleStatusChange(e, project.id, s)}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-left transition-colors"
+                                style={{
+                                  color: s === project.status ? statusColors[s].color : "var(--color-foreground)",
+                                  background: s === project.status ? statusColors[s].bg : "transparent",
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (s !== project.status) e.currentTarget.style.background = "var(--color-muted)";
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (s !== project.status) e.currentTarget.style.background = "transparent";
+                                }}
+                              >
+                                <span
+                                  className="w-2 h-2 rounded-full flex-shrink-0"
+                                  style={{ background: statusColors[s].color }}
+                                />
+                                {statusLabels[s]}
+                              </button>
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </div>
 
                     {/* Delete + Arrow */}
                     <button
