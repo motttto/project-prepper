@@ -1,4 +1,4 @@
-# CLAUDE.md — Projektplanner
+# CLAUDE.md — Project Prepper
 
 > Zentrale Referenz für Claude Code Sessions. Lies diese Datei immer zuerst.
 
@@ -6,7 +6,7 @@
 
 | Key | Value |
 |-----|-------|
-| **Name** | Dunkelstrom Projektplanner |
+| **Name** | Project Prepper |
 | **Stack** | Next.js 16.1.6 (App Router) · React 19 · TypeScript 5.9 · Supabase · Tailwind CSS 4.2 |
 | **Sprache (UI)** | Deutsch |
 | **Supabase** | Auth + PostgreSQL + Realtime + RLS + Storage |
