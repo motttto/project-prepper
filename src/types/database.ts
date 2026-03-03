@@ -300,3 +300,34 @@ export type OrgMembership = {
   profiles?: { name: string; email: string; avatar_url: string | null };
   roles?: { name: string };
 };
+
+// === Anfragen (Inquiry Pipeline) ===
+
+export type InquiryStatus = "new" | "reviewing" | "offer_sent" | "accepted" | "rejected" | "archived";
+
+export type Inquiry = {
+  id: string;
+  org_id: string;
+  status: InquiryStatus;
+  client_name: string;
+  client_contact_person: string | null;
+  client_phone: string | null;
+  client_email: string | null;
+  title: string;
+  description: string | null;
+  venue_name: string | null;
+  venue_address: string | null;
+  event_date_start: string | null;
+  event_date_end: string | null;
+  estimated_budget: number | null;
+  offer_amount: number | null;
+  offer_date: string | null;
+  offer_valid_until: string | null;
+  probability: number | null;
+  next_follow_up: string | null;
+  notes: string | null;
+  project_id: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
