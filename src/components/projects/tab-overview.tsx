@@ -1,9 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase";
-import { IconEdit, IconSave } from "@/components/ui/icons";
 import { DateInput } from "@/components/ui/date-input";
+import { SaveIndicator } from "@/components/ui/save-indicator";
+import { StaleDataBanner } from "@/components/ui/stale-data-banner";
+import { useFieldTracking } from "@/hooks/use-field-tracking";
+import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import type { Project } from "@/types/database";
 
 interface TabOverviewProps {
@@ -11,6 +14,9 @@ interface TabOverviewProps {
   project: Project;
   onProjectUpdate: (p: Project) => void;
   canViewBudget?: boolean;
+  /** Wird auf true gesetzt wenn ein Remote-Update reinkommt während editiert wird */
+  hasPendingRemoteUpdate?: boolean;
+  onClearPendingRemoteUpdate?: () => void;
 }
 
 const statusLabels: Record<Project["status"], string> = {
@@ -21,106 +27,129 @@ const statusLabels: Record<Project["status"], string> = {
   cancelled: "Abgebrochen",
 };
 
-export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget = true }: TabOverviewProps) {
+export function TabOverview({
+  projectId,
+  project,
+  onProjectUpdate,
+  canViewBudget = true,
+  hasPendingRemoteUpdate = false,
+  onClearPendingRemoteUpdate,
+}: TabOverviewProps) {
   const supabase = createClient();
-  const [editingSection, setEditingSection] = useState<string | null>(null);
-  const [form, setForm] = useState<Partial<Project>>({});
 
-  // ---------------------------------------------------------------------------
-  // Helpers
-  // ---------------------------------------------------------------------------
+  // ─────────────────────────────────────────────────────────────────────────
+  // Field Tracking: verfolgt lokale Änderungen vs. Server-Daten
+  // ─────────────────────────────────────────────────────────────────────────
+  const {
+    localData,
+    dirtyFields,
+    isDirty,
+    updateField: trackField,
+    mergeRemote,
+    markAllClean,
+    resetToServer,
+  } = useFieldTracking<Project>(project);
 
-  function startEditing(section: string) {
-    setForm({ ...project });
-    setEditingSection(section);
-  }
+  // ─────────────────────────────────────────────────────────────────────────
+  // Debounced Save: speichert automatisch nach 800ms Inaktivität
+  // ─────────────────────────────────────────────────────────────────────────
+  const isSavingRef = useRef(false);
 
-  async function saveSection(section: string) {
-    let payload: Record<string, unknown> = {};
+  const saveFn = useCallback(
+    async (payload: Partial<Project>) => {
+      isSavingRef.current = true;
+      try {
+        const { data, error } = await supabase
+          .from("projects")
+          .update(payload)
+          .eq("id", projectId)
+          .select()
+          .single();
 
-    switch (section) {
-      case "details":
-        payload = {
-          name: form.name,
-          description: form.description,
-          status: form.status,
-          date_start: form.date_start || null,
-          date_end: form.date_end || null,
-        };
-        break;
-      case "venue":
-        payload = {
-          venue_name: form.venue_name || null,
-          venue_address: form.venue_address || null,
-          venue_contact_person: form.venue_contact_person || null,
-          venue_phone: form.venue_phone || null,
-          venue_notes: form.venue_notes || null,
-        };
-        break;
-      case "client":
-        payload = {
-          client_name: form.client_name || null,
-          client_contact_person: form.client_contact_person || null,
-          client_phone: form.client_phone || null,
-          client_email: form.client_email || null,
-        };
-        break;
-      case "dates":
-        payload = {
-          show_date: form.show_date || null,
-          arrival_time: form.arrival_time || null,
-          departure_time: form.departure_time || null,
-          setup_date: form.setup_date || null,
-          teardown_date: form.teardown_date || null,
-        };
-        break;
-      case "budget":
-        payload = {
-          budget_planned: form.budget_planned ?? null,
-          budget_honorar: form.budget_honorar ?? null,
-          budget_technik: form.budget_technik ?? null,
-          budget_transport: form.budget_transport ?? null,
-        };
-        break;
-      case "notes":
-        payload = {
-          transport_notes: form.transport_notes || null,
-          internal_notes: form.internal_notes || null,
-        };
-        break;
+        if (!error && data) {
+          onProjectUpdate(data as Project);
+          markAllClean();
+        }
+      } finally {
+        isSavingRef.current = false;
+      }
+    },
+    [supabase, projectId, onProjectUpdate, markAllClean]
+  );
+
+  const { debouncedSave, flush, saveState } = useDebouncedSave<Partial<Project>>({
+    saveFn,
+    delay: 800,
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Remote-Update Merge: wenn neuer project-Prop reinkommt
+  // ─────────────────────────────────────────────────────────────────────────
+  const prevProjectRef = useRef(project);
+  useEffect(() => {
+    // Nur mergen wenn sich der project-Prop wirklich geändert hat (nicht durch eigenen Save)
+    if (prevProjectRef.current !== project && !isSavingRef.current) {
+      if (isDirty) {
+        // User editiert gerade → nur clean fields überschreiben
+        mergeRemote(project);
+      } else {
+        // Kein lokaler Edit → komplett übernehmen
+        resetToServer(project);
+      }
     }
+    prevProjectRef.current = project;
+  }, [project, isDirty, mergeRemote, resetToServer]);
 
-    const { data, error } = await supabase
-      .from("projects")
-      .update(payload)
-      .eq("id", projectId)
-      .select()
-      .single();
+  // ─────────────────────────────────────────────────────────────────────────
+  // Field-Update Handler: tracked + debounced save
+  // ─────────────────────────────────────────────────────────────────────────
+  function handleFieldChange(field: keyof Project, value: string | number | null) {
+    trackField(field, value as Project[keyof Project]);
 
-    if (!error && data) {
-      onProjectUpdate(data as Project);
+    // Payload mit allen aktuell dirty fields + das neue Feld
+    const currentLocal = { ...localData, [field]: value };
+    const payload: Partial<Project> = {};
+    for (const f of dirtyFields) {
+      payload[f as keyof Project] = currentLocal[f as keyof Project] as never;
     }
+    payload[field] = value as never;
 
-    setEditingSection(null);
+    debouncedSave(payload);
   }
 
-  function updateField(field: keyof Project, value: string | number | null) {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  function formatDate(dateStr: string | null): string {
-    if (!dateStr) return "\u2013";
-    try {
-      return new Date(dateStr).toLocaleDateString("de-DE", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      });
-    } catch {
-      return dateStr;
+  // Sofort-Save für Selects, Checkboxen, Dates
+  function handleImmediateChange(field: keyof Project, value: string | number | null) {
+    trackField(field, value as Project[keyof Project]);
+    const payload: Partial<Project> = { [field]: value } as Partial<Project>;
+    // Alle dirty fields mitsenden
+    for (const f of dirtyFields) {
+      payload[f as keyof Project] = localData[f as keyof Project] as never;
     }
+    payload[field] = value as never;
+    // Timer abbrechen und sofort speichern
+    flush();
+    saveFn(payload);
   }
 
+  // Stale-Banner reload
+  function handleReload() {
+    resetToServer(project);
+    onClearPendingRemoteUpdate?.();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Flush bei Unmount (z.B. Tab-Wechsel)
+  // ─────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      flush();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Format Helpers
+  // ─────────────────────────────────────────────────────────────────────────
   function formatCurrency(amount: number | null): string {
     if (amount === null || amount === undefined) return "\u2013";
     return new Intl.NumberFormat("de-DE", {
@@ -129,12 +158,10 @@ export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget
     }).format(amount);
   }
 
-  // ---------------------------------------------------------------------------
+  // ─────────────────────────────────────────────────────────────────────────
   // Reusable sub-components
-  // ---------------------------------------------------------------------------
-
-  function SectionHeader({ title, section }: { title: string; section: string }) {
-    const isEditing = editingSection === section;
+  // ─────────────────────────────────────────────────────────────────────────
+  function SectionHeader({ title }: { title: string }) {
     return (
       <div className="flex items-center justify-between mb-3">
         <h3
@@ -143,28 +170,7 @@ export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget
         >
           {title}
         </h3>
-        {isEditing ? (
-          <button
-            onClick={() => saveSection(section)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-            style={{ background: "var(--color-primary, #2563eb)" }}
-          >
-            <IconSave size={14} />
-            Speichern
-          </button>
-        ) : (
-          <button
-            onClick={() => startEditing(section)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-            style={{
-              border: "1px solid var(--color-border)",
-              color: "var(--color-muted-foreground)",
-            }}
-          >
-            <IconEdit size={14} />
-            Bearbeiten
-          </button>
-        )}
+        <SaveIndicator state={saveState} />
       </div>
     );
   }
@@ -180,11 +186,7 @@ export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget
     );
   }
 
-  function FieldValue({ value }: { value: string | null | undefined }) {
-    return <div className="text-sm">{value || "\u2013"}</div>;
-  }
-
-  function InputField({
+  function AutoInput({
     label,
     field,
     type = "text",
@@ -198,20 +200,39 @@ export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget
         <div>
           <FieldLabel>{label}</FieldLabel>
           <DateInput
-            value={(form[field] as string) ?? ""}
-            onChange={(val) => updateField(field, val || null)}
+            value={(localData[field] as string) ?? ""}
+            onChange={(val) => handleImmediateChange(field, val || null)}
           />
         </div>
       );
     }
+
+    if (type === "time") {
+      return (
+        <div>
+          <FieldLabel>{label}</FieldLabel>
+          <input
+            type="time"
+            value={(localData[field] as string) ?? ""}
+            onChange={(e) => handleImmediateChange(field, e.target.value || null)}
+            className="w-full px-3 py-2 rounded-lg text-sm"
+            style={{
+              border: `1px solid ${dirtyFields.has(field as string) ? "var(--color-primary)" : "var(--color-border)"}`,
+              background: "var(--color-background)",
+            }}
+          />
+        </div>
+      );
+    }
+
     return (
       <div>
         <FieldLabel>{label}</FieldLabel>
         <input
           type={type}
-          value={(form[field] as string) ?? ""}
+          value={(localData[field] as string | number) ?? ""}
           onChange={(e) =>
-            updateField(
+            handleFieldChange(
               field,
               type === "number"
                 ? e.target.value === ""
@@ -222,7 +243,7 @@ export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget
           }
           className="w-full px-3 py-2 rounded-lg text-sm"
           style={{
-            border: "1px solid var(--color-border)",
+            border: `1px solid ${dirtyFields.has(field as string) ? "var(--color-primary)" : "var(--color-border)"}`,
             background: "var(--color-background)",
           }}
         />
@@ -230,7 +251,7 @@ export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget
     );
   }
 
-  function TextareaField({
+  function AutoTextarea({
     label,
     field,
     rows = 3,
@@ -244,11 +265,11 @@ export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget
         <FieldLabel>{label}</FieldLabel>
         <textarea
           rows={rows}
-          value={(form[field] as string) ?? ""}
-          onChange={(e) => updateField(field, e.target.value)}
+          value={(localData[field] as string) ?? ""}
+          onChange={(e) => handleFieldChange(field, e.target.value)}
           className="w-full px-3 py-2 rounded-lg text-sm"
           style={{
-            border: "1px solid var(--color-border)",
+            border: `1px solid ${dirtyFields.has(field as string) ? "var(--color-primary)" : "var(--color-border)"}`,
             background: "var(--color-background)",
           }}
         />
@@ -256,195 +277,96 @@ export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget
     );
   }
 
-  // ---------------------------------------------------------------------------
+  // ─────────────────────────────────────────────────────────────────────────
   // Card wrapper style
-  // ---------------------------------------------------------------------------
-
+  // ─────────────────────────────────────────────────────────────────────────
   const cardStyle = {
     background: "var(--color-surface)",
     border: "1px solid var(--color-border)",
   };
 
-  // ---------------------------------------------------------------------------
+  // ─────────────────────────────────────────────────────────────────────────
   // Render
-  // ---------------------------------------------------------------------------
-
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
+      {/* Stale-Data Banner */}
+      <StaleDataBanner show={hasPendingRemoteUpdate} onReload={handleReload} />
+
       {/* ------------------------------------------------------------------ */}
       {/* 1. Projektdetails */}
       {/* ------------------------------------------------------------------ */}
       <div className="p-5 rounded-xl mb-4" style={cardStyle}>
-        <SectionHeader title="Projektdetails" section="details" />
-
-        {editingSection === "details" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputField label="Projektname" field="name" />
-            <div>
-              <FieldLabel>Status</FieldLabel>
-              <select
-                value={form.status ?? "draft"}
-                onChange={(e) => updateField("status", e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={{
-                  border: "1px solid var(--color-border)",
-                  background: "var(--color-background)",
-                }}
-              >
-                {Object.entries(statusLabels).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <InputField label="Startdatum" field="date_start" type="date" />
-            <InputField label="Enddatum" field="date_end" type="date" />
-            <div className="md:col-span-2">
-              <TextareaField label="Beschreibung" field="description" rows={4} />
-            </div>
+        <SectionHeader title="Projektdetails" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AutoInput label="Projektname" field="name" />
+          <div>
+            <FieldLabel>Status</FieldLabel>
+            <select
+              value={localData.status ?? "draft"}
+              onChange={(e) => handleImmediateChange("status", e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm"
+              style={{
+                border: `1px solid ${dirtyFields.has("status") ? "var(--color-primary)" : "var(--color-border)"}`,
+                background: "var(--color-background)",
+              }}
+            >
+              {Object.entries(statusLabels).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Projektname</FieldLabel>
-              <FieldValue value={project.name} />
-            </div>
-            <div>
-              <FieldLabel>Status</FieldLabel>
-              <FieldValue value={statusLabels[project.status]} />
-            </div>
-            <div>
-              <FieldLabel>Startdatum</FieldLabel>
-              <FieldValue value={formatDate(project.date_start)} />
-            </div>
-            <div>
-              <FieldLabel>Enddatum</FieldLabel>
-              <FieldValue value={formatDate(project.date_end)} />
-            </div>
-            <div className="md:col-span-2">
-              <FieldLabel>Beschreibung</FieldLabel>
-              <FieldValue value={project.description} />
-            </div>
+          <AutoInput label="Startdatum" field="date_start" type="date" />
+          <AutoInput label="Enddatum" field="date_end" type="date" />
+          <div className="md:col-span-2">
+            <AutoTextarea label="Beschreibung" field="description" rows={4} />
           </div>
-        )}
+        </div>
       </div>
 
       {/* ------------------------------------------------------------------ */}
       {/* 2. Spielstätte / Venue */}
       {/* ------------------------------------------------------------------ */}
       <div className="p-5 rounded-xl mb-4" style={cardStyle}>
-        <SectionHeader title="Spielstätte / Venue" section="venue" />
-
-        {editingSection === "venue" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputField label="Name" field="venue_name" />
-            <InputField label="Adresse" field="venue_address" />
-            <InputField label="Ansprechpartner" field="venue_contact_person" />
-            <InputField label="Telefon" field="venue_phone" />
-            <div className="md:col-span-2">
-              <TextareaField label="Notizen" field="venue_notes" />
-            </div>
+        <SectionHeader title="Spielstätte / Venue" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AutoInput label="Name" field="venue_name" />
+          <AutoInput label="Adresse" field="venue_address" />
+          <AutoInput label="Ansprechpartner" field="venue_contact_person" />
+          <AutoInput label="Telefon" field="venue_phone" />
+          <div className="md:col-span-2">
+            <AutoTextarea label="Notizen" field="venue_notes" />
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Name</FieldLabel>
-              <FieldValue value={project.venue_name} />
-            </div>
-            <div>
-              <FieldLabel>Adresse</FieldLabel>
-              <FieldValue value={project.venue_address} />
-            </div>
-            <div>
-              <FieldLabel>Ansprechpartner</FieldLabel>
-              <FieldValue value={project.venue_contact_person} />
-            </div>
-            <div>
-              <FieldLabel>Telefon</FieldLabel>
-              <FieldValue value={project.venue_phone} />
-            </div>
-            <div className="md:col-span-2">
-              <FieldLabel>Notizen</FieldLabel>
-              <FieldValue value={project.venue_notes} />
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* ------------------------------------------------------------------ */}
       {/* 3. Auftraggeber */}
       {/* ------------------------------------------------------------------ */}
       <div className="p-5 rounded-xl mb-4" style={cardStyle}>
-        <SectionHeader title="Auftraggeber" section="client" />
-
-        {editingSection === "client" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputField label="Firmenname" field="client_name" />
-            <InputField label="Ansprechpartner" field="client_contact_person" />
-            <InputField label="Telefon" field="client_phone" />
-            <InputField label="E-Mail" field="client_email" type="email" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Firmenname</FieldLabel>
-              <FieldValue value={project.client_name} />
-            </div>
-            <div>
-              <FieldLabel>Ansprechpartner</FieldLabel>
-              <FieldValue value={project.client_contact_person} />
-            </div>
-            <div>
-              <FieldLabel>Telefon</FieldLabel>
-              <FieldValue value={project.client_phone} />
-            </div>
-            <div>
-              <FieldLabel>E-Mail</FieldLabel>
-              <FieldValue value={project.client_email} />
-            </div>
-          </div>
-        )}
+        <SectionHeader title="Auftraggeber" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AutoInput label="Firmenname" field="client_name" />
+          <AutoInput label="Ansprechpartner" field="client_contact_person" />
+          <AutoInput label="Telefon" field="client_phone" />
+          <AutoInput label="E-Mail" field="client_email" type="email" />
+        </div>
       </div>
 
       {/* ------------------------------------------------------------------ */}
       {/* 4. Termine */}
       {/* ------------------------------------------------------------------ */}
       <div className="p-5 rounded-xl mb-4" style={cardStyle}>
-        <SectionHeader title="Termine" section="dates" />
-
-        {editingSection === "dates" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <InputField label="Show-Datum" field="show_date" type="date" />
-            <InputField label="Ankunftszeit" field="arrival_time" type="time" />
-            <InputField label="Abfahrtszeit" field="departure_time" type="time" />
-            <InputField label="Aufbaudatum" field="setup_date" type="date" />
-            <InputField label="Abbaudatum" field="teardown_date" type="date" />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Show-Datum</FieldLabel>
-              <FieldValue value={formatDate(project.show_date)} />
-            </div>
-            <div>
-              <FieldLabel>Ankunftszeit</FieldLabel>
-              <FieldValue value={project.arrival_time} />
-            </div>
-            <div>
-              <FieldLabel>Abfahrtszeit</FieldLabel>
-              <FieldValue value={project.departure_time} />
-            </div>
-            <div>
-              <FieldLabel>Aufbaudatum</FieldLabel>
-              <FieldValue value={formatDate(project.setup_date)} />
-            </div>
-            <div>
-              <FieldLabel>Abbaudatum</FieldLabel>
-              <FieldValue value={formatDate(project.teardown_date)} />
-            </div>
-          </div>
-        )}
+        <SectionHeader title="Termine" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AutoInput label="Show-Datum" field="show_date" type="date" />
+          <AutoInput label="Ankunftszeit" field="arrival_time" type="time" />
+          <AutoInput label="Abfahrtszeit" field="departure_time" type="time" />
+          <AutoInput label="Aufbaudatum" field="setup_date" type="date" />
+          <AutoInput label="Abbaudatum" field="teardown_date" type="date" />
+        </div>
       </div>
 
       {/* ------------------------------------------------------------------ */}
@@ -452,49 +374,20 @@ export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget
       {/* ------------------------------------------------------------------ */}
       {canViewBudget ? (
         <div className="p-5 rounded-xl mb-4" style={cardStyle}>
-          <SectionHeader title="Budget" section="budget" />
-
-          {editingSection === "budget" ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <InputField label="Gesamtbudget" field="budget_planned" type="number" />
-              <div /> {/* spacer */}
-              <InputField label="Honorar" field="budget_honorar" type="number" />
-              <InputField label="Technik" field="budget_technik" type="number" />
-              <InputField label="Transport- / Reisekosten" field="budget_transport" type="number" />
+          <SectionHeader title="Budget" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <AutoInput label="Gesamtbudget" field="budget_planned" type="number" />
+            <div className="flex items-end pb-2">
+              <span className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                Aktuell: {formatCurrency(project.budget_planned)}
+              </span>
             </div>
-          ) : (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <FieldLabel>Gesamtbudget</FieldLabel>
-                  <div className="text-lg font-semibold">{formatCurrency(project.budget_planned)}</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div
-                  className="p-3 rounded-lg"
-                  style={{ background: "var(--color-muted)" }}
-                >
-                  <FieldLabel>Honorar</FieldLabel>
-                  <div className="text-sm font-semibold">{formatCurrency(project.budget_honorar)}</div>
-                </div>
-                <div
-                  className="p-3 rounded-lg"
-                  style={{ background: "var(--color-muted)" }}
-                >
-                  <FieldLabel>Technik</FieldLabel>
-                  <div className="text-sm font-semibold">{formatCurrency(project.budget_technik)}</div>
-                </div>
-                <div
-                  className="p-3 rounded-lg"
-                  style={{ background: "var(--color-muted)" }}
-                >
-                  <FieldLabel>Transport / Reise</FieldLabel>
-                  <div className="text-sm font-semibold">{formatCurrency(project.budget_transport)}</div>
-                </div>
-              </div>
-            </>
-          )}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <AutoInput label="Honorar" field="budget_honorar" type="number" />
+            <AutoInput label="Technik" field="budget_technik" type="number" />
+            <AutoInput label="Transport / Reise" field="budget_transport" type="number" />
+          </div>
         </div>
       ) : (
         <div className="p-5 rounded-xl mb-4" style={cardStyle}>
@@ -509,25 +402,11 @@ export function TabOverview({ projectId, project, onProjectUpdate, canViewBudget
       {/* 6. Notizen */}
       {/* ------------------------------------------------------------------ */}
       <div className="p-5 rounded-xl mb-4" style={cardStyle}>
-        <SectionHeader title="Notizen" section="notes" />
-
-        {editingSection === "notes" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <TextareaField label="Transportnotizen" field="transport_notes" rows={4} />
-            <TextareaField label="Interne Notizen" field="internal_notes" rows={4} />
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel>Transportnotizen</FieldLabel>
-              <FieldValue value={project.transport_notes} />
-            </div>
-            <div>
-              <FieldLabel>Interne Notizen</FieldLabel>
-              <FieldValue value={project.internal_notes} />
-            </div>
-          </div>
-        )}
+        <SectionHeader title="Notizen" />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <AutoTextarea label="Transportnotizen" field="transport_notes" rows={4} />
+          <AutoTextarea label="Interne Notizen" field="internal_notes" rows={4} />
+        </div>
       </div>
     </div>
   );

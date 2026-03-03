@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 
@@ -9,6 +9,8 @@ export interface PresenceUser {
   name: string;
   email: string;
   onlineAt: string;
+  /** Welche Sektion der User gerade bearbeitet (null = idle) */
+  editingSection?: string | null;
 }
 
 interface UsePresenceOptions {
@@ -19,8 +21,9 @@ interface UsePresenceOptions {
 export function usePresence({
   projectId,
   currentUser,
-}: UsePresenceOptions): PresenceUser[] {
+}: UsePresenceOptions) {
   const [users, setUsers] = useState<PresenceUser[]>([]);
+  const channelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (!currentUser || !projectId) return;
@@ -33,6 +36,8 @@ export function usePresence({
       }
     );
 
+    channelRef.current = channel;
+
     channel
       .on("presence", { event: "sync" }, () => {
         const state = channel.presenceState<{
@@ -40,6 +45,7 @@ export function usePresence({
           name: string;
           email: string;
           onlineAt: string;
+          editingSection?: string | null;
         }>();
 
         // Presence State flattenen (jeder Key → Array von Presences)
@@ -55,6 +61,7 @@ export function usePresence({
                 name: p.name,
                 email: p.email,
                 onlineAt: p.onlineAt,
+                editingSection: p.editingSection ?? null,
               });
             }
           }
@@ -69,6 +76,7 @@ export function usePresence({
             name: currentUser.name,
             email: currentUser.email,
             onlineAt: new Date().toISOString(),
+            editingSection: null,
           });
         }
       });
@@ -76,8 +84,27 @@ export function usePresence({
     return () => {
       channel.untrack();
       supabase.removeChannel(channel);
+      channelRef.current = null;
     };
   }, [projectId, currentUser?.id, currentUser?.name, currentUser?.email]);
 
-  return users;
+  /**
+   * Update welche Sektion der aktuelle User gerade bearbeitet.
+   * Wird von TabOverview aufgerufen wenn ein Feld fokussiert wird.
+   */
+  const updateEditingSection = useCallback(
+    async (section: string | null) => {
+      if (!channelRef.current || !currentUser) return;
+      await channelRef.current.track({
+        userId: currentUser.id,
+        name: currentUser.name,
+        email: currentUser.email,
+        onlineAt: new Date().toISOString(),
+        editingSection: section,
+      });
+    },
+    [currentUser]
+  );
+
+  return { users, updateEditingSection };
 }
