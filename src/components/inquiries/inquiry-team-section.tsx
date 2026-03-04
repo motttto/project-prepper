@@ -194,7 +194,7 @@ export function InquiryTeamSection({
         </div>
 
         {/* Telegram-Button */}
-        {canInvite && telegramChatId && invitations.length > 0 && (
+        {canInvite && telegramChatId && (
           <TelegramShareButton
             inquiryId={inquiryId}
             telegramMessageId={telegramMessageId}
