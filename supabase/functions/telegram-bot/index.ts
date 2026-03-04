@@ -351,6 +351,75 @@ async function handleCallbackQuery(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// Handler: /help Command
+// ─────────────────────────────────────────────────────────────────────────
+// deno-lint-ignore no-explicit-any
+async function handleHelpCommand(message: any): Promise<Response> {
+  const chatId = message.chat.id;
+
+  const helpText = [
+    "*Project Prepper Bot — Hilfe*",
+    "",
+    "Verfügbare Befehle:",
+    "",
+    "/start — Telegram-Konto mit deinem Profil verknüpfen",
+    "/info — Deinen Verknüpfungsstatus anzeigen",
+    "/help — Diese Hilfe anzeigen",
+    "",
+    "📋 *Anfragen*",
+    "Anfragen werden aus der App in diese Gruppe gepostet. Du kannst direkt per Button zusagen oder absagen.",
+    "",
+    "🔗 *Verknüpfung*",
+    "Damit deine Antworten zugeordnet werden, muss dein Telegram mit deinem App-Profil verknüpft sein. Nutze /start dafür.",
+  ].join("\n");
+
+  await telegramSendMessage(chatId, helpText);
+  return jsonResponse({ ok: true });
+}
+
+// Handler: /info Command
+// ─────────────────────────────────────────────────────────────────────────
+// deno-lint-ignore no-explicit-any
+async function handleInfoCommand(message: any): Promise<Response> {
+  const chatId = message.chat.id;
+  const telegramUserId = message.from.id;
+
+  const supabase = getServiceClient();
+
+  // Prüfen ob verknüpft
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("name, email")
+    .eq("telegram_user_id", telegramUserId)
+    .single();
+
+  if (profile) {
+    await telegramSendMessage(
+      chatId,
+      [
+        "✅ *Dein Telegram ist verknüpft*",
+        "",
+        `👤 Name: ${escapeMarkdown(profile.name)}`,
+        `📧 E-Mail: ${escapeMarkdown(profile.email)}`,
+        "",
+        "Du kannst Anfragen per Button direkt beantworten.",
+      ].join("\n"),
+    );
+  } else {
+    await telegramSendMessage(
+      chatId,
+      [
+        "❌ *Telegram nicht verknüpft*",
+        "",
+        "Dein Telegram ist noch nicht mit einem Profil verbunden.",
+        "Sende /start um die Verknüpfung zu starten.",
+      ].join("\n"),
+    );
+  }
+
+  return jsonResponse({ ok: true });
+}
+
 // Handler C: /start Command (Telegram verknüpfen)
 // ─────────────────────────────────────────────────────────────────────────
 // deno-lint-ignore no-explicit-any
@@ -482,9 +551,16 @@ Deno.serve(async (req: Request) => {
 
     const update = await req.json();
 
-    // /start Command
-    if (update.message?.text?.startsWith("/start")) {
+    // Bot-Commands
+    const msgText = update.message?.text || "";
+    if (msgText.startsWith("/start")) {
       return await handleStartCommand(update.message);
+    }
+    if (msgText.startsWith("/help")) {
+      return await handleHelpCommand(update.message);
+    }
+    if (msgText.startsWith("/info")) {
+      return await handleInfoCommand(update.message);
     }
 
     // Callback Query (Button-Klick)
