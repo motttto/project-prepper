@@ -96,6 +96,7 @@ interface InquiryData {
   id: string;
   title: string;
   client_name: string;
+  description?: string | null;
   venue_name?: string | null;
   event_date_start?: string | null;
   event_date_end?: string | null;
@@ -127,6 +128,11 @@ function formatInquiryMessage(
 
   if (inquiry.venue_name) {
     lines.push(`📍 ${escapeMarkdown(inquiry.venue_name)}`);
+  }
+
+  if (inquiry.description) {
+    lines.push("");
+    lines.push(`📝 ${escapeMarkdown(inquiry.description)}`);
   }
 
   if (invitations.length > 0) {
@@ -208,7 +214,7 @@ async function handleSendInquiry(req: Request): Promise<Response> {
   // Lade Anfrage mit Org-Daten
   const { data: inquiry, error: inquiryError } = await supabase
     .from("inquiries")
-    .select("id, title, client_name, venue_name, event_date_start, event_date_end, org_id, telegram_message_id, organizations(telegram_chat_id)")
+    .select("id, title, client_name, description, venue_name, event_date_start, event_date_end, org_id, telegram_message_id, organizations(telegram_chat_id)")
     .eq("id", inquiry_id)
     .single();
 
@@ -406,7 +412,7 @@ async function updateGroupMessage(supabase: any, inquiryId: string) {
   const { data: inquiry } = await supabase
     .from("inquiries")
     .select(
-      "id, title, client_name, venue_name, event_date_start, event_date_end, telegram_message_id, organizations(telegram_chat_id)",
+      "id, title, client_name, description, venue_name, event_date_start, event_date_end, telegram_message_id, organizations(telegram_chat_id)",
     )
     .eq("id", inquiryId)
     .single();
