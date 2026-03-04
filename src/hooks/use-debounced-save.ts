@@ -15,13 +15,17 @@ interface UseDebouncedSaveOptions<T> {
  * - `debouncedSave(value)` — speichert nach `delay` ms Inaktivität
  * - `flush()` — sofort speichern (z.B. bei Tab-Wechsel oder Unmount)
  * - `saveState` — aktueller Status für SaveIndicator
+ *
+ * "pending" wird erst nach 400ms gezeigt, damit schnelles Tippen
+ * kein visuelles Flackern erzeugt.
  */
 export function useDebouncedSave<T>({
   saveFn,
-  delay = 800,
+  delay = 1500,
 }: UseDebouncedSaveOptions<T>) {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingIndicatorRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingValueRef = useRef<T | null>(null);
   const saveFnRef = useRef(saveFn);
   saveFnRef.current = saveFn;
@@ -33,10 +37,16 @@ export function useDebouncedSave<T>({
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
       if (savedTimerRef.current) clearTimeout(savedTimerRef.current);
+      if (pendingIndicatorRef.current) clearTimeout(pendingIndicatorRef.current);
     };
   }, []);
 
   const executeSave = useCallback(async (value: T) => {
+    // Pending-Indicator abbrechen (wir speichern jetzt)
+    if (pendingIndicatorRef.current) {
+      clearTimeout(pendingIndicatorRef.current);
+      pendingIndicatorRef.current = null;
+    }
     setSaveState("saving");
     try {
       await saveFnRef.current(value);
@@ -53,11 +63,20 @@ export function useDebouncedSave<T>({
   const debouncedSave = useCallback(
     (value: T) => {
       pendingValueRef.current = value;
-      setSaveState("pending");
+
+      // Save-Timer neu starten
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => {
         executeSave(value);
       }, delay);
+
+      // "Pending"-Indicator erst nach 400ms zeigen (vermeidet Flackern beim Tippen)
+      if (!pendingIndicatorRef.current) {
+        pendingIndicatorRef.current = setTimeout(() => {
+          setSaveState("pending");
+          pendingIndicatorRef.current = null;
+        }, 400);
+      }
     },
     [delay, executeSave]
   );
@@ -67,6 +86,10 @@ export function useDebouncedSave<T>({
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
+    }
+    if (pendingIndicatorRef.current) {
+      clearTimeout(pendingIndicatorRef.current);
+      pendingIndicatorRef.current = null;
     }
     if (pendingValueRef.current !== null) {
       executeSave(pendingValueRef.current);
