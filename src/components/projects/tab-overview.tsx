@@ -46,6 +46,7 @@ export function TabOverview({
     isDirty,
     updateField: trackField,
     mergeRemote,
+    markClean,
     markAllClean,
     resetToServer,
   } = useFieldTracking<Project>(project);
@@ -59,27 +60,24 @@ export function TabOverview({
     async (payload: Partial<Project>) => {
       isSavingRef.current = true;
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("projects")
           .update(payload)
-          .eq("id", projectId)
-          .select()
-          .single();
+          .eq("id", projectId);
 
-        if (!error && data) {
-          onProjectUpdate(data as Project);
-          markAllClean();
+        if (!error) {
+          markClean(Object.keys(payload) as (keyof Project)[]);
         }
       } finally {
         isSavingRef.current = false;
       }
     },
-    [supabase, projectId, onProjectUpdate, markAllClean]
+    [supabase, projectId, markClean]
   );
 
   const { debouncedSave, flush, saveState } = useDebouncedSave<Partial<Project>>({
     saveFn,
-    delay: 800,
+    delay: 1500,
   });
 
   // ─────────────────────────────────────────────────────────────────────────

@@ -174,6 +174,7 @@ function InquiryDetailContent({
     isDirty,
     updateField: trackField,
     mergeRemote,
+    markClean,
     markAllClean,
     resetToServer,
   } = useFieldTracking<Inquiry>(inquiry);
@@ -187,26 +188,25 @@ function InquiryDetailContent({
     async (payload: Partial<Inquiry>) => {
       isSavingRef.current = true;
       try {
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from("inquiries")
           .update(payload)
-          .eq("id", inquiry.id)
-          .select()
-          .single();
-        if (!error && data) {
-          onInquiryUpdate(data as Inquiry);
-          markAllClean();
+          .eq("id", inquiry.id);
+        if (!error) {
+          // Nur die gespeicherten Felder als clean markieren
+          // (nicht markAllClean — sonst gehen zwischenzeitliche Eingaben verloren)
+          markClean(Object.keys(payload) as (keyof Inquiry)[]);
         }
       } finally {
         isSavingRef.current = false;
       }
     },
-    [supabase, inquiry.id, onInquiryUpdate, markAllClean]
+    [supabase, inquiry.id, markClean]
   );
 
   const { debouncedSave, flush, saveState } = useDebouncedSave<Partial<Inquiry>>({
     saveFn,
-    delay: 800,
+    delay: 1500,
   });
 
   // ─────────────────────────────────────────────────────────────────────────
