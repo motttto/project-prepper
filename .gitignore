@@ -25,3 +25,4 @@ project-prepper_cred.rtf
 *.tsbuildinfo
 next-env.d.ts
 supabase/.temp/
+.vercel
