@@ -233,12 +233,17 @@ async function handleSendInquiry(req: Request): Promise<Response> {
 
   // Wenn schon gepostet → editieren, sonst neu senden
   if (inquiry.telegram_message_id) {
-    await telegramEditMessage(
+    const editResult = await telegramEditMessage(
       chatId,
       inquiry.telegram_message_id,
       message,
       keyboard,
     );
+    // "message is not modified" ist kein Fehler — Inhalt war identisch
+    if (!editResult.ok && !editResult.description?.includes("not modified")) {
+      console.error("Telegram edit error:", editResult);
+      return jsonResponse({ error: "Telegram-Nachricht konnte nicht aktualisiert werden", details: editResult }, 500);
+    }
     return jsonResponse({ ok: true, action: "updated" });
   }
 
