@@ -336,29 +336,25 @@ function InquiryDetailContent({
     );
   }
 
-  function FieldLabel({ children }: { children: React.ReactNode }) {
+  // Render-Helpers (keine Komponenten-Definitionen im Render-Body!)
+  function renderFieldLabel(text: string) {
     return (
       <div className="text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>
-        {children}
+        {text}
       </div>
     );
   }
 
-  function AutoInput({
-    label,
-    field,
-    type = "text",
-    placeholder,
-  }: {
-    label: string;
-    field: keyof Inquiry;
-    type?: string;
-    placeholder?: string;
-  }) {
+  function renderAutoInput(
+    label: string,
+    field: keyof Inquiry,
+    type: string = "text",
+    placeholder?: string,
+  ) {
     if (type === "date") {
       return (
         <div>
-          <FieldLabel>{label}</FieldLabel>
+          {renderFieldLabel(label)}
           <DateInput
             value={(localData[field] as string) ?? ""}
             onChange={(val) => handleImmediateChange(field, val || null)}
@@ -369,8 +365,9 @@ function InquiryDetailContent({
 
     return (
       <div>
-        <FieldLabel>{label}</FieldLabel>
+        {renderFieldLabel(label)}
         <input
+          key={field}
           type={type}
           value={(localData[field] as string | number) ?? ""}
           onChange={(e) =>
@@ -392,21 +389,17 @@ function InquiryDetailContent({
     );
   }
 
-  function AutoTextarea({
-    label,
-    field,
-    rows = 3,
-    placeholder,
-  }: {
-    label: string;
-    field: keyof Inquiry;
-    rows?: number;
-    placeholder?: string;
-  }) {
+  function renderAutoTextarea(
+    label: string,
+    field: keyof Inquiry,
+    rows: number = 3,
+    placeholder?: string,
+  ) {
     return (
       <div>
-        <FieldLabel>{label}</FieldLabel>
+        {renderFieldLabel(label)}
         <textarea
+          key={field}
           rows={rows}
           value={(localData[field] as string) ?? ""}
           onChange={(e) => handleFieldChange(field, e.target.value || null)}
@@ -545,9 +538,9 @@ function InquiryDetailContent({
         <div className="p-5 rounded-xl" style={cardStyle}>
           <SectionHeader title="Anfrage-Details" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AutoInput label="Titel" field="title" placeholder="Anfragetitel" />
+            {renderAutoInput("Titel", "title", "text", "Anfragetitel")}
             <div className="md:col-span-2">
-              <AutoTextarea label="Beschreibung" field="description" rows={3} placeholder="Details zur Anfrage..." />
+              {renderAutoTextarea("Beschreibung", "description", 3, "Details zur Anfrage...")}
             </div>
           </div>
         </div>
@@ -558,10 +551,10 @@ function InquiryDetailContent({
         <div className="p-5 rounded-xl" style={cardStyle}>
           <SectionHeader title="Kunde" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AutoInput label="Kundenname" field="client_name" placeholder="Firma oder Person" />
-            <AutoInput label="Ansprechpartner" field="client_contact_person" placeholder="Max Mustermann" />
-            <AutoInput label="Telefon" field="client_phone" type="tel" placeholder="+49 ..." />
-            <AutoInput label="E-Mail" field="client_email" type="email" placeholder="kunde@firma.de" />
+            {renderAutoInput("Kundenname", "client_name", "text", "Firma oder Person")}
+            {renderAutoInput("Ansprechpartner", "client_contact_person", "text", "Max Mustermann")}
+            {renderAutoInput("Telefon", "client_phone", "tel", "+49 ...")}
+            {renderAutoInput("E-Mail", "client_email", "email", "kunde@firma.de")}
           </div>
         </div>
 
@@ -571,10 +564,10 @@ function InquiryDetailContent({
         <div className="p-5 rounded-xl" style={cardStyle}>
           <SectionHeader title="Event" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AutoInput label="Venue / Ort" field="venue_name" placeholder="Veranstaltungsort" />
-            <AutoInput label="Adresse" field="venue_address" placeholder="Straße, PLZ, Stadt" />
-            <AutoInput label="Datum Start" field="event_date_start" type="date" />
-            <AutoInput label="Datum Ende" field="event_date_end" type="date" />
+            {renderAutoInput("Venue / Ort", "venue_name", "text", "Veranstaltungsort")}
+            {renderAutoInput("Adresse", "venue_address", "text", "Straße, PLZ, Stadt")}
+            {renderAutoInput("Datum Start", "event_date_start", "date")}
+            {renderAutoInput("Datum Ende", "event_date_end", "date")}
           </div>
         </div>
 
@@ -584,10 +577,10 @@ function InquiryDetailContent({
         <div className="p-5 rounded-xl" style={cardStyle}>
           <SectionHeader title="Angebot" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AutoInput label="Geschätztes Budget (€)" field="estimated_budget" type="number" placeholder="0.00" />
-            <AutoInput label="Angebotssumme (€)" field="offer_amount" type="number" placeholder="0.00" />
-            <AutoInput label="Angebotsdatum" field="offer_date" type="date" />
-            <AutoInput label="Gültig bis" field="offer_valid_until" type="date" />
+            {renderAutoInput("Geschätztes Budget (€)", "estimated_budget", "number", "0.00")}
+            {renderAutoInput("Angebotssumme (€)", "offer_amount", "number", "0.00")}
+            {renderAutoInput("Angebotsdatum", "offer_date", "date")}
+            {renderAutoInput("Gültig bis", "offer_valid_until", "date")}
           </div>
         </div>
 
@@ -598,7 +591,7 @@ function InquiryDetailContent({
           <SectionHeader title="Bewertung" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <FieldLabel>Wahrscheinlichkeit (%)</FieldLabel>
+              {renderFieldLabel("Wahrscheinlichkeit (%)")}
               <div className="flex items-center gap-3">
                 <input
                   type="range"
@@ -624,7 +617,7 @@ function InquiryDetailContent({
                 </span>
               </div>
             </div>
-            <AutoInput label="Nächstes Follow-Up" field="next_follow_up" type="date" />
+            {renderAutoInput("Nächstes Follow-Up", "next_follow_up", "date")}
           </div>
         </div>
 
@@ -633,7 +626,7 @@ function InquiryDetailContent({
         {/* ================================================================== */}
         <div className="p-5 rounded-xl" style={cardStyle}>
           <SectionHeader title="Notizen" />
-          <AutoTextarea label="Interne Notizen" field="notes" rows={4} placeholder="Notizen, Absprachen, TODOs..." />
+          {renderAutoTextarea("Interne Notizen", "notes", 4, "Notizen, Absprachen, TODOs...")}
         </div>
 
         {/* ================================================================== */}
