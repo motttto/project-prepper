@@ -78,6 +78,13 @@ export type InventoryItem = {
   purchased_by: string | null;
   purchased_at: string | null;
   image_url: string | null;
+  device_name: string | null;
+  serial_number: string | null;
+  purchase_price: number | null;
+  dimensions: string | null;
+  power_watts: number | null;
+  accessories: string[] | null;
+  custom_field: string | null;
   created_at: string;
 };
 

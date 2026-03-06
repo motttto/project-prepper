@@ -79,6 +79,15 @@ export default function InventoryPage() {
   const [formCondition, setFormCondition] = useState<InventoryItem["condition"]>("new");
   const [formCostPerDay, setFormCostPerDay] = useState(0);
   const [formLocation, setFormLocation] = useState("");
+  const [formDeviceName, setFormDeviceName] = useState("");
+  const [formSerialNumber, setFormSerialNumber] = useState("");
+  const [formPurchasePrice, setFormPurchasePrice] = useState<number | "">("");
+  const [formDimensions, setFormDimensions] = useState("");
+  const [formPowerWatts, setFormPowerWatts] = useState<number | "">("");
+  const [formAccessories, setFormAccessories] = useState<string[]>([]);
+  const [formAccessoryCustom, setFormAccessoryCustom] = useState("");
+  const [formCustomField, setFormCustomField] = useState("");
+  const [showCreateDetails, setShowCreateDetails] = useState(false);
 
   // Kategorie-Kürzel für Inventarnummer
   const categoryPrefixes: Record<string, string> = {
@@ -178,10 +187,20 @@ export default function InventoryPage() {
       cost_per_day: formCostPerDay,
       location: formLocation || null,
       org_id: orgId,
+      device_name: formDeviceName || null,
+      serial_number: formSerialNumber || null,
+      purchase_price: formPurchasePrice !== "" ? Number(formPurchasePrice) : null,
+      dimensions: formDimensions || null,
+      power_watts: formPowerWatts !== "" ? Number(formPowerWatts) : null,
+      accessories: formAccessories.length > 0 ? formAccessories : null,
+      custom_field: formCustomField || null,
     });
     if (!error) {
       setFormInventoryNumber(""); setFormName(""); setFormDescription(""); setFormCategory("");
       setFormQuantity(1); setFormCondition("new"); setFormCostPerDay(0); setFormLocation("");
+      setFormDeviceName(""); setFormSerialNumber(""); setFormPurchasePrice("");
+      setFormDimensions(""); setFormPowerWatts(""); setFormAccessories([]);
+      setFormAccessoryCustom(""); setFormCustomField(""); setShowCreateDetails(false);
       setShowCreate(false);
       loadItems();
     }
@@ -226,7 +245,11 @@ export default function InventoryPage() {
           i.description?.toLowerCase().includes(q) ||
           i.category.toLowerCase().includes(q) ||
           i.location?.toLowerCase().includes(q) ||
-          i.purchased_by?.toLowerCase().includes(q)
+          i.purchased_by?.toLowerCase().includes(q) ||
+          i.device_name?.toLowerCase().includes(q) ||
+          i.serial_number?.toLowerCase().includes(q) ||
+          i.custom_field?.toLowerCase().includes(q) ||
+          i.accessories?.some((a) => a.toLowerCase().includes(q))
       );
     }
     return result;
@@ -239,14 +262,21 @@ export default function InventoryPage() {
     const rows = filtered.map((item) => ({
       "Inv.-Nr.": item.inventory_number || "",
       Name: item.name,
+      "Gerätebezeichnung": item.device_name || "",
       Beschreibung: item.description || "",
       Kategorie: item.category,
+      Seriennummer: item.serial_number || "",
       Menge: item.quantity,
       Zustand: conditionLabels[item.condition] || item.condition,
+      "Kaufpreis (€)": item.purchase_price != null ? Number(item.purchase_price) : "",
       "Preis/Tag (€)": Number(item.cost_per_day),
+      "Abmaße": item.dimensions || "",
+      "Leistung (W)": item.power_watts != null ? item.power_watts : "",
+      "Zubehör": item.accessories?.join(", ") || "",
       Lagerort: item.location || "",
       Eigentümer: item.owner || "",
       Pate: item.purchased_by || "",
+      Freifeld: item.custom_field || "",
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -255,14 +285,21 @@ export default function InventoryPage() {
     ws["!cols"] = [
       { wch: 12 }, // Inv.-Nr.
       { wch: 30 }, // Name
+      { wch: 24 }, // Gerätebezeichnung
       { wch: 30 }, // Beschreibung
       { wch: 16 }, // Kategorie
+      { wch: 20 }, // Seriennummer
       { wch: 8 },  // Menge
       { wch: 14 }, // Zustand
+      { wch: 14 }, // Kaufpreis
       { wch: 14 }, // Preis/Tag
+      { wch: 18 }, // Abmaße
+      { wch: 12 }, // Leistung
+      { wch: 28 }, // Zubehör
       { wch: 16 }, // Lagerort
       { wch: 16 }, // Eigentümer
       { wch: 16 }, // Pate
+      { wch: 24 }, // Freifeld
     ];
 
     const wb = XLSX.utils.book_new();
@@ -404,6 +441,129 @@ export default function InventoryPage() {
                   placeholder="z.B. Lager A" />
               </div>
             </div>
+            {/* Aufklappbare Gerätedetails */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowCreateDetails(!showCreateDetails)}
+                className="text-sm font-medium flex items-center gap-1 transition-colors"
+                style={{ color: "var(--color-primary)" }}
+              >
+                <span style={{ display: "inline-block", transform: showCreateDetails ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 150ms" }}>▶</span>
+                Weitere Details (optional)
+              </button>
+            </div>
+            {showCreateDetails && (
+              <div className="space-y-4 pl-0 animate-slideDown">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Gerätebezeichnung</label>
+                    <input type="text" value={formDeviceName} onChange={(e) => setFormDeviceName(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                      placeholder="z.B. EB-U50" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Seriennummer</label>
+                    <input type="text" value={formSerialNumber} onChange={(e) => setFormSerialNumber(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm font-mono"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                      placeholder="z.B. SN-12345678" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Kaufpreis (&euro;)</label>
+                    <input type="number" value={formPurchasePrice} onChange={(e) => setFormPurchasePrice(e.target.value === "" ? "" : Number(e.target.value))}
+                      min={0} step={0.01}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                      placeholder="0.00" />
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Abma&szlig;e</label>
+                    <input type="text" value={formDimensions} onChange={(e) => setFormDimensions(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                      placeholder="z.B. 60x40x30 cm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Leistung (W)</label>
+                    <input type="number" value={formPowerWatts} onChange={(e) => setFormPowerWatts(e.target.value === "" ? "" : Number(e.target.value))}
+                      min={0}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                      placeholder="z.B. 500" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Freifeld</label>
+                    <input type="text" value={formCustomField} onChange={(e) => setFormCustomField(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                      placeholder="Sonstige Infos" />
+                  </div>
+                </div>
+                {/* Zubehör-Buttons */}
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Zubeh&ouml;r</label>
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {["Netzteil", "Tasche", "Kabel", "Adapter"].map((acc) => {
+                      const isSelected = formAccessories.includes(acc);
+                      return (
+                        <button key={acc} type="button"
+                          onClick={() => setFormAccessories((prev) => isSelected ? prev.filter((a) => a !== acc) : [...prev, acc])}
+                          className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                          style={{
+                            background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
+                            color: isSelected ? "#fff" : "var(--color-muted-foreground)",
+                            border: isSelected ? "none" : "1px solid var(--color-border)",
+                          }}>
+                          {isSelected ? "✓ " : ""}{acc}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {/* Custom Tags */}
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {formAccessories.filter((a) => !["Netzteil", "Tasche", "Kabel", "Adapter"].includes(a)).map((acc) => (
+                      <span key={acc} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
+                        style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}>
+                        {acc}
+                        <button type="button" onClick={() => setFormAccessories((prev) => prev.filter((a) => a !== acc))} className="ml-0.5 hover:opacity-70">&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input type="text" value={formAccessoryCustom}
+                      onChange={(e) => setFormAccessoryCustom(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && formAccessoryCustom.trim()) {
+                          e.preventDefault();
+                          if (!formAccessories.includes(formAccessoryCustom.trim())) {
+                            setFormAccessories((prev) => [...prev, formAccessoryCustom.trim()]);
+                          }
+                          setFormAccessoryCustom("");
+                        }
+                      }}
+                      className="flex-1 px-3 py-1.5 rounded-lg text-xs"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                      placeholder="Eigenes Zubeh&ouml;r..." />
+                    <button type="button"
+                      onClick={() => {
+                        if (formAccessoryCustom.trim() && !formAccessories.includes(formAccessoryCustom.trim())) {
+                          setFormAccessories((prev) => [...prev, formAccessoryCustom.trim()]);
+                        }
+                        setFormAccessoryCustom("");
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                      style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}>
+                      +
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 pt-2">
               <button type="submit" disabled={saving}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"

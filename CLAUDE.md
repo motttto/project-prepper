@@ -83,7 +83,7 @@ src/
 | `profiles` | User-Profile (extends auth.users) | id (FK auth.users), email, name, role_id, is_active, approved_at, avatar_url |
 | `team_votes` | Abstimmungen für Neubeitritte | candidate_id (FK profiles), voter_id (FK profiles), UNIQUE |
 | `projects` | Projekte mit Venue/Client/Budget | status, date_start/end, venue_*, client_*, budget_*, created_by |
-| `inventory_items` | Equipment-Inventar | inventory_number (auto), name, category, quantity, condition, cost_per_day |
+| `inventory_items` | Equipment-Inventar | inventory_number (auto), name, category, quantity, condition, cost_per_day, device_name, serial_number, purchase_price, dimensions, power_watts, accessories (text[]), custom_field |
 | `bookings` | Equipment-Reservierungen | project_id, inventory_item_id, quantity, date_from/to, status |
 | `cost_items` | Kostenposten pro Projekt | project_id, category, amount_planned, amount_actual, vat_rate |
 | `project_schedule` | Zeitplan-Einträge | project_id, title, schedule_date, time_start/end, sort_order |
@@ -165,6 +165,7 @@ Budget-Spalten auf `projects` können nicht per RLS versteckt werden → werden 
 | 014 | `014_project_tasks.sql` | Aufgaben-Tabelle (Status, Priorität, Zuweisung) |
 | 015 | `015_team_approval.sql` | Team-Freigabe: is_active, team_votes, Trigger-Update |
 | 016 | `016_profile_avatars.sql` | avatar_url auf profiles + Storage Bucket `avatars` |
+| 025 | `025_inventory_details.sql` | Gerätebezeichnung, Seriennummer, Kaufpreis, Abmaße, Leistung, Zubehör, Freifeld |
 
 ---
 

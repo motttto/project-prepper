@@ -44,6 +44,14 @@ export function InventoryDetailModal({
   const [purchasedBy, setPurchasedBy] = useState(item.purchased_by || "");
   const [purchasedAt, setPurchasedAt] = useState(item.purchased_at || "");
   const [imageUrl, setImageUrl] = useState(item.image_url);
+  const [deviceName, setDeviceName] = useState(item.device_name || "");
+  const [serialNumber, setSerialNumber] = useState(item.serial_number || "");
+  const [purchasePrice, setPurchasePrice] = useState(item.purchase_price ?? "");
+  const [dimensions, setDimensions] = useState(item.dimensions || "");
+  const [powerWatts, setPowerWatts] = useState(item.power_watts ?? "");
+  const [accessories, setAccessories] = useState<string[]>(item.accessories || []);
+  const [accessoryCustom, setAccessoryCustom] = useState("");
+  const [customField, setCustomField] = useState(item.custom_field || "");
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [allProfiles, setAllProfiles] = useState<
@@ -61,9 +69,16 @@ export function InventoryDetailModal({
       costPerDay !== Number(item.cost_per_day) ||
       location !== (item.location || "") ||
       purchasedBy !== (item.purchased_by || "") ||
-      purchasedAt !== (item.purchased_at || "");
+      purchasedAt !== (item.purchased_at || "") ||
+      deviceName !== (item.device_name || "") ||
+      serialNumber !== (item.serial_number || "") ||
+      String(purchasePrice) !== String(item.purchase_price ?? "") ||
+      dimensions !== (item.dimensions || "") ||
+      String(powerWatts) !== String(item.power_watts ?? "") ||
+      JSON.stringify(accessories) !== JSON.stringify(item.accessories || []) ||
+      customField !== (item.custom_field || "");
     setHasChanges(changed);
-  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, item]);
+  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, deviceName, serialNumber, purchasePrice, dimensions, powerWatts, accessories, customField, item]);
 
   // Escape schließt Modal
   useEffect(() => {
@@ -109,6 +124,13 @@ export function InventoryDetailModal({
         location: location || null,
         purchased_by: purchasedBy || null,
         purchased_at: purchasedAt || null,
+        device_name: deviceName || null,
+        serial_number: serialNumber || null,
+        purchase_price: purchasePrice !== "" ? Number(purchasePrice) : null,
+        dimensions: dimensions || null,
+        power_watts: powerWatts !== "" ? Number(powerWatts) : null,
+        accessories: accessories.length > 0 ? accessories : null,
+        custom_field: customField || null,
       })
       .eq("id", item.id);
 
@@ -347,6 +369,191 @@ export function InventoryDetailModal({
                 value={purchasedAt}
                 onChange={setPurchasedAt}
               />
+            </div>
+          </div>
+
+          {/* Erweiterte Details */}
+          <div
+            className="pt-2"
+            style={{ borderTop: "1px solid var(--color-border-light)" }}
+          >
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--color-muted-foreground)" }}>
+              Gerätedetails
+            </h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-medium mb-1.5"
+                  style={{ color: "var(--color-muted-foreground)" }}>
+                  Gerätebezeichnung
+                </label>
+                <input
+                  type="text"
+                  value={deviceName}
+                  onChange={(e) => setDeviceName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={inputStyle}
+                  placeholder="z.B. EB-U50"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5"
+                  style={{ color: "var(--color-muted-foreground)" }}>
+                  Seriennummer
+                </label>
+                <input
+                  type="text"
+                  value={serialNumber}
+                  onChange={(e) => setSerialNumber(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm font-mono"
+                  style={inputStyle}
+                  placeholder="z.B. SN-12345678"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5"
+                  style={{ color: "var(--color-muted-foreground)" }}>
+                  Kaufpreis (&euro;)
+                </label>
+                <input
+                  type="number"
+                  value={purchasePrice}
+                  onChange={(e) => setPurchasePrice(e.target.value === "" ? "" : Number(e.target.value))}
+                  min={0}
+                  step={0.01}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={inputStyle}
+                  placeholder="0.00"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5"
+                  style={{ color: "var(--color-muted-foreground)" }}>
+                  Abma&szlig;e
+                </label>
+                <input
+                  type="text"
+                  value={dimensions}
+                  onChange={(e) => setDimensions(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={inputStyle}
+                  placeholder="z.B. 60x40x30 cm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5"
+                  style={{ color: "var(--color-muted-foreground)" }}>
+                  Leistung (W)
+                </label>
+                <input
+                  type="number"
+                  value={powerWatts}
+                  onChange={(e) => setPowerWatts(e.target.value === "" ? "" : Number(e.target.value))}
+                  min={0}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={inputStyle}
+                  placeholder="z.B. 500"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5"
+                  style={{ color: "var(--color-muted-foreground)" }}>
+                  Freifeld
+                </label>
+                <input
+                  type="text"
+                  value={customField}
+                  onChange={(e) => setCustomField(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={inputStyle}
+                  placeholder="Sonstige Infos"
+                />
+              </div>
+            </div>
+
+            {/* Zubehör */}
+            <div className="mt-4">
+              <label className="block text-xs font-medium mb-2"
+                style={{ color: "var(--color-muted-foreground)" }}>
+                Zubeh&ouml;r
+              </label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {["Netzteil", "Tasche", "Kabel", "Adapter"].map((acc) => {
+                  const isSelected = accessories.includes(acc);
+                  return (
+                    <button
+                      key={acc}
+                      type="button"
+                      onClick={() =>
+                        setAccessories((prev) =>
+                          isSelected ? prev.filter((a) => a !== acc) : [...prev, acc]
+                        )
+                      }
+                      className="px-3 py-1.5 rounded-full text-xs font-medium transition-all"
+                      style={{
+                        background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
+                        color: isSelected ? "#fff" : "var(--color-muted-foreground)",
+                        border: isSelected ? "none" : "1px solid var(--color-border)",
+                      }}
+                    >
+                      {isSelected ? "✓ " : ""}{acc}
+                    </button>
+                  );
+                })}
+              </div>
+              {/* Custom accessory tags */}
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {accessories
+                  .filter((a) => !["Netzteil", "Tasche", "Kabel", "Adapter"].includes(a))
+                  .map((acc) => (
+                    <span
+                      key={acc}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
+                      style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}
+                    >
+                      {acc}
+                      <button
+                        type="button"
+                        onClick={() => setAccessories((prev) => prev.filter((a) => a !== acc))}
+                        className="ml-0.5 hover:opacity-70"
+                      >
+                        &times;
+                      </button>
+                    </span>
+                  ))}
+              </div>
+              {/* Freifeld-Input für eigenes Zubehör */}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={accessoryCustom}
+                  onChange={(e) => setAccessoryCustom(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && accessoryCustom.trim()) {
+                      e.preventDefault();
+                      if (!accessories.includes(accessoryCustom.trim())) {
+                        setAccessories((prev) => [...prev, accessoryCustom.trim()]);
+                      }
+                      setAccessoryCustom("");
+                    }
+                  }}
+                  className="flex-1 px-3 py-1.5 rounded-lg text-xs"
+                  style={inputStyle}
+                  placeholder="Eigenes Zubeh&ouml;r hinzuf&uuml;gen..."
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (accessoryCustom.trim() && !accessories.includes(accessoryCustom.trim())) {
+                      setAccessories((prev) => [...prev, accessoryCustom.trim()]);
+                    }
+                    setAccessoryCustom("");
+                  }}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                  style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
+                >
+                  +
+                </button>
+              </div>
             </div>
           </div>
 
