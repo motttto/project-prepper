@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import type { Project, Inquiry } from "@/types/database";
@@ -46,6 +46,7 @@ const statusOrder: Project["status"][] = ["draft", "planning", "active", "comple
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
   const projectId = params.id as string;
 
@@ -86,6 +87,14 @@ export default function ProjectDetailPage() {
     }
     return baseTabs;
   }, [canViewCosts]);
+
+  // Deep-Link: ?tab=tasks (z.B. aus Notification-Bell)
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam && tabs.some((t) => t.key === tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams, tabs]);
 
   // Safeguard: wenn auf Kosten-Tab und kein Zugriff → reset
   useEffect(() => {

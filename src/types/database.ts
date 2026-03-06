@@ -236,6 +236,7 @@ export type EffectiveProjectRole =
 
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high";
+export type TaskAssignmentStatus = "pending" | "accepted" | "declined";
 
 export type ProjectTask = {
   id: string;
@@ -245,11 +246,37 @@ export type ProjectTask = {
   status: TaskStatus;
   priority: TaskPriority;
   assigned_to: string | null;
+  assigned_to_team_id: string | null;
+  assigned_to_contact_id: string | null;
+  assignment_status: TaskAssignmentStatus;
+  assigned_at: string | null;
   due_date: string | null;
   created_by: string | null;
   sort_order: number;
   created_at: string;
+  // Joined data
   profiles?: { name: string } | null;
+  project_team?: { name: string; role: string | null; department: string | null } | null;
+  project_contacts?: { name: string; role: string | null; company: string | null } | null;
+};
+
+// === Task Notifications ===
+
+export type TaskNotificationType = "assigned" | "unassigned";
+
+export type TaskNotification = {
+  id: string;
+  task_id: string;
+  profile_id: string;
+  type: TaskNotificationType;
+  is_read: boolean;
+  created_at: string;
+  // Joined data
+  project_tasks?: {
+    title: string;
+    project_id: string;
+    projects?: { name: string };
+  };
 };
 
 // === Team-Freigabe (Votes) ===

@@ -2,10 +2,13 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
-import type { ProjectTask, TaskStatus, TaskPriority } from "@/types/database";
+import { useCurrentUser } from "@/hooks/use-current-user";
+import type { ProjectTask, TaskStatus, TaskPriority, TaskAssignmentStatus } from "@/types/database";
 import { IconPlus, IconX, IconTrash, IconEdit, IconCheck } from "@/components/ui/icons";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { DateInput } from "@/components/ui/date-input";
+
+// --- Styles ---
 
 const statusStyles: Record<TaskStatus, { bg: string; color: string; label: string }> = {
   todo: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)", label: "Offen" },
@@ -19,12 +22,112 @@ const priorityStyles: Record<TaskPriority, { bg: string; color: string; label: s
   low: { bg: "var(--color-success-light)", color: "var(--color-success)", label: "Niedrig" },
 };
 
+const assigneeTypeBadge: Record<string, { bg: string; color: string; label: string }> = {
+  member: { bg: "#dbeafe", color: "#1d4ed8", label: "Intern" },
+  team: { bg: "#dcfce7", color: "#16a34a", label: "Crew" },
+  contact: { bg: "#fef3c7", color: "#b45309", label: "Extern" },
+};
+
 const statusOrder: TaskStatus[] = ["todo", "in_progress", "done"];
 
-interface MemberOption {
+// --- Assignee Helpers ---
+
+interface AssigneeOption {
+  type: "member" | "team" | "contact";
   id: string;
   name: string;
+  detail: string;
 }
+
+function parseAssigneeValue(val: string): { type: "member" | "team" | "contact" | null; id: string | null } {
+  if (!val) return { type: null, id: null };
+  const [type, ...rest] = val.split(":");
+  return { type: type as "member" | "team" | "contact", id: rest.join(":") };
+}
+
+function toAssigneeColumns(val: string) {
+  const { type, id } = parseAssigneeValue(val);
+  return {
+    assigned_to: type === "member" ? id : null,
+    assigned_to_team_id: type === "team" ? id : null,
+    assigned_to_contact_id: type === "contact" ? id : null,
+  };
+}
+
+function taskToAssigneeValue(task: ProjectTask): string {
+  if (task.assigned_to) return `member:${task.assigned_to}`;
+  if (task.assigned_to_team_id) return `team:${task.assigned_to_team_id}`;
+  if (task.assigned_to_contact_id) return `contact:${task.assigned_to_contact_id}`;
+  return "";
+}
+
+function getAssigneeName(task: ProjectTask): { name: string; type: "member" | "team" | "contact" } | null {
+  if (task.assigned_to && task.profiles?.name) {
+    return { name: task.profiles.name, type: "member" };
+  }
+  if (task.assigned_to_team_id && task.project_team?.name) {
+    return { name: task.project_team.name, type: "team" };
+  }
+  if (task.assigned_to_contact_id && task.project_contacts?.name) {
+    return { name: task.project_contacts.name, type: "contact" };
+  }
+  return null;
+}
+
+// --- Assignee Select Component ---
+
+function AssigneeSelect({
+  value,
+  onChange,
+  options,
+  style,
+  className,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  options: AssigneeOption[];
+  style?: React.CSSProperties;
+  className?: string;
+}) {
+  const members = options.filter((o) => o.type === "member");
+  const team = options.filter((o) => o.type === "team");
+  const contacts = options.filter((o) => o.type === "contact");
+
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} className={className} style={style}>
+      <option value="">— Niemand —</option>
+      {members.length > 0 && (
+        <optgroup label="Intern (Projekt-Mitglieder)">
+          {members.map((m) => (
+            <option key={`member:${m.id}`} value={`member:${m.id}`}>
+              {m.name}{m.detail ? ` (${m.detail})` : ""}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {team.length > 0 && (
+        <optgroup label="Team / Crew">
+          {team.map((m) => (
+            <option key={`team:${m.id}`} value={`team:${m.id}`}>
+              {m.name}{m.detail ? ` (${m.detail})` : ""}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {contacts.length > 0 && (
+        <optgroup label="Externe Kontakte">
+          {contacts.map((m) => (
+            <option key={`contact:${m.id}`} value={`contact:${m.id}`}>
+              {m.name}{m.detail ? ` (${m.detail})` : ""}
+            </option>
+          ))}
+        </optgroup>
+      )}
+    </select>
+  );
+}
+
+// --- Main Component ---
 
 interface TabTasksProps {
   projectId: string;
@@ -32,10 +135,11 @@ interface TabTasksProps {
 
 export function TabTasks({ projectId }: TabTasksProps) {
   const supabase = createClient();
+  const currentUser = useCurrentUser();
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
-  const [members, setMembers] = useState<MemberOption[]>([]);
+  const [assigneeOptions, setAssigneeOptions] = useState<AssigneeOption[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<"all" | TaskStatus>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "mine" | TaskStatus>("all");
 
   // Create form
   const [showForm, setShowForm] = useState(false);
@@ -56,28 +160,57 @@ export function TabTasks({ projectId }: TabTasksProps) {
   const [editStatus, setEditStatus] = useState<TaskStatus>("todo");
 
   const loadData = useCallback(async () => {
-    const [tasksRes, membersRes] = await Promise.all([
+    const [tasksRes, membersRes, teamRes, contactsRes] = await Promise.all([
       supabase
         .from("project_tasks")
-        .select("*, profiles:assigned_to(name)")
+        .select(`
+          *,
+          profiles:assigned_to(name),
+          project_team:assigned_to_team_id(name, role, department),
+          project_contacts:assigned_to_contact_id(name, role, company)
+        `)
         .eq("project_id", projectId)
         .order("sort_order")
         .order("created_at"),
       supabase
         .from("project_members")
-        .select("profile_id, profiles(name)")
+        .select("profile_id, role, profiles(name)")
+        .eq("project_id", projectId),
+      supabase
+        .from("project_team")
+        .select("id, name, role, department")
+        .eq("project_id", projectId),
+      supabase
+        .from("project_contacts")
+        .select("id, name, role, company")
         .eq("project_id", projectId),
     ]);
 
     if (tasksRes.data) setTasks(tasksRes.data as ProjectTask[]);
+
+    // Build assignee options from all three sources
+    const opts: AssigneeOption[] = [];
     if (membersRes.data) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const opts = membersRes.data.map((m: any) => ({
-        id: m.profile_id,
-        name: Array.isArray(m.profiles) ? m.profiles[0]?.name || "?" : m.profiles?.name || "?",
-      }));
-      setMembers(opts);
+      for (const m of membersRes.data as any[]) {
+        const name = Array.isArray(m.profiles) ? m.profiles[0]?.name : m.profiles?.name;
+        const roleLabel = m.role === "owner" ? "Eigentümer" : m.role === "editor" ? "Bearbeiter" : "Betrachter";
+        opts.push({ type: "member", id: m.profile_id, name: name || "?", detail: roleLabel });
+      }
     }
+    if (teamRes.data) {
+      for (const t of teamRes.data) {
+        const parts = [t.role, t.department].filter(Boolean);
+        opts.push({ type: "team", id: t.id, name: t.name, detail: parts.join(", ") });
+      }
+    }
+    if (contactsRes.data) {
+      for (const c of contactsRes.data) {
+        const parts = [c.role, c.company].filter(Boolean);
+        opts.push({ type: "contact", id: c.id, name: c.name, detail: parts.join(", ") });
+      }
+    }
+    setAssigneeOptions(opts);
     setLoading(false);
   }, [supabase, projectId]);
 
@@ -93,17 +226,22 @@ export function TabTasks({ projectId }: TabTasksProps) {
 
   // Stats
   const counts = useMemo(() => {
-    const c = { todo: 0, in_progress: 0, done: 0, all: tasks.length };
-    for (const t of tasks) c[t.status]++;
+    const c = { todo: 0, in_progress: 0, done: 0, all: tasks.length, mine: 0 };
+    for (const t of tasks) {
+      c[t.status]++;
+      if (t.assigned_to === currentUser?.id) c.mine++;
+    }
     return c;
-  }, [tasks]);
+  }, [tasks, currentUser?.id]);
 
   const filtered = useMemo(() => {
     if (statusFilter === "all") return tasks;
+    if (statusFilter === "mine") return tasks.filter((t) => t.assigned_to === currentUser?.id);
     return tasks.filter((t) => t.status === statusFilter);
-  }, [tasks, statusFilter]);
+  }, [tasks, statusFilter, currentUser?.id]);
 
-  // CRUD
+  // --- CRUD ---
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!formTitle.trim()) return;
@@ -111,17 +249,34 @@ export function TabTasks({ projectId }: TabTasksProps) {
 
     const maxOrder = tasks.length > 0 ? Math.max(...tasks.map((t) => t.sort_order)) : -1;
     const { data: { user } } = await supabase.auth.getUser();
+    const assigneeCols = toAssigneeColumns(formAssignee);
+    const isProfileAssignment = !!assigneeCols.assigned_to;
 
-    await supabase.from("project_tasks").insert({
+    const { data: inserted } = await supabase.from("project_tasks").insert({
       project_id: projectId,
       title: formTitle.trim(),
       description: formDescription.trim() || null,
       priority: formPriority,
-      assigned_to: formAssignee || null,
+      ...assigneeCols,
+      assignment_status: isProfileAssignment ? "pending" : "accepted",
+      assigned_at: formAssignee ? new Date().toISOString() : null,
       due_date: formDueDate || null,
       created_by: user?.id || null,
       sort_order: maxOrder + 1,
-    });
+    }).select("id").single();
+
+    // Notification für Profile-Zuweisung (nur wenn nicht sich selbst zugewiesen)
+    if (inserted && isProfileAssignment && assigneeCols.assigned_to !== user?.id) {
+      await supabase.from("task_notifications").insert({
+        task_id: inserted.id,
+        profile_id: assigneeCols.assigned_to!,
+        type: "assigned",
+      });
+    }
+    // Sich selbst zugewiesen → sofort accepted
+    if (inserted && isProfileAssignment && assigneeCols.assigned_to === user?.id) {
+      await supabase.from("project_tasks").update({ assignment_status: "accepted" }).eq("id", inserted.id);
+    }
 
     setFormTitle("");
     setFormDescription("");
@@ -135,24 +290,13 @@ export function TabTasks({ projectId }: TabTasksProps) {
 
   async function handleToggleDone(task: ProjectTask) {
     const newStatus: TaskStatus = task.status === "done" ? "todo" : "done";
-    // Optimistic update
-    setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t))
-    );
-    await supabase
-      .from("project_tasks")
-      .update({ status: newStatus })
-      .eq("id", task.id);
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: newStatus } : t)));
+    await supabase.from("project_tasks").update({ status: newStatus }).eq("id", task.id);
   }
 
   async function handleStatusChange(taskId: string, newStatus: TaskStatus) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t))
-    );
-    await supabase
-      .from("project_tasks")
-      .update({ status: newStatus })
-      .eq("id", taskId);
+    setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status: newStatus } : t)));
+    await supabase.from("project_tasks").update({ status: newStatus }).eq("id", taskId);
   }
 
   async function handleDelete(taskId: string) {
@@ -166,32 +310,78 @@ export function TabTasks({ projectId }: TabTasksProps) {
     setEditTitle(task.title);
     setEditDescription(task.description || "");
     setEditPriority(task.priority);
-    setEditAssignee(task.assigned_to || "");
+    setEditAssignee(taskToAssigneeValue(task));
     setEditDueDate(task.due_date || "");
     setEditStatus(task.status);
   }
 
   async function handleSaveEdit() {
     if (!editingId || !editTitle.trim()) return;
+
+    const oldTask = tasks.find((t) => t.id === editingId);
+    const assigneeCols = toAssigneeColumns(editAssignee);
+    const isProfileAssignment = !!assigneeCols.assigned_to;
+    const assigneeChanged = oldTask && taskToAssigneeValue(oldTask) !== editAssignee;
+
     await supabase
       .from("project_tasks")
       .update({
         title: editTitle.trim(),
         description: editDescription.trim() || null,
         priority: editPriority,
-        assigned_to: editAssignee || null,
+        ...assigneeCols,
+        assignment_status: !editAssignee
+          ? "pending"
+          : isProfileAssignment && assigneeCols.assigned_to !== currentUser?.id
+            ? "pending"
+            : "accepted",
+        assigned_at: assigneeChanged ? new Date().toISOString() : oldTask?.assigned_at || null,
         due_date: editDueDate || null,
         status: editStatus,
       })
       .eq("id", editingId);
+
+    // Notification bei neuer Profile-Zuweisung
+    if (assigneeChanged && isProfileAssignment && assigneeCols.assigned_to !== currentUser?.id) {
+      await supabase.from("task_notifications").insert({
+        task_id: editingId,
+        profile_id: assigneeCols.assigned_to!,
+        type: "assigned",
+      });
+    }
+
     setEditingId(null);
     loadData();
   }
 
-  function getMemberName(profileId: string | null): string | null {
-    if (!profileId) return null;
-    return members.find((m) => m.id === profileId)?.name || null;
+  // --- Accept / Decline ---
+
+  async function handleAcceptTask(taskId: string) {
+    await supabase.from("project_tasks").update({ assignment_status: "accepted" }).eq("id", taskId);
+    // Notification als gelesen markieren
+    if (currentUser?.id) {
+      await supabase
+        .from("task_notifications")
+        .update({ is_read: true })
+        .eq("task_id", taskId)
+        .eq("profile_id", currentUser.id);
+    }
+    loadData();
   }
+
+  async function handleDeclineTask(taskId: string) {
+    await supabase.from("project_tasks").update({ assignment_status: "declined" }).eq("id", taskId);
+    if (currentUser?.id) {
+      await supabase
+        .from("task_notifications")
+        .update({ is_read: true })
+        .eq("task_id", taskId)
+        .eq("profile_id", currentUser.id);
+    }
+    loadData();
+  }
+
+  // --- Helpers ---
 
   function isOverdue(dueDate: string | null, status: TaskStatus): boolean {
     if (!dueDate || status === "done") return false;
@@ -289,17 +479,13 @@ export function TabTasks({ projectId }: TabTasksProps) {
                 <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>
                   Zuständig
                 </label>
-                <select
+                <AssigneeSelect
                   value={formAssignee}
-                  onChange={(e) => setFormAssignee(e.target.value)}
+                  onChange={setFormAssignee}
+                  options={assigneeOptions}
                   className="w-full px-3 py-2 rounded-lg text-sm"
                   style={inputStyle}
-                >
-                  <option value="">— Niemand —</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>{m.name}</option>
-                  ))}
-                </select>
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>
@@ -334,9 +520,9 @@ export function TabTasks({ projectId }: TabTasksProps) {
       )}
 
       {/* Filter Pills */}
-      <div className="flex gap-2">
-        {(["all", ...statusOrder] as const).map((s) => {
-          const label = s === "all" ? "Alle" : statusStyles[s].label;
+      <div className="flex gap-2 flex-wrap">
+        {(["all", "mine", ...statusOrder] as const).map((s) => {
+          const label = s === "all" ? "Alle" : s === "mine" ? "Meine" : statusStyles[s].label;
           const count = counts[s];
           const active = statusFilter === s;
           return (
@@ -365,7 +551,9 @@ export function TabTasks({ projectId }: TabTasksProps) {
           <p className="text-sm">
             {statusFilter === "all"
               ? "Noch keine Aufgaben angelegt"
-              : `Keine Aufgaben mit Status „${statusStyles[statusFilter].label}"`}
+              : statusFilter === "mine"
+                ? "Keine Aufgaben an dich zugewiesen"
+                : `Keine Aufgaben mit Status „${statusStyles[statusFilter].label}"`}
           </p>
         </div>
       ) : (
@@ -373,8 +561,9 @@ export function TabTasks({ projectId }: TabTasksProps) {
           {filtered.map((task) => {
             const isEditing = editingId === task.id;
             const overdue = isOverdue(task.due_date, task.status);
-            const assigneeName = getMemberName(task.assigned_to) ||
-              (task.profiles?.name) || null;
+            const assignee = getAssigneeName(task);
+            const isPendingForMe =
+              task.assigned_to === currentUser?.id && task.assignment_status === "pending";
 
             if (isEditing) {
               return (
@@ -403,7 +592,7 @@ export function TabTasks({ projectId }: TabTasksProps) {
                     style={inputStyle}
                     placeholder="Beschreibung"
                   />
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <select
                       value={editStatus}
                       onChange={(e) => setEditStatus(e.target.value as TaskStatus)}
@@ -424,17 +613,13 @@ export function TabTasks({ projectId }: TabTasksProps) {
                       <option value="medium">Mittel</option>
                       <option value="high">Hoch</option>
                     </select>
-                    <select
+                    <AssigneeSelect
                       value={editAssignee}
-                      onChange={(e) => setEditAssignee(e.target.value)}
+                      onChange={setEditAssignee}
+                      options={assigneeOptions}
                       className="px-3 py-2 rounded-lg text-sm"
                       style={inputStyle}
-                    >
-                      <option value="">— Niemand —</option>
-                      {members.map((m) => (
-                        <option key={m.id} value={m.id}>{m.name}</option>
-                      ))}
-                    </select>
+                    />
                     <DateInput
                       value={editDueDate}
                       onChange={setEditDueDate}
@@ -465,24 +650,26 @@ export function TabTasks({ projectId }: TabTasksProps) {
                 key={task.id}
                 className="flex items-start gap-3 p-4 rounded-xl transition-colors group"
                 style={{
-                  background: "var(--color-surface)",
-                  border: "1px solid var(--color-border-light)",
+                  background: isPendingForMe ? "var(--color-warning-light)" : "var(--color-surface)",
+                  border: isPendingForMe
+                    ? "1px solid var(--color-warning)"
+                    : "1px solid var(--color-border-light)",
                   opacity: task.status === "done" ? 0.7 : 1,
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--color-border)")}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--color-border-light)")}
+                onMouseEnter={(e) => {
+                  if (!isPendingForMe) e.currentTarget.style.borderColor = "var(--color-border)";
+                }}
+                onMouseLeave={(e) => {
+                  if (!isPendingForMe) e.currentTarget.style.borderColor = "var(--color-border-light)";
+                }}
               >
                 {/* Checkbox */}
                 <button
                   onClick={() => handleToggleDone(task)}
                   className="mt-0.5 w-5 h-5 rounded flex-shrink-0 flex items-center justify-center transition-colors"
                   style={{
-                    border: task.status === "done"
-                      ? "none"
-                      : "2px solid var(--color-border)",
-                    background: task.status === "done"
-                      ? "var(--color-success)"
-                      : "transparent",
+                    border: task.status === "done" ? "none" : "2px solid var(--color-border)",
+                    background: task.status === "done" ? "var(--color-success)" : "transparent",
                     color: task.status === "done" ? "#fff" : "transparent",
                   }}
                   title={task.status === "done" ? "Als offen markieren" : "Als erledigt markieren"}
@@ -495,13 +682,10 @@ export function TabTasks({ projectId }: TabTasksProps) {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span
                       className="text-sm font-medium"
-                      style={{
-                        textDecoration: task.status === "done" ? "line-through" : "none",
-                      }}
+                      style={{ textDecoration: task.status === "done" ? "line-through" : "none" }}
                     >
                       {task.title}
                     </span>
-                    {/* Status Badge (nur wenn nicht done/todo) */}
                     {task.status === "in_progress" && (
                       <span
                         className="text-xs px-1.5 py-0.5 rounded-full font-medium"
@@ -510,7 +694,6 @@ export function TabTasks({ projectId }: TabTasksProps) {
                         {statusStyles.in_progress.label}
                       </span>
                     )}
-                    {/* Priority Badge */}
                     <span
                       className="text-xs px-1.5 py-0.5 rounded-full font-medium"
                       style={{ background: priorityStyles[task.priority].bg, color: priorityStyles[task.priority].color }}
@@ -525,15 +708,41 @@ export function TabTasks({ projectId }: TabTasksProps) {
                   )}
                   {/* Meta Row */}
                   <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                    {assigneeName && (
+                    {assignee && (
                       <span className="flex items-center gap-1 text-xs" style={{ color: "var(--color-muted-foreground)" }}>
                         <span
                           className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white"
-                          style={{ background: "var(--color-primary)" }}
+                          style={{ background: assigneeTypeBadge[assignee.type].color }}
                         >
-                          {assigneeName.charAt(0).toUpperCase()}
+                          {assignee.name.charAt(0).toUpperCase()}
                         </span>
-                        {assigneeName}
+                        {assignee.name}
+                        <span
+                          className="text-[10px] px-1 py-0.5 rounded font-medium ml-0.5"
+                          style={{
+                            background: assigneeTypeBadge[assignee.type].bg,
+                            color: assigneeTypeBadge[assignee.type].color,
+                          }}
+                        >
+                          {assigneeTypeBadge[assignee.type].label}
+                        </span>
+                        {/* Assignment Status Badge */}
+                        {task.assignment_status === "pending" && task.assigned_to && (
+                          <span
+                            className="text-[10px] px-1 py-0.5 rounded font-medium"
+                            style={{ background: "var(--color-warning-light)", color: "var(--color-warning)" }}
+                          >
+                            Ausstehend
+                          </span>
+                        )}
+                        {task.assignment_status === "declined" && task.assigned_to && (
+                          <span
+                            className="text-[10px] px-1 py-0.5 rounded font-medium"
+                            style={{ background: "var(--color-destructive-light)", color: "var(--color-destructive)" }}
+                          >
+                            Abgelehnt
+                          </span>
+                        )}
                       </span>
                     )}
                     {task.due_date && (
@@ -552,31 +761,41 @@ export function TabTasks({ projectId }: TabTasksProps) {
                         {overdue && " (überfällig)"}
                       </span>
                     )}
-                    {/* Status Cycle Button */}
                     {task.status !== "done" && (
                       <button
                         onClick={() =>
-                          handleStatusChange(
-                            task.id,
-                            task.status === "todo" ? "in_progress" : "done"
-                          )
+                          handleStatusChange(task.id, task.status === "todo" ? "in_progress" : "done")
                         }
                         className="text-xs px-1.5 py-0.5 rounded-full font-medium opacity-0 group-hover:opacity-100 transition-opacity"
                         style={{
-                          background:
-                            task.status === "todo"
-                              ? statusStyles.in_progress.bg
-                              : statusStyles.done.bg,
-                          color:
-                            task.status === "todo"
-                              ? statusStyles.in_progress.color
-                              : statusStyles.done.color,
+                          background: task.status === "todo" ? statusStyles.in_progress.bg : statusStyles.done.bg,
+                          color: task.status === "todo" ? statusStyles.in_progress.color : statusStyles.done.color,
                         }}
                       >
                         → {task.status === "todo" ? "In Arbeit" : "Erledigt"}
                       </button>
                     )}
                   </div>
+
+                  {/* Accept/Decline for pending tasks assigned to me */}
+                  {isPendingForMe && (
+                    <div className="flex gap-2 mt-2">
+                      <button
+                        onClick={() => handleAcceptTask(task.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                        style={{ background: "var(--color-success)", color: "white" }}
+                      >
+                        <IconCheck size={12} /> Annehmen
+                      </button>
+                      <button
+                        onClick={() => handleDeclineTask(task.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                        style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
+                      >
+                        <IconX size={12} /> Ablehnen
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}

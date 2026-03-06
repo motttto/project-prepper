@@ -47,7 +47,7 @@ src/
 │   │   ├── tab-team.tsx               # Team + Kontakte
 │   │   ├── tab-materials.tsx          # Verbrauchsmaterial + Transport
 │   │   ├── tab-checklists.tsx         # Checklisten
-│   │   ├── tab-tasks.tsx              # Aufgaben (Zuweisen, Prio, Status)
+│   │   ├── tab-tasks.tsx              # Aufgaben (Intern/Crew/Extern, Annahme-Flow)
 │   │   └── project-members-panel.tsx  # Mitglieder verwalten
 │   ├── inventory/
 │   │   ├── excel-import.tsx           # Mehrstufiger Excel-Import
@@ -61,6 +61,7 @@ src/
 │   ├── use-current-user.ts            # Auth User + Org-Rolle
 │   ├── use-project-role.ts            # Projekt-Rolle (owner/editor/viewer/admin/none)
 │   ├── use-invitations.ts             # Einladungen + accept/decline
+│   ├── use-task-notifications.ts      # Task-Zuweisungs-Notifications
 │   ├── use-realtime-table.ts          # Generische Realtime-Subscription
 │   └── use-presence.ts                # Presence Tracking pro Projekt
 ├── lib/
@@ -94,7 +95,8 @@ src/
 | `project_checklist_items` | Checklist-Items | checklist_id, label, checked, sort_order |
 | `project_members` | Projekt-Mitgliedschaft | project_id, profile_id, role (owner/editor/viewer) |
 | `project_invitations` | Einladungen | project_id, invited_by, invited_profile_id, role, status |
-| `project_tasks` | Aufgaben pro Projekt | project_id, title, status, priority, assigned_to, due_date, sort_order |
+| `project_tasks` | Aufgaben pro Projekt | project_id, title, status, priority, assigned_to, assigned_to_team_id, assigned_to_contact_id, assignment_status, assigned_at, due_date, sort_order |
+| `task_notifications` | Task-Zuweisungs-Notifications | task_id, profile_id, type (assigned/unassigned), is_read |
 
 ### Projekt-Budget Felder (auf `projects`)
 - `budget_planned` — Gesamtbudget
@@ -113,6 +115,9 @@ src/
 
 ### Task-Priorität
 `low` · `medium` · `high`
+
+### Task-Assignment-Status
+`pending` · `accepted` · `declined`
 
 ### Projekt-Status
 `draft` · `planning` · `active` · `completed` · `cancelled`
@@ -166,6 +171,7 @@ Budget-Spalten auf `projects` können nicht per RLS versteckt werden → werden 
 | 015 | `015_team_approval.sql` | Team-Freigabe: is_active, team_votes, Trigger-Update |
 | 016 | `016_profile_avatars.sql` | avatar_url auf profiles + Storage Bucket `avatars` |
 | 025 | `025_inventory_details.sql` | Gerätebezeichnung, Seriennummer, Kaufpreis, Abmaße, Leistung, Zubehör, Freifeld |
+| 026 | `026_task_assignment_extended.sql` | Erweiterte Task-Zuweisung (Crew/Extern), Annahme-Flow, Task-Notifications |
 
 ---
 
@@ -236,7 +242,7 @@ Alle 14 Tabellen sind in `supabase_realtime` Publication:
 - project_schedule, project_team_members, project_contacts
 - project_consumables, project_checklists, project_checklist_items
 - project_members, project_invitations, project_tasks
-- team_votes
+- task_notifications, team_votes
 
 ---
 

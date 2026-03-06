@@ -7,12 +7,14 @@ import { useInvitations } from "@/hooks/use-invitations";
 import { useBookingApprovals } from "@/hooks/use-booking-approvals";
 import { useInquiryInvitations } from "@/hooks/use-inquiry-invitations";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
+import { useTaskNotifications } from "@/hooks/use-task-notifications";
 import {
   IconBell,
   IconCheck,
   IconX,
   IconHandshake,
   IconInbox,
+  IconClipboardCheck,
 } from "@/components/ui/icons";
 
 interface InvitationBellProps {
@@ -48,6 +50,13 @@ export function InvitationBell({ userId, orgId }: InvitationBellProps) {
     decline: declineInquiry,
   } = useInquiryInvitations({ userId });
 
+  const {
+    notifications: taskNotifications,
+    pendingCount: taskPendingCount,
+    acceptTask,
+    declineTask,
+  } = useTaskNotifications(userId);
+
   const [partnerInvites, setPartnerInvites] = useState<PartnerInvite[]>([]);
   const [open, setOpen] = useState(false);
   const [processing, setProcessing] = useState<string | null>(null);
@@ -80,7 +89,7 @@ export function InvitationBell({ userId, orgId }: InvitationBellProps) {
   });
 
   const totalCount =
-    projectPendingCount + partnerInvites.length + bookingPendingCount + inquiryPendingCount;
+    projectPendingCount + partnerInvites.length + bookingPendingCount + inquiryPendingCount + taskPendingCount;
 
   // Click-Outside schließt Dropdown
   useEffect(() => {
@@ -135,6 +144,21 @@ export function InvitationBell({ userId, orgId }: InvitationBellProps) {
       .eq("id", invite.id);
     setProcessing(null);
     loadPartnerInvites();
+  }
+
+  // --- Task-Zuweisungen ---
+  async function handleAcceptTaskNotif(notifId: string, taskId: string, projectId: string) {
+    setProcessing(notifId);
+    await acceptTask(taskId, notifId);
+    setProcessing(null);
+    router.push(`/projects/${projectId}?tab=tasks`);
+    setOpen(false);
+  }
+
+  async function handleDeclineTaskNotif(notifId: string, taskId: string) {
+    setProcessing(notifId);
+    await declineTask(taskId, notifId);
+    setProcessing(null);
   }
 
   // --- Anfragen-Einladungen ---
@@ -225,6 +249,73 @@ export function InvitationBell({ userId, orgId }: InvitationBellProps) {
               </div>
             ) : (
               <>
+                {/* Sektion: Aufgaben-Zuweisungen */}
+                {taskPendingCount > 0 && (
+                  <div>
+                    <div
+                      className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5"
+                      style={{
+                        color: "var(--color-text-muted)",
+                        background: "var(--color-muted)",
+                      }}
+                    >
+                      <IconClipboardCheck size={12} />
+                      Aufgaben
+                    </div>
+                    {taskNotifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className="p-3"
+                        style={{
+                          borderBottom: "1px solid var(--color-border)",
+                        }}
+                      >
+                        <p className="text-sm font-medium">
+                          {notif.project_tasks?.title || "Aufgabe"}
+                        </p>
+                        <p
+                          className="text-xs mt-0.5"
+                          style={{ color: "var(--color-text-muted)" }}
+                        >
+                          {notif.project_tasks?.projects?.name || "Projekt"} — Wurde dir zugewiesen
+                        </p>
+                        <div className="flex gap-2 mt-2">
+                          <button
+                            onClick={() =>
+                              handleAcceptTaskNotif(
+                                notif.id,
+                                notif.task_id,
+                                notif.project_tasks?.project_id || ""
+                              )
+                            }
+                            disabled={processing === notif.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+                            style={{
+                              background: "var(--color-success)",
+                              color: "white",
+                            }}
+                          >
+                            <IconCheck size={14} /> Annehmen
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleDeclineTaskNotif(notif.id, notif.task_id)
+                            }
+                            disabled={processing === notif.id}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+                            style={{
+                              border: "1px solid var(--color-border)",
+                              color: "var(--color-text-muted)",
+                            }}
+                          >
+                            <IconX size={14} /> Ablehnen
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Sektion: Anfragen-Einladungen */}
                 {inquiryPendingCount > 0 && (
                   <div>

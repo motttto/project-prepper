@@ -67,7 +67,11 @@ export default function DashboardPage() {
         // Meine Projekt-Mitgliedschaften laden
         supabase.from("project_members").select("project_id"),
         // Alle offenen Aufgaben laden (todo + in_progress)
-        supabase.from("project_tasks").select("id, status, due_date, project_id").neq("status", "done"),
+        supabase
+          .from("project_tasks")
+          .select("id, title, status, priority, due_date, project_id, assigned_to, assignment_status, projects(name)")
+          .neq("status", "done")
+          .order("due_date", { ascending: true, nullsFirst: false }),
         // Offene Anfragen laden
         supabase
           .from("inquiries")
@@ -80,7 +84,7 @@ export default function DashboardPage() {
     if (inventoryRes.data) setInventory(inventoryRes.data as InventoryItem[]);
     if (costsRes.data) setCosts(costsRes.data as CostItem[]);
     if (bookingsRes.data) setBookings(bookingsRes.data as Booking[]);
-    if (tasksRes.data) setTasks(tasksRes.data as ProjectTask[]);
+    if (tasksRes.data) setTasks(tasksRes.data as unknown as ProjectTask[]);
     if (inquiriesRes.data) setInquiries(inquiriesRes.data as Inquiry[]);
     if (membersRes.data) {
       setMyProjectIds(new Set(membersRes.data.map((m: { project_id: string }) => m.project_id)));
@@ -146,6 +150,26 @@ export default function DashboardPage() {
       return new Date(a.date_start).getTime() - new Date(b.date_start).getTime();
     })
     .slice(0, 5);
+
+  // Meine Aufgaben: mir zugewiesen, nicht erledigt, Pending zuerst
+  const myTasks = orgTasks
+    .filter((t) => t.assigned_to === currentUser?.id)
+    .sort((a, b) => {
+      // Pending acceptance zuerst
+      if (a.assignment_status === "pending" && b.assignment_status !== "pending") return -1;
+      if (a.assignment_status !== "pending" && b.assignment_status === "pending") return 1;
+      // Dann überfällige
+      const aOverdue = a.due_date && a.due_date < today;
+      const bOverdue = b.due_date && b.due_date < today;
+      if (aOverdue && !bOverdue) return -1;
+      if (!aOverdue && bOverdue) return 1;
+      // Dann nach Due Date
+      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date);
+      if (a.due_date) return -1;
+      if (b.due_date) return 1;
+      return 0;
+    })
+    .slice(0, 8);
 
   // Letzte abgeschlossene Projekte
   const recentCompleted = projects
@@ -345,7 +369,7 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* Letzte Projekte */}
+        {/* Meine Aufgaben */}
         <div
           className="rounded-xl overflow-hidden"
           style={{
@@ -357,42 +381,98 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between px-5 py-4 border-b"
             style={{ borderColor: "var(--color-border-light)" }}
           >
-            <h2 className="font-semibold">Zuletzt abgeschlossen</h2>
+            <h2 className="font-semibold flex items-center gap-2">
+              <IconClipboardCheck size={16} />
+              Meine Aufgaben
+            </h2>
             <span className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-              {projects.filter((p) => p.status === "completed").length} Events
+              {myTasks.length} offen
             </span>
           </div>
 
-          {recentCompleted.length === 0 ? (
+          {myTasks.length === 0 ? (
             <div className="px-5 py-8 text-center text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-              Noch keine abgeschlossenen Projekte
+              Keine offenen Aufgaben an dich zugewiesen
             </div>
           ) : (
             <div>
-              {recentCompleted.map((project) => (
-                <div
-                  key={project.id}
-                  onClick={() => router.push(`/projects/${project.id}`)}
-                  className="flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors"
-                  style={{ borderBottom: "1px solid var(--color-border-light)" }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-hover)"}
-                  onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-                >
-                  <div className={`w-2 h-2 rounded-full ${statusDots[project.status]}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{project.name}</div>
-                    {project.date_start && (
-                      <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                        {new Date(project.date_start).toLocaleDateString("de-DE", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
+              {myTasks.map((task) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const projectName = (task as any).projects?.name || "Projekt";
+                const isOverdue = task.due_date && task.due_date < today;
+                const isPending = task.assignment_status === "pending";
+
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => router.push(`/projects/${task.project_id}?tab=tasks`)}
+                    className="flex items-center gap-3 px-5 py-3 cursor-pointer transition-colors"
+                    style={{
+                      borderBottom: "1px solid var(--color-border-light)",
+                      background: isPending ? "var(--color-warning-light)" : "transparent",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isPending) e.currentTarget.style.background = "var(--color-surface-hover)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = isPending ? "var(--color-warning-light)" : "transparent";
+                    }}
+                  >
+                    <div
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{
+                        background: isPending
+                          ? "var(--color-warning)"
+                          : task.status === "in_progress"
+                            ? "var(--color-info)"
+                            : "var(--color-muted-foreground)",
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate flex items-center gap-2">
+                        {task.title}
+                        {isPending && (
+                          <span
+                            className="text-[10px] px-1.5 py-0.5 rounded font-medium flex-shrink-0"
+                            style={{ background: "var(--color-warning)", color: "white" }}
+                          >
+                            Neu
+                          </span>
+                        )}
                       </div>
-                    )}
+                      <div className="text-xs flex items-center gap-2" style={{ color: "var(--color-muted-foreground)" }}>
+                        <span>{projectName}</span>
+                        {task.due_date && (
+                          <span style={{
+                            color: isOverdue ? "var(--color-destructive)" : "var(--color-muted-foreground)",
+                            fontWeight: isOverdue ? 600 : 400,
+                          }}>
+                            📅 {new Date(task.due_date).toLocaleDateString("de-DE", { day: "numeric", month: "short" })}
+                            {isOverdue && " (überfällig)"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0"
+                      style={{
+                        background: task.priority === "high"
+                          ? "var(--color-destructive-light)"
+                          : task.priority === "medium"
+                            ? "var(--color-warning-light)"
+                            : "var(--color-success-light)",
+                        color: task.priority === "high"
+                          ? "var(--color-destructive)"
+                          : task.priority === "medium"
+                            ? "var(--color-warning)"
+                            : "var(--color-success)",
+                      }}
+                    >
+                      {task.priority === "high" ? "Hoch" : task.priority === "medium" ? "Mittel" : "Niedrig"}
+                    </span>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
