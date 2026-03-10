@@ -362,8 +362,10 @@ export function TabOverview({
           <AutoInput label="Show-Datum" field="show_date" type="date" />
           <AutoInput label="Ankunftszeit" field="arrival_time" type="time" />
           <AutoInput label="Abfahrtszeit" field="departure_time" type="time" />
-          <AutoInput label="Aufbaudatum" field="setup_date" type="date" />
-          <AutoInput label="Abbaudatum" field="teardown_date" type="date" />
+          <AutoInput label="Aufbau von" field="setup_date" type="date" />
+          <AutoInput label="Aufbau bis" field="setup_date_end" type="date" />
+          <AutoInput label="Abbau von" field="teardown_date" type="date" />
+          <AutoInput label="Abbau bis" field="teardown_date_end" type="date" />
         </div>
       </div>
 

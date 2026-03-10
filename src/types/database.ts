@@ -48,7 +48,9 @@ export type Project = {
   arrival_time: string | null;
   departure_time: string | null;
   setup_date: string | null;
+  setup_date_end: string | null;
   teardown_date: string | null;
+  teardown_date_end: string | null;
   // Budget
   budget_planned: number | null;
   budget_honorar: number | null;
