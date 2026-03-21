@@ -18,7 +18,7 @@ export type PermissionKey =
   | "excel_export" | "excel_import"
   | "costs_view" | "costs_edit"
   | "team_view" | "team_manage"
-  | "inquiries_view" | "inquiries_edit";
+  | "inquiries_view" | "inquiries_edit" | "inquiries_create";
 
 // Backward-Compat: grobe Module für Sidebar-Filter
 export type PermissionModule = "projects" | "inventory" | "costs" | "team" | "inquiries";
@@ -66,6 +66,7 @@ export const permissionGroups: PermissionGroup[] = [
     permissions: [
       { key: "inquiries_view", label: "Anfragen sehen" },
       { key: "inquiries_edit", label: "Anfragen bearbeiten" },
+      { key: "inquiries_create", label: "Anfrage stellen" },
     ],
   },
 ];
@@ -82,7 +83,7 @@ export const defaultPermissionsByRole: Record<string, UserPermissions> = {
     excel_export: true, excel_import: true,
     costs_view: true, costs_edit: true,
     team_view: true, team_manage: false,
-    inquiries_view: true, inquiries_edit: true,
+    inquiries_view: true, inquiries_edit: true, inquiries_create: true,
   },
   member: {
     projects_view: true, projects_edit: false,
@@ -90,7 +91,7 @@ export const defaultPermissionsByRole: Record<string, UserPermissions> = {
     excel_export: false, excel_import: false,
     costs_view: false, costs_edit: false,
     team_view: true, team_manage: false,
-    inquiries_view: false, inquiries_edit: false,
+    inquiries_view: false, inquiries_edit: false, inquiries_create: false,
   },
 };
 
