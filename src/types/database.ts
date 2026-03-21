@@ -87,6 +87,18 @@ export type InventoryItem = {
   power_watts: number | null;
   accessories: string[] | null;
   custom_field: string | null;
+  manufacturer_url: string | null;
+  manual_url: string | null;
+  created_at: string;
+};
+
+export type InventoryUnit = {
+  id: string;
+  item_id: string;
+  org_id: string;
+  unit_number: number;
+  condition: InventoryItem["condition"];
+  notes: string | null;
   created_at: string;
 };
 

@@ -87,6 +87,8 @@ export default function InventoryPage() {
   const [formAccessories, setFormAccessories] = useState<string[]>([]);
   const [formAccessoryCustom, setFormAccessoryCustom] = useState("");
   const [formCustomField, setFormCustomField] = useState("");
+  const [formManufacturerUrl, setFormManufacturerUrl] = useState("");
+  const [formManualUrl, setFormManualUrl] = useState("");
   const [showCreateDetails, setShowCreateDetails] = useState(false);
 
   // Kategorie-Kürzel für Inventarnummer
@@ -194,13 +196,16 @@ export default function InventoryPage() {
       power_watts: formPowerWatts !== "" ? Number(formPowerWatts) : null,
       accessories: formAccessories.length > 0 ? formAccessories : null,
       custom_field: formCustomField || null,
+      manufacturer_url: formManufacturerUrl || null,
+      manual_url: formManualUrl || null,
     });
     if (!error) {
       setFormInventoryNumber(""); setFormName(""); setFormDescription(""); setFormCategory("");
       setFormQuantity(1); setFormCondition("new"); setFormCostPerDay(0); setFormLocation("");
       setFormDeviceName(""); setFormSerialNumber(""); setFormPurchasePrice("");
       setFormDimensions(""); setFormPowerWatts(""); setFormAccessories([]);
-      setFormAccessoryCustom(""); setFormCustomField(""); setShowCreateDetails(false);
+      setFormAccessoryCustom(""); setFormCustomField("");
+      setFormManufacturerUrl(""); setFormManualUrl(""); setShowCreateDetails(false);
       setShowCreate(false);
       loadItems();
     }
@@ -249,7 +254,9 @@ export default function InventoryPage() {
           i.device_name?.toLowerCase().includes(q) ||
           i.serial_number?.toLowerCase().includes(q) ||
           i.custom_field?.toLowerCase().includes(q) ||
-          i.accessories?.some((a) => a.toLowerCase().includes(q))
+          i.accessories?.some((a) => a.toLowerCase().includes(q)) ||
+          i.manufacturer_url?.toLowerCase().includes(q) ||
+          i.manual_url?.toLowerCase().includes(q)
       );
     }
     return result;
@@ -277,6 +284,8 @@ export default function InventoryPage() {
       Eigentümer: item.owner || "",
       Pate: item.purchased_by || "",
       Freifeld: item.custom_field || "",
+      "Hersteller-Link": item.manufacturer_url || "",
+      "Manual-Link": item.manual_url || "",
     }));
 
     const ws = XLSX.utils.json_to_sheet(rows);
@@ -501,6 +510,20 @@ export default function InventoryPage() {
                       className="w-full px-3 py-2 rounded-lg text-sm"
                       style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
                       placeholder="Sonstige Infos" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Hersteller-Link</label>
+                    <input type="url" value={formManufacturerUrl} onChange={(e) => setFormManufacturerUrl(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                      placeholder="https://..." />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1.5">Manual / Handbuch</label>
+                    <input type="url" value={formManualUrl} onChange={(e) => setFormManualUrl(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                      placeholder="https://..." />
                   </div>
                 </div>
                 {/* Zubehör-Buttons */}

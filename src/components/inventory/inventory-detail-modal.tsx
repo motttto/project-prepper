@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import type { InventoryItem } from "@/types/database";
-import { IconX, IconSave } from "@/components/ui/icons";
+import type { InventoryUnit } from "@/types/database";
+import { IconX, IconSave, IconExternalLink, IconHash, IconPlus, IconTrash } from "@/components/ui/icons";
 import { DateInput } from "@/components/ui/date-input";
 import { InventoryImageUpload } from "@/components/inventory/inventory-image-upload";
 
@@ -52,11 +53,18 @@ export function InventoryDetailModal({
   const [accessories, setAccessories] = useState<string[]>(item.accessories || []);
   const [accessoryCustom, setAccessoryCustom] = useState("");
   const [customField, setCustomField] = useState(item.custom_field || "");
+  const [manufacturerUrl, setManufacturerUrl] = useState(item.manufacturer_url || "");
+  const [manualUrl, setManualUrl] = useState(item.manual_url || "");
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [allProfiles, setAllProfiles] = useState<
     { id: string; name: string; is_active: boolean }[]
   >([]);
+
+  // Einzelstücke
+  const [units, setUnits] = useState<InventoryUnit[]>([]);
+  const [unitsLoading, setUnitsLoading] = useState(false);
+  const [unitsSaving, setUnitsSaving] = useState(false);
 
   // Track changes
   useEffect(() => {
@@ -76,9 +84,28 @@ export function InventoryDetailModal({
       dimensions !== (item.dimensions || "") ||
       String(powerWatts) !== String(item.power_watts ?? "") ||
       JSON.stringify(accessories) !== JSON.stringify(item.accessories || []) ||
-      customField !== (item.custom_field || "");
+      customField !== (item.custom_field || "") ||
+      manufacturerUrl !== (item.manufacturer_url || "") ||
+      manualUrl !== (item.manual_url || "");
     setHasChanges(changed);
-  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, deviceName, serialNumber, purchasePrice, dimensions, powerWatts, accessories, customField, item]);
+  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, deviceName, serialNumber, purchasePrice, dimensions, powerWatts, accessories, customField, manufacturerUrl, manualUrl, item]);
+
+  // Einzelstücke laden
+  useEffect(() => {
+    async function loadUnits() {
+      if (!orgId) return;
+      setUnitsLoading(true);
+      const { data } = await supabase
+        .from("inventory_units")
+        .select("*")
+        .eq("item_id", item.id)
+        .eq("org_id", orgId)
+        .order("unit_number", { ascending: true });
+      if (data) setUnits(data);
+      setUnitsLoading(false);
+    }
+    loadUnits();
+  }, [supabase, item.id, orgId]);
 
   // Escape schließt Modal
   useEffect(() => {
@@ -131,6 +158,8 @@ export function InventoryDetailModal({
         power_watts: powerWatts !== "" ? Number(powerWatts) : null,
         accessories: accessories.length > 0 ? accessories : null,
         custom_field: customField || null,
+        manufacturer_url: manufacturerUrl || null,
+        manual_url: manualUrl || null,
       })
       .eq("id", item.id);
 
@@ -138,6 +167,50 @@ export function InventoryDetailModal({
       onItemUpdated();
     }
     setSaving(false);
+  }
+
+  // Einzelstücke generieren (basierend auf Menge)
+  async function generateUnits() {
+    if (!orgId) return;
+    setUnitsSaving(true);
+    const existingNumbers = units.map((u) => u.unit_number);
+    const newUnits = [];
+    for (let i = 1; i <= quantity; i++) {
+      if (!existingNumbers.includes(i)) {
+        newUnits.push({
+          item_id: item.id,
+          org_id: orgId,
+          unit_number: i,
+          condition: condition,
+          notes: null,
+        });
+      }
+    }
+    if (newUnits.length > 0) {
+      const { data } = await supabase
+        .from("inventory_units")
+        .insert(newUnits)
+        .select();
+      if (data) setUnits((prev) => [...prev, ...data].sort((a, b) => a.unit_number - b.unit_number));
+    }
+    setUnitsSaving(false);
+  }
+
+  // Einzelstück aktualisieren
+  async function updateUnit(unitId: string, field: "condition" | "notes", value: string) {
+    await supabase
+      .from("inventory_units")
+      .update({ [field]: value })
+      .eq("id", unitId);
+    setUnits((prev) =>
+      prev.map((u) => (u.id === unitId ? { ...u, [field]: value } : u))
+    );
+  }
+
+  // Einzelstück löschen
+  async function deleteUnit(unitId: string) {
+    await supabase.from("inventory_units").delete().eq("id", unitId);
+    setUnits((prev) => prev.filter((u) => u.id !== unitId));
   }
 
   const inputStyle = {
@@ -468,6 +541,60 @@ export function InventoryDetailModal({
                   placeholder="Sonstige Infos"
                 />
               </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5"
+                  style={{ color: "var(--color-muted-foreground)" }}>
+                  Hersteller-Link
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={manufacturerUrl}
+                    onChange={(e) => setManufacturerUrl(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-lg text-sm"
+                    style={inputStyle}
+                    placeholder="https://..."
+                  />
+                  {manufacturerUrl && (
+                    <a
+                      href={manufacturerUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center px-2 rounded-lg transition-colors"
+                      style={{ border: "1px solid var(--color-border)", color: "var(--color-primary)" }}
+                    >
+                      <IconExternalLink size={14} />
+                    </a>
+                  )}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1.5"
+                  style={{ color: "var(--color-muted-foreground)" }}>
+                  Manual / Handbuch
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={manualUrl}
+                    onChange={(e) => setManualUrl(e.target.value)}
+                    className="flex-1 px-3 py-2 rounded-lg text-sm"
+                    style={inputStyle}
+                    placeholder="https://..."
+                  />
+                  {manualUrl && (
+                    <a
+                      href={manualUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center px-2 rounded-lg transition-colors"
+                      style={{ border: "1px solid var(--color-border)", color: "var(--color-primary)" }}
+                    >
+                      <IconExternalLink size={14} />
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Zubehör */}
@@ -556,6 +683,86 @@ export function InventoryDetailModal({
               </div>
             </div>
           </div>
+
+          {/* Einzelstücke (bei Menge > 1) */}
+          {quantity > 1 && (
+            <div
+              className="pt-2"
+              style={{ borderTop: "1px solid var(--color-border-light)" }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold" style={{ color: "var(--color-muted-foreground)" }}>
+                  <IconHash size={14} className="inline mr-1" style={{ verticalAlign: "-2px" }} />
+                  Einzelstücke ({units.length}/{quantity})
+                </h3>
+                {units.length < quantity && (
+                  <button
+                    type="button"
+                    onClick={generateUnits}
+                    disabled={unitsSaving}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                    style={{
+                      background: "var(--color-primary)",
+                      color: "#fff",
+                    }}
+                  >
+                    <IconPlus size={12} />
+                    {unitsSaving ? "Wird erstellt..." : "Einzelstücke anlegen"}
+                  </button>
+                )}
+              </div>
+
+              {unitsLoading ? (
+                <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                  Lade...
+                </p>
+              ) : units.length === 0 ? (
+                <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                  Noch keine Einzelstücke angelegt. Klicke &quot;Einzelstücke anlegen&quot; um {quantity} Stücke zu erstellen.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {units.map((unit) => (
+                    <div
+                      key={unit.id}
+                      className="flex items-center gap-3 px-3 py-2 rounded-lg"
+                      style={{ background: "var(--color-muted)", border: "1px solid var(--color-border-light)" }}
+                    >
+                      <span className="text-xs font-mono font-bold shrink-0" style={{ color: "var(--color-muted-foreground)", minWidth: "2rem" }}>
+                        #{unit.unit_number}
+                      </span>
+                      <select
+                        value={unit.condition}
+                        onChange={(e) => updateUnit(unit.id, "condition", e.target.value)}
+                        className="px-2 py-1 rounded text-xs"
+                        style={{ ...inputStyle, minWidth: "100px" }}
+                      >
+                        {Object.entries(conditionLabels).map(([key, label]) => (
+                          <option key={key} value={key}>{label}</option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={unit.notes || ""}
+                        onChange={(e) => updateUnit(unit.id, "notes", e.target.value)}
+                        className="flex-1 px-2 py-1 rounded text-xs"
+                        style={inputStyle}
+                        placeholder="Notizen..."
+                      />
+                      <button
+                        type="button"
+                        onClick={() => deleteUnit(unit.id)}
+                        className="p-1 rounded transition-colors shrink-0"
+                        style={{ color: "var(--color-error)" }}
+                      >
+                        <IconTrash size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Metadaten (readonly) */}
           <div
