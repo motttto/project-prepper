@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
+import type { PermissionModule, UserPermissions } from "@/types/database";
+import { defaultPermissionsByRole } from "@/types/database";
 
 export interface CurrentUser {
   id: string;
@@ -13,6 +15,13 @@ export interface CurrentUser {
   isActive: boolean; // aktiv in aktueller Org
   isSystem: boolean; // globales System-Flag
   orgId: string | null;
+  permissions: UserPermissions; // aufgelöste Berechtigungen
+}
+
+export function hasPermission(user: CurrentUser | null, module: PermissionModule): boolean {
+  if (!user) return false;
+  if (user.isSystem || user.roleName === "admin") return true;
+  return user.permissions[module] ?? false;
 }
 
 export function useCurrentUser(): CurrentUser | null {
@@ -35,14 +44,15 @@ export function useCurrentUser(): CurrentUser | null {
         .eq("id", authUser.id)
         .single();
 
-      // Rolle + Status aus org_memberships (wenn orgId vorhanden)
+      // Rolle + Status + Permissions aus org_memberships (wenn orgId vorhanden)
       let roleName = "member";
       let isActive = false;
+      let userPermissions: UserPermissions | null = null;
 
       if (orgId) {
         const { data: membership } = await supabase
           .from("org_memberships")
-          .select("is_active, roles(name)")
+          .select("is_active, permissions, roles(name)")
           .eq("profile_id", authUser.id)
           .eq("org_id", orgId)
           .single();
@@ -55,6 +65,7 @@ export function useCurrentUser(): CurrentUser | null {
             : rolesRaw ?? null;
           roleName = role?.name || "member";
           isActive = membership.is_active ?? false;
+          userPermissions = membership.permissions as UserPermissions | null;
         }
       } else {
         // Fallback: Lese aus profiles.role_id (Backward-Compat, vor Org-Migration)
@@ -76,6 +87,11 @@ export function useCurrentUser(): CurrentUser | null {
 
       const isSystem = !!(profile as any)?.is_system;
 
+      // Permissions auflösen: individuell > Rollen-Default > alles aus
+      const resolvedPermissions: UserPermissions = userPermissions
+        || defaultPermissionsByRole[roleName]
+        || { projects: true, inventory: true, costs: false, team: false, inquiries: false };
+
       setUser({
         id: authUser.id,
         email: profile?.email || authUser.email || "",
@@ -89,6 +105,7 @@ export function useCurrentUser(): CurrentUser | null {
         isActive: isSystem || isActive, // System-User immer aktiv
         isSystem,
         orgId,
+        permissions: resolvedPermissions,
       });
     }
 

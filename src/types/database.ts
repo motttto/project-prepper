@@ -11,6 +11,25 @@ export type Permission = {
   actions: ("create" | "read" | "update" | "delete")[];
 };
 
+// Pro-User Berechtigungen (Checkboxen)
+export type PermissionModule = "projects" | "inventory" | "costs" | "team" | "inquiries";
+export type UserPermissions = Record<PermissionModule, boolean>;
+
+export const allPermissionModules: { key: PermissionModule; label: string }[] = [
+  { key: "projects", label: "Projekte" },
+  { key: "inventory", label: "Inventar" },
+  { key: "costs", label: "Kosten & Budget" },
+  { key: "team", label: "Team" },
+  { key: "inquiries", label: "Anfragen" },
+];
+
+// Default-Permissions pro Rolle
+export const defaultPermissionsByRole: Record<string, UserPermissions> = {
+  admin: { projects: true, inventory: true, costs: true, team: true, inquiries: true },
+  manager: { projects: true, inventory: true, costs: true, team: false, inquiries: true },
+  member: { projects: true, inventory: true, costs: false, team: false, inquiries: false },
+};
+
 export type User = {
   id: string;
   email: string;

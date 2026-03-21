@@ -7,7 +7,8 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { useInvitations } from "@/hooks/use-invitations";
 import { useOrg } from "@/contexts/org-context";
-import type { TeamVote, InventoryItem, OrgInvitation } from "@/types/database";
+import type { TeamVote, InventoryItem, OrgInvitation, UserPermissions, PermissionModule } from "@/types/database";
+import { allPermissionModules, defaultPermissionsByRole } from "@/types/database";
 import {
   IconUsers,
   IconUserPlus,
@@ -34,6 +35,7 @@ type OrgMember = {
   role_id: string;
   is_active: boolean;
   approved_at: string | null;
+  permissions: UserPermissions | null;
   created_at: string;
   profiles: {
     id: string;
@@ -71,6 +73,7 @@ export default function TeamPage() {
   const [invProcessing, setInvProcessing] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [orgInvitations, setOrgInvitations] = useState<OrgInvitation[]>([]);
+  const [expandedPermissions, setExpandedPermissions] = useState<string | null>(null);
 
   const isAdmin = currentUser?.roleName === "admin" || currentUser?.isSystem;
 
@@ -80,7 +83,7 @@ export default function TeamPage() {
     const [membersRes, votesRes, rolesRes, inventoryRes] = await Promise.all([
       supabase
         .from("org_memberships")
-        .select("*, profiles(id, name, email, avatar_url, is_system, created_at), roles(id, name)")
+        .select("*, permissions, profiles(id, name, email, avatar_url, is_system, created_at), roles(id, name)")
         .eq("org_id", orgId),
       supabase.from("team_votes").select("*").eq("org_id", orgId),
       supabase.from("roles").select("id, name").eq("org_id", orgId),
@@ -308,6 +311,31 @@ export default function TeamPage() {
     });
     await loadData();
     setProcessing(null);
+  }
+
+  // Berechtigung togglen
+  async function handleTogglePermission(member: OrgMember, module: PermissionModule) {
+    if (!orgId) return;
+    const roleName = getRoleName(member);
+    const defaults = defaultPermissionsByRole[roleName] || defaultPermissionsByRole.member;
+    const current: UserPermissions = member.permissions || defaults;
+    const updated = { ...current, [module]: !current[module] };
+    await supabase
+      .from("org_memberships")
+      .update({ permissions: updated })
+      .eq("profile_id", member.profile_id)
+      .eq("org_id", orgId);
+    // Optimistisch updaten
+    setMembers((prev) =>
+      prev.map((m) =>
+        m.profile_id === member.profile_id ? { ...m, permissions: updated } : m
+      )
+    );
+  }
+
+  function getMemberPermissions(member: OrgMember): UserPermissions {
+    const roleName = getRoleName(member);
+    return member.permissions || defaultPermissionsByRole[roleName] || defaultPermissionsByRole.member;
   }
 
   const pendingOrgInvitations = orgInvitations.filter((i) => i.status === "pending");
@@ -784,17 +812,22 @@ export default function TeamPage() {
               activeMembers.filter((m) => getRoleName(m) === "admin")
                 .length <= 1;
             const patenCount = getPatenItems(profile?.name || "").length;
+            const isExpanded = expandedPermissions === member.profile_id;
+            const memberPerms = getMemberPermissions(member);
+            const canEditPerms = isAdmin && !isSelf && orgRoleName !== "admin" && !isSystemUser;
 
             return (
+              <div key={member.id}>
               <div
-                key={member.id}
                 className="flex items-center gap-4 px-5 py-3.5"
                 style={{
                   borderBottom:
-                    idx < activeMembers.length - 1
+                    (idx < activeMembers.length - 1 && !isExpanded)
                       ? "1px solid var(--color-border-light)"
                       : "none",
+                  cursor: canEditPerms ? "pointer" : undefined,
                 }}
+                onClick={() => canEditPerms && setExpandedPermissions(isExpanded ? null : member.profile_id)}
               >
                 {/* Avatar */}
                 <div
@@ -899,7 +932,7 @@ export default function TeamPage() {
                 {/* Admin: Aktiv-Toggle */}
                 {isAdmin && !isSelf && !isLastAdmin && !isSystemUser && (
                   <button
-                    onClick={() => handleToggleActive(member.profile_id, false)}
+                    onClick={(e) => { e.stopPropagation(); handleToggleActive(member.profile_id, false); }}
                     disabled={processing === member.profile_id}
                     className="relative w-9 h-5 rounded-full flex-shrink-0 transition-colors disabled:opacity-50"
                     style={{ background: "var(--color-success)" }}
@@ -911,6 +944,38 @@ export default function TeamPage() {
                     />
                   </button>
                 )}
+              </div>
+
+              {/* Berechtigungen (aufklappbar) */}
+              {isExpanded && canEditPerms && (
+                <div
+                  className="px-5 py-3 flex flex-wrap gap-3"
+                  style={{
+                    background: "var(--color-muted)",
+                    borderBottom: idx < activeMembers.length - 1 ? "1px solid var(--color-border-light)" : "none",
+                  }}
+                >
+                  <span className="text-xs font-medium mr-2 self-center" style={{ color: "var(--color-muted-foreground)" }}>
+                    Berechtigungen:
+                  </span>
+                  {allPermissionModules.map(({ key, label }) => (
+                    <label
+                      key={key}
+                      className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={memberPerms[key] ?? false}
+                        onChange={() => handleTogglePermission(member, key)}
+                        className="rounded"
+                        style={{ accentColor: "var(--color-primary)" }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              )}
               </div>
             );
           })}

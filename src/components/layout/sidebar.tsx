@@ -17,15 +17,16 @@ import {
 import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { InvitationBell } from "@/components/layout/invitation-bell";
 import { useOrg } from "@/contexts/org-context";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
+import type { PermissionModule } from "@/types/database";
 
-const navItems = [
-  { href: "/team", label: "Team", icon: IconUsers },
+const navItems: { href: string; label: string; icon: typeof IconDashboard; permission?: PermissionModule }[] = [
+  { href: "/team", label: "Team", icon: IconUsers, permission: "team" },
   { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
-  { href: "/inquiries", label: "Anfragen", icon: IconInbox },
-  { href: "/projects", label: "Projekte", icon: IconProjects },
-  { href: "/inventory", label: "Inventar", icon: IconInventory },
-  { href: "/costs", label: "Kosten", icon: IconCosts },
+  { href: "/inquiries", label: "Anfragen", icon: IconInbox, permission: "inquiries" },
+  { href: "/projects", label: "Projekte", icon: IconProjects, permission: "projects" },
+  { href: "/inventory", label: "Inventar", icon: IconInventory, permission: "inventory" },
+  { href: "/costs", label: "Kosten", icon: IconCosts, permission: "costs" },
 ];
 
 interface SidebarProps {
@@ -133,7 +134,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
+        {navItems.filter((item) => !item.permission || hasPermission(currentUser, item.permission)).map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
