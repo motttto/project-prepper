@@ -18,7 +18,9 @@ import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { InvitationBell } from "@/components/layout/invitation-bell";
 import { useOrg } from "@/contexts/org-context";
 import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
+import { useImpersonate } from "@/contexts/impersonate-context";
 import type { PermissionModule } from "@/types/database";
+import { modulePermissionMap } from "@/types/database";
 
 const navItems: { href: string; label: string; icon: typeof IconDashboard; permission?: PermissionModule }[] = [
   { href: "/team", label: "Team", icon: IconUsers, permission: "team" },
@@ -40,6 +42,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const [pendingCount, setPendingCount] = useState(0);
   const { orgId } = useOrg();
   const currentUser = useCurrentUser();
+  const { impersonating } = useImpersonate();
 
   useEffect(() => {
     if (!orgId) return;
@@ -134,7 +137,15 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.filter((item) => !item.permission || hasPermission(currentUser, item.permission)).map((item) => {
+        {navItems.filter((item) => {
+          if (!item.permission) return true;
+          // Bei Impersonation: Permissions des impersonierten Users nutzen
+          if (impersonating) {
+            const permKey = modulePermissionMap[item.permission] || item.permission;
+            return impersonating.permissions[permKey] ?? false;
+          }
+          return hasPermission(currentUser, item.permission);
+        }).map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;

@@ -7,6 +7,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { useInvitations } from "@/hooks/use-invitations";
 import { useOrg } from "@/contexts/org-context";
+import { useImpersonate } from "@/contexts/impersonate-context";
 import type { TeamVote, InventoryItem, OrgInvitation, UserPermissions, PermissionKey } from "@/types/database";
 import { permissionGroups, defaultPermissionsByRole, allPermissionKeys } from "@/types/database";
 import {
@@ -20,6 +21,7 @@ import {
   IconMail,
   IconPlus,
   IconTrash,
+  IconEye,
 } from "@/components/ui/icons";
 import {
   RoleBadge,
@@ -71,6 +73,7 @@ export default function TeamPage() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [invProcessing, setInvProcessing] = useState<string | null>(null);
+  const { startImpersonating } = useImpersonate();
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [orgInvitations, setOrgInvitations] = useState<OrgInvitation[]>([]);
   const [expandedPermissions, setExpandedPermissions] = useState<string | null>(null);
@@ -928,7 +931,25 @@ export default function TeamPage() {
                   })}
                 </span>
 
-                {/* Admin: Aktiv-Toggle */}
+                {/* Admin: Als User anzeigen + Aktiv-Toggle */}
+                {isAdmin && !isSelf && !isSystemUser && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      startImpersonating({
+                        profileId: member.profile_id,
+                        name: profile?.name || "",
+                        roleName: orgRoleName,
+                        permissions: getMemberPermissions(member),
+                      });
+                    }}
+                    className="p-1.5 rounded transition-colors flex-shrink-0"
+                    style={{ color: "var(--color-info)" }}
+                    title={`App als ${profile?.name} anzeigen`}
+                  >
+                    <IconEye size={15} />
+                  </button>
+                )}
                 {isAdmin && !isSelf && !isLastAdmin && !isSystemUser && (
                   <button
                     onClick={(e) => { e.stopPropagation(); handleToggleActive(member.profile_id, false); }}
