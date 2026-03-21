@@ -483,7 +483,7 @@ export default function TeamPage() {
               <IconMail size={18} style={{ color: "var(--color-info)" }} />
             </div>
           </div>
-          <div className="text-3xl font-bold">{invitationCount}</div>
+          <div className="text-3xl font-bold">{invitationCount + pendingOrgInvitations.length}</div>
         </div>
       </div>
 
