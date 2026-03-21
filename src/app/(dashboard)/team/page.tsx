@@ -7,8 +7,8 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { useInvitations } from "@/hooks/use-invitations";
 import { useOrg } from "@/contexts/org-context";
-import type { TeamVote, InventoryItem, OrgInvitation, UserPermissions, PermissionModule } from "@/types/database";
-import { allPermissionModules, defaultPermissionsByRole } from "@/types/database";
+import type { TeamVote, InventoryItem, OrgInvitation, UserPermissions, PermissionKey } from "@/types/database";
+import { permissionGroups, defaultPermissionsByRole, allPermissionKeys } from "@/types/database";
 import {
   IconUsers,
   IconUserPlus,
@@ -314,18 +314,17 @@ export default function TeamPage() {
   }
 
   // Berechtigung togglen
-  async function handleTogglePermission(member: OrgMember, module: PermissionModule) {
+  async function handleTogglePermission(member: OrgMember, key: PermissionKey) {
     if (!orgId) return;
     const roleName = getRoleName(member);
     const defaults = defaultPermissionsByRole[roleName] || defaultPermissionsByRole.member;
-    const current: UserPermissions = member.permissions || defaults;
-    const updated = { ...current, [module]: !current[module] };
+    const current: UserPermissions = member.permissions || { ...defaults };
+    const updated = { ...current, [key]: !current[key] };
     await supabase
       .from("org_memberships")
       .update({ permissions: updated })
       .eq("profile_id", member.profile_id)
       .eq("org_id", orgId);
-    // Optimistisch updaten
     setMembers((prev) =>
       prev.map((m) =>
         m.profile_id === member.profile_id ? { ...m, permissions: updated } : m
@@ -949,31 +948,37 @@ export default function TeamPage() {
               {/* Berechtigungen (aufklappbar) */}
               {isExpanded && canEditPerms && (
                 <div
-                  className="px-5 py-3 flex flex-wrap gap-3"
+                  className="px-5 py-3"
                   style={{
                     background: "var(--color-muted)",
                     borderBottom: idx < activeMembers.length - 1 ? "1px solid var(--color-border-light)" : "none",
                   }}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <span className="text-xs font-medium mr-2 self-center" style={{ color: "var(--color-muted-foreground)" }}>
-                    Berechtigungen:
-                  </span>
-                  {allPermissionModules.map(({ key, label }) => (
-                    <label
-                      key={key}
-                      className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={memberPerms[key] ?? false}
-                        onChange={() => handleTogglePermission(member, key)}
-                        className="rounded"
-                        style={{ accentColor: "var(--color-primary)" }}
-                      />
-                      {label}
-                    </label>
-                  ))}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-6 gap-y-3">
+                    {permissionGroups.map((group) => (
+                      <div key={group.label}>
+                        <p className="text-xs font-semibold mb-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+                          {group.label}
+                        </p>
+                        {group.permissions.map(({ key, label }) => (
+                          <label
+                            key={key}
+                            className="flex items-center gap-1.5 text-xs cursor-pointer select-none py-0.5"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={memberPerms[key] ?? false}
+                              onChange={() => handleTogglePermission(member, key)}
+                              className="rounded"
+                              style={{ accentColor: "var(--color-primary)" }}
+                            />
+                            {label}
+                          </label>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               </div>

@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
-import type { PermissionModule, UserPermissions } from "@/types/database";
-import { defaultPermissionsByRole } from "@/types/database";
+import type { UserPermissions, PermissionModule } from "@/types/database";
+import { defaultPermissionsByRole, modulePermissionMap } from "@/types/database";
 
 export interface CurrentUser {
   id: string;
@@ -18,10 +18,13 @@ export interface CurrentUser {
   permissions: UserPermissions; // aufgelöste Berechtigungen
 }
 
-export function hasPermission(user: CurrentUser | null, module: PermissionModule): boolean {
+// Prüft eine feingranulare Permission (z.B. "costs_view") oder ein grobes Modul (z.B. "costs")
+export function hasPermission(user: CurrentUser | null, key: string): boolean {
   if (!user) return false;
   if (user.isSystem || user.roleName === "admin") return true;
-  return user.permissions[module] ?? false;
+  // Grobes Modul → auf _view Key mappen
+  const permKey = (modulePermissionMap as Record<string, string>)[key] || key;
+  return user.permissions[permKey] ?? false;
 }
 
 export function useCurrentUser(): CurrentUser | null {

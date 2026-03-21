@@ -12,22 +12,95 @@ export type Permission = {
 };
 
 // Pro-User Berechtigungen (Checkboxen)
-export type PermissionModule = "projects" | "inventory" | "costs" | "team" | "inquiries";
-export type UserPermissions = Record<PermissionModule, boolean>;
+export type PermissionKey =
+  | "projects_view" | "projects_edit"
+  | "inventory_view" | "inventory_edit"
+  | "excel_export" | "excel_import"
+  | "costs_view" | "costs_edit"
+  | "team_view" | "team_manage"
+  | "inquiries_view" | "inquiries_edit";
 
-export const allPermissionModules: { key: PermissionModule; label: string }[] = [
-  { key: "projects", label: "Projekte" },
-  { key: "inventory", label: "Inventar" },
-  { key: "costs", label: "Kosten & Budget" },
-  { key: "team", label: "Team" },
-  { key: "inquiries", label: "Anfragen" },
+// Backward-Compat: grobe Module für Sidebar-Filter
+export type PermissionModule = "projects" | "inventory" | "costs" | "team" | "inquiries";
+
+export type UserPermissions = Record<string, boolean>;
+
+export type PermissionGroup = {
+  label: string;
+  permissions: { key: PermissionKey; label: string }[];
+};
+
+export const permissionGroups: PermissionGroup[] = [
+  {
+    label: "Projekte",
+    permissions: [
+      { key: "projects_view", label: "Projekte sehen" },
+      { key: "projects_edit", label: "Projekte bearbeiten" },
+    ],
+  },
+  {
+    label: "Inventar",
+    permissions: [
+      { key: "inventory_view", label: "Inventar sehen" },
+      { key: "inventory_edit", label: "Inventar bearbeiten" },
+      { key: "excel_export", label: "Excel-Export" },
+      { key: "excel_import", label: "Excel-Import" },
+    ],
+  },
+  {
+    label: "Finanzen",
+    permissions: [
+      { key: "costs_view", label: "Kosten & Budget einsehen" },
+      { key: "costs_edit", label: "Kosten bearbeiten" },
+    ],
+  },
+  {
+    label: "Team",
+    permissions: [
+      { key: "team_view", label: "Team sehen" },
+      { key: "team_manage", label: "Team verwalten" },
+    ],
+  },
+  {
+    label: "Anfragen",
+    permissions: [
+      { key: "inquiries_view", label: "Anfragen sehen" },
+      { key: "inquiries_edit", label: "Anfragen bearbeiten" },
+    ],
+  },
 ];
+
+// Alle Permission-Keys flach
+export const allPermissionKeys: PermissionKey[] = permissionGroups.flatMap((g) => g.permissions.map((p) => p.key));
 
 // Default-Permissions pro Rolle
 export const defaultPermissionsByRole: Record<string, UserPermissions> = {
-  admin: { projects: true, inventory: true, costs: true, team: true, inquiries: true },
-  manager: { projects: true, inventory: true, costs: true, team: false, inquiries: true },
-  member: { projects: true, inventory: true, costs: false, team: false, inquiries: false },
+  admin: Object.fromEntries(allPermissionKeys.map((k) => [k, true])),
+  manager: {
+    projects_view: true, projects_edit: true,
+    inventory_view: true, inventory_edit: true,
+    excel_export: true, excel_import: true,
+    costs_view: true, costs_edit: true,
+    team_view: true, team_manage: false,
+    inquiries_view: true, inquiries_edit: true,
+  },
+  member: {
+    projects_view: true, projects_edit: false,
+    inventory_view: true, inventory_edit: false,
+    excel_export: false, excel_import: false,
+    costs_view: false, costs_edit: false,
+    team_view: true, team_manage: false,
+    inquiries_view: false, inquiries_edit: false,
+  },
+};
+
+// Mapping: grobe Module → welche Permission-Keys benötigt (für Sidebar)
+export const modulePermissionMap: Record<PermissionModule, PermissionKey> = {
+  projects: "projects_view",
+  inventory: "inventory_view",
+  costs: "costs_view",
+  team: "team_view",
+  inquiries: "inquiries_view",
 };
 
 export type User = {
