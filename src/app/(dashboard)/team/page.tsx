@@ -261,7 +261,7 @@ export default function TeamPage() {
     setProcessing(null);
   }
 
-  // Testuser erstellen (Dummy — kein Auth-Konto)
+  // Testuser erstellen via DB-Funktion (erstellt echten auth.users + profiles + org_membership)
   async function handleCreateTestUser() {
     if (!orgId || !currentUser) return;
     setProcessing("testuser");
@@ -271,31 +271,15 @@ export default function TeamPage() {
     const randomSuffix = Math.floor(Math.random() * 1000);
     const testEmail = `test.${randomSuffix}@example.com`;
 
-    // Member-Rolle finden
     const memberRole = roles.find((r) => r.name === "member");
     if (!memberRole) { setProcessing(null); return; }
 
-    // Dummy-Profil erstellen (mit zufälliger UUID)
-    const dummyId = crypto.randomUUID();
-    const { error: profileError } = await supabase.from("profiles").insert({
-      id: dummyId,
-      email: testEmail,
-      name: `${randomName} (Test)`,
-      role_id: memberRole.id,
-      is_active: true,
-      approved_at: new Date().toISOString(),
+    await supabase.rpc("create_test_user", {
+      p_org_id: orgId,
+      p_name: `${randomName} (Test)`,
+      p_email: testEmail,
+      p_role_id: memberRole.id,
     });
-
-    if (!profileError) {
-      // Org-Membership erstellen
-      await supabase.from("org_memberships").insert({
-        org_id: orgId,
-        profile_id: dummyId,
-        role_id: memberRole.id,
-        is_active: true,
-        approved_at: new Date().toISOString(),
-      });
-    }
 
     await loadData();
     setProcessing(null);
