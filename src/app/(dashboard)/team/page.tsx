@@ -7,7 +7,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { useInvitations } from "@/hooks/use-invitations";
 import { useOrg } from "@/contexts/org-context";
-import type { TeamVote, InventoryItem } from "@/types/database";
+import type { TeamVote, InventoryItem, OrgInvitation } from "@/types/database";
 import {
   IconUsers,
   IconUserPlus,
@@ -17,6 +17,8 @@ import {
   IconShield,
   IconInventory,
   IconMail,
+  IconPlus,
+  IconTrash,
 } from "@/components/ui/icons";
 import {
   RoleBadge,
@@ -67,6 +69,8 @@ export default function TeamPage() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [invProcessing, setInvProcessing] = useState<string | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [orgInvitations, setOrgInvitations] = useState<OrgInvitation[]>([]);
 
   const isAdmin = currentUser?.roleName === "admin" || currentUser?.isSystem;
 
@@ -103,10 +107,26 @@ export default function TeamPage() {
     loadData();
   }, [loadData]);
 
+  // Org-Einladungen laden
+  const loadOrgInvitations = useCallback(async () => {
+    if (!orgId) return;
+    const { data } = await supabase
+      .from("org_invitations")
+      .select("*, profiles:invited_by(name), roles(name)")
+      .eq("org_id", orgId)
+      .order("created_at", { ascending: false });
+    if (data) setOrgInvitations(data as OrgInvitation[]);
+  }, [supabase, orgId]);
+
+  useEffect(() => {
+    loadOrgInvitations();
+  }, [loadOrgInvitations]);
+
   // Realtime — org-scoped
   useRealtimeTable({ table: "org_memberships", onDataChange: loadData, orgFilter: orgId || undefined });
   useRealtimeTable({ table: "team_votes", onDataChange: loadData, orgFilter: orgId || undefined });
   useRealtimeTable({ table: "inventory_items", onDataChange: loadData, orgFilter: orgId || undefined });
+  useRealtimeTable({ table: "org_invitations", onDataChange: loadOrgInvitations, orgFilter: orgId || undefined });
 
   // Berechnungen
   const activeMembers = members.filter((m) => m.is_active);
@@ -241,6 +261,54 @@ export default function TeamPage() {
     setProcessing(null);
   }
 
+  // Testuser erstellen (Dummy — kein Auth-Konto)
+  async function handleCreateTestUser() {
+    if (!orgId || !currentUser) return;
+    setProcessing("testuser");
+
+    const testNames = ["Max Mustermann", "Erika Musterfrau", "Test User", "Anna Schmidt", "Lukas Weber", "Sophie Müller", "Jonas Fischer", "Lena Bauer"];
+    const randomName = testNames[Math.floor(Math.random() * testNames.length)];
+    const randomSuffix = Math.floor(Math.random() * 1000);
+    const testEmail = `test.${randomSuffix}@example.com`;
+
+    // Member-Rolle finden
+    const memberRole = roles.find((r) => r.name === "member");
+    if (!memberRole) { setProcessing(null); return; }
+
+    // Dummy-Profil erstellen (mit zufälliger UUID)
+    const dummyId = crypto.randomUUID();
+    const { error: profileError } = await supabase.from("profiles").insert({
+      id: dummyId,
+      email: testEmail,
+      name: `${randomName} (Test)`,
+      role_id: memberRole.id,
+      is_active: true,
+      approved_at: new Date().toISOString(),
+    });
+
+    if (!profileError) {
+      // Org-Membership erstellen
+      await supabase.from("org_memberships").insert({
+        org_id: orgId,
+        profile_id: dummyId,
+        role_id: memberRole.id,
+        is_active: true,
+        approved_at: new Date().toISOString(),
+      });
+    }
+
+    await loadData();
+    setProcessing(null);
+  }
+
+  // Org-Einladung löschen
+  async function handleDeleteOrgInvitation(invId: string) {
+    await supabase.from("org_invitations").delete().eq("id", invId);
+    await loadOrgInvitations();
+  }
+
+  const pendingOrgInvitations = orgInvitations.filter((i) => i.status === "pending");
+
   const roleLabels = orgRoleLabels;
   const roleBadgeStyles = orgBadgeStyles;
 
@@ -258,14 +326,41 @@ export default function TeamPage() {
   return (
     <div>
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Team</h1>
-        <p
-          className="text-sm mt-1"
-          style={{ color: "var(--color-muted-foreground)" }}
-        >
-          Mitglieder verwalten und Beitritte freigeben
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Team</h1>
+          <p
+            className="text-sm mt-1"
+            style={{ color: "var(--color-muted-foreground)" }}
+          >
+            Mitglieder verwalten und Beitritte freigeben
+          </p>
+        </div>
+        {isAdmin && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCreateTestUser}
+              disabled={processing === "testuser"}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              <IconPlus size={16} />
+              Testuser
+            </button>
+            <button
+              onClick={() => setShowInviteModal(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+              style={{ background: "var(--color-primary)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
+            >
+              <IconUserPlus size={16} />
+              Mitglied einladen
+            </button>
+          </div>
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -450,6 +545,72 @@ export default function TeamPage() {
                       Ablehnen
                     </button>
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Eingeladene (pending Org-Invitations) */}
+      {pendingOrgInvitations.length > 0 && (
+        <div className="mb-8">
+          <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
+            <IconMail size={20} style={{ color: "var(--color-primary)" }} />
+            Eingeladene ({pendingOrgInvitations.length})
+          </h2>
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border-light)",
+            }}
+          >
+            {pendingOrgInvitations.map((inv, idx) => {
+              const inviterName = (inv.profiles as any)?.name || "Unbekannt";
+              const roleName = (inv.roles as any)?.name || "member";
+              const roleLabel = roleLabels[roleName] || roleName;
+
+              return (
+                <div
+                  key={inv.id}
+                  className="flex items-center gap-4 px-5 py-3.5"
+                  style={{
+                    borderBottom:
+                      idx < pendingOrgInvitations.length - 1
+                        ? "1px solid var(--color-border-light)"
+                        : "none",
+                  }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 font-bold text-xs"
+                    style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}
+                  >
+                    {inv.email.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">{inv.email}</p>
+                    <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                      Eingeladen von {inviterName} als {roleLabel} &middot;{" "}
+                      {new Date(inv.created_at).toLocaleDateString("de-DE", { day: "numeric", month: "short" })}
+                    </p>
+                  </div>
+                  <span
+                    className="px-2.5 py-1 rounded text-xs font-medium flex-shrink-0"
+                    style={{ background: "var(--color-warning-light)", color: "var(--color-warning)" }}
+                  >
+                    Ausstehend
+                  </span>
+                  {isAdmin && (
+                    <button
+                      onClick={() => handleDeleteOrgInvitation(inv.id)}
+                      className="p-1.5 rounded transition-colors flex-shrink-0"
+                      style={{ color: "var(--color-destructive)" }}
+                      title="Einladung zurückziehen"
+                    >
+                      <IconTrash size={14} />
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -876,6 +1037,186 @@ export default function TeamPage() {
           )}
         </div>
       )}
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <InviteModal
+          orgId={orgId || ""}
+          roles={roles}
+          currentUserId={currentUser?.id || ""}
+          onClose={() => setShowInviteModal(false)}
+          onInvited={loadOrgInvitations}
+        />
+      )}
+    </div>
+  );
+}
+
+// === Einladungs-Modal ===
+function InviteModal({
+  orgId,
+  roles,
+  currentUserId,
+  onClose,
+  onInvited,
+}: {
+  orgId: string;
+  roles: RoleOption[];
+  currentUserId: string;
+  onClose: () => void;
+  onInvited: () => void;
+}) {
+  const supabase = createClient();
+  const [email, setEmail] = useState("");
+  const [selectedRoleId, setSelectedRoleId] = useState(roles.find((r) => r.name === "member")?.id || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const inputStyle = {
+    border: "1px solid var(--color-border)",
+    background: "var(--color-background)",
+  };
+
+  async function handleInvite(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setSaving(true);
+    setError("");
+
+    const { error: insertError } = await supabase.from("org_invitations").insert({
+      org_id: orgId,
+      email: email.trim().toLowerCase(),
+      invited_by: currentUserId,
+      role_id: selectedRoleId,
+    });
+
+    if (insertError) {
+      if (insertError.code === "23505") {
+        setError("Diese E-Mail wurde bereits eingeladen.");
+      } else {
+        setError(insertError.message);
+      }
+    } else {
+      setSuccess(true);
+      onInvited();
+    }
+    setSaving(false);
+  }
+
+  function handleCopyLink() {
+    const url = `${window.location.origin}/login`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.5)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="w-full max-w-md rounded-xl overflow-hidden"
+        style={{ background: "var(--color-surface)", boxShadow: "var(--shadow-lg)" }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-6 py-4"
+          style={{ borderBottom: "1px solid var(--color-border-light)" }}
+        >
+          <h2 className="text-lg font-bold">Mitglied einladen</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: "var(--color-muted-foreground)" }}>
+            <IconX size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-6 py-5">
+          {success ? (
+            <div className="text-center space-y-4">
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center mx-auto"
+                style={{ background: "var(--color-success-light)" }}
+              >
+                <IconCheck size={28} style={{ color: "var(--color-success)" }} />
+              </div>
+              <div>
+                <p className="font-semibold">Einladung erstellt!</p>
+                <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                  Teile den Registrierungs-Link mit <strong>{email}</strong>.
+                  Bei Registrierung mit dieser E-Mail wird die Person automatisch freigeschaltet.
+                </p>
+              </div>
+              <button
+                onClick={handleCopyLink}
+                className="w-full px-4 py-2.5 rounded-lg text-sm font-medium transition-colors"
+                style={{
+                  background: copiedLink ? "var(--color-success-light)" : "var(--color-primary)",
+                  color: copiedLink ? "var(--color-success)" : "#fff",
+                }}
+              >
+                {copiedLink ? "Link kopiert!" : "Registrierungs-Link kopieren"}
+              </button>
+              <button
+                onClick={() => { setSuccess(false); setEmail(""); }}
+                className="text-sm font-medium"
+                style={{ color: "var(--color-primary)" }}
+              >
+                Weitere Person einladen
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleInvite} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">E-Mail-Adresse</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={inputStyle}
+                  placeholder="person@example.com"
+                  required
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Rolle</label>
+                <select
+                  value={selectedRoleId}
+                  onChange={(e) => setSelectedRoleId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={inputStyle}
+                >
+                  {roles.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {orgRoleLabels[r.name] || r.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {error && (
+                <p className="text-sm font-medium" style={{ color: "var(--color-destructive)" }}>{error}</p>
+              )}
+              <button
+                type="submit"
+                disabled={saving || !email.trim()}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-50 transition-colors"
+                style={{ background: "var(--color-primary)" }}
+              >
+                <IconUserPlus size={16} />
+                {saving ? "Wird eingeladen..." : "Einladen"}
+              </button>
+              <p className="text-xs text-center" style={{ color: "var(--color-muted-foreground)" }}>
+                Die Person muss sich mit dieser E-Mail registrieren und wird dann automatisch freigeschaltet.
+              </p>
+            </form>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -393,6 +393,24 @@ export type Inquiry = {
   updated_at: string;
 };
 
+// === Org-Einladungen ===
+
+export type OrgInvitationStatus = "pending" | "accepted" | "expired" | "cancelled";
+
+export type OrgInvitation = {
+  id: string;
+  org_id: string;
+  email: string;
+  invited_by: string;
+  role_id: string;
+  status: OrgInvitationStatus;
+  created_at: string;
+  accepted_at: string | null;
+  // Joined data
+  profiles?: { name: string };
+  roles?: { name: string };
+};
+
 // === Anfragen-Einladungen (Inquiry Team) ===
 
 export type InquiryInvitationStatus = "pending" | "accepted" | "declined";
