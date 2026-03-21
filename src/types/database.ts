@@ -102,6 +102,16 @@ export type InventoryUnit = {
   created_at: string;
 };
 
+export type InventoryCategory = {
+  id: string;
+  org_id: string;
+  name: string;
+  icon: string;
+  prefix: string;
+  sort_order: number;
+  created_at: string;
+};
+
 export type BookingApprovalStatus = "pending" | "approved" | "rejected";
 
 export type Booking = {

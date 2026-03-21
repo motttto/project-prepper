@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
-import type { InventoryItem, Booking } from "@/types/database";
-import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity } from "@/components/ui/icons";
+import type { InventoryItem, InventoryCategory, Booking } from "@/types/database";
+import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity, IconEdit, IconSave } from "@/components/ui/icons";
 import { ExcelImport } from "@/components/inventory/excel-import";
 import { InventoryDetailModal } from "@/components/inventory/inventory-detail-modal";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
@@ -42,19 +42,19 @@ const conditionStyles: Record<InventoryItem["condition"], { bg: string; color: s
   retired: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)" },
 };
 
-// Kategorie Icons (Emoji als schnelle Lösung)
-const categoryIcons: Record<string, string> = {
-  Projektion: "📽",
-  Licht: "💡",
-  Effekte: "✨",
-  Steuerung: "🎛",
-  Video: "🖥",
-  Audio: "🔊",
-  Kabel: "🔌",
-  Rigging: "🔧",
-  Transport: "📦",
-  "Zubehör": "🧰",
-};
+// Default-Kategorien (Fallback wenn DB noch leer)
+const defaultCategories: { name: string; icon: string; prefix: string }[] = [
+  { name: "Projektion", icon: "📽", prefix: "PRO" },
+  { name: "Licht", icon: "💡", prefix: "LIC" },
+  { name: "Effekte", icon: "✨", prefix: "EFF" },
+  { name: "Steuerung", icon: "🎛", prefix: "STR" },
+  { name: "Video", icon: "🖥", prefix: "VID" },
+  { name: "Audio", icon: "🔊", prefix: "AUD" },
+  { name: "Kabel", icon: "🔌", prefix: "KAB" },
+  { name: "Rigging", icon: "🔧", prefix: "RIG" },
+  { name: "Transport", icon: "📦", prefix: "TRA" },
+  { name: "Zubehör", icon: "🧰", prefix: "ZUB" },
+];
 
 export default function InventoryPage() {
   const supabase = createClient();
@@ -90,13 +90,23 @@ export default function InventoryPage() {
   const [formManufacturerUrl, setFormManufacturerUrl] = useState("");
   const [formManualUrl, setFormManualUrl] = useState("");
   const [showCreateDetails, setShowCreateDetails] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
 
-  // Kategorie-Kürzel für Inventarnummer
-  const categoryPrefixes: Record<string, string> = {
-    Projektion: "PRO", Licht: "LIC", Effekte: "EFF", Steuerung: "STR",
-    Video: "VID", Audio: "AUD", Kabel: "KAB", Rigging: "RIG",
-    Transport: "TRA", "Zubehör": "ZUB",
-  };
+  // Dynamische Kategorien aus DB
+  const [dbCategories, setDbCategories] = useState<InventoryCategory[]>([]);
+
+  // Computed: Icon- und Prefix-Maps aus DB-Kategorien
+  const categoryIcons = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of dbCategories) map[c.name] = c.icon;
+    return map;
+  }, [dbCategories]);
+
+  const categoryPrefixes = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const c of dbCategories) map[c.name] = c.prefix;
+    return map;
+  }, [dbCategories]);
 
   function generateNextNumber(category: string, existingItems: InventoryItem[]): string {
     const prefix = categoryPrefixes[category] || category.slice(0, 3).toUpperCase();
@@ -162,6 +172,45 @@ export default function InventoryPage() {
     loadItems();
   }, [loadItems]);
 
+  // Kategorien laden (+ Auto-Seed falls leer)
+  const loadCategories = useCallback(async () => {
+    if (!orgId) return;
+    const { data } = await supabase
+      .from("inventory_categories")
+      .select("*")
+      .eq("org_id", orgId)
+      .order("sort_order")
+      .order("name");
+    if (data && data.length > 0) {
+      setDbCategories(data);
+    } else if (data && data.length === 0) {
+      // Auto-Seed: Default-Kategorien erstellen
+      const seeds = defaultCategories.map((c, i) => ({
+        org_id: orgId,
+        name: c.name,
+        icon: c.icon,
+        prefix: c.prefix,
+        sort_order: i,
+      }));
+      const { data: inserted } = await supabase
+        .from("inventory_categories")
+        .insert(seeds)
+        .select();
+      if (inserted) setDbCategories(inserted);
+    }
+  }, [supabase, orgId]);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+  // Realtime: Kategorien
+  useRealtimeTable({
+    table: "inventory_categories",
+    orgFilter: orgId || undefined,
+    onDataChange: loadCategories,
+  });
+
   // Realtime: Live-Synchronisation
   useRealtimeTable({
     table: "inventory_items",
@@ -225,7 +274,13 @@ export default function InventoryPage() {
     loadItems();
   }
 
-  const categories = useMemo(() => [...new Set(items.map((i) => i.category))].sort(), [items]);
+  // Kategorien: DB-Kategorien in Sortierreihenfolge, plus unbekannte aus Items
+  const categories = useMemo(() => {
+    const dbNames = dbCategories.map((c) => c.name);
+    const itemCats = [...new Set(items.map((i) => i.category))];
+    const extra = itemCats.filter((c) => !dbNames.includes(c)).sort();
+    return [...dbNames, ...extra];
+  }, [items, dbCategories]);
 
   // Anzahl ausgeliehener Items (für Filter-Pill)
   const loanedItemCount = useMemo(
@@ -339,6 +394,16 @@ export default function InventoryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setShowCategoryManager(true)}
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
+            style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+          >
+            <IconEdit size={16} />
+            <span className="hidden sm:inline">Kategorien</span>
+          </button>
           <button
             onClick={() => setShowImport(true)}
             className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
@@ -887,6 +952,231 @@ export default function InventoryPage() {
           }}
         />
       )}
+
+      {/* Kategorie-Verwaltungs-Modal */}
+      {showCategoryManager && (
+        <CategoryManagerModal
+          categories={dbCategories}
+          orgId={orgId || ""}
+          onClose={() => setShowCategoryManager(false)}
+          onUpdated={loadCategories}
+        />
+      )}
+    </div>
+  );
+}
+
+// === Kategorie-Verwaltungs-Modal ===
+function CategoryManagerModal({
+  categories,
+  orgId,
+  onClose,
+  onUpdated,
+}: {
+  categories: InventoryCategory[];
+  orgId: string;
+  onClose: () => void;
+  onUpdated: () => void;
+}) {
+  const supabase = createClient();
+  const [items, setItems] = useState(
+    categories.map((c) => ({ ...c, _dirty: false }))
+  );
+  const [newName, setNewName] = useState("");
+  const [newIcon, setNewIcon] = useState("📁");
+  const [newPrefix, setNewPrefix] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const inputStyle = {
+    border: "1px solid var(--color-border)",
+    background: "var(--color-background)",
+  };
+
+  async function handleAdd() {
+    if (!newName.trim()) return;
+    setSaving(true);
+    const prefix = newPrefix.trim() || newName.trim().slice(0, 3).toUpperCase();
+    const { data } = await supabase
+      .from("inventory_categories")
+      .insert({
+        org_id: orgId,
+        name: newName.trim(),
+        icon: newIcon,
+        prefix,
+        sort_order: items.length,
+      })
+      .select()
+      .single();
+    if (data) {
+      setItems((prev) => [...prev, { ...data, _dirty: false }]);
+      setNewName("");
+      setNewIcon("📁");
+      setNewPrefix("");
+      onUpdated();
+    }
+    setSaving(false);
+  }
+
+  async function handleUpdate(id: string) {
+    const item = items.find((i) => i.id === id);
+    if (!item) return;
+    await supabase
+      .from("inventory_categories")
+      .update({ name: item.name, icon: item.icon, prefix: item.prefix, sort_order: item.sort_order })
+      .eq("id", id);
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, _dirty: false } : i)));
+    onUpdated();
+  }
+
+  async function handleDelete(id: string) {
+    await supabase.from("inventory_categories").delete().eq("id", id);
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    onUpdated();
+  }
+
+  function updateField(id: string, field: "name" | "icon" | "prefix", value: string) {
+    setItems((prev) =>
+      prev.map((i) => (i.id === id ? { ...i, [field]: value, _dirty: true } : i))
+    );
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.5)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="w-full max-w-lg rounded-xl overflow-hidden flex flex-col"
+        style={{
+          background: "var(--color-surface)",
+          boxShadow: "var(--shadow-lg)",
+          maxHeight: "80vh",
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-6 py-4"
+          style={{ borderBottom: "1px solid var(--color-border-light)" }}
+        >
+          <h2 className="text-lg font-bold">Kategorien verwalten</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: "var(--color-muted-foreground)" }}>
+            <IconX size={20} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2">
+          {items.map((cat) => (
+            <div
+              key={cat.id}
+              className="flex items-center gap-2 px-3 py-2 rounded-lg"
+              style={{ background: "var(--color-muted)", border: "1px solid var(--color-border-light)" }}
+            >
+              <input
+                type="text"
+                value={cat.icon}
+                onChange={(e) => updateField(cat.id, "icon", e.target.value)}
+                className="w-10 text-center px-1 py-1 rounded text-sm"
+                style={inputStyle}
+                title="Icon (Emoji)"
+              />
+              <input
+                type="text"
+                value={cat.name}
+                onChange={(e) => updateField(cat.id, "name", e.target.value)}
+                className="flex-1 px-2 py-1 rounded text-sm"
+                style={inputStyle}
+                placeholder="Name"
+              />
+              <input
+                type="text"
+                value={cat.prefix}
+                onChange={(e) => updateField(cat.id, "prefix", e.target.value.toUpperCase())}
+                className="w-16 px-2 py-1 rounded text-sm font-mono text-center"
+                style={inputStyle}
+                placeholder="PRE"
+                maxLength={4}
+                title="Prefix für Inventarnummer"
+              />
+              {cat._dirty && (
+                <button
+                  onClick={() => handleUpdate(cat.id)}
+                  className="p-1 rounded transition-colors"
+                  style={{ color: "var(--color-primary)" }}
+                  title="Speichern"
+                >
+                  <IconSave size={14} />
+                </button>
+              )}
+              <button
+                onClick={() => handleDelete(cat.id)}
+                className="p-1 rounded transition-colors"
+                style={{ color: "var(--color-destructive)" }}
+                title="Löschen"
+              >
+                <IconTrash size={14} />
+              </button>
+            </div>
+          ))}
+
+          {/* Neue Kategorie */}
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-lg mt-3"
+            style={{ border: "2px dashed var(--color-border)" }}
+          >
+            <input
+              type="text"
+              value={newIcon}
+              onChange={(e) => setNewIcon(e.target.value)}
+              className="w-10 text-center px-1 py-1 rounded text-sm"
+              style={inputStyle}
+              placeholder="📁"
+            />
+            <input
+              type="text"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } }}
+              className="flex-1 px-2 py-1 rounded text-sm"
+              style={inputStyle}
+              placeholder="Neue Kategorie..."
+            />
+            <input
+              type="text"
+              value={newPrefix}
+              onChange={(e) => setNewPrefix(e.target.value.toUpperCase())}
+              className="w-16 px-2 py-1 rounded text-sm font-mono text-center"
+              style={inputStyle}
+              placeholder="PRE"
+              maxLength={4}
+            />
+            <button
+              onClick={handleAdd}
+              disabled={!newName.trim() || saving}
+              className="p-1.5 rounded-lg text-white disabled:opacity-50"
+              style={{ background: "var(--color-primary)" }}
+              title="Hinzufügen"
+            >
+              <IconPlus size={14} />
+            </button>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div
+          className="flex justify-end px-6 py-3"
+          style={{ borderTop: "1px solid var(--color-border-light)" }}
+        >
+          <button
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm font-medium"
+            style={{ border: "1px solid var(--color-border)" }}
+          >
+            Schließen
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
