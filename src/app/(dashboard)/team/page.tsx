@@ -291,6 +291,25 @@ export default function TeamPage() {
     await loadOrgInvitations();
   }
 
+  // Mitglied entfernen (bei Testusern komplett löschen)
+  async function handleRemoveMember(profileId: string, profileName: string) {
+    if (!orgId) return;
+    const isTestUser = profileName?.includes("(Test)");
+    const confirmMsg = isTestUser
+      ? `Testuser "${profileName}" komplett löschen?`
+      : `"${profileName}" aus der Organisation entfernen?`;
+    if (!confirm(confirmMsg)) return;
+
+    setProcessing(profileId);
+    await supabase.rpc("remove_org_member", {
+      p_org_id: orgId,
+      p_profile_id: profileId,
+      p_delete_user: isTestUser,
+    });
+    await loadData();
+    setProcessing(null);
+  }
+
   const pendingOrgInvitations = orgInvitations.filter((i) => i.status === "pending");
 
   const roleLabels = orgRoleLabels;
@@ -999,20 +1018,31 @@ export default function TeamPage() {
                       Inaktiv
                     </span>
 
-                    {/* Admin: Reaktivieren-Toggle */}
+                    {/* Admin: Reaktivieren + Entfernen */}
                     {isAdmin && (
-                      <button
-                        onClick={() => handleToggleActive(member.profile_id, true)}
-                        disabled={processing === member.profile_id}
-                        className="relative w-9 h-5 rounded-full flex-shrink-0 transition-colors disabled:opacity-50"
-                        style={{ background: "var(--color-muted-foreground)" }}
-                        title="Inaktiv — klicken zum Reaktivieren"
-                      >
-                        <span
-                          className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all"
-                          style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }}
-                        />
-                      </button>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => handleToggleActive(member.profile_id, true)}
+                          disabled={processing === member.profile_id}
+                          className="relative w-9 h-5 rounded-full transition-colors disabled:opacity-50"
+                          style={{ background: "var(--color-muted-foreground)" }}
+                          title="Inaktiv — klicken zum Reaktivieren"
+                        >
+                          <span
+                            className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-all"
+                            style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }}
+                          />
+                        </button>
+                        <button
+                          onClick={() => handleRemoveMember(member.profile_id, profile?.name || "")}
+                          disabled={processing === member.profile_id}
+                          className="p-1.5 rounded transition-colors disabled:opacity-50"
+                          style={{ color: "var(--color-destructive)" }}
+                          title={profile?.name?.includes("(Test)") ? "Testuser komplett löschen" : "Aus Organisation entfernen"}
+                        >
+                          <IconTrash size={14} />
+                        </button>
+                      </div>
                     )}
                   </div>
                 );
