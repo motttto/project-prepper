@@ -14,6 +14,7 @@ import {
   IconChevronRight,
   IconTrash,
   IconInbox,
+  IconUserCheck,
 } from "@/components/ui/icons";
 
 // Status Labels + Farben
@@ -63,6 +64,9 @@ export default function InquiriesPage() {
   const [saving, setSaving] = useState(false);
   const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
 
+  // Team-Zusagen pro Anfrage: { inquiryId: { accepted: N, total: N } }
+  const [teamCounts, setTeamCounts] = useState<Record<string, { accepted: number; declined: number; pending: number; total: number }>>({});
+
   // Create Form State
   const [formTitle, setFormTitle] = useState("");
   const [formClientName, setFormClientName] = useState("");
@@ -87,14 +91,47 @@ export default function InquiriesPage() {
     setLoading(false);
   }, [supabase, orgId]);
 
+  // Team-Zusagen-Zähler für alle Anfragen laden
+  const loadTeamCounts = useCallback(async () => {
+    if (!orgId) return;
+    const { data } = await supabase
+      .from("inquiry_invitations")
+      .select("inquiry_id, status")
+      .in("inquiry_id", inquiries.map((i) => i.id));
+    if (data) {
+      const counts: Record<string, { accepted: number; declined: number; pending: number; total: number }> = {};
+      for (const inv of data) {
+        if (!counts[inv.inquiry_id]) {
+          counts[inv.inquiry_id] = { accepted: 0, declined: 0, pending: 0, total: 0 };
+        }
+        counts[inv.inquiry_id].total++;
+        if (inv.status === "accepted") counts[inv.inquiry_id].accepted++;
+        else if (inv.status === "declined") counts[inv.inquiry_id].declined++;
+        else if (inv.status === "pending") counts[inv.inquiry_id].pending++;
+      }
+      setTeamCounts(counts);
+    }
+  }, [supabase, orgId, inquiries]);
+
   useEffect(() => {
     loadInquiries();
   }, [loadInquiries]);
+
+  useEffect(() => {
+    if (inquiries.length > 0) loadTeamCounts();
+  }, [inquiries, loadTeamCounts]);
 
   useRealtimeTable({
     table: "inquiries",
     orgFilter: orgId || undefined,
     onDataChange: loadInquiries,
+  });
+
+  // Realtime: Team-Zusagen live aktualisieren
+  useRealtimeTable({
+    table: "inquiry_invitations",
+    onDataChange: loadTeamCounts,
+    enabled: inquiries.length > 0,
   });
 
   // Filterung
@@ -471,6 +508,29 @@ export default function InquiriesPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Team-Zusagen */}
+                {teamCounts[inquiry.id] && teamCounts[inquiry.id].total > 0 && (
+                  <span
+                    className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                    style={{
+                      background: teamCounts[inquiry.id].accepted === teamCounts[inquiry.id].total
+                        ? "var(--color-success-light)"
+                        : teamCounts[inquiry.id].pending > 0
+                        ? "var(--color-warning-light)"
+                        : "var(--color-muted)",
+                      color: teamCounts[inquiry.id].accepted === teamCounts[inquiry.id].total
+                        ? "var(--color-success)"
+                        : teamCounts[inquiry.id].pending > 0
+                        ? "var(--color-warning)"
+                        : "var(--color-muted-foreground)",
+                    }}
+                    title={`${teamCounts[inquiry.id].accepted} zugesagt, ${teamCounts[inquiry.id].pending} offen, ${teamCounts[inquiry.id].declined} abgesagt`}
+                  >
+                    <IconUserCheck size={12} />
+                    {teamCounts[inquiry.id].accepted}/{teamCounts[inquiry.id].total}
+                  </span>
+                )}
 
                 {/* Angebotssumme */}
                 {inquiry.offer_amount && (

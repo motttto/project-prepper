@@ -45,10 +45,12 @@ export function InvitationBell({ userId, orgId }: InvitationBellProps) {
 
   const {
     invitations: inquiryInvitations,
+    responses: inquiryResponses,
     pendingCount: inquiryPendingCount,
+    responseCount: inquiryResponseCount,
     accept: acceptInquiry,
     decline: declineInquiry,
-  } = useInquiryInvitations({ userId });
+  } = useInquiryInvitations({ userId, creatorId: userId });
 
   const {
     notifications: taskNotifications,
@@ -89,7 +91,7 @@ export function InvitationBell({ userId, orgId }: InvitationBellProps) {
   });
 
   const totalCount =
-    projectPendingCount + partnerInvites.length + bookingPendingCount + inquiryPendingCount + taskPendingCount;
+    projectPendingCount + partnerInvites.length + bookingPendingCount + inquiryPendingCount + inquiryResponseCount + taskPendingCount;
 
   // Click-Outside schließt Dropdown
   useEffect(() => {
@@ -375,6 +377,72 @@ export function InvitationBell({ userId, orgId }: InvitationBellProps) {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* Sektion: Anfrage-Antworten (für Ersteller) */}
+                {inquiryResponseCount > 0 && (
+                  <div>
+                    <div
+                      className="px-3 py-1.5 text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5"
+                      style={{
+                        color: "var(--color-text-muted)",
+                        background: "var(--color-muted)",
+                      }}
+                    >
+                      <IconInbox size={12} />
+                      Team-Rückmeldungen
+                    </div>
+                    {inquiryResponses.map((inv) => {
+                      const isAccepted = inv.status === "accepted";
+                      return (
+                        <div
+                          key={`resp-${inv.id}`}
+                          className="p-3 cursor-pointer transition-colors"
+                          style={{
+                            borderBottom: "1px solid var(--color-border)",
+                          }}
+                          onClick={() => {
+                            router.push(`/inquiries/${inv.inquiry_id}`);
+                            setOpen(false);
+                          }}
+                          onMouseEnter={(e) =>
+                            (e.currentTarget.style.background = "var(--color-muted)")
+                          }
+                          onMouseLeave={(e) =>
+                            (e.currentTarget.style.background = "transparent")
+                          }
+                        >
+                          <p className="text-sm">
+                            <span className="font-medium">
+                              {inv.profiles?.name || "Jemand"}
+                            </span>{" "}
+                            hat{" "}
+                            <span
+                              className="font-medium"
+                              style={{
+                                color: isAccepted
+                                  ? "var(--color-success)"
+                                  : "var(--color-destructive)",
+                              }}
+                            >
+                              {isAccepted ? "zugesagt" : "abgesagt"}
+                            </span>
+                          </p>
+                          <p
+                            className="text-xs mt-0.5"
+                            style={{ color: "var(--color-text-muted)" }}
+                          >
+                            {inv.inquiries?.title || "Anfrage"}
+                            {inv.responded_at && (
+                              <span className="ml-1">
+                                · {new Date(inv.responded_at).toLocaleDateString("de-DE", { day: "numeric", month: "short" })}
+                              </span>
+                            )}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
 

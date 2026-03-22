@@ -10,13 +10,17 @@ interface UseInquiryInvitationsOptions {
   inquiryId?: string;
   /** Per-User Modus: offene Einladungen für den aktuellen User */
   userId?: string;
+  /** Creator-Modus: Antworten auf eigene Einladungen (für Glocke) */
+  creatorId?: string;
 }
 
 export function useInquiryInvitations({
   inquiryId,
   userId,
+  creatorId,
 }: UseInquiryInvitationsOptions) {
   const [invitations, setInvitations] = useState<InquiryInvitation[]>([]);
+  const [responses, setResponses] = useState<InquiryInvitation[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -43,8 +47,21 @@ export function useInquiryInvitations({
       if (data) setInvitations(data as InquiryInvitation[]);
     }
 
+    // Creator-Modus: Antworten auf eigene Einladungen (zugesagt/abgesagt, letzte 7 Tage)
+    if (creatorId) {
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const { data } = await supabase
+        .from("inquiry_invitations")
+        .select("*, inquiries(title), profiles!invited_profile_id(name)")
+        .eq("invited_by", creatorId)
+        .in("status", ["accepted", "declined"])
+        .gte("responded_at", weekAgo)
+        .order("responded_at", { ascending: false });
+      if (data) setResponses(data as InquiryInvitation[]);
+    }
+
     setLoading(false);
-  }, [inquiryId, userId]);
+  }, [inquiryId, userId, creatorId]);
 
   useEffect(() => {
     load();
@@ -57,7 +74,7 @@ export function useInquiryInvitations({
       ? { column: "inquiry_id", value: inquiryId }
       : undefined,
     onDataChange: load,
-    enabled: !!(inquiryId || userId),
+    enabled: !!(inquiryId || userId || creatorId),
   });
 
   /** Mitglied einladen (upsert für erneutes Einladen nach Absage) */
@@ -109,11 +126,13 @@ export function useInquiryInvitations({
 
   return {
     invitations,
+    responses,
     loading,
     invite,
     accept,
     decline,
     revoke,
     pendingCount: invitations.filter((i) => i.status === "pending").length,
+    responseCount: responses.length,
   };
 }
