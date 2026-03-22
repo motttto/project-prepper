@@ -230,22 +230,40 @@ export function TabOverview({
       );
     }
 
+    // Number-Felder: nur lokal tracken, Save erst bei Blur
+    if (type === "number") {
+      return (
+        <div>
+          <FieldLabel>{label}</FieldLabel>
+          <input
+            type="number"
+            value={(localData[field] as string | number) ?? ""}
+            onChange={(e) => {
+              const val = e.target.value === "" ? null : parseFloat(e.target.value);
+              trackField(field, val as Project[keyof Project]);
+            }}
+            onBlur={() => {
+              if (dirtyFields.has(field as string)) {
+                handleImmediateChange(field, localData[field] as string | number | null);
+              }
+            }}
+            className="w-full px-3 py-2 rounded-lg text-sm"
+            style={{
+              border: `1px solid ${dirtyFields.has(field as string) ? "var(--color-primary)" : "var(--color-border)"}`,
+              background: "var(--color-background)",
+            }}
+          />
+        </div>
+      );
+    }
+
     return (
       <div>
         <FieldLabel>{label}</FieldLabel>
         <input
           type={type}
           value={(localData[field] as string | number) ?? ""}
-          onChange={(e) =>
-            handleFieldChange(
-              field,
-              type === "number"
-                ? e.target.value === ""
-                  ? null
-                  : parseFloat(e.target.value)
-                : e.target.value
-            )
-          }
+          onChange={(e) => handleFieldChange(field, e.target.value)}
           className="w-full px-3 py-2 rounded-lg text-sm"
           style={{
             border: `1px solid ${dirtyFields.has(field as string) ? "var(--color-primary)" : "var(--color-border)"}`,
