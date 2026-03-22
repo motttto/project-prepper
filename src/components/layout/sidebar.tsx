@@ -15,7 +15,6 @@ import {
   IconInbox,
 } from "@/components/ui/icons";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
-import { InvitationBell } from "@/components/layout/invitation-bell";
 import { useOrg } from "@/contexts/org-context";
 import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import { useImpersonate } from "@/contexts/impersonate-context";
@@ -39,48 +38,69 @@ interface SidebarProps {
 export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const supabase = createClient();
-  const [pendingCount, setPendingCount] = useState(0);
+  // Notification-Counts pro Menüpunkt
+  const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
   const { orgId } = useOrg();
   const currentUser = useCurrentUser();
   const { impersonating } = useImpersonate();
+  const userId = currentUser?.id;
 
   useEffect(() => {
-    if (!orgId) return;
+    if (!orgId || !userId) return;
 
-    async function load() {
-      // Nur echte Beitritte zählen (inaktiv + nie freigegeben, in aktueller Org)
-      const { count } = await supabase
-        .from("org_memberships")
+    async function loadCounts() {
+      const counts: Record<string, number> = {};
+
+      // Team: Pending memberships + pending org invitations
+      const [{ count: pendingMembers }, { count: pendingInvites }] = await Promise.all([
+        supabase
+          .from("org_memberships")
+          .select("*", { count: "exact", head: true })
+          .eq("org_id", orgId)
+          .eq("is_active", false)
+          .is("approved_at", null),
+        supabase
+          .from("org_invitations")
+          .select("*", { count: "exact", head: true })
+          .eq("org_id", orgId)
+          .eq("status", "pending"),
+      ]);
+      counts["/team"] = (pendingMembers || 0) + (pendingInvites || 0);
+
+      // Projekte: Pending project invitations für diesen User
+      const { count: projectInvites } = await supabase
+        .from("project_invitations")
         .select("*", { count: "exact", head: true })
-        .eq("org_id", orgId)
-        .eq("is_active", false)
-        .is("approved_at", null);
-      setPendingCount(count || 0);
-    }
-    load();
+        .eq("invited_profile_id", userId)
+        .eq("status", "pending");
+      counts["/projects"] = projectInvites || 0;
 
-    // Realtime: Pending-Count aktualisieren
+      // Anfragen: Pending inquiry invitations für diesen User
+      const { count: inquiryInvites } = await supabase
+        .from("inquiry_invitations")
+        .select("*", { count: "exact", head: true })
+        .eq("invited_profile_id", userId)
+        .eq("status", "pending");
+      counts["/inquiries"] = inquiryInvites || 0;
+
+      setBadgeCounts(counts);
+    }
+    loadCounts();
+
+    // Realtime: Counts aktualisieren bei Änderungen
     const channel = supabase
-      .channel("sidebar-pending")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "org_memberships" },
-        async () => {
-          const { count } = await supabase
-            .from("org_memberships")
-            .select("*", { count: "exact", head: true })
-            .eq("org_id", orgId)
-            .eq("is_active", false)
-            .is("approved_at", null);
-          setPendingCount(count || 0);
-        }
-      )
+      .channel("sidebar-badges")
+      .on("postgres_changes", { event: "*", schema: "public", table: "org_memberships" }, loadCounts)
+      .on("postgres_changes", { event: "*", schema: "public", table: "org_invitations" }, loadCounts)
+      .on("postgres_changes", { event: "*", schema: "public", table: "project_invitations" }, loadCounts)
+      .on("postgres_changes", { event: "*", schema: "public", table: "inquiry_invitations" }, loadCounts)
+      .on("postgres_changes", { event: "*", schema: "public", table: "task_notifications" }, loadCounts)
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, orgId]);
+  }, [supabase, orgId, userId]);
 
   // Sidebar auf Mobile schließen bei Navigation
   useEffect(() => {
@@ -149,7 +169,8 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
-          const showBadge = item.href === "/team" && pendingCount > 0;
+          const badgeCount = badgeCounts[item.href] || 0;
+          const showBadge = badgeCount > 0;
 
           return (
             <Link
@@ -184,7 +205,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
                   className="ml-auto w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
                   style={{ background: "var(--color-destructive)" }}
                 >
-                  {pendingCount}
+                  {badgeCount}
                 </span>
               )}
             </Link>
@@ -192,13 +213,6 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* Benachrichtigungen */}
-      <div
-        className="px-4 py-3"
-        style={{ borderTop: "1px solid rgba(255,255,255,0.08)" }}
-      >
-        <InvitationBell userId={currentUser?.id} orgId={orgId} />
-      </div>
     </aside>
   );
 }
