@@ -1190,12 +1190,16 @@ function InviteModal({
     setSaving(true);
     setError("");
 
-    const { error: insertError } = await supabase.from("org_invitations").insert({
-      org_id: orgId,
-      email: email.trim().toLowerCase(),
-      invited_by: currentUserId,
-      role_id: selectedRoleId,
-    });
+    const { data: insertData, error: insertError } = await supabase
+      .from("org_invitations")
+      .insert({
+        org_id: orgId,
+        email: email.trim().toLowerCase(),
+        invited_by: currentUserId,
+        role_id: selectedRoleId,
+      })
+      .select("id")
+      .single();
 
     if (insertError) {
       if (insertError.code === "23505") {
@@ -1204,6 +1208,12 @@ function InviteModal({
         setError(insertError.message);
       }
     } else {
+      // Einladungs-Email senden (fire & forget)
+      if (insertData?.id) {
+        supabase.functions.invoke("send-invite-email", {
+          body: { invitation_id: insertData.id },
+        }).catch((err) => console.error("Email send error:", err));
+      }
       setSuccess(true);
       onInvited();
     }
@@ -1249,10 +1259,9 @@ function InviteModal({
                 <IconCheck size={28} style={{ color: "var(--color-success)" }} />
               </div>
               <div>
-                <p className="font-semibold">Einladung erstellt!</p>
+                <p className="font-semibold">Einladung gesendet!</p>
                 <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-                  Teile den Registrierungs-Link mit <strong>{email}</strong>.
-                  Bei Registrierung mit dieser E-Mail wird die Person automatisch freigeschaltet.
+                  Eine Einladungs-Email wurde an <strong>{email}</strong> gesendet.
                 </p>
               </div>
               <button
