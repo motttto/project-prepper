@@ -636,6 +636,24 @@ export default function TeamPage() {
                   </span>
                   {isAdmin && (
                     <button
+                      onClick={async () => {
+                        setProcessing(inv.id);
+                        await supabase.functions.invoke("send-invite-email", {
+                          body: { invitation_id: inv.id },
+                        }).catch((err: unknown) => console.error("Email resend error:", err));
+                        setProcessing(null);
+                        alert("Einladungs-Email erneut gesendet!");
+                      }}
+                      disabled={processing === inv.id}
+                      className="px-2.5 py-1 rounded text-xs font-medium flex-shrink-0 transition-colors disabled:opacity-50"
+                      style={{ color: "var(--color-primary)", border: "1px solid var(--color-primary)" }}
+                      title="Email erneut senden"
+                    >
+                      {processing === inv.id ? "..." : "Erneut senden"}
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button
                       onClick={() => handleDeleteOrgInvitation(inv.id)}
                       className="p-1.5 rounded transition-colors flex-shrink-0"
                       style={{ color: "var(--color-destructive)" }}
