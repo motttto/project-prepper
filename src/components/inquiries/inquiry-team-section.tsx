@@ -87,7 +87,7 @@ export function InquiryTeamSection({
   const canInvite = isCreator || isAdmin;
 
   // Einladungen laden
-  const { invitations, loading, invite, revoke } = useInquiryInvitations({
+  const { invitations, loading, invite, revoke, accept, decline } = useInquiryInvitations({
     inquiryId,
   });
 
@@ -150,6 +150,18 @@ export function InquiryTeamSection({
   async function handleRevoke(invitationId: string) {
     setProcessingId(invitationId);
     await revoke(invitationId);
+    setProcessingId(null);
+  }
+
+  async function handleAccept(invitationId: string) {
+    setProcessingId(invitationId);
+    await accept(invitationId);
+    setProcessingId(null);
+  }
+
+  async function handleDecline(invitationId: string) {
+    setProcessingId(invitationId);
+    await decline(invitationId);
     setProcessingId(null);
   }
 
@@ -223,6 +235,8 @@ export function InquiryTeamSection({
               onInvite={() => handleInvite(profile.id)}
               onRevoke={() => invitation && handleRevoke(invitation.id)}
               onReinvite={() => handleInvite(profile.id)}
+              onAccept={() => invitation && handleAccept(invitation.id)}
+              onDecline={() => invitation && handleDecline(invitation.id)}
             />
           ))}
         </div>
@@ -242,6 +256,8 @@ interface MemberRowProps {
   isSelf: boolean;
   processingId: string | null;
   onInvite: () => void;
+  onAccept: () => void;
+  onDecline: () => void;
   onRevoke: () => void;
   onReinvite: () => void;
 }
@@ -256,6 +272,8 @@ function MemberRow({
   onInvite,
   onRevoke,
   onReinvite,
+  onAccept,
+  onDecline,
 }: MemberRowProps) {
   const isProcessing = processingId === profile.id || processingId === invitation?.id;
 
@@ -336,15 +354,38 @@ function MemberRow({
 
         {status === "pending" && (
           <>
-            <span
-              className="text-xs px-2 py-0.5 rounded-full"
-              style={{
-                background: "var(--color-warning-light)",
-                color: "var(--color-warning)",
-              }}
-            >
-              Angefragt
-            </span>
+            {isSelf ? (
+              <>
+                <button
+                  onClick={onAccept}
+                  disabled={isProcessing}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium disabled:opacity-50 text-white"
+                  style={{ background: "var(--color-success)" }}
+                >
+                  <IconCheck size={12} />
+                  Zusagen
+                </button>
+                <button
+                  onClick={onDecline}
+                  disabled={isProcessing}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium disabled:opacity-50"
+                  style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
+                >
+                  <IconX size={12} />
+                  Absagen
+                </button>
+              </>
+            ) : (
+              <span
+                className="text-xs px-2 py-0.5 rounded-full"
+                style={{
+                  background: "var(--color-warning-light)",
+                  color: "var(--color-warning)",
+                }}
+              >
+                Angefragt
+              </span>
+            )}
             {canInvite && (
               <button
                 onClick={onRevoke}
