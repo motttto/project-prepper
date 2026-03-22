@@ -334,6 +334,7 @@ export function TabOverview({
           <AutoInput label="Adresse" field="venue_address" />
           <AutoInput label="Ansprechpartner" field="venue_contact_person" />
           <AutoInput label="Telefon" field="venue_phone" />
+          <AutoInput label="Maps-Link" field="venue_maps_url" />
           <div className="md:col-span-2">
             <AutoTextarea label="Notizen" field="venue_notes" />
           </div>

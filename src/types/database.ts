@@ -131,6 +131,7 @@ export type Project = {
   venue_contact_person: string | null;
   venue_phone: string | null;
   venue_notes: string | null;
+  venue_maps_url: string | null;
   // Client / Auftraggeber
   client_name: string | null;
   client_contact_person: string | null;
