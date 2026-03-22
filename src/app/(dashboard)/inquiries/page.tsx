@@ -138,7 +138,7 @@ export default function InquiriesPage() {
   const filtered = useMemo(() => {
     let result = inquiries;
     if (statusFilter === "open") {
-      result = result.filter((i) => !["accepted", "rejected", "archived"].includes(i.status));
+      result = result.filter((i) => !["accepted", "archived"].includes(i.status));
     } else if (statusFilter !== "all") {
       result = result.filter((i) => i.status === statusFilter);
     }
@@ -160,7 +160,7 @@ export default function InquiriesPage() {
     const counts: Record<string, number> = { all: inquiries.length, open: 0 };
     for (const i of inquiries) {
       counts[i.status] = (counts[i.status] || 0) + 1;
-      if (!["accepted", "rejected", "archived"].includes(i.status)) counts.open++;
+      if (!["accepted", "archived"].includes(i.status)) counts.open++;
     }
     return counts;
   }, [inquiries]);

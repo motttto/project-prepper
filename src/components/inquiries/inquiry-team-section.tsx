@@ -128,9 +128,8 @@ export function InquiryTeamSection({
     invitations.map((inv) => [inv.invited_profile_id, inv])
   );
 
-  // Alle Mitglieder außer dem aktuellen User, sortiert nach Status
+  // Alle Mitglieder inkl. sich selbst, sortiert nach Status
   const teamMembers = allProfiles
-    .filter((p) => p.id !== currentUserId)
     .map((p) => ({
       profile: p,
       invitation: invitationByProfile.get(p.id) || null,
@@ -218,7 +217,8 @@ export function InquiryTeamSection({
               profile={profile}
               invitation={invitation}
               status={status}
-              canInvite={canInvite}
+              canInvite={canInvite && profile.id !== currentUserId}
+              isSelf={profile.id === currentUserId}
               processingId={processingId}
               onInvite={() => handleInvite(profile.id)}
               onRevoke={() => invitation && handleRevoke(invitation.id)}
@@ -239,6 +239,7 @@ interface MemberRowProps {
   invitation: { id: string; status: string } | null;
   status: string | null;
   canInvite: boolean;
+  isSelf: boolean;
   processingId: string | null;
   onInvite: () => void;
   onRevoke: () => void;
@@ -250,6 +251,7 @@ function MemberRow({
   invitation,
   status,
   canInvite,
+  isSelf,
   processingId,
   onInvite,
   onRevoke,
@@ -311,6 +313,9 @@ function MemberRow({
           }}
         >
           {profile.name}
+          {isSelf && (
+            <span className="ml-1 text-xs" style={{ color: "var(--color-muted-foreground)" }}>(Du)</span>
+          )}
         </span>
       </div>
 
