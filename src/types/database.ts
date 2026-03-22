@@ -504,6 +504,23 @@ export type OrgInvitation = {
   roles?: { name: string };
 };
 
+// === Projekt-Dateien ===
+
+export type ProjectFile = {
+  id: string;
+  project_id: string;
+  org_id: string;
+  file_name: string;
+  file_path: string;
+  file_url: string;
+  file_type: string;
+  file_size: number | null;
+  uploaded_by: string | null;
+  created_at: string;
+  // Joined data
+  profiles?: { name: string } | null;
+};
+
 // === Anfragen-Einladungen (Inquiry Team) ===
 
 export type InquiryInvitationStatus = "pending" | "accepted" | "declined";

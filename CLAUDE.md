@@ -54,6 +54,7 @@ src/
 │   │   ├── tab-materials.tsx          # Verbrauchsmaterial + Transport
 │   │   ├── tab-checklists.tsx         # Checklisten
 │   │   ├── tab-tasks.tsx              # Aufgaben (Intern/Crew/Extern, Annahme-Flow)
+│   │   ├── tab-files.tsx              # Dateien / Grundrisse (Upload + Lightbox)
 │   │   └── project-members-panel.tsx  # Mitglieder verwalten
 │   ├── inventory/
 │   │   ├── excel-import.tsx           # Mehrstufiger Excel-Import
@@ -110,6 +111,7 @@ src/
 | `org_invitations` | Org-Einladungen (Link-basiert) | org_id, email, invited_by, role_id, status, accepted_at |
 | `inquiries` | Projektanfragen-Pipeline | org_id, status, client_*, title, venue_*, event_date_*, offer_*, probability, telegram_message_id |
 | `inquiry_invitations` | Anfrage-Team | inquiry_id, invited_profile_id, status |
+| `project_files` | Projekt-Dateien (Grundrisse, PDFs) | project_id, org_id, file_name, file_url, file_type, uploaded_by |
 
 ### Projekt-Budget Felder (auf `projects`)
 - `budget_planned` — Gesamtbudget
@@ -192,6 +194,7 @@ Budget-Spalten auf `projects` können nicht per RLS versteckt werden → werden 
 | 031 | `031_testuser_function.sql` | create_test_user() RPC (Dummy auth.users + profiles + membership) |
 | 032 | `032_delete_user_function.sql` | remove_org_member() RPC (bei Testusern komplett löschen) |
 | 033 | `033_user_permissions.sql` | Pro-User Permissions JSONB auf org_memberships |
+| 034 | `034_project_files.sql` | Projekt-Dateien: Storage Bucket + Tabelle + RLS + Realtime |
 
 ---
 
@@ -275,7 +278,7 @@ Alle Tabellen in `supabase_realtime` Publication:
 - project_schedule, project_team_members, project_contacts
 - project_consumables, project_checklists, project_checklist_items
 - project_members, project_invitations, project_tasks
-- task_notifications, team_votes, org_invitations
+- task_notifications, team_votes, org_invitations, project_files
 
 ---
 
@@ -324,6 +327,7 @@ Wenn Claude Code eine neue Session auf einem Rechner startet, soll als **erstes*
 |--------|-------|--------|
 | `inventory-images` | Fotos für Inventar-Artikel | Ja (public read) |
 | `avatars` | Profilbilder für User | Ja (public read) |
+| `project-files` | Projekt-Dateien (Grundrisse, PDFs) | Ja (public read) |
 
 Bilder werden client-seitig komprimiert via `browser-image-compression`:
 - **Inventar:** max 800px, WebP, <200KB → `{itemId}/{timestamp}.webp`

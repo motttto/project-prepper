@@ -14,6 +14,7 @@ import { TabMaterials } from "@/components/projects/tab-materials";
 import { TabCosts } from "@/components/projects/tab-costs";
 import { TabChecklists } from "@/components/projects/tab-checklists";
 import { TabTasks } from "@/components/projects/tab-tasks";
+import { TabFiles } from "@/components/projects/tab-files";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { usePresence } from "@/hooks/use-presence";
@@ -80,6 +81,7 @@ export default function ProjectDetailPage() {
       { key: "materials", label: "Material & Transport" },
       { key: "checklists", label: "Checklisten" },
       { key: "tasks", label: "Aufgaben" },
+      { key: "files", label: "Dateien" },
     ];
     if (canViewCosts) {
       // Kosten-Tab vor Checklisten einfügen
@@ -339,6 +341,9 @@ export default function ProjectDetailPage() {
       )}
       {activeTab === "tasks" && (
         <TabTasks projectId={projectId} />
+      )}
+      {activeTab === "files" && (
+        <TabFiles projectId={projectId} />
       )}
 
       {/* Partner-Panel */}
