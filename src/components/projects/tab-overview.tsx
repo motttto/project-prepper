@@ -55,6 +55,7 @@ export function TabOverview({
   // Debounced Save: speichert automatisch nach 800ms Inaktivität
   // ─────────────────────────────────────────────────────────────────────────
   const isSavingRef = useRef(false);
+  const saveCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const saveFn = useCallback(
     async (payload: Partial<Project>) => {
@@ -69,7 +70,12 @@ export function TabOverview({
           markClean(Object.keys(payload) as (keyof Project)[]);
         }
       } finally {
-        isSavingRef.current = false;
+        // Cooldown: eigenes Realtime-Echo für 2s ignorieren
+        if (saveCooldownRef.current) clearTimeout(saveCooldownRef.current);
+        saveCooldownRef.current = setTimeout(() => {
+          isSavingRef.current = false;
+          saveCooldownRef.current = null;
+        }, 2000);
       }
     },
     [supabase, projectId, markClean]
@@ -141,6 +147,7 @@ export function TabOverview({
   useEffect(() => {
     return () => {
       flush();
+      if (saveCooldownRef.current) clearTimeout(saveCooldownRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
