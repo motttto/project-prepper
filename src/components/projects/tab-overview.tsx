@@ -375,19 +375,24 @@ export function TabOverview({
       {/* ------------------------------------------------------------------ */}
       {canViewBudget ? (
         <div className="p-5 rounded-xl mb-4" style={cardStyle}>
-          <SectionHeader title="Budget" />
+          <SectionHeader title="Budget (Netto)" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <AutoInput label="Gesamtbudget" field="budget_planned" type="number" />
-            <div className="flex items-end pb-2">
+            <AutoInput label="Gesamtbudget (Netto)" field="budget_planned" type="number" />
+            <div className="flex flex-col justify-end pb-2 gap-1">
               <span className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-                Aktuell: {formatCurrency(project.budget_planned)}
+                Netto: {formatCurrency(project.budget_planned)}
               </span>
+              {project.budget_planned && (
+                <span className="text-sm font-medium" style={{ color: "var(--color-muted-foreground)" }}>
+                  Brutto (19 %): {formatCurrency(Number(project.budget_planned) * 1.19)}
+                </span>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <AutoInput label="Honorar" field="budget_honorar" type="number" />
-            <AutoInput label="Technik" field="budget_technik" type="number" />
-            <AutoInput label="Transport / Reise" field="budget_transport" type="number" />
+            <AutoInput label="Honorar (Netto)" field="budget_honorar" type="number" />
+            <AutoInput label="Technik (Netto)" field="budget_technik" type="number" />
+            <AutoInput label="Transport / Reise (Netto)" field="budget_transport" type="number" />
           </div>
         </div>
       ) : (

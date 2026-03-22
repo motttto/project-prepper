@@ -86,20 +86,21 @@ export function TabCosts({ projectId, project }: TabCostsProps) {
   const totalBruttoActual = totalNetActual + totalVatActual;
 
   const budgetPlanned = project.budget_planned ? Number(project.budget_planned) : null;
-  const budgetDiff = budgetPlanned !== null ? budgetPlanned - totalBruttoPlanned : null;
-  const budgetPercent = budgetPlanned ? Math.min((totalBruttoPlanned / budgetPlanned) * 100, 100) : 0;
+  const budgetDiff = budgetPlanned !== null ? budgetPlanned - totalNetPlanned : null;
+  const budgetPercent = budgetPlanned ? Math.min((totalNetPlanned / budgetPlanned) * 100, 100) : 0;
   const overBudget = budgetDiff !== null && budgetDiff < 0;
 
   // Budget-Kategorien
+  // Kategorie-Budgets: Netto-Vergleich (Budget ist Netto)
   const costByBudgetCategory = {
-    honorar: costItems.filter((c) => c.category === "personnel").reduce((s, c) => s + Number(c.amount_planned) * (1 + Number(c.vat_rate) / 100), 0),
-    technik: costItems.filter((c) => c.category === "inventory" || c.category === "material").reduce((s, c) => s + Number(c.amount_planned) * (1 + Number(c.vat_rate) / 100), 0),
-    transport: costItems.filter((c) => c.category === "external").reduce((s, c) => s + Number(c.amount_planned) * (1 + Number(c.vat_rate) / 100), 0),
+    honorar: costItems.filter((c) => c.category === "personnel").reduce((s, c) => s + Number(c.amount_planned), 0),
+    technik: costItems.filter((c) => c.category === "inventory" || c.category === "material").reduce((s, c) => s + Number(c.amount_planned), 0),
+    transport: costItems.filter((c) => c.category === "external").reduce((s, c) => s + Number(c.amount_planned), 0),
   };
   const budgetCategories = [
-    { label: "Honorar", budget: project.budget_honorar ? Number(project.budget_honorar) : null, spent: costByBudgetCategory.honorar, color: "#3b82f6" },
-    { label: "Technik", budget: project.budget_technik ? Number(project.budget_technik) : null, spent: costByBudgetCategory.technik, color: "#8b5cf6" },
-    { label: "Transport / Reise", budget: project.budget_transport ? Number(project.budget_transport) : null, spent: costByBudgetCategory.transport, color: "#f59e0b" },
+    { label: "Honorar (Netto)", budget: project.budget_honorar ? Number(project.budget_honorar) : null, spent: costByBudgetCategory.honorar, color: "#3b82f6" },
+    { label: "Technik (Netto)", budget: project.budget_technik ? Number(project.budget_technik) : null, spent: costByBudgetCategory.technik, color: "#8b5cf6" },
+    { label: "Transport (Netto)", budget: project.budget_transport ? Number(project.budget_transport) : null, spent: costByBudgetCategory.transport, color: "#f59e0b" },
   ];
 
   async function handleCreateCost(e: React.FormEvent) {
@@ -131,6 +132,11 @@ export function TabCosts({ projectId, project }: TabCostsProps) {
     loadCosts();
   }
 
+  async function handleUpdateVat(id: string, newVat: number) {
+    await supabase.from("cost_items").update({ vat_rate: newVat }).eq("id", id);
+    loadCosts();
+  }
+
   if (loading) {
     return (
       <div className="py-8 text-center" style={{ color: "var(--color-muted-foreground)" }}>
@@ -152,15 +158,16 @@ export function TabCosts({ projectId, project }: TabCostsProps) {
         >
           <div className="flex items-center justify-between mb-3 text-sm">
             <span>
-              <span style={{ color: "var(--color-muted-foreground)" }}>Budget: </span>
+              <span style={{ color: "var(--color-muted-foreground)" }}>Budget (Netto): </span>
               <span className="font-semibold">{fmtEur(budgetPlanned)} €</span>
             </span>
             <span>
-              <span style={{ color: "var(--color-muted-foreground)" }}>Kosten (Brutto): </span>
-              <span className="font-semibold">{fmtEur(totalBruttoPlanned)} €</span>
+              <span style={{ color: "var(--color-muted-foreground)" }}>Kosten Netto: </span>
+              <span className="font-semibold">{fmtEur(totalNetPlanned)} €</span>
+              <span className="ml-2" style={{ color: "var(--color-muted-foreground)" }}>(Brutto: {fmtEur(totalBruttoPlanned)} €)</span>
             </span>
             <span>
-              <span style={{ color: "var(--color-muted-foreground)" }}>Differenz: </span>
+              <span style={{ color: "var(--color-muted-foreground)" }}>Differenz (Netto): </span>
               <span
                 className="font-semibold"
                 style={{ color: overBudget ? "var(--color-destructive)" : "var(--color-success)" }}
@@ -382,9 +389,22 @@ export function TabCosts({ projectId, project }: TabCostsProps) {
                     <td className="px-4 py-3">{item.description}</td>
                     <td className="px-4 py-3 text-right font-mono">{fmtEur(Number(item.amount_planned))}</td>
                     <td className="px-3 py-3 text-center">
-                      <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
-                        {Number(item.vat_rate)} %
-                      </span>
+                      <select
+                        value={Number(item.vat_rate)}
+                        onChange={(e) => handleUpdateVat(item.id, Number(e.target.value))}
+                        className="text-xs px-1.5 py-0.5 rounded cursor-pointer appearance-none text-center"
+                        style={{
+                          background: "var(--color-muted)",
+                          color: "var(--color-muted-foreground)",
+                          border: "1px solid transparent",
+                          minWidth: "60px",
+                        }}
+                        title="USt-Satz ändern"
+                      >
+                        {vatOptions.map((v) => (
+                          <option key={v.value} value={v.value}>{v.label}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-4 py-3 text-right font-mono font-medium">{fmtEur(brutto)}</td>
                     <td className="px-4 py-3 text-right font-mono">
