@@ -320,6 +320,12 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     await loadPurchases();
   }
 
+  async function handleDeletePurchase(decisionId: string) {
+    // Votes werden per CASCADE gelöscht
+    await supabase.from("org_decisions").delete().eq("id", decisionId);
+    await loadPurchases();
+  }
+
   async function handleVote(decisionId: string, vote: VoteChoice) {
     if (!currentUser) return;
     await supabase.from("org_decision_votes").upsert(
@@ -756,12 +762,24 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
                     </button>
                   )}
 
-                  {/* Meta-Info */}
-                  <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                    <span>von {(purchase as any).creator?.name || "Unbekannt"}</span>
-                    <span>{new Date(purchase.created_at).toLocaleDateString("de-DE")}</span>
-                    {purchase.resolved_at && (
-                      <span>entschieden {new Date(purchase.resolved_at).toLocaleDateString("de-DE")}</span>
+                  {/* Meta-Info + Löschen */}
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex items-center gap-3 text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                      <span>von {(purchase as any).creator?.name || "Unbekannt"}</span>
+                      <span>{new Date(purchase.created_at).toLocaleDateString("de-DE")}</span>
+                      {purchase.resolved_at && (
+                        <span>entschieden {new Date(purchase.resolved_at).toLocaleDateString("de-DE")}</span>
+                      )}
+                    </div>
+                    {canEdit && !addedToInventory && (
+                      <button
+                        onClick={() => handleDeletePurchase(purchase.id)}
+                        className="p-1 rounded hover:opacity-70"
+                        style={{ color: "var(--color-error)" }}
+                        title="Vorschlag löschen"
+                      >
+                        <IconTrash size={12} />
+                      </button>
                     )}
                   </div>
                 </div>
