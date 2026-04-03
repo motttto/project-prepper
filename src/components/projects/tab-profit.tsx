@@ -416,29 +416,36 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     const categoryId = meta.category_id || null;
 
     // Find category name for the category field
-    let categoryName = "";
+    let categoryName = "Sonstiges";
     if (categoryId) {
       const cat = categories.find((c) => c.id === categoryId);
-      categoryName = cat?.name || "";
+      categoryName = cat?.name || "Sonstiges";
     }
 
     // Insert into inventory
-    const { data: newItem } = await supabase
+    const { data: newItem, error } = await supabase
       .from("inventory_items")
       .insert({
         org_id: orgId,
         name: itemName,
         category: categoryName,
-        category_id: categoryId,
         quantity: 1,
-        condition: "new",
+        condition: "new" as const,
         purchase_price: cost,
         purchased_by: currentUser.id,
         purchased_at: new Date().toISOString(),
-        owner: "organization",
+        ownership_type: "organization",
+        funding_source: "project",
       })
-      .select("id")
+      .select("id, inventory_number")
       .single();
+
+    if (error) {
+      setAddingToInventory(null);
+      setSuccessMessage(null);
+      alert(`Fehler beim Hinzufügen: ${error.message}`);
+      return;
+    }
 
     // Link inventory item back to decision
     if (newItem) {
@@ -449,11 +456,14 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
           metadata: { ...meta, added_to_inventory: true, inventory_item_id: newItem.id },
         })
         .eq("id", decision.id);
+
+      setSuccessMessage(`„${itemName}" (${newItem.inventory_number}) wurde ins Inventar übernommen`);
+    } else {
+      setSuccessMessage(`„${itemName}" wurde ins Inventar übernommen`);
     }
 
     setAddingToInventory(null);
-    setSuccessMessage(`„${itemName}" wurde ins Inventar übernommen`);
-    setTimeout(() => setSuccessMessage(null), 5000);
+    setTimeout(() => setSuccessMessage(null), 6000);
     await loadPurchases();
   }
 
