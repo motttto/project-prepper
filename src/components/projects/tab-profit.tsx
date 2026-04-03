@@ -61,6 +61,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   const [votingId, setVotingId] = useState<string | null>(null);
   const [voteComment, setVoteComment] = useState("");
   const [addingToInventory, setAddingToInventory] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // --- Data Loading ---
 
@@ -398,6 +399,11 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     }
     setVotingId(null);
     setVoteComment("");
+    const voterName = impersonating?.name || "Du";
+    const voteLabel = vote === "approve" ? "zugestimmt" : "abgelehnt";
+    setSuccessMessage(`${voterName} hat ${voteLabel}`);
+    setTimeout(() => setSuccessMessage(null), 3000);
+    await loadPurchaseVotes();
   }
 
   async function handleAddToInventory(decision: OrgDecision) {
@@ -446,6 +452,8 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     }
 
     setAddingToInventory(null);
+    setSuccessMessage(`„${itemName}" wurde ins Inventar übernommen`);
+    setTimeout(() => setSuccessMessage(null), 5000);
     await loadPurchases();
   }
 
@@ -635,6 +643,17 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
             </button>
           )}
         </div>
+
+        {/* Erfolgsmeldung */}
+        {successMessage && (
+          <div
+            className="flex items-center gap-2 px-4 py-3 mb-3 rounded-lg text-sm font-medium animate-fadeIn"
+            style={{ background: "var(--color-success-light)", color: "var(--color-success)" }}
+          >
+            <IconCheck size={16} />
+            {successMessage}
+          </div>
+        )}
 
         {/* Neue Anschaffung vorschlagen */}
         {showAddPurchase && (
