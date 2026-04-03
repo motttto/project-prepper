@@ -30,6 +30,7 @@ import {
   orgBadgeStyles,
 } from "@/components/ui/role-badge";
 import { DecisionPanel } from "@/components/decisions/decision-panel";
+import { ExitSettlementWizard } from "@/components/team/exit-settlement-wizard";
 
 type OrgMember = {
   id: string;
@@ -78,6 +79,7 @@ export default function TeamPage() {
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [orgInvitations, setOrgInvitations] = useState<OrgInvitation[]>([]);
   const [expandedPermissions, setExpandedPermissions] = useState<string | null>(null);
+  const [exitMember, setExitMember] = useState<{ id: string; name: string } | null>(null);
 
   const isAdmin = currentUser?.roleName === "admin" || currentUser?.isSystem;
 
@@ -1144,6 +1146,14 @@ export default function TeamPage() {
                           />
                         </button>
                         <button
+                          onClick={() => setExitMember({ id: member.profile_id, name: profile?.name || "" })}
+                          className="px-2 py-1 rounded text-xs font-medium transition-colors"
+                          style={{ border: "1px solid var(--color-border)", color: "var(--color-warning)" }}
+                          title="Austritt mit Auslöse-Berechnung"
+                        >
+                          Austritt
+                        </button>
+                        <button
                           onClick={() => handleRemoveMember(member.profile_id, profile?.name || "")}
                           disabled={processing === member.profile_id}
                           className="p-1.5 rounded transition-colors disabled:opacity-50"
@@ -1172,6 +1182,16 @@ export default function TeamPage() {
       >
         <DecisionPanel />
       </div>
+
+      {/* Exit Settlement Wizard */}
+      {exitMember && (
+        <ExitSettlementWizard
+          memberId={exitMember.id}
+          memberName={exitMember.name}
+          onClose={() => setExitMember(null)}
+          onComplete={() => { setExitMember(null); loadData(); }}
+        />
+      )}
 
       {/* Invite Modal */}
       {showInviteModal && (

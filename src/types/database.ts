@@ -594,3 +594,68 @@ export type OrgDecisionVote = {
   // Joined
   voter?: { name: string; avatar_url: string | null };
 };
+
+// Austritts-Auslöse (Migration 038)
+export type ExitSettlementStatus = "draft" | "pending_approval" | "approved" | "completed" | "cancelled";
+export type SettlementMethod = "contribution_based" | "proportional" | "zero" | "custom";
+export type SettlementAction = "buyout" | "return" | "keep" | "donate";
+
+export type ExitSettlement = {
+  id: string;
+  org_id: string;
+  profile_id: string;
+  status: ExitSettlementStatus;
+  decision_id: string | null;
+  exit_date: string;
+  total_owned_value: number;
+  total_funded_value: number;
+  total_payout: number;
+  settlement_method: SettlementMethod;
+  notes: string | null;
+  created_by: string;
+  resolved_at: string | null;
+  created_at: string;
+  // Joined
+  profiles?: { name: string; email: string; avatar_url: string | null };
+  items?: ExitSettlementItem[];
+};
+
+export type ExitSettlementItem = {
+  id: string;
+  settlement_id: string;
+  inventory_item_id: string;
+  ownership_type: string;
+  current_value: number;
+  action: SettlementAction;
+  buyout_price: number | null;
+  notes: string | null;
+  created_at: string;
+  // Joined
+  inventory_items?: { name: string; inventory_number: string };
+};
+
+export type ExitCalculation = {
+  profile_id: string;
+  owned_items: {
+    id: string;
+    name: string;
+    inventory_number: string;
+    purchase_price: number | null;
+    current_value: number | null;
+    ownership_type: string;
+    condition: string;
+  }[];
+  funded_items: {
+    id: string;
+    name: string;
+    inventory_number: string;
+    purchase_price: number | null;
+    current_value: number | null;
+    ownership_type: string;
+    funding_source: string;
+    condition: string;
+  }[];
+  total_owned_value: number;
+  total_funded_value: number;
+  total_settlement: number;
+};
