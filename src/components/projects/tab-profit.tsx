@@ -89,14 +89,30 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     if (data) {
       setMembers(data.map((m: any) => ({ id: m.profile_id, name: m.profiles?.name || "" })));
     }
-    // Projekt-Mitglieder (für Abstimmung — nur diese sind stimmberechtigt)
+    // Stimmberechtigte = Projekt-Mitglieder + Org-Admins (wie im DB-Trigger)
     const { data: projMembers } = await supabase
       .from("project_members")
       .select("profile_id, profiles:profile_id(name)")
       .eq("project_id", project.id);
-    if (projMembers) {
-      setActiveMembers(projMembers.map((m: any) => ({ id: m.profile_id, name: m.profiles?.name || "" })));
-    }
+
+    const { data: orgAdmins } = await supabase
+      .from("org_memberships")
+      .select("profile_id, profiles(name), roles(name)")
+      .eq("org_id", orgId)
+      .eq("is_active", true);
+
+    // Merge: project members + admins, dedupliziert
+    const eligible = new Map<string, string>();
+    (projMembers || []).forEach((m: any) => {
+      eligible.set(m.profile_id, m.profiles?.name || "");
+    });
+    (orgAdmins || []).forEach((m: any) => {
+      const roleName = Array.isArray(m.roles) ? m.roles[0]?.name : m.roles?.name;
+      if (roleName === "admin") {
+        eligible.set(m.profile_id, m.profiles?.name || "");
+      }
+    });
+    setActiveMembers(Array.from(eligible.entries()).map(([id, name]) => ({ id, name })));
   }, [supabase, orgId, project.id]);
 
   const loadPurchases = useCallback(async () => {
