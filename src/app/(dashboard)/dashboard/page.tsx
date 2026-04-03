@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOrg } from "@/contexts/org-context";
-import type { Project, InventoryItem, CostItem, Booking, ProjectTask, Inquiry } from "@/types/database";
+import type { Project, InventoryItem, CostItem, Booking, ProjectTask, Inquiry, EquipmentLoan, OrgPartnership, OrgDecision, EquipmentRequest } from "@/types/database";
 import {
   IconProjects,
   IconCosts,
@@ -16,6 +16,9 @@ import {
   IconClipboardCheck,
   IconClock,
   IconInbox,
+  IconHandshake,
+  IconUsers,
+  IconShield,
 } from "@/components/ui/icons";
 import { DashboardCard } from "@/components/dashboard/dashboard-card";
 
@@ -47,13 +50,19 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<ProjectTask[]>([]);
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [myProjectIds, setMyProjectIds] = useState<Set<string>>(new Set());
+  const [loans, setLoans] = useState<EquipmentLoan[]>([]);
+  const [partnerships, setPartnerships] = useState<OrgPartnership[]>([]);
+  const [decisions, setDecisions] = useState<OrgDecision[]>([]);
+  const [equipRequests, setEquipRequests] = useState<EquipmentRequest[]>([]);
+  const [totalAssetValue, setTotalAssetValue] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   const isAdmin = currentUser?.roleName === "admin";
 
   const loadData = useCallback(async () => {
     if (!orgId) return;
-    const [projectsRes, inventoryRes, costsRes, bookingsRes, membersRes, tasksRes, inquiriesRes] =
+    const [projectsRes, inventoryRes, costsRes, bookingsRes, membersRes, tasksRes, inquiriesRes,
+      loansRes, partnershipsRes, decisionsRes, equipRequestsRes] =
       await Promise.all([
         supabase
           .from("projects")
@@ -78,10 +87,40 @@ export default function DashboardPage() {
           .select("id, status, offer_amount")
           .eq("org_id", orgId)
           .not("status", "in", '("accepted","rejected","archived")'),
+        // Leihgaben (aktiv + überfällig)
+        supabase
+          .from("equipment_loans")
+          .select("id, status, borrower_id, due_date, inventory_item_id, quantity, borrowed_at, borrower:borrower_id(name), inventory_items:inventory_item_id(name, inventory_number)")
+          .eq("org_id", orgId)
+          .in("status", ["active", "overdue"]),
+        // Partnerschaften
+        supabase
+          .from("org_partnerships")
+          .select("id, status, org_id, partner_org_id")
+          .or(`org_id.eq.${orgId},partner_org_id.eq.${orgId}`),
+        // Offene Beschlüsse
+        supabase
+          .from("org_decisions")
+          .select("id, title, status, decision_type, deadline, created_at")
+          .eq("org_id", orgId)
+          .eq("status", "open")
+          .order("created_at", { ascending: false }),
+        // Equipment-Anfragen (eingehend, offen)
+        supabase
+          .from("equipment_requests")
+          .select("id, status, inventory_item_id, requesting_org_id, supplying_org_id")
+          .eq("supplying_org_id", orgId)
+          .eq("status", "pending"),
       ]);
 
     if (projectsRes.data) setProjects(projectsRes.data as Project[]);
-    if (inventoryRes.data) setInventory(inventoryRes.data as InventoryItem[]);
+    if (inventoryRes.data) {
+      const items = inventoryRes.data as InventoryItem[];
+      setInventory(items);
+      // Gesamt-Anlagenwert berechnen
+      const assetVal = items.reduce((sum, i) => sum + (Number(i.current_value) || 0), 0);
+      setTotalAssetValue(assetVal);
+    }
     if (costsRes.data) setCosts(costsRes.data as CostItem[]);
     if (bookingsRes.data) setBookings(bookingsRes.data as Booking[]);
     if (tasksRes.data) setTasks(tasksRes.data as unknown as ProjectTask[]);
@@ -89,6 +128,14 @@ export default function DashboardPage() {
     if (membersRes.data) {
       setMyProjectIds(new Set(membersRes.data.map((m: { project_id: string }) => m.project_id)));
     }
+    if (loansRes.data) setLoans(loansRes.data as unknown as EquipmentLoan[]);
+    if (partnershipsRes.data) setPartnerships(partnershipsRes.data as unknown as OrgPartnership[]);
+    if (decisionsRes.data) setDecisions(decisionsRes.data as unknown as OrgDecision[]);
+    if (equipRequestsRes.data) setEquipRequests(equipRequestsRes.data as unknown as EquipmentRequest[]);
+
+    // Überfällige Leihgaben markieren
+    supabase.rpc("check_overdue_loans", { p_org_id: orgId });
+
     setLoading(false);
   }, [supabase, orgId]);
 
@@ -140,6 +187,14 @@ export default function DashboardPage() {
   // Anfragen-Statistiken
   const openInquiryCount = inquiries.length;
   const inquiriesWithOffer = inquiries.filter((i) => i.status === "offer_sent").length;
+
+  // Neue KPIs (Phase 1-6)
+  const overdueLoans = loans.filter((l) => l.status === "overdue");
+  const activeLoansCount = loans.length;
+  const overdueLoansCount = overdueLoans.length;
+  const activePartnerships = partnerships.filter((p) => p.status === "active").length;
+  const openDecisions = decisions.length;
+  const pendingEquipRequests = equipRequests.length;
 
   // Nächste anstehende Projekte (planning/active, sortiert nach Startdatum)
   const upcomingProjects = projects
@@ -272,6 +327,69 @@ export default function DashboardPage() {
         />
       </div>
 
+      {/* Zweite KPI-Reihe: Phase 1-6 Features */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 mb-8">
+        {/* Anlagenwert */}
+        {hasCostAccess && (
+          <DashboardCard
+            label="Anlagenwert"
+            value={totalAssetValue > 0 ? `${totalAssetValue.toLocaleString("de-DE")} €` : "–"}
+            subtext={`${inventory.filter((i) => i.current_value != null && Number(i.current_value) > 0).length} bewertete Artikel`}
+            icon={<IconTrendingUp size={18} />}
+            iconBg="var(--color-success-light)"
+            iconColor="var(--color-success)"
+            href="/inventory"
+          />
+        )}
+
+        {/* Leihgaben */}
+        <DashboardCard
+          label="Leihgaben"
+          value={activeLoansCount}
+          subtext={overdueLoansCount > 0 ? `${overdueLoansCount} überfällig!` : "aktive Ausleihen"}
+          icon={<IconPackage size={18} />}
+          iconBg={overdueLoansCount > 0 ? "var(--color-destructive-light)" : "var(--color-info-light)"}
+          iconColor={overdueLoansCount > 0 ? "var(--color-destructive)" : "var(--color-info)"}
+          href="/inventory"
+          urgent={overdueLoansCount > 0}
+        />
+
+        {/* Partner */}
+        <DashboardCard
+          label="Partner"
+          value={activePartnerships}
+          subtext={pendingEquipRequests > 0 ? `${pendingEquipRequests} Anfragen offen` : "aktive Partnerschaften"}
+          icon={<IconHandshake size={18} />}
+          iconBg="var(--color-primary-light)"
+          iconColor="var(--color-primary)"
+          href="/org"
+          urgent={pendingEquipRequests > 0}
+        />
+
+        {/* Offene Beschlüsse */}
+        <DashboardCard
+          label="Beschlüsse"
+          value={openDecisions}
+          subtext="offene Abstimmungen"
+          icon={<IconShield size={18} />}
+          iconBg={openDecisions > 0 ? "var(--color-warning-light)" : "var(--color-muted)"}
+          iconColor={openDecisions > 0 ? "var(--color-warning)" : "var(--color-muted-foreground)"}
+          href="/team"
+          urgent={openDecisions > 0}
+        />
+
+        {/* Teilbare Artikel */}
+        <DashboardCard
+          label="Teilbar"
+          value={inventory.filter((i) => i.is_shareable).length}
+          subtext={`von ${inventory.length} Artikeln`}
+          icon={<IconUsers size={18} />}
+          iconBg="var(--color-info-light)"
+          iconColor="var(--color-info)"
+          href="/inventory"
+        />
+      </div>
+
       {/* Budget-Warnung — nur bei Kosten-Zugriff */}
       {hasCostAccess && totalActual > totalPlanned && totalPlanned > 0 && (
         <div
@@ -292,6 +410,61 @@ export default function DashboardPage() {
               {(totalActual - totalPlanned).toLocaleString("de-DE")} &euro;
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Überfällige Leihgaben Warnung */}
+      {overdueLoansCount > 0 && (
+        <div
+          className="p-4 rounded-xl mb-8 flex items-center gap-3 cursor-pointer"
+          style={{
+            background: "var(--color-destructive-light)",
+            border: "1px solid var(--color-destructive)",
+          }}
+          onClick={() => router.push("/inventory")}
+        >
+          <IconPackage size={20} style={{ color: "var(--color-destructive)" }} />
+          <div className="flex-1">
+            <div className="font-medium text-sm" style={{ color: "var(--color-destructive)" }}>
+              {overdueLoansCount} überfällige Leihgabe{overdueLoansCount !== 1 ? "n" : ""}
+            </div>
+            <div className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+              {overdueLoans.slice(0, 3).map((l) => (
+                <span key={l.id}>
+                  {(l as any).inventory_items?.name || "Artikel"} → {(l as any).borrower?.name || "?"}{" "}
+                  (fällig: {l.due_date ? new Date(l.due_date).toLocaleDateString("de-DE") : "–"})
+                  {" · "}
+                </span>
+              ))}
+              {overdueLoansCount > 3 && `und ${overdueLoansCount - 3} weitere`}
+            </div>
+          </div>
+          <IconChevronRight size={16} style={{ color: "var(--color-destructive)" }} />
+        </div>
+      )}
+
+      {/* Offene Beschlüsse Hinweis */}
+      {openDecisions > 0 && (
+        <div
+          className="p-4 rounded-xl mb-8 flex items-center gap-3 cursor-pointer"
+          style={{
+            background: "var(--color-warning-light)",
+            border: "1px solid var(--color-warning)",
+          }}
+          onClick={() => router.push("/team")}
+        >
+          <IconShield size={20} style={{ color: "var(--color-warning)" }} />
+          <div className="flex-1">
+            <div className="font-medium text-sm" style={{ color: "var(--color-warning)" }}>
+              {openDecisions} offene Abstimmung{openDecisions !== 1 ? "en" : ""}
+            </div>
+            <div className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+              {decisions.slice(0, 3).map((d) => (
+                <span key={d.id}>{d.title}{" · "}</span>
+              ))}
+            </div>
+          </div>
+          <IconChevronRight size={16} style={{ color: "var(--color-warning)" }} />
         </div>
       )}
 
