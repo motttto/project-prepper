@@ -78,6 +78,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
 
   const loadMembers = useCallback(async () => {
     if (!orgId) return;
+    // Org-Mitglieder (für "Mitglied hinzufügen" Dropdown)
     const { data } = await supabase
       .from("org_memberships")
       .select("profile_id, profiles(name)")
@@ -85,9 +86,16 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
       .eq("is_active", true);
     if (data) {
       setMembers(data.map((m: any) => ({ id: m.profile_id, name: m.profiles?.name || "" })));
-      setActiveMembers(data.map((m: any) => ({ id: m.profile_id, name: m.profiles?.name || "" })));
     }
-  }, [supabase, orgId]);
+    // Projekt-Mitglieder (für Abstimmung — nur diese sind stimmberechtigt)
+    const { data: projMembers } = await supabase
+      .from("project_members")
+      .select("profile_id, profiles:profile_id(name)")
+      .eq("project_id", project.id);
+    if (projMembers) {
+      setActiveMembers(projMembers.map((m: any) => ({ id: m.profile_id, name: m.profiles?.name || "" })));
+    }
+  }, [supabase, orgId, project.id]);
 
   const loadPurchases = useCallback(async () => {
     if (!orgId) return;
