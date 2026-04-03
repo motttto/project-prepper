@@ -251,6 +251,7 @@ export type CostItem = {
   amount_planned: number;
   amount_actual: number | null;
   vat_rate: number;
+  exclude_from_profit: boolean;
   created_at: string;
 };
 

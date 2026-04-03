@@ -12,6 +12,7 @@ import type {
   OrgDecision,
   OrgDecisionVote,
   VoteChoice,
+  CostItem,
 } from "@/types/database";
 import { IconPlus, IconTrash, IconCheck, IconX, IconPackage } from "@/components/ui/icons";
 
@@ -51,6 +52,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   const [newItemCategory, setNewItemCategory] = useState("");
   const [categories, setCategories] = useState<{ id: string; name: string; icon: string }[]>([]);
   const [creating, setCreating] = useState(false);
+  const [costItems, setCostItems] = useState<CostItem[]>([]);
   const [votingId, setVotingId] = useState<string | null>(null);
   const [voteComment, setVoteComment] = useState("");
   const [addingToInventory, setAddingToInventory] = useState<string | null>(null);
@@ -136,6 +138,15 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     if (data) setCategories(data);
   }, [supabase, orgId]);
 
+  const loadCostItems = useCallback(async () => {
+    const { data } = await supabase
+      .from("cost_items")
+      .select("*")
+      .eq("project_id", project.id)
+      .order("created_at");
+    if (data) setCostItems(data as CostItem[]);
+  }, [supabase, project.id]);
+
   // Auto-create shares for all project members
   const autoCreateShares = useCallback(async (existingShares: ProjectProfitShare[]) => {
     const { data: projectMembers } = await supabase
@@ -179,14 +190,14 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   useEffect(() => {
     async function init() {
       const [existingShares] = await Promise.all([
-        loadShares(), loadProfit(), loadMembers(), loadPurchases(), loadCategories(),
+        loadShares(), loadProfit(), loadMembers(), loadPurchases(), loadCategories(), loadCostItems(),
       ]);
       const created = await autoCreateShares(existingShares);
       if (created) await loadShares();
       setLoading(false);
     }
     init();
-  }, [loadShares, loadProfit, loadMembers, autoCreateShares, loadPurchases, loadCategories]);
+  }, [loadShares, loadProfit, loadMembers, autoCreateShares, loadPurchases, loadCategories, loadCostItems]);
 
   useEffect(() => { loadPurchaseVotes(); }, [loadPurchaseVotes]);
 
@@ -208,6 +219,21 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     table: "org_decision_votes",
     onDataChange: () => { loadPurchases(); loadPurchaseVotes(); },
   });
+
+  useRealtimeTable({
+    table: "cost_items",
+    onDataChange: () => { loadCostItems(); loadProfit(); },
+  });
+
+  // --- Cost Item Toggle ---
+
+  async function toggleCostItem(costItemId: string, currentExcluded: boolean) {
+    await supabase
+      .from("cost_items")
+      .update({ exclude_from_profit: !currentExcluded })
+      .eq("id", costItemId);
+    await Promise.all([loadCostItems(), loadProfit()]);
+  }
 
   // --- Share Actions ---
 
@@ -480,6 +506,75 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
           </div>
         </div>
       </div>
+
+      {/* ========== Kostenposten (Toggle für Gewinnberechnung) ========== */}
+      {costItems.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold mb-2">Kostenposten</h3>
+          <p className="text-xs mb-3" style={{ color: "var(--color-muted-foreground)" }}>
+            Deaktivierte Posten werden nicht in die Gewinnberechnung einbezogen.
+          </p>
+          <div className="space-y-1">
+            {costItems.map((ci) => {
+              const categoryLabels: Record<string, string> = {
+                personnel: "Personal",
+                material: "Material",
+                inventory: "Inventar",
+                external: "Extern",
+                other: "Sonstiges",
+              };
+              const excluded = ci.exclude_from_profit;
+              return (
+                <div
+                  key={ci.id}
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg transition-opacity"
+                  style={{
+                    background: "var(--color-muted)",
+                    opacity: excluded ? 0.5 : 1,
+                  }}
+                >
+                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={!excluded}
+                      onChange={() => toggleCostItem(ci.id, excluded)}
+                      disabled={!canEdit}
+                      className="sr-only peer"
+                    />
+                    <div
+                      className="w-8 h-4.5 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:rounded-full after:h-3.5 after:w-3.5 after:transition-all"
+                      style={{
+                        background: excluded ? "var(--color-border)" : "var(--color-success)",
+                      }}
+                    >
+                      <div
+                        className="absolute top-[2px] rounded-full h-3.5 w-3.5 bg-white transition-all"
+                        style={{ left: excluded ? "2px" : "calc(100% - 16px)" }}
+                      />
+                    </div>
+                  </label>
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded shrink-0"
+                    style={{ background: "var(--color-surface)", color: "var(--color-muted-foreground)" }}
+                  >
+                    {categoryLabels[ci.category] || ci.category}
+                  </span>
+                  <span className="text-sm flex-1 truncate" style={{ color: excluded ? "var(--color-muted-foreground)" : "var(--color-foreground)" }}>
+                    {ci.description || "–"}
+                  </span>
+                  <span className="text-sm font-medium shrink-0 tabular-nums" style={{ color: excluded ? "var(--color-muted-foreground)" : "var(--color-foreground)" }}>
+                    {ci.amount_actual != null
+                      ? Number(ci.amount_actual).toLocaleString("de-DE", { style: "currency", currency: "EUR" })
+                      : ci.amount_planned
+                        ? `(${Number(ci.amount_planned).toLocaleString("de-DE", { style: "currency", currency: "EUR" })} geplant)`
+                        : "–"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* ========== Gewinnverwendung / Anschaffungen ========== */}
       <div>
