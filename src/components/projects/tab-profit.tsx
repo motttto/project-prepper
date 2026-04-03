@@ -5,8 +5,15 @@ import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
-import type { Project, ProjectProfitShare, ShareType } from "@/types/database";
-import { IconPlus, IconTrash, IconCheck, IconSave } from "@/components/ui/icons";
+import type {
+  Project,
+  ProjectProfitShare,
+  ShareType,
+  OrgDecision,
+  OrgDecisionVote,
+  VoteChoice,
+} from "@/types/database";
+import { IconPlus, IconTrash, IconCheck, IconX, IconPackage } from "@/components/ui/icons";
 
 const shareTypeLabels: Record<ShareType, string> = {
   fixed: "Fixbetrag",
@@ -24,6 +31,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   const { orgId } = useOrg();
   const currentUser = useCurrentUser();
 
+  // Shares
   const [shares, setShares] = useState<ProjectProfitShare[]>([]);
   const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
   const [revenue, setRevenue] = useState(project.revenue_actual ?? "");
@@ -31,6 +39,23 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [addMemberId, setAddMemberId] = useState("");
+
+  // Purchases (Anschaffungen)
+  const [purchases, setPurchases] = useState<OrgDecision[]>([]);
+  const [purchaseVotes, setPurchaseVotes] = useState<Record<string, OrgDecisionVote[]>>({});
+  const [activeMembers, setActiveMembers] = useState<{ id: string; name: string }[]>([]);
+  const [showAddPurchase, setShowAddPurchase] = useState(false);
+  const [newItemName, setNewItemName] = useState("");
+  const [newItemCost, setNewItemCost] = useState<number | "">("");
+  const [newItemDescription, setNewItemDescription] = useState("");
+  const [newItemCategory, setNewItemCategory] = useState("");
+  const [categories, setCategories] = useState<{ id: string; name: string; icon: string }[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [votingId, setVotingId] = useState<string | null>(null);
+  const [voteComment, setVoteComment] = useState("");
+  const [addingToInventory, setAddingToInventory] = useState<string | null>(null);
+
+  // --- Data Loading ---
 
   const loadShares = useCallback(async () => {
     const { data } = await supabase
@@ -60,7 +85,47 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
       .eq("is_active", true);
     if (data) {
       setMembers(data.map((m: any) => ({ id: m.profile_id, name: m.profiles?.name || "" })));
+      setActiveMembers(data.map((m: any) => ({ id: m.profile_id, name: m.profiles?.name || "" })));
     }
+  }, [supabase, orgId]);
+
+  const loadPurchases = useCallback(async () => {
+    if (!orgId) return;
+    const { data } = await supabase
+      .from("org_decisions")
+      .select("*, creator:created_by(name, avatar_url)")
+      .eq("org_id", orgId)
+      .eq("decision_type", "asset_purchase")
+      .eq("related_project_id", project.id)
+      .order("created_at", { ascending: false });
+    if (data) setPurchases(data);
+  }, [supabase, orgId, project.id]);
+
+  const loadPurchaseVotes = useCallback(async () => {
+    if (purchases.length === 0) return;
+    const ids = purchases.map((p) => p.id);
+    const { data } = await supabase
+      .from("org_decision_votes")
+      .select("*, voter:voter_id(name, avatar_url)")
+      .in("decision_id", ids);
+    if (data) {
+      const grouped: Record<string, OrgDecisionVote[]> = {};
+      data.forEach((v: any) => {
+        if (!grouped[v.decision_id]) grouped[v.decision_id] = [];
+        grouped[v.decision_id].push(v);
+      });
+      setPurchaseVotes(grouped);
+    }
+  }, [supabase, purchases]);
+
+  const loadCategories = useCallback(async () => {
+    if (!orgId) return;
+    const { data } = await supabase
+      .from("inventory_categories")
+      .select("id, name, icon")
+      .eq("org_id", orgId)
+      .order("sort_order");
+    if (data) setCategories(data);
   }, [supabase, orgId]);
 
   // Auto-create shares for all project members
@@ -77,7 +142,6 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
 
     if (missing.length === 0) return false;
 
-    // Insert missing members with equal percentage
     const totalAfter = existingShares.length + missing.length;
     const pct = Math.round(10000 / totalAfter) / 100;
 
@@ -90,7 +154,6 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
       }))
     );
 
-    // Update existing shares to equal percentage too
     if (existingShares.length > 0) {
       for (const share of existingShares) {
         await supabase
@@ -103,21 +166,24 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     return true;
   }, [supabase, project.id]);
 
+  // --- Init ---
+
   useEffect(() => {
     async function init() {
-      const [existingShares] = await Promise.all([loadShares(), loadProfit(), loadMembers()]);
+      const [existingShares] = await Promise.all([
+        loadShares(), loadProfit(), loadMembers(), loadPurchases(), loadCategories(),
+      ]);
       const created = await autoCreateShares(existingShares);
-      if (created) {
-        await loadShares();
-      }
+      if (created) await loadShares();
       setLoading(false);
     }
     init();
-  }, [loadShares, loadProfit, loadMembers, autoCreateShares]);
+  }, [loadShares, loadProfit, loadMembers, autoCreateShares, loadPurchases, loadCategories]);
 
+  useEffect(() => { loadPurchaseVotes(); }, [loadPurchaseVotes]);
+
+  // Realtime
   useRealtimeTable({ table: "project_profit_shares", onDataChange: loadShares });
-
-  // Also watch project_members to auto-add new members
   useRealtimeTable({
     table: "project_members",
     onDataChange: async () => {
@@ -126,8 +192,17 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
       if (created) await loadShares();
     },
   });
+  useRealtimeTable({
+    table: "org_decisions",
+    onDataChange: loadPurchases,
+  });
+  useRealtimeTable({
+    table: "org_decision_votes",
+    onDataChange: () => { loadPurchases(); loadPurchaseVotes(); },
+  });
 
-  // Einnahmen speichern
+  // --- Share Actions ---
+
   async function saveRevenue() {
     setSaving(true);
     await supabase
@@ -138,7 +213,6 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     setSaving(false);
   }
 
-  // Anteil hinzufügen
   async function addShare() {
     if (!addMemberId) return;
     await supabase.from("project_profit_shares").insert({
@@ -151,7 +225,6 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     await loadShares();
   }
 
-  // Gleichmäßig verteilen
   async function distributeEvenly() {
     if (shares.length === 0) return;
     const pct = Math.round(10000 / shares.length) / 100;
@@ -165,7 +238,6 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     await recalculateAmounts();
   }
 
-  // Beträge neuberechnen
   async function recalculateAmounts() {
     if (!profit) return;
     const profitAmount = profit.profit;
@@ -186,7 +258,6 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     await loadShares();
   }
 
-  // Anteil updaten
   async function updateShare(shareId: string, field: string, value: any) {
     await supabase
       .from("project_profit_shares")
@@ -195,13 +266,11 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     await loadShares();
   }
 
-  // Anteil löschen
   async function deleteShare(shareId: string) {
     await supabase.from("project_profit_shares").delete().eq("id", shareId);
     await loadShares();
   }
 
-  // Als bezahlt markieren
   async function markPaid(shareId: string) {
     await supabase
       .from("project_profit_shares")
@@ -209,6 +278,109 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
       .eq("id", shareId);
     await loadShares();
   }
+
+  // --- Purchase / Anschaffung Actions ---
+
+  async function handleCreatePurchase() {
+    if (!orgId || !currentUser || !newItemName.trim() || !newItemCost) return;
+    setCreating(true);
+
+    const costNum = Number(newItemCost);
+    await supabase.from("org_decisions").insert({
+      org_id: orgId,
+      title: `Anschaffung: ${newItemName.trim()}`,
+      description: newItemDescription.trim() || null,
+      decision_type: "asset_purchase",
+      requires_unanimous: true,
+      related_project_id: project.id,
+      created_by: currentUser.id,
+      metadata: {
+        item_name: newItemName.trim(),
+        estimated_cost: costNum,
+        category_id: newItemCategory || null,
+        description: newItemDescription.trim() || null,
+        source_project: project.id,
+      },
+    });
+
+    setNewItemName("");
+    setNewItemCost("");
+    setNewItemDescription("");
+    setNewItemCategory("");
+    setShowAddPurchase(false);
+    setCreating(false);
+    await loadPurchases();
+  }
+
+  async function handleVote(decisionId: string, vote: VoteChoice) {
+    if (!currentUser) return;
+    await supabase.from("org_decision_votes").upsert(
+      {
+        decision_id: decisionId,
+        voter_id: currentUser.id,
+        vote,
+        comment: voteComment.trim() || null,
+      },
+      { onConflict: "decision_id,voter_id" }
+    );
+    setVotingId(null);
+    setVoteComment("");
+  }
+
+  async function handleAddToInventory(decision: OrgDecision) {
+    if (!orgId || !currentUser) return;
+    setAddingToInventory(decision.id);
+
+    const meta = decision.metadata as Record<string, any> || {};
+    const itemName = meta.item_name || decision.title.replace("Anschaffung: ", "");
+    const cost = meta.estimated_cost || 0;
+    const categoryId = meta.category_id || null;
+
+    // Find category name for the category field
+    let categoryName = "";
+    if (categoryId) {
+      const cat = categories.find((c) => c.id === categoryId);
+      categoryName = cat?.name || "";
+    }
+
+    // Insert into inventory
+    const { data: newItem } = await supabase
+      .from("inventory_items")
+      .insert({
+        org_id: orgId,
+        name: itemName,
+        category: categoryName,
+        category_id: categoryId,
+        quantity: 1,
+        condition: "new",
+        purchase_price: cost,
+        purchased_by: currentUser.id,
+        purchased_at: new Date().toISOString(),
+        owner: "organization",
+      })
+      .select("id")
+      .single();
+
+    // Link inventory item back to decision
+    if (newItem) {
+      await supabase
+        .from("org_decisions")
+        .update({
+          related_item_id: newItem.id,
+          metadata: { ...meta, added_to_inventory: true, inventory_item_id: newItem.id },
+        })
+        .eq("id", decision.id);
+    }
+
+    setAddingToInventory(null);
+    await loadPurchases();
+  }
+
+  function getMyVote(decisionId: string): OrgDecisionVote | undefined {
+    return purchaseVotes[decisionId]?.find((v) => v.voter_id === currentUser?.id);
+  }
+
+  // --- Computed ---
 
   const inputStyle = {
     border: "1px solid var(--color-border)",
@@ -218,6 +390,14 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   const totalShared = shares.reduce((s, sh) => s + Number(sh.calculated_amount || 0), 0);
   const availableMembers = members.filter((m) => !shares.some((s) => s.profile_id === m.id));
 
+  const approvedPurchases = purchases.filter((p) => p.status === "approved");
+  const totalPurchaseCost = approvedPurchases.reduce((sum, p) => {
+    const meta = p.metadata as Record<string, any> || {};
+    return sum + (Number(meta.estimated_cost) || 0);
+  }, 0);
+
+  const profitAfterPurchases = (profit?.profit || 0) - totalPurchaseCost;
+
   if (loading) {
     return <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>Lade...</p>;
   }
@@ -225,7 +405,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   return (
     <div className="space-y-6">
       {/* Finanzen-Übersicht */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-lg p-4" style={{ background: "var(--color-muted)" }}>
           <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>Einnahmen</div>
           {canEdit ? (
@@ -261,7 +441,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
             background: profit && profit.profit >= 0 ? "var(--color-success-light)" : "var(--color-error-light)",
           }}
         >
-          <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>Gewinn</div>
+          <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>Gewinn (Gesamt)</div>
           <div
             className="text-lg font-bold mt-1"
             style={{ color: profit && profit.profit >= 0 ? "var(--color-success)" : "var(--color-error)" }}
@@ -269,9 +449,334 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
             {profit ? Number(profit.profit).toLocaleString("de-DE", { style: "currency", currency: "EUR" }) : "–"}
           </div>
         </div>
+        <div
+          className="rounded-lg p-4"
+          style={{
+            background: profitAfterPurchases >= 0 ? "var(--color-primary-light)" : "var(--color-error-light)",
+          }}
+        >
+          <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+            Verfügbar {totalPurchaseCost > 0 && <span>(nach Anschaffungen)</span>}
+          </div>
+          <div
+            className="text-lg font-bold mt-1"
+            style={{ color: profitAfterPurchases >= 0 ? "var(--color-primary)" : "var(--color-error)" }}
+          >
+            {profitAfterPurchases.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+          </div>
+        </div>
       </div>
 
-      {/* Verteilung */}
+      {/* ========== Gewinnverwendung / Anschaffungen ========== */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold flex items-center gap-2">
+            <IconPackage size={16} />
+            Gewinnverwendung
+            {purchases.filter((p) => p.status === "open").length > 0 && (
+              <span
+                className="px-2 py-0.5 rounded-full text-xs font-medium"
+                style={{ background: "var(--color-warning-light)", color: "var(--color-warning)" }}
+              >
+                {purchases.filter((p) => p.status === "open").length} offen
+              </span>
+            )}
+          </h3>
+          {canEdit && (
+            <button
+              onClick={() => setShowAddPurchase(!showAddPurchase)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+              style={{ background: "var(--color-primary)" }}
+            >
+              <IconPlus size={12} />
+              Anschaffung vorschlagen
+            </button>
+          )}
+        </div>
+
+        {/* Neue Anschaffung vorschlagen */}
+        {showAddPurchase && (
+          <div
+            className="rounded-lg p-4 mb-3 space-y-3"
+            style={{ background: "var(--color-muted)", border: "1px solid var(--color-border-light)" }}
+          >
+            <div className="text-xs font-medium mb-2" style={{ color: "var(--color-muted-foreground)" }}>
+              Wird als Beschluss zur Abstimmung gestellt
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                type="text"
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                placeholder="Artikel-Name *"
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+                autoFocus
+              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  value={newItemCost}
+                  onChange={(e) => setNewItemCost(e.target.value === "" ? "" : Number(e.target.value))}
+                  placeholder="Kosten *"
+                  className="flex-1 px-3 py-2 rounded-lg text-sm"
+                  style={inputStyle}
+                  min={0}
+                  step={0.01}
+                />
+                <span className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>€</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <select
+                value={newItemCategory}
+                onChange={(e) => setNewItemCategory(e.target.value)}
+                className="px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+              >
+                <option value="">Kategorie (optional)</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.icon} {c.name}
+                  </option>
+                ))}
+              </select>
+              <input
+                type="text"
+                value={newItemDescription}
+                onChange={(e) => setNewItemDescription(e.target.value)}
+                placeholder="Beschreibung / Begründung (optional)"
+                className="px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+              />
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => { setShowAddPurchase(false); setNewItemName(""); setNewItemCost(""); setNewItemDescription(""); setNewItemCategory(""); }}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ border: "1px solid var(--color-border)" }}
+              >
+                Abbrechen
+              </button>
+              <button
+                onClick={handleCreatePurchase}
+                disabled={creating || !newItemName.trim() || !newItemCost}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                style={{ background: "var(--color-primary)" }}
+              >
+                {creating ? "Wird erstellt..." : "Zur Abstimmung stellen"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Anschaffungen Liste */}
+        {purchases.length === 0 && !showAddPurchase ? (
+          <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+            Noch keine Anschaffungen geplant. Schlage Anschaffungen vor, über die das Team abstimmen kann.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {purchases.map((purchase) => {
+              const meta = purchase.metadata as Record<string, any> || {};
+              const cost = Number(meta.estimated_cost) || 0;
+              const decVotes = purchaseVotes[purchase.id] || [];
+              const myVote = getMyVote(purchase.id);
+              const approvals = decVotes.filter((v) => v.vote === "approve").length;
+              const rejections = decVotes.filter((v) => v.vote === "reject").length;
+              const total = activeMembers.length;
+              const addedToInventory = !!meta.added_to_inventory;
+              const catId = meta.category_id;
+              const cat = catId ? categories.find((c) => c.id === catId) : null;
+
+              const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
+                open: { label: "Abstimmung", color: "var(--color-warning)", bg: "var(--color-warning-light)" },
+                approved: { label: "Genehmigt", color: "var(--color-success)", bg: "var(--color-success-light)" },
+                rejected: { label: "Abgelehnt", color: "var(--color-error)", bg: "var(--color-error-light)" },
+                expired: { label: "Abgelaufen", color: "var(--color-muted-foreground)", bg: "var(--color-muted)" },
+              };
+              const sc = statusConfig[purchase.status] || statusConfig.open;
+
+              return (
+                <div
+                  key={purchase.id}
+                  className="rounded-lg p-3"
+                  style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
+                >
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold truncate">
+                          {cat && <span className="mr-1">{cat.icon}</span>}
+                          {meta.item_name || purchase.title}
+                        </span>
+                        <span
+                          className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium"
+                          style={{ background: sc.bg, color: sc.color }}
+                        >
+                          {sc.label}
+                        </span>
+                        {addedToInventory && (
+                          <span
+                            className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium"
+                            style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}
+                          >
+                            Im Inventar
+                          </span>
+                        )}
+                      </div>
+                      {purchase.description && (
+                        <p className="text-xs mt-0.5 truncate" style={{ color: "var(--color-muted-foreground)" }}>
+                          {purchase.description}
+                        </p>
+                      )}
+                    </div>
+                    <span className="text-sm font-bold shrink-0" style={{ color: "var(--color-primary)" }}>
+                      {cost.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+                    </span>
+                  </div>
+
+                  {/* Abstimmungs-Fortschritt */}
+                  {purchase.status === "open" && (
+                    <div className="mb-2">
+                      <div className="flex justify-between text-xs mb-1" style={{ color: "var(--color-muted-foreground)" }}>
+                        <span>{approvals} von {total} Stimmen</span>
+                        {rejections > 0 && <span style={{ color: "var(--color-error)" }}>{rejections} dagegen</span>}
+                      </div>
+                      <div className="w-full rounded-full h-1.5 overflow-hidden" style={{ background: "var(--color-border)" }}>
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${total > 0 ? (approvals / total) * 100 : 0}%`, background: "var(--color-success)" }}
+                        />
+                      </div>
+                      {/* Wer hat abgestimmt */}
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {activeMembers.map((member) => {
+                          const mVote = decVotes.find((v) => v.voter_id === member.id);
+                          return (
+                            <span
+                              key={member.id}
+                              className="px-1.5 py-0.5 rounded-full text-xs"
+                              style={{
+                                background: mVote
+                                  ? mVote.vote === "approve" ? "var(--color-success-light)"
+                                  : mVote.vote === "reject" ? "var(--color-error-light)"
+                                  : "var(--color-muted)"
+                                  : "var(--color-muted)",
+                                color: mVote
+                                  ? mVote.vote === "approve" ? "var(--color-success)"
+                                  : mVote.vote === "reject" ? "var(--color-error)"
+                                  : "var(--color-muted-foreground)"
+                                  : "var(--color-muted-foreground)",
+                                opacity: mVote ? 1 : 0.5,
+                              }}
+                            >
+                              {mVote?.vote === "approve" ? "✓ " : mVote?.vote === "reject" ? "✗ " : ""}
+                              {member.name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Abstimmung (offene Beschlüsse) */}
+                  {purchase.status === "open" && !myVote && (
+                    <div className="mt-2">
+                      {votingId === purchase.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            value={voteComment}
+                            onChange={(e) => setVoteComment(e.target.value)}
+                            placeholder="Kommentar (optional)"
+                            className="flex-1 px-2 py-1 rounded-lg text-xs"
+                            style={inputStyle}
+                          />
+                          <button
+                            onClick={() => handleVote(purchase.id, "approve")}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-white"
+                            style={{ background: "var(--color-success)" }}
+                          >
+                            <IconCheck size={10} /> Ja
+                          </button>
+                          <button
+                            onClick={() => handleVote(purchase.id, "reject")}
+                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-white"
+                            style={{ background: "var(--color-error)" }}
+                          >
+                            <IconX size={10} /> Nein
+                          </button>
+                          <button
+                            onClick={() => { setVotingId(null); setVoteComment(""); }}
+                            className="px-2 py-1 text-xs"
+                            style={{ color: "var(--color-muted-foreground)" }}
+                          >
+                            Abbrechen
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setVotingId(purchase.id)}
+                          className="px-3 py-1 rounded-lg text-xs font-medium text-white"
+                          style={{ background: "var(--color-primary)" }}
+                        >
+                          Abstimmen
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Eigene Stimme */}
+                  {myVote && purchase.status === "open" && (
+                    <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                      Deine Stimme: {myVote.vote === "approve" ? "✓ Zugestimmt" : myVote.vote === "reject" ? "✗ Abgelehnt" : "Enthalten"}
+                      {myVote.comment && <span className="ml-1">— &quot;{myVote.comment}&quot;</span>}
+                    </div>
+                  )}
+
+                  {/* Genehmigt → Ins Inventar übernehmen */}
+                  {purchase.status === "approved" && !addedToInventory && canEdit && (
+                    <button
+                      onClick={() => handleAddToInventory(purchase)}
+                      disabled={addingToInventory === purchase.id}
+                      className="mt-2 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                      style={{ background: "var(--color-success)" }}
+                    >
+                      <IconPackage size={12} />
+                      {addingToInventory === purchase.id ? "Wird hinzugefügt..." : "Ins Inventar übernehmen"}
+                    </button>
+                  )}
+
+                  {/* Meta-Info */}
+                  <div className="flex items-center gap-3 mt-2 text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                    <span>von {(purchase as any).creator?.name || "Unbekannt"}</span>
+                    <span>{new Date(purchase.created_at).toLocaleDateString("de-DE")}</span>
+                    {purchase.resolved_at && (
+                      <span>entschieden {new Date(purchase.resolved_at).toLocaleDateString("de-DE")}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Summe genehmigte Anschaffungen */}
+            {approvedPurchases.length > 0 && (
+              <div
+                className="flex justify-between items-center px-3 py-2 rounded-lg text-sm"
+                style={{ background: "var(--color-muted)", border: "1px solid var(--color-border-light)" }}
+              >
+                <span className="font-medium">Genehmigte Anschaffungen</span>
+                <span className="font-bold" style={{ color: "var(--color-primary)" }}>
+                  {totalPurchaseCost.toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ========== Gewinnverteilung ========== */}
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold">Gewinnverteilung</h3>
