@@ -791,47 +791,46 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
 
                   {/* Abstimmung (offene Beschlüsse) */}
                   {purchase.status === "open" && !myVote && (
-                    <div className="mt-2">
-                      {votingId === purchase.id ? (
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="text"
-                            value={voteComment}
-                            onChange={(e) => setVoteComment(e.target.value)}
-                            placeholder="Kommentar (optional)"
-                            className="flex-1 px-2 py-1 rounded-lg text-xs"
-                            style={inputStyle}
-                          />
-                          <button
-                            onClick={() => handleVote(purchase.id, "approve")}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-white"
-                            style={{ background: "var(--color-success)" }}
-                          >
-                            <IconCheck size={10} /> Ja
-                          </button>
-                          <button
-                            onClick={() => handleVote(purchase.id, "reject")}
-                            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-white"
-                            style={{ background: "var(--color-error)" }}
-                          >
-                            <IconX size={10} /> Nein
-                          </button>
-                          <button
-                            onClick={() => { setVotingId(null); setVoteComment(""); }}
-                            className="px-2 py-1 text-xs"
-                            style={{ color: "var(--color-muted-foreground)" }}
-                          >
-                            Abbrechen
-                          </button>
-                        </div>
-                      ) : (
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-center gap-2">
                         <button
-                          onClick={() => setVotingId(purchase.id)}
-                          className="px-3 py-1 rounded-lg text-xs font-medium text-white"
-                          style={{ background: "var(--color-primary)" }}
+                          onClick={() => {
+                            if (votingId === purchase.id) {
+                              handleVote(purchase.id, "approve");
+                            } else {
+                              handleVote(purchase.id, "approve");
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+                          style={{ background: "var(--color-success)" }}
                         >
-                          Abstimmen
+                          <IconCheck size={12} /> Zustimmen
                         </button>
+                        <button
+                          onClick={() => handleVote(purchase.id, "reject")}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+                          style={{ background: "var(--color-error)" }}
+                        >
+                          <IconX size={12} /> Ablehnen
+                        </button>
+                        <button
+                          onClick={() => setVotingId(votingId === purchase.id ? null : purchase.id)}
+                          className="px-3 py-1.5 rounded-lg text-xs"
+                          style={{ color: "var(--color-muted-foreground)", border: "1px solid var(--color-border)" }}
+                        >
+                          Kommentar
+                        </button>
+                      </div>
+                      {votingId === purchase.id && (
+                        <input
+                          type="text"
+                          value={voteComment}
+                          onChange={(e) => setVoteComment(e.target.value)}
+                          placeholder="Kommentar zur Abstimmung (optional)"
+                          className="w-full px-3 py-1.5 rounded-lg text-xs"
+                          style={inputStyle}
+                          autoFocus
+                        />
                       )}
                     </div>
                   )}
