@@ -39,6 +39,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
       .eq("project_id", project.id)
       .order("created_at");
     if (data) setShares(data);
+    return data || [];
   }, [supabase, project.id]);
 
   const loadProfit = useCallback(async () => {
@@ -60,12 +61,71 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     if (data) {
       setMembers(data.map((m: any) => ({ id: m.profile_id, name: m.profiles?.name || "" })));
     }
-    setLoading(false);
   }, [supabase, orgId]);
 
-  useEffect(() => { loadShares(); loadProfit(); loadMembers(); }, [loadShares, loadProfit, loadMembers]);
+  // Auto-create shares for all project members
+  const autoCreateShares = useCallback(async (existingShares: ProjectProfitShare[]) => {
+    const { data: projectMembers } = await supabase
+      .from("project_members")
+      .select("profile_id")
+      .eq("project_id", project.id);
+
+    if (!projectMembers || projectMembers.length === 0) return false;
+
+    const existingIds = new Set(existingShares.map((s) => s.profile_id));
+    const missing = projectMembers.filter((pm) => !existingIds.has(pm.profile_id));
+
+    if (missing.length === 0) return false;
+
+    // Insert missing members with equal percentage
+    const totalAfter = existingShares.length + missing.length;
+    const pct = Math.round(10000 / totalAfter) / 100;
+
+    await supabase.from("project_profit_shares").insert(
+      missing.map((pm) => ({
+        project_id: project.id,
+        profile_id: pm.profile_id,
+        share_type: "percentage" as ShareType,
+        share_value: pct,
+      }))
+    );
+
+    // Update existing shares to equal percentage too
+    if (existingShares.length > 0) {
+      for (const share of existingShares) {
+        await supabase
+          .from("project_profit_shares")
+          .update({ share_type: "percentage", share_value: pct })
+          .eq("id", share.id);
+      }
+    }
+
+    return true;
+  }, [supabase, project.id]);
+
+  useEffect(() => {
+    async function init() {
+      const [existingShares] = await Promise.all([loadShares(), loadProfit(), loadMembers()]);
+      const created = await autoCreateShares(existingShares);
+      if (created) {
+        await loadShares();
+      }
+      setLoading(false);
+    }
+    init();
+  }, [loadShares, loadProfit, loadMembers, autoCreateShares]);
 
   useRealtimeTable({ table: "project_profit_shares", onDataChange: loadShares });
+
+  // Also watch project_members to auto-add new members
+  useRealtimeTable({
+    table: "project_members",
+    onDataChange: async () => {
+      const existing = await loadShares();
+      const created = await autoCreateShares(existing);
+      if (created) await loadShares();
+    },
+  });
 
   // Einnahmen speichern
   async function saveRevenue() {
