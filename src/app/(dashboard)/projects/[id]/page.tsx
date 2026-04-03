@@ -15,6 +15,7 @@ import { TabCosts } from "@/components/projects/tab-costs";
 import { TabChecklists } from "@/components/projects/tab-checklists";
 import { TabTasks } from "@/components/projects/tab-tasks";
 import { TabFiles } from "@/components/projects/tab-files";
+import { TabProfit } from "@/components/projects/tab-profit";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { usePresence } from "@/hooks/use-presence";
@@ -86,6 +87,8 @@ export default function ProjectDetailPage() {
     if (canViewCosts) {
       // Kosten-Tab vor Checklisten einfügen
       baseTabs.splice(5, 0, { key: "costs", label: "Kosten" });
+      // Gewinn-Tab am Ende (nur bei Kosten-Berechtigung)
+      baseTabs.push({ key: "profit", label: "Gewinn" });
     }
     return baseTabs;
   }, [canViewCosts]);
@@ -344,6 +347,9 @@ export default function ProjectDetailPage() {
       )}
       {activeTab === "files" && (
         <TabFiles projectId={projectId} />
+      )}
+      {activeTab === "profit" && project && (
+        <TabProfit project={project} canEdit={isOwner} />
       )}
 
       {/* Partner-Panel */}

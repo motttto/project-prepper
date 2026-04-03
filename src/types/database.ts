@@ -150,6 +150,9 @@ export type Project = {
   budget_honorar: number | null;
   budget_technik: number | null;
   budget_transport: number | null;
+  // Einnahmen / Gewinn (Migration 039)
+  revenue_actual: number | null;
+  profit_distribution_status: "pending" | "distributed" | "settled";
   // Notes
   transport_notes: string | null;
   internal_notes: string | null;
@@ -658,4 +661,23 @@ export type ExitCalculation = {
   total_owned_value: number;
   total_funded_value: number;
   total_settlement: number;
+};
+
+// Gewinnverteilung (Migration 039)
+export type ShareType = "fixed" | "percentage" | "hourly";
+
+export type ProjectProfitShare = {
+  id: string;
+  project_id: string;
+  profile_id: string;
+  share_type: ShareType;
+  share_value: number;
+  hours_worked: number | null;
+  calculated_amount: number;
+  is_paid: boolean;
+  paid_at: string | null;
+  notes: string | null;
+  created_at: string;
+  // Joined
+  profiles?: { name: string; avatar_url: string | null };
 };
