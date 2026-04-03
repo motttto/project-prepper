@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import type { InventoryItem, InventoryCategory, Booking } from "@/types/database";
-import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity, IconEdit, IconSave } from "@/components/ui/icons";
+import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity, IconEdit, IconSave, IconHandshake } from "@/components/ui/icons";
 import { ExcelImport } from "@/components/inventory/excel-import";
 import { InventoryDetailModal } from "@/components/inventory/inventory-detail-modal";
+import { EquipmentLoansPanel } from "@/components/inventory/equipment-loans-panel";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import * as XLSX from "xlsx";
 
@@ -91,6 +92,7 @@ export default function InventoryPage() {
   const [formManualUrl, setFormManualUrl] = useState("");
   const [showCreateDetails, setShowCreateDetails] = useState(false);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [showLoans, setShowLoans] = useState(false);
 
   // Dynamische Kategorien aus DB
   const [dbCategories, setDbCategories] = useState<InventoryCategory[]>([]);
@@ -394,6 +396,16 @@ export default function InventoryPage() {
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setShowLoans(true)}
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
+            style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+          >
+            <IconHandshake size={16} />
+            <span className="hidden sm:inline">Leihgaben</span>
+          </button>
           <button
             onClick={() => setShowCategoryManager(true)}
             className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
@@ -962,6 +974,12 @@ export default function InventoryPage() {
           onUpdated={loadCategories}
         />
       )}
+
+      {/* Leihgaben-Panel */}
+      <EquipmentLoansPanel
+        show={showLoans}
+        onClose={() => setShowLoans(false)}
+      />
     </div>
   );
 }

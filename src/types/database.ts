@@ -681,3 +681,39 @@ export type ProjectProfitShare = {
   // Joined
   profiles?: { name: string; avatar_url: string | null };
 };
+
+// Leihgaben (Migration 040)
+export type LoanStatus = "requested" | "active" | "returned" | "overdue" | "lost";
+
+export type EquipmentLoan = {
+  id: string;
+  org_id: string;
+  inventory_item_id: string;
+  unit_id: string | null;
+  quantity: number;
+  borrower_id: string;
+  approved_by: string | null;
+  borrowed_at: string;
+  due_date: string | null;
+  returned_at: string | null;
+  status: LoanStatus;
+  condition_at_checkout: InventoryItem["condition"] | null;
+  condition_at_return: InventoryItem["condition"] | null;
+  purpose: string | null;
+  notes: string | null;
+  return_notes: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  borrower?: { name: string; avatar_url: string | null };
+  approver?: { name: string };
+  inventory_items?: { name: string; inventory_number: string; image_url: string | null };
+};
+
+export type MemberLoanSummary = {
+  borrower_id: string;
+  borrower_name: string;
+  active_loans: number;
+  overdue_loans: number;
+  total_items_out: number;
+};
