@@ -4,6 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { useImpersonate } from "@/contexts/impersonate-context";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import type {
   Project,
@@ -31,6 +32,10 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   const supabase = createClient();
   const { orgId } = useOrg();
   const currentUser = useCurrentUser();
+  const { impersonating } = useImpersonate();
+
+  // Effektiver User: impersonierter User oder aktueller User
+  const effectiveUserId = impersonating?.profileId || currentUser?.id;
 
   // Shares
   const [shares, setShares] = useState<ProjectProfitShare[]>([]);
@@ -369,16 +374,28 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   }
 
   async function handleVote(decisionId: string, vote: VoteChoice) {
-    if (!currentUser) return;
-    await supabase.from("org_decision_votes").upsert(
-      {
-        decision_id: decisionId,
-        voter_id: currentUser.id,
-        vote,
-        comment: voteComment.trim() || null,
-      },
-      { onConflict: "decision_id,voter_id" }
-    );
+    if (!currentUser || !effectiveUserId) return;
+
+    if (impersonating) {
+      // Admin stimmt als impersonierter User ab → RPC (umgeht RLS)
+      await supabase.rpc("vote_as_user", {
+        p_decision_id: decisionId,
+        p_voter_id: effectiveUserId,
+        p_vote: vote,
+        p_comment: voteComment.trim() || null,
+      });
+    } else {
+      // Normales Voting als eigener User
+      await supabase.from("org_decision_votes").upsert(
+        {
+          decision_id: decisionId,
+          voter_id: currentUser.id,
+          vote,
+          comment: voteComment.trim() || null,
+        },
+        { onConflict: "decision_id,voter_id" }
+      );
+    }
     setVotingId(null);
     setVoteComment("");
   }
@@ -433,7 +450,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   }
 
   function getMyVote(decisionId: string): OrgDecisionVote | undefined {
-    return purchaseVotes[decisionId]?.find((v) => v.voter_id === currentUser?.id);
+    return purchaseVotes[decisionId]?.find((v) => v.voter_id === effectiveUserId);
   }
 
   // --- Computed ---
@@ -808,15 +825,17 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
                   {/* Abstimmung (offene Beschlüsse) */}
                   {purchase.status === "open" && !myVote && (
                     <div className="mt-2 space-y-2">
+                      {impersonating && (
+                        <div
+                          className="text-xs px-2 py-1 rounded inline-block"
+                          style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}
+                        >
+                          Abstimmung als <strong>{impersonating.name}</strong>
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         <button
-                          onClick={() => {
-                            if (votingId === purchase.id) {
-                              handleVote(purchase.id, "approve");
-                            } else {
-                              handleVote(purchase.id, "approve");
-                            }
-                          }}
+                          onClick={() => handleVote(purchase.id, "approve")}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
                           style={{ background: "var(--color-success)" }}
                         >
