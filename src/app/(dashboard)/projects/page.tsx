@@ -4,8 +4,9 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import type { Project } from "@/types/database";
-import { IconPlus, IconSearch, IconX, IconChevronRight, IconTrash, IconHandshake } from "@/components/ui/icons";
+import { IconPlus, IconSearch, IconX, IconChevronRight, IconTrash, IconHandshake, IconUser } from "@/components/ui/icons";
 import { DateInput } from "@/components/ui/date-input";
 
 const statusLabels: Record<Project["status"], string> = {
@@ -35,16 +36,20 @@ const statusColors: Record<Project["status"], { bg: string; color: string }> = {
 const statusOrder: Project["status"][] = ["draft", "planning", "active", "completed", "cancelled"];
 
 type StatusFilter = "all" | Project["status"];
+type ViewFilter = "mine" | "team" | "all";
 
 export default function ProjectsPage() {
   const supabase = createClient();
   const router = useRouter();
   const { orgId } = useOrg();
+  const currentUser = useCurrentUser();
   const [projects, setProjects] = useState<(Project & { isPartner?: boolean })[]>([]);
+  const [myProjectIds, setMyProjectIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [viewFilter, setViewFilter] = useState<ViewFilter>("all");
 
   // Formular-State
   const [formName, setFormName] = useState("");
@@ -56,7 +61,7 @@ export default function ProjectsPage() {
   const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
 
   const loadProjects = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId || !currentUser) return;
 
     // 1. Eigene Projekte laden
     const { data: ownData } = await supabase
@@ -93,10 +98,17 @@ export default function ProjectsPage() {
       }));
     }
 
-    // 3. Merge
+    // 3. Mitgliedschaften des Users laden
+    const { data: memberships } = await supabase
+      .from("project_members")
+      .select("project_id")
+      .eq("profile_id", currentUser.id);
+    setMyProjectIds(new Set((memberships || []).map((m) => m.project_id)));
+
+    // 4. Merge
     setProjects([...ownProjects, ...partnerProjects] as (Project & { isPartner?: boolean })[]);
     setLoading(false);
-  }, [supabase, orgId]);
+  }, [supabase, orgId, currentUser]);
 
   useEffect(() => {
     loadProjects();
@@ -105,6 +117,11 @@ export default function ProjectsPage() {
   // Filtered & Grouped
   const filtered = useMemo(() => {
     let result = projects;
+    if (viewFilter === "mine") {
+      result = result.filter((p) => myProjectIds.has(p.id));
+    } else if (viewFilter === "team") {
+      result = result.filter((p) => !myProjectIds.has(p.id));
+    }
     if (statusFilter !== "all") {
       result = result.filter((p) => p.status === statusFilter);
     }
@@ -117,7 +134,7 @@ export default function ProjectsPage() {
       );
     }
     return result;
-  }, [projects, statusFilter, search]);
+  }, [projects, statusFilter, search, viewFilter, myProjectIds]);
 
   // Group by year
   const grouped = useMemo(() => {
@@ -137,14 +154,24 @@ export default function ProjectsPage() {
     });
   }, [filtered]);
 
-  // Status counts
+  // Status counts (respecting viewFilter)
   const statusCounts = useMemo(() => {
-    const counts: Record<string, number> = { all: projects.length };
-    projects.forEach((p) => {
+    let base = projects;
+    if (viewFilter === "mine") base = base.filter((p) => myProjectIds.has(p.id));
+    else if (viewFilter === "team") base = base.filter((p) => !myProjectIds.has(p.id));
+    const counts: Record<string, number> = { all: base.length };
+    base.forEach((p) => {
       counts[p.status] = (counts[p.status] || 0) + 1;
     });
     return counts;
-  }, [projects]);
+  }, [projects, viewFilter, myProjectIds]);
+
+  // View counts
+  const viewCounts = useMemo(() => ({
+    all: projects.length,
+    mine: projects.filter((p) => myProjectIds.has(p.id)).length,
+    team: projects.filter((p) => !myProjectIds.has(p.id)).length,
+  }), [projects, myProjectIds]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -215,7 +242,11 @@ export default function ProjectsPage() {
         <div>
           <h1 className="text-2xl font-bold">Projekte</h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
-            {projects.length} Projekte insgesamt
+            {viewFilter === "mine"
+              ? `${viewCounts.mine} Projekte mit deiner Beteiligung`
+              : viewFilter === "team"
+                ? `${viewCounts.team} weitere Team-Projekte`
+                : `${projects.length} Projekte insgesamt`}
           </p>
         </div>
         <button
@@ -320,6 +351,28 @@ export default function ProjectsPage() {
           </form>
         </div>
       )}
+
+      {/* View Tabs: Meine / Team / Alle */}
+      <div className="flex gap-1 mb-4">
+        {([
+          { key: "all" as ViewFilter, label: "Alle Projekte" },
+          { key: "mine" as ViewFilter, label: "Meine Projekte" },
+          { key: "team" as ViewFilter, label: "Team-Projekte" },
+        ]).map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => { setViewFilter(key); setStatusFilter("all"); }}
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{
+              background: viewFilter === key ? "var(--color-primary)" : "var(--color-muted)",
+              color: viewFilter === key ? "#fff" : "var(--color-muted-foreground)",
+            }}
+          >
+            {label}
+            <span className="ml-1.5 opacity-70">{viewCounts[key]}</span>
+          </button>
+        ))}
+      </div>
 
       {/* Search + Filter Bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-5">
