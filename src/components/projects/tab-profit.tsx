@@ -422,11 +422,25 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
       categoryName = cat?.name || "Sonstiges";
     }
 
+    // Generate inventory number (same logic as inventory page)
+    const prefix = categoryName.slice(0, 3).toUpperCase();
+    const { data: existingItems } = await supabase
+      .from("inventory_items")
+      .select("inventory_number")
+      .eq("org_id", orgId)
+      .like("inventory_number", `${prefix}-%`);
+    const existingNums = (existingItems || [])
+      .map((i: any) => parseInt(i.inventory_number.split("-")[1], 10))
+      .filter((n: number) => !isNaN(n));
+    const nextNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 1;
+    const inventoryNumber = `${prefix}-${String(nextNum).padStart(3, "0")}`;
+
     // Insert into inventory
     const { data: newItem, error } = await supabase
       .from("inventory_items")
       .insert({
         org_id: orgId,
+        inventory_number: inventoryNumber,
         name: itemName,
         category: categoryName,
         quantity: 1,
