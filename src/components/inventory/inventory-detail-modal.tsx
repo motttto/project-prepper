@@ -55,8 +55,16 @@ export function InventoryDetailModal({
   const [customField, setCustomField] = useState(item.custom_field || "");
   const [manufacturerUrl, setManufacturerUrl] = useState(item.manufacturer_url || "");
   const [manualUrl, setManualUrl] = useState(item.manual_url || "");
+  // Eigentum & Abschreibung
+  const [ownershipType, setOwnershipType] = useState(item.ownership_type || "organization");
+  const [ownerProfileId, setOwnerProfileId] = useState(item.owner_profile_id || "");
+  const [fundingSource, setFundingSource] = useState(item.funding_source || "organization");
+  const [depreciationMethod, setDepreciationMethod] = useState(item.depreciation_method || "linear");
+  const [depreciationYears, setDepreciationYears] = useState(item.depreciation_years ?? 7);
+  const [residualValue, setResidualValue] = useState(item.residual_value ?? 0);
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showOwnership, setShowOwnership] = useState(false);
   const [allProfiles, setAllProfiles] = useState<
     { id: string; name: string; is_active: boolean }[]
   >([]);
@@ -86,9 +94,15 @@ export function InventoryDetailModal({
       JSON.stringify(accessories) !== JSON.stringify(item.accessories || []) ||
       customField !== (item.custom_field || "") ||
       manufacturerUrl !== (item.manufacturer_url || "") ||
-      manualUrl !== (item.manual_url || "");
+      manualUrl !== (item.manual_url || "") ||
+      ownershipType !== (item.ownership_type || "organization") ||
+      ownerProfileId !== (item.owner_profile_id || "") ||
+      fundingSource !== (item.funding_source || "organization") ||
+      depreciationMethod !== (item.depreciation_method || "linear") ||
+      depreciationYears !== (item.depreciation_years ?? 7) ||
+      residualValue !== (item.residual_value ?? 0);
     setHasChanges(changed);
-  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, deviceName, serialNumber, purchasePrice, dimensions, powerWatts, accessories, customField, manufacturerUrl, manualUrl, item]);
+  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, deviceName, serialNumber, purchasePrice, dimensions, powerWatts, accessories, customField, manufacturerUrl, manualUrl, ownershipType, ownerProfileId, fundingSource, depreciationMethod, depreciationYears, residualValue, item]);
 
   // Einzelstücke laden
   useEffect(() => {
@@ -160,6 +174,12 @@ export function InventoryDetailModal({
         custom_field: customField || null,
         manufacturer_url: manufacturerUrl || null,
         manual_url: manualUrl || null,
+        ownership_type: ownershipType,
+        owner_profile_id: ownerProfileId || null,
+        funding_source: fundingSource,
+        depreciation_method: depreciationMethod,
+        depreciation_years: depreciationYears,
+        residual_value: residualValue,
       })
       .eq("id", item.id);
 
@@ -682,6 +702,179 @@ export function InventoryDetailModal({
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* Eigentum & Wert (Akkordeon) */}
+          <div
+            className="pt-2"
+            style={{ borderTop: "1px solid var(--color-border-light)" }}
+          >
+            <button
+              type="button"
+              onClick={() => setShowOwnership(!showOwnership)}
+              className="flex items-center justify-between w-full text-sm font-semibold mb-3"
+              style={{ color: "var(--color-muted-foreground)" }}
+            >
+              <span>Eigentum &amp; Wert {item.current_value != null ? `(${Number(item.current_value).toLocaleString("de-DE", { style: "currency", currency: "EUR" })})` : ""}</span>
+              <span className="text-xs">{showOwnership ? "▲" : "▼"}</span>
+            </button>
+
+            {showOwnership && (
+              <div className="space-y-4">
+                {/* Wert-Anzeige */}
+                {item.purchase_price != null && item.current_value != null && (
+                  <div
+                    className="rounded-lg p-3"
+                    style={{ background: "var(--color-muted)" }}
+                  >
+                    <div className="flex justify-between text-xs mb-2">
+                      <span style={{ color: "var(--color-muted-foreground)" }}>Kaufpreis</span>
+                      <span className="font-medium">{Number(item.purchase_price).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}</span>
+                    </div>
+                    <div className="flex justify-between text-xs mb-2">
+                      <span style={{ color: "var(--color-muted-foreground)" }}>Aktueller Wert</span>
+                      <span className="font-bold" style={{ color: "var(--color-primary)" }}>
+                        {Number(item.current_value).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+                      </span>
+                    </div>
+                    <div className="w-full rounded-full h-2 overflow-hidden" style={{ background: "var(--color-border)" }}>
+                      <div
+                        className="h-full rounded-full"
+                        style={{
+                          width: `${Math.max(5, (Number(item.current_value) / Number(item.purchase_price)) * 100)}%`,
+                          background: Number(item.current_value) / Number(item.purchase_price) > 0.5
+                            ? "var(--color-success)"
+                            : Number(item.current_value) / Number(item.purchase_price) > 0.2
+                            ? "var(--color-warning)"
+                            : "var(--color-error)",
+                        }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                      <span>Abschreibung: {depreciationMethod === "linear" ? `${depreciationYears} Jahre linear` : "Keine"}</span>
+                      <span>{Math.round((Number(item.current_value) / Number(item.purchase_price)) * 100)}%</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Eigentum */}
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5"
+                      style={{ color: "var(--color-muted-foreground)" }}>
+                      Eigentum
+                    </label>
+                    <select
+                      value={ownershipType}
+                      onChange={(e) => setOwnershipType(e.target.value as any)}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={inputStyle}
+                    >
+                      <option value="organization">Organisation</option>
+                      <option value="member">Mitglied (persönlich)</option>
+                      <option value="shared">Geteilt</option>
+                    </select>
+                  </div>
+
+                  {/* Eigentümer (nur bei member/shared) */}
+                  {ownershipType !== "organization" && (
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5"
+                        style={{ color: "var(--color-muted-foreground)" }}>
+                        Eigentümer
+                      </label>
+                      <select
+                        value={ownerProfileId}
+                        onChange={(e) => setOwnerProfileId(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={inputStyle}
+                      >
+                        <option value="">-- Auswählen --</option>
+                        {allProfiles
+                          .filter((p) => p.is_active)
+                          .map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Finanzierung */}
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5"
+                      style={{ color: "var(--color-muted-foreground)" }}>
+                      Finanzierung
+                    </label>
+                    <select
+                      value={fundingSource}
+                      onChange={(e) => setFundingSource(e.target.value as any)}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={inputStyle}
+                    >
+                      <option value="organization">Organisation</option>
+                      <option value="self">Eigenfinanziert</option>
+                      <option value="project">Projekt-Budget</option>
+                      <option value="sponsor">Sponsor</option>
+                    </select>
+                  </div>
+
+                  {/* Abschreibungsmethode */}
+                  <div>
+                    <label className="block text-xs font-medium mb-1.5"
+                      style={{ color: "var(--color-muted-foreground)" }}>
+                      Abschreibung
+                    </label>
+                    <select
+                      value={depreciationMethod}
+                      onChange={(e) => setDepreciationMethod(e.target.value as any)}
+                      className="w-full px-3 py-2 rounded-lg text-sm"
+                      style={inputStyle}
+                    >
+                      <option value="linear">Linear</option>
+                      <option value="none">Keine</option>
+                    </select>
+                  </div>
+
+                  {/* AfA-Dauer */}
+                  {depreciationMethod === "linear" && (
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5"
+                        style={{ color: "var(--color-muted-foreground)" }}>
+                        Nutzungsdauer (Jahre)
+                      </label>
+                      <input
+                        type="number"
+                        value={depreciationYears}
+                        onChange={(e) => setDepreciationYears(Number(e.target.value))}
+                        min={1}
+                        max={30}
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={inputStyle}
+                      />
+                    </div>
+                  )}
+
+                  {/* Restwert */}
+                  {depreciationMethod === "linear" && (
+                    <div>
+                      <label className="block text-xs font-medium mb-1.5"
+                        style={{ color: "var(--color-muted-foreground)" }}>
+                        Restwert (&euro;)
+                      </label>
+                      <input
+                        type="number"
+                        value={residualValue}
+                        onChange={(e) => setResidualValue(Number(e.target.value))}
+                        min={0}
+                        step={0.01}
+                        className="w-full px-3 py-2 rounded-lg text-sm"
+                        style={inputStyle}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Einzelstücke (bei Menge > 1) */}

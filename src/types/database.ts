@@ -183,6 +183,16 @@ export type InventoryItem = {
   custom_field: string | null;
   manufacturer_url: string | null;
   manual_url: string | null;
+  // Eigentum & Abschreibung (Migration 036)
+  ownership_type: "organization" | "member" | "shared";
+  owner_profile_id: string | null;
+  ownership_shares: { profile_id: string; percentage: number; invested: number }[] | null;
+  funding_source: "organization" | "self" | "project" | "sponsor";
+  receipt_url: string | null;
+  depreciation_method: "linear" | "none";
+  depreciation_years: number;
+  residual_value: number;
+  current_value: number | null;
   created_at: string;
 };
 
