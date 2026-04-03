@@ -196,6 +196,9 @@ export type InventoryItem = {
   depreciation_years: number;
   residual_value: number;
   current_value: number | null;
+  // Sharing (Migration 041)
+  is_shareable: boolean;
+  sharing_notes: string | null;
   created_at: string;
 };
 
@@ -716,4 +719,71 @@ export type MemberLoanSummary = {
   active_loans: number;
   overdue_loans: number;
   total_items_out: number;
+};
+
+// Org-Partnerschaften (Migration 041)
+export type PartnershipStatus = "pending" | "active" | "paused" | "ended";
+
+export type OrgPartnership = {
+  id: string;
+  org_id: string;
+  partner_org_id: string;
+  status: PartnershipStatus;
+  share_inventory: boolean;
+  share_team_contacts: boolean;
+  allow_equipment_requests: boolean;
+  invited_by: string | null;
+  accepted_by: string | null;
+  notes: string | null;
+  started_at: string | null;
+  ended_at: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  organization?: { name: string; slug: string; logo_url: string | null };
+  partner_organization?: { name: string; slug: string; logo_url: string | null };
+  inviter?: { name: string };
+};
+
+export type EquipmentRequestStatus = "pending" | "approved" | "rejected" | "cancelled" | "returned";
+
+export type EquipmentRequest = {
+  id: string;
+  requesting_org_id: string;
+  supplying_org_id: string;
+  inventory_item_id: string;
+  quantity: number;
+  date_from: string;
+  date_to: string;
+  status: EquipmentRequestStatus;
+  purpose: string | null;
+  rejection_reason: string | null;
+  requested_by: string;
+  responded_by: string | null;
+  responded_at: string | null;
+  condition_at_pickup: InventoryItem["condition"] | null;
+  condition_at_return: InventoryItem["condition"] | null;
+  return_notes: string | null;
+  returned_at: string | null;
+  created_at: string;
+  // Joined
+  requester?: { name: string };
+  responder?: { name: string };
+  inventory_items?: { name: string; inventory_number: string; image_url: string | null };
+  requesting_org?: { name: string };
+  supplying_org?: { name: string };
+};
+
+export type PartnerInventoryItem = {
+  item_id: string;
+  item_name: string;
+  inventory_number: string;
+  category: string;
+  quantity: number;
+  condition: string;
+  cost_per_day: number;
+  image_url: string | null;
+  sharing_notes: string | null;
+  partner_org_id: string;
+  partner_org_name: string;
 };

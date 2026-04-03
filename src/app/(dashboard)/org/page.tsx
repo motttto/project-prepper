@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { IconBuilding } from "@/components/ui/icons";
+import { OrgPartnerships } from "@/components/org/org-partnerships";
 
 export default function OrgSettingsPage() {
   const { orgId, orgName, reload } = useOrg();
@@ -207,6 +208,17 @@ export default function OrgSettingsPage() {
             </button>
           )}
         </form>
+      </div>
+
+      {/* Partnerschaften */}
+      <div
+        className="rounded-xl p-6 mt-6"
+        style={{
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border)",
+        }}
+      >
+        <OrgPartnerships />
       </div>
     </div>
   );

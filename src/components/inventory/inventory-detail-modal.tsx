@@ -62,6 +62,9 @@ export function InventoryDetailModal({
   const [depreciationMethod, setDepreciationMethod] = useState(item.depreciation_method || "linear");
   const [depreciationYears, setDepreciationYears] = useState(item.depreciation_years ?? 7);
   const [residualValue, setResidualValue] = useState(item.residual_value ?? 0);
+  // Sharing (Migration 041)
+  const [isSharable, setIsSharable] = useState(item.is_shareable ?? false);
+  const [sharingNotes, setSharingNotes] = useState(item.sharing_notes || "");
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showOwnership, setShowOwnership] = useState(false);
@@ -100,9 +103,11 @@ export function InventoryDetailModal({
       fundingSource !== (item.funding_source || "organization") ||
       depreciationMethod !== (item.depreciation_method || "linear") ||
       depreciationYears !== (item.depreciation_years ?? 7) ||
-      residualValue !== (item.residual_value ?? 0);
+      residualValue !== (item.residual_value ?? 0) ||
+      isSharable !== (item.is_shareable ?? false) ||
+      sharingNotes !== (item.sharing_notes || "");
     setHasChanges(changed);
-  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, deviceName, serialNumber, purchasePrice, dimensions, powerWatts, accessories, customField, manufacturerUrl, manualUrl, ownershipType, ownerProfileId, fundingSource, depreciationMethod, depreciationYears, residualValue, item]);
+  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, deviceName, serialNumber, purchasePrice, dimensions, powerWatts, accessories, customField, manufacturerUrl, manualUrl, ownershipType, ownerProfileId, fundingSource, depreciationMethod, depreciationYears, residualValue, isSharable, sharingNotes, item]);
 
   // Einzelstücke laden
   useEffect(() => {
@@ -180,6 +185,8 @@ export function InventoryDetailModal({
         depreciation_method: depreciationMethod,
         depreciation_years: depreciationYears,
         residual_value: residualValue,
+        is_shareable: isSharable,
+        sharing_notes: sharingNotes || null,
       })
       .eq("id", item.id);
 
@@ -871,6 +878,31 @@ export function InventoryDetailModal({
                         style={inputStyle}
                       />
                     </div>
+                  )}
+                </div>
+
+                {/* Partner-Sharing */}
+                <div
+                  className="rounded-lg p-3 mt-2"
+                  style={{ background: "var(--color-muted)" }}
+                >
+                  <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSharable}
+                      onChange={(e) => setIsSharable(e.target.checked)}
+                    />
+                    Für Partner-Organisationen teilbar
+                  </label>
+                  {isSharable && (
+                    <input
+                      type="text"
+                      value={sharingNotes}
+                      onChange={(e) => setSharingNotes(e.target.value)}
+                      placeholder="Hinweise zum Verleih (optional)"
+                      className="w-full px-3 py-2 rounded-lg text-sm mt-2"
+                      style={inputStyle}
+                    />
                   )}
                 </div>
               </div>
