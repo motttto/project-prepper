@@ -549,3 +549,48 @@ export type InquiryInvitation = {
   profiles?: { name: string; email: string; avatar_url: string | null };
   inviters?: { name: string };
 };
+
+// Beschlüsse (Migration 037)
+export type DecisionType =
+  | "general"
+  | "asset_purchase"
+  | "asset_disposal"
+  | "profit_distribution"
+  | "exit_settlement"
+  | "policy";
+
+export type DecisionStatus = "open" | "approved" | "rejected" | "expired";
+
+export type OrgDecision = {
+  id: string;
+  org_id: string;
+  title: string;
+  description: string | null;
+  decision_type: DecisionType;
+  status: DecisionStatus;
+  requires_unanimous: boolean;
+  deadline: string | null;
+  related_item_id: string | null;
+  related_project_id: string | null;
+  related_profile_id: string | null;
+  metadata: Record<string, unknown> | null;
+  created_by: string;
+  resolved_at: string | null;
+  created_at: string;
+  // Joined
+  creator?: { name: string; avatar_url: string | null };
+  votes?: OrgDecisionVote[];
+};
+
+export type VoteChoice = "approve" | "reject" | "abstain";
+
+export type OrgDecisionVote = {
+  id: string;
+  decision_id: string;
+  voter_id: string;
+  vote: VoteChoice;
+  comment: string | null;
+  created_at: string;
+  // Joined
+  voter?: { name: string; avatar_url: string | null };
+};

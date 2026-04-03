@@ -29,6 +29,7 @@ import {
   orgRoleLabels,
   orgBadgeStyles,
 } from "@/components/ui/role-badge";
+import { DecisionPanel } from "@/components/decisions/decision-panel";
 
 type OrgMember = {
   id: string;
@@ -1160,6 +1161,17 @@ export default function TeamPage() {
           )}
         </div>
       )}
+
+      {/* Beschlüsse */}
+      <div
+        className="rounded-xl p-6"
+        style={{
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border-light)",
+        }}
+      >
+        <DecisionPanel />
+      </div>
 
       {/* Invite Modal */}
       {showInviteModal && (
