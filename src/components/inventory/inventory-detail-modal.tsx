@@ -824,6 +824,56 @@ export function InventoryDetailModal({
                       <option value="sponsor">Sponsor</option>
                     </select>
                   </div>
+                </div>
+
+                {/* Eigentumsanteile (bei shared) */}
+                {item.ownership_shares && item.ownership_shares.length > 0 && (
+                  <div
+                    className="rounded-lg p-3 mt-3"
+                    style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
+                  >
+                    <div className="text-xs font-semibold mb-2" style={{ color: "var(--color-muted-foreground)" }}>
+                      Eigentumsanteile
+                      {fundingSource === "project" && (
+                        <span className="ml-2 font-normal">(aus Gewinnverteilung)</span>
+                      )}
+                    </div>
+                    <div className="space-y-1.5">
+                      {item.ownership_shares.map((share: any) => {
+                        const profile = allProfiles.find((p) => p.id === share.profile_id);
+                        return (
+                          <div key={share.profile_id} className="flex items-center gap-2">
+                            {/* Bar */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-xs font-medium truncate">
+                                  {profile?.name || "Unbekannt"}
+                                </span>
+                                <span className="text-xs tabular-nums shrink-0" style={{ color: "var(--color-muted-foreground)" }}>
+                                  {share.percentage}% · {Number(share.invested).toLocaleString("de-DE", { style: "currency", currency: "EUR" })}
+                                </span>
+                              </div>
+                              <div className="w-full rounded-full h-1.5" style={{ background: "var(--color-border)" }}>
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{
+                                    width: `${Math.min(share.percentage, 100)}%`,
+                                    background: "var(--color-primary)",
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="text-xs mt-2 pt-2" style={{ color: "var(--color-muted-foreground)", borderTop: "1px solid var(--color-border-light)" }}>
+                      Steht dem Team frei zur Verfügung. Bei Austritt werden Anteile verrechnet.
+                    </div>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4 mt-3">
 
                   {/* Abschreibungsmethode */}
                   <div>

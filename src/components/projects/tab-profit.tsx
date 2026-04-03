@@ -435,6 +435,43 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     const nextNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 1;
     const inventoryNumber = `${prefix}-${String(nextNum).padStart(3, "0")}`;
 
+    // Eigentumsanteile aus der Gewinnverteilung berechnen
+    const { data: profitShares } = await supabase
+      .from("project_profit_shares")
+      .select("profile_id, share_type, share_value, calculated_amount")
+      .eq("project_id", project.id);
+
+    let ownershipType: "organization" | "member" | "shared" = "organization";
+    let ownershipShares: { profile_id: string; percentage: number; invested: number }[] | null = null;
+
+    if (profitShares && profitShares.length > 0) {
+      // Anteile basierend auf Gewinnverteilung berechnen
+      const totalShareValue = profitShares.reduce((sum, s) => {
+        if (s.share_type === "percentage") return sum + s.share_value;
+        // Für fixed/hourly: anteilig am calculated_amount
+        return sum + (Number(s.calculated_amount) || 0);
+      }, 0);
+
+      ownershipShares = profitShares.map((s) => {
+        let pct: number;
+        if (s.share_type === "percentage") {
+          pct = s.share_value;
+        } else {
+          // Anteil berechnen basierend auf calculated_amount
+          pct = totalShareValue > 0
+            ? ((Number(s.calculated_amount) || 0) / totalShareValue) * 100
+            : 100 / profitShares.length;
+        }
+        return {
+          profile_id: s.profile_id,
+          percentage: Math.round(pct * 100) / 100,
+          invested: Math.round((cost * pct / 100) * 100) / 100,
+        };
+      });
+
+      ownershipType = profitShares.length === 1 ? "member" : "shared";
+    }
+
     // Insert into inventory
     const { data: newItem, error } = await supabase
       .from("inventory_items")
@@ -448,7 +485,10 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
         purchase_price: cost,
         purchased_by: currentUser.id,
         purchased_at: new Date().toISOString(),
-        ownership_type: "organization",
+        ownership_type: ownershipType,
+        owner_profile_id: ownershipType === "member" && ownershipShares?.[0]
+          ? ownershipShares[0].profile_id : null,
+        ownership_shares: ownershipShares,
         funding_source: "project",
       })
       .select("id, inventory_number")
