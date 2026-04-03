@@ -823,7 +823,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
                   )}
 
                   {/* Abstimmung (offene Beschlüsse) */}
-                  {purchase.status === "open" && !myVote && (
+                  {purchase.status === "open" && (
                     <div className="mt-2 space-y-2">
                       {impersonating && (
                         <div
@@ -833,18 +833,31 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
                           Abstimmung als <strong>{impersonating.name}</strong>
                         </div>
                       )}
+                      {myVote && (
+                        <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                          {impersonating ? `${impersonating.name}:` : "Deine Stimme:"}{" "}
+                          {myVote.vote === "approve" ? "✓ Zugestimmt" : myVote.vote === "reject" ? "✗ Abgelehnt" : "Enthalten"}
+                          {myVote.comment && <span className="ml-1">— &quot;{myVote.comment}&quot;</span>}
+                        </div>
+                      )}
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleVote(purchase.id, "approve")}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-                          style={{ background: "var(--color-success)" }}
+                          style={{
+                            background: "var(--color-success)",
+                            opacity: myVote?.vote === "approve" ? 0.5 : 1,
+                          }}
                         >
                           <IconCheck size={12} /> Zustimmen
                         </button>
                         <button
                           onClick={() => handleVote(purchase.id, "reject")}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-                          style={{ background: "var(--color-error)" }}
+                          style={{
+                            background: "var(--color-error)",
+                            opacity: myVote?.vote === "reject" ? 0.5 : 1,
+                          }}
                         >
                           <IconX size={12} /> Ablehnen
                         </button>
@@ -867,14 +880,6 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
                           autoFocus
                         />
                       )}
-                    </div>
-                  )}
-
-                  {/* Eigene Stimme */}
-                  {myVote && purchase.status === "open" && (
-                    <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-                      Deine Stimme: {myVote.vote === "approve" ? "✓ Zugestimmt" : myVote.vote === "reject" ? "✗ Abgelehnt" : "Enthalten"}
-                      {myVote.comment && <span className="ml-1">— &quot;{myVote.comment}&quot;</span>}
                     </div>
                   )}
 
