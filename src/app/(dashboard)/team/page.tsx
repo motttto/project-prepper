@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
@@ -32,6 +33,7 @@ import {
 import { DecisionPanel } from "@/components/decisions/decision-panel";
 import { ExitSettlementWizard } from "@/components/team/exit-settlement-wizard";
 import { showToast } from "@/hooks/use-toast";
+import { logActivity } from "@/lib/activity-log";
 
 type OrgMember = {
   id: string;
@@ -182,6 +184,7 @@ export default function TeamPage() {
     });
     if (!error) {
       showToast("Gast hinzugefügt", "success");
+      if (orgId) logActivity({ orgId, action: "guest.added", entityType: "guest", entityLabel: guestName.trim() });
       setGuestName(""); setGuestCompany(""); setGuestRole(""); setGuestEmail(""); setGuestPhone(""); setGuestNotes("");
       setShowGuestForm(false);
     } else {
@@ -454,6 +457,15 @@ export default function TeamPage() {
               <IconPlus size={16} />
               Testuser
             </button>
+            <Link
+              href="/team/activity"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+              style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              📋 Protokoll
+            </Link>
             <button
               onClick={() => setShowInviteModal(true)}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors"
@@ -1469,6 +1481,7 @@ function InviteModal({
       }
       setSuccess(true);
       onInvited();
+      if (orgId) logActivity({ orgId, action: "invitation.sent", entityType: "invitation", entityLabel: email.trim() });
     }
     setSaving(false);
   }

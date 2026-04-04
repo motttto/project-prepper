@@ -292,6 +292,29 @@ export type ProjectContact = {
   created_at: string;
 };
 
+export type ActivityAction =
+  | "member.registered" | "member.approved" | "member.role_changed"
+  | "member.deactivated" | "member.reactivated"
+  | "project.created" | "project.updated" | "project.status_changed"
+  | "inventory.created" | "inventory.updated" | "inventory.deleted"
+  | "decision.created" | "decision.voted" | "decision.resolved"
+  | "guest.added" | "guest.removed"
+  | "invitation.sent" | "invitation.accepted"
+  | "booking.created" | "booking.deleted";
+
+export type ActivityLogEntry = {
+  id: string;
+  org_id: string;
+  actor_id: string | null;
+  action: ActivityAction;
+  entity_type: string | null;
+  entity_id: string | null;
+  entity_label: string | null;
+  metadata: Record<string, unknown>;
+  created_at: string;
+  actor?: { name: string; avatar_url: string | null };
+};
+
 export type OrgGuest = {
   id: string;
   org_id: string;

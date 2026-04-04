@@ -7,6 +7,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useImpersonate } from "@/contexts/impersonate-context";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { showToast } from "@/hooks/use-toast";
+import { logActivity } from "@/lib/activity-log";
 import type {
   Project,
   ProjectProfitShare,
@@ -360,6 +361,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
       },
     });
 
+    if (orgId) logActivity({ orgId, action: "decision.created", entityType: "decision", entityLabel: `Anschaffung: ${newItemName.trim()}`, metadata: { cost: Number(newItemCost) } });
     setNewItemName("");
     setNewItemCost("");
     setNewItemDescription("");
@@ -410,6 +412,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     const voteLabel = vote === "approve" ? "zugestimmt" : "abgelehnt";
     setSuccessMessage(`${voterName} hat ${voteLabel}`);
     setTimeout(() => setSuccessMessage(null), 3000);
+    if (orgId) logActivity({ orgId, action: "decision.voted", entityType: "decision", entityId: decisionId, metadata: { vote } });
     await loadPurchaseVotes();
   }
 

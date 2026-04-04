@@ -9,6 +9,7 @@ import type { Project } from "@/types/database";
 import { IconPlus, IconSearch, IconX, IconChevronRight, IconTrash, IconHandshake, IconUser } from "@/components/ui/icons";
 import { DateInput } from "@/components/ui/date-input";
 import { showToast } from "@/hooks/use-toast";
+import { logActivity } from "@/lib/activity-log";
 
 const statusLabels: Record<Project["status"], string> = {
   draft: "Entwurf",
@@ -202,6 +203,7 @@ export default function ProjectsPage() {
       setShowCreate(false);
       loadProjects();
       showToast("Projekt erstellt", "success");
+      if (orgId) logActivity({ orgId, action: "project.created", entityType: "project", entityLabel: formName });
     }
     setSaving(false);
   }
@@ -219,6 +221,8 @@ export default function ProjectsPage() {
       setProjects((prev) =>
         prev.map((p) => (p.id === projectId ? { ...p, status: newStatus } : p))
       );
+      const proj = projects.find(p => p.id === projectId);
+      if (orgId) logActivity({ orgId, action: "project.status_changed", entityType: "project", entityId: projectId, entityLabel: proj?.name, metadata: { status: newStatus } });
     }
   }
 

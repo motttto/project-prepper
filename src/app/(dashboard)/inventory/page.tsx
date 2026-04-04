@@ -6,6 +6,7 @@ import { useOrg } from "@/contexts/org-context";
 import type { InventoryItem, InventoryCategory, Booking } from "@/types/database";
 import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity, IconEdit, IconSave, IconHandshake } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
+import { logActivity } from "@/lib/activity-log";
 import { ExcelImport } from "@/components/inventory/excel-import";
 import { InventoryDetailModal } from "@/components/inventory/inventory-detail-modal";
 import { EquipmentLoansPanel } from "@/components/inventory/equipment-loans-panel";
@@ -285,6 +286,7 @@ export default function InventoryPage() {
       setShowCreate(false);
       loadItems();
       showToast("Artikel erstellt", "success");
+      if (orgId) logActivity({ orgId, action: "inventory.created", entityType: "inventory_item", entityLabel: formName });
     }
     setSaving(false);
   }
@@ -304,6 +306,7 @@ export default function InventoryPage() {
     } else {
       loadItems();
       showToast("Artikel gelöscht", "success");
+      if (orgId) logActivity({ orgId, action: "inventory.deleted", entityType: "inventory_item", entityId: item.id, entityLabel: item.name });
     }
   }
 
