@@ -13,6 +13,7 @@ import {
   IconZap,
   IconX,
   IconInbox,
+  IconCalendar,
 } from "@/components/ui/icons";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { useOrg } from "@/contexts/org-context";
@@ -28,6 +29,7 @@ const navItems: { href: string; label: string; icon: typeof IconDashboard; permi
   { href: "/projects", label: "Projekte", icon: IconProjects, permission: "projects" },
   { href: "/inventory", label: "Inventar", icon: IconInventory, permission: "inventory" },
   { href: "/costs", label: "Kosten", icon: IconCosts, permission: "costs" },
+  { href: "/calendar", label: "Kalender", icon: IconCalendar },
   { href: "/admin", label: "Admin", icon: IconZap, adminOnly: true },
 ];
 
