@@ -1240,7 +1240,32 @@ function SubscribeInfoModal({
             caldavToken ? (
               <>
                 <div className="p-3 rounded-lg text-xs" style={{ background: "var(--color-success-light)", border: "1px solid var(--color-success)", color: "var(--color-success)" }}>
-                  Zwei-Wege-Sync: Termine in Apple Calendar, Thunderbird oder anderen CalDAV-Apps erstellen, bearbeiten und löschen — alles synchronisiert sich automatisch mit Project Prepper.
+                  Zwei-Wege-Sync: Termine erstellen, bearbeiten und löschen — alles synchronisiert sich automatisch mit Project Prepper.
+                </div>
+
+                {/* Kompatibilität */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Kompatibilität</h3>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { name: "Apple Calendar", ok: true },
+                      { name: "Thunderbird", ok: true },
+                      { name: "Android (DAVx5)", ok: true },
+                      { name: "Outlook (Plugin)", ok: true },
+                      { name: "Google Calendar", ok: false },
+                      { name: "Outlook Web", ok: false },
+                    ].map((app) => (
+                      <div key={app.name} className="flex items-center gap-2 px-2.5 py-1.5 rounded text-xs" style={{ background: "var(--color-muted)" }}>
+                        <span style={{ color: app.ok ? "var(--color-success)" : "var(--color-muted-foreground)" }}>
+                          {app.ok ? "\u2713" : "\u2717"}
+                        </span>
+                        <span style={{ color: app.ok ? "var(--color-foreground)" : "var(--color-muted-foreground)" }}>{app.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] mt-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+                    Google Calendar und Outlook Web unterstützen kein CalDAV — nutze dort den Nur-Lesen-Feed.
+                  </p>
                 </div>
 
                 {/* Zugangsdaten — alles an einem Ort */}
@@ -1283,13 +1308,25 @@ function SubscribeInfoModal({
                       { title: "Apple Calendar (iPhone / iPad)", icon: "📱", steps: [
                         "Einstellungen → Kalender → Accounts → Account hinzufügen",
                         "\"Andere\" → CalDAV-Account hinzufügen",
-                        "Server: oben kopieren und einfügen",
+                        "Server, Benutzername und Passwort von oben eintragen",
+                      ]},
+                      { title: "Android (DAVx5)", icon: "🤖", steps: [
+                        "DAVx5 aus dem Play Store oder F-Droid installieren (kostenlos bei F-Droid)",
+                        "Konto hinzufügen → \"Mit URL und Benutzername anmelden\"",
+                        "URL: https://caldav-proxy.post-cd8.workers.dev",
                         "Benutzername: caldav, Passwort: oben kopieren",
+                        "Kalender auswählen und synchronisieren",
                       ]},
                       { title: "Thunderbird", icon: "🦊", steps: [
                         "Kalender → Neuer Kalender → Im Netzwerk",
-                        "Format: CalDAV, Server-URL einfügen",
+                        "Format: CalDAV",
+                        "URL: https://caldav-proxy.post-cd8.workers.dev/.well-known/caldav",
                         "Zugangsdaten eingeben wenn gefragt",
+                      ]},
+                      { title: "Outlook (Desktop)", icon: "📧", steps: [
+                        "\"CalDav Synchronizer\" Plugin installieren (kostenlos)",
+                        "caldavsynchronizer.org → Download → Add-In installieren",
+                        "Neues Profil: CalDAV-URL und Zugangsdaten eintragen",
                       ]},
                     ].map((instr) => (
                       <div key={instr.title} className="p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
@@ -1329,7 +1366,30 @@ function SubscribeInfoModal({
             feedToken ? (
               <>
                 <div className="p-3 rounded-lg text-xs" style={{ background: "var(--color-primary-light)", border: "1px solid var(--color-primary)", color: "var(--color-primary)" }}>
-                  Nur-Lesen-Feed: Termine aus Project Prepper werden automatisch synchronisiert. Neue Termine nur in der Web-App erstellen.
+                  Nur-Lesen-Feed: Termine werden automatisch synchronisiert. Neue Termine nur in der Web-App erstellen. Ideal für Google Calendar, Outlook Web und alle Apps ohne CalDAV-Support.
+                </div>
+
+                {/* Kompatibilität */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Kompatibilität</h3>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      { name: "Apple Calendar" },
+                      { name: "Google Calendar" },
+                      { name: "Outlook (Desktop)" },
+                      { name: "Outlook Web / 365" },
+                      { name: "Thunderbird" },
+                      { name: "Android" },
+                    ].map((app) => (
+                      <div key={app.name} className="flex items-center gap-2 px-2.5 py-1.5 rounded text-xs" style={{ background: "var(--color-muted)" }}>
+                        <span style={{ color: "var(--color-success)" }}>{"\u2713"}</span>
+                        <span>{app.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] mt-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+                    Alle Kalender-Apps unterstützen iCal-Feeds. Wenn deine App CalDAV kann, nutze besser den Zwei-Wege-Sync.
+                  </p>
                 </div>
 
                 {/* Direkt-Abo Button */}
@@ -1405,13 +1465,23 @@ function SubscribeInfoModal({
                         "Die Abo-URL einfügen und bestätigen",
                       ]},
                       { title: "Google Calendar", icon: "📅", steps: [
-                        "Google Calendar öffnen (am PC)",
+                        "Google Calendar am PC öffnen",
                         "Links bei \"Weitere Kalender\" auf + → Per URL",
                         "Die Abo-URL einfügen und \"Kalender hinzufügen\"",
+                        "Hinweis: Google aktualisiert nur alle paar Stunden",
                       ]},
-                      { title: "Outlook", icon: "📧", steps: [
+                      { title: "Outlook (Desktop / Web)", icon: "📧", steps: [
                         "Kalender → Kalender hinzufügen → Aus dem Internet abonnieren",
                         "Die Abo-URL einfügen und \"Importieren\"",
+                      ]},
+                      { title: "Android", icon: "🤖", steps: [
+                        "Am einfachsten: Google Calendar nutzen (siehe oben)",
+                        "Oder: ICSx5 App installieren (F-Droid, kostenlos)",
+                        "URL-Abo hinzufügen und Abo-URL einfügen",
+                      ]},
+                      { title: "Thunderbird", icon: "🦊", steps: [
+                        "Kalender → Neuer Kalender → Im Netzwerk",
+                        "Format: iCalendar (ICS), die Abo-URL einfügen",
                       ]},
                     ].map((instr) => (
                       <div key={instr.title} className="p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
