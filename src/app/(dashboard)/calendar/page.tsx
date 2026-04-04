@@ -280,14 +280,21 @@ export default function CalendarPage() {
   }
 
   // === CRUD ===
-  async function handleDelete(event: CalendarEvent) {
-    if (!(await appConfirm(`"${event.summary}" wirklich löschen?`, { variant: "danger", confirmLabel: "Löschen" }))) return;
-    const { error } = await supabase.from("calendar_events").delete().eq("id", event.id);
-    if (error) { showToast("Fehler beim Löschen", "error"); }
-    else {
+  async function handleDelete(event: CalendarEvent, skipConfirm = false) {
+    if (!skipConfirm) {
+      if (!(await appConfirm(`"${event.summary}" wirklich löschen?`, { variant: "danger", confirmLabel: "Löschen" }))) return;
+    }
+    const { error, count } = await supabase
+      .from("calendar_events")
+      .delete({ count: "exact" })
+      .eq("id", event.id);
+    if (error || count === 0) {
+      showToast(error?.message || "Termin konnte nicht gelöscht werden. Eventuell fehlende Berechtigung.", "error");
+    } else {
       showToast("Termin gelöscht", "success");
       setSelectedEvent(null);
       setEditEvent(null);
+      setShowCreateModal(false);
     }
   }
 
@@ -639,55 +646,14 @@ export default function CalendarPage() {
 
       {/* === EVENT DETAIL MODAL === */}
       {selectedEvent && !editEvent && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }} onClick={() => setSelectedEvent(null)}>
-          <div className="w-full max-w-md rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", boxShadow: "var(--shadow-lg)" }} onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-4" style={{ background: `${getEventColor(selectedEvent)}15`, borderBottom: "1px solid var(--color-border-light)" }}>
-              <div className="flex items-start justify-between gap-3">
-                <h2 className="text-lg font-bold" style={{ color: getEventColor(selectedEvent) }}>{selectedEvent.summary}</h2>
-                {selectedEvent.group_id && (() => {
-                  const g = groups.find((gr) => gr.id === selectedEvent.group_id);
-                  return g ? (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-medium mt-1"
-                      style={{ background: `${g.color}25`, color: g.color }}>
-                      {g.name}
-                    </span>
-                  ) : null;
-                })()}
-              </div>
-            </div>
-            <div className="px-6 py-4 space-y-3">
-              <div className="flex items-start gap-3">
-                <IconCalendar size={16} style={{ color: "var(--color-muted-foreground)", marginTop: 2 }} />
-                <div>
-                  <p className="text-sm font-medium">{new Date(selectedEvent.start_at).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
-                  <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                    {selectedEvent.all_day ? "Ganztägig" : `${formatTime(selectedEvent.start_at)} – ${selectedEvent.end_at ? formatTime(selectedEvent.end_at) : ""}`}
-                  </p>
-                </div>
-              </div>
-              {selectedEvent.location && (
-                <div className="flex items-start gap-3"><span className="text-sm mt-0.5">📍</span><p className="text-sm">{selectedEvent.location}</p></div>
-              )}
-              {selectedEvent.description && (
-                <div className="flex items-start gap-3"><span className="text-sm mt-0.5">📝</span><p className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-muted-foreground)" }}>{selectedEvent.description}</p></div>
-              )}
-            </div>
-            <div className="px-6 py-3 flex items-center justify-between gap-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>
-              <button onClick={() => handleDelete(selectedEvent)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                style={{ color: "var(--color-destructive)", border: "1px solid var(--color-destructive)" }}>
-                <IconTrash size={13} /> Löschen
-              </button>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setEditEvent(selectedEvent)} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors" style={{ background: "var(--color-primary)" }}>
-                  Bearbeiten
-                </button>
-                <button onClick={() => setSelectedEvent(null)} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "var(--color-muted)" }}>
-                  Schließen
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <EventDetailModal
+          event={selectedEvent}
+          groups={groups}
+          getEventColor={getEventColor}
+          onEdit={() => setEditEvent(selectedEvent)}
+          onDelete={() => handleDelete(selectedEvent, true)}
+          onClose={() => setSelectedEvent(null)}
+        />
       )}
 
       {/* === CREATE / EDIT MODAL === */}
@@ -698,7 +664,7 @@ export default function CalendarPage() {
           defaultDate={createForDate || new Date()}
           inputStyle={inputStyle}
           onSave={handleSave}
-          onDelete={editEvent ? () => handleDelete(editEvent) : undefined}
+          onDelete={editEvent ? () => handleDelete(editEvent, true) : undefined}
           onClose={() => { setShowCreateModal(false); setEditEvent(null); setCreateForDate(null); }}
         />
       )}
@@ -982,6 +948,108 @@ function layoutEvents(events: CalendarEvent[]): {
 
     return { event: item.event, top, height, left, width };
   });
+}
+
+// === Event Detail Modal (mit Inline-Confirm für Löschen) ===
+function EventDetailModal({
+  event,
+  groups,
+  getEventColor,
+  onEdit,
+  onDelete,
+  onClose,
+}: {
+  event: CalendarEvent;
+  groups: CalendarGroup[];
+  getEventColor: (e: CalendarEvent) => string;
+  onEdit: () => void;
+  onDelete: () => void;
+  onClose: () => void;
+}) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const color = getEventColor(event);
+  const group = groups.find((g) => g.id === event.group_id);
+
+  async function doDelete() {
+    setDeleting(true);
+    await onDelete();
+    setDeleting(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }} onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", boxShadow: "var(--shadow-lg)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="px-6 py-4" style={{ background: `${color}15`, borderBottom: "1px solid var(--color-border-light)" }}>
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="text-lg font-bold" style={{ color }}>{event.summary}</h2>
+            {group && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-medium mt-1"
+                style={{ background: `${group.color}25`, color: group.color }}>
+                {group.name}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="px-6 py-4 space-y-3">
+          <div className="flex items-start gap-3">
+            <IconCalendar size={16} style={{ color: "var(--color-muted-foreground)", marginTop: 2 }} />
+            <div>
+              <p className="text-sm font-medium">{new Date(event.start_at).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+              <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                {event.all_day ? "Ganztägig" : `${formatTime(event.start_at)} – ${event.end_at ? formatTime(event.end_at) : ""}`}
+              </p>
+            </div>
+          </div>
+          {event.location && (
+            <div className="flex items-start gap-3"><span className="text-sm mt-0.5">📍</span><p className="text-sm">{event.location}</p></div>
+          )}
+          {event.description && (
+            <div className="flex items-start gap-3"><span className="text-sm mt-0.5">📝</span><p className="text-sm whitespace-pre-wrap" style={{ color: "var(--color-muted-foreground)" }}>{event.description}</p></div>
+          )}
+        </div>
+        <div className="px-6 py-3 flex items-center justify-between gap-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+          {confirmDelete ? (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={doDelete}
+                disabled={deleting}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors disabled:opacity-50"
+                style={{ background: "var(--color-destructive)" }}
+              >
+                <IconTrash size={13} /> {deleting ? "Wird gelöscht..." : "Ja, löschen"}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: "var(--color-muted)" }}
+              >
+                Abbrechen
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{ color: "var(--color-destructive)", border: "1px solid var(--color-destructive)" }}
+            >
+              <IconTrash size={13} /> Löschen
+            </button>
+          )}
+          {!confirmDelete && (
+            <div className="flex items-center gap-2">
+              <button onClick={onEdit} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors" style={{ background: "var(--color-primary)" }}>
+                Bearbeiten
+              </button>
+              <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ background: "var(--color-muted)" }}>
+                Schließen
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // === Event Form Modal ===
