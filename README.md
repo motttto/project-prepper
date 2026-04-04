@@ -2,7 +2,7 @@
 
 Projektmanagement-App für Veranstaltungstechnik — von der Anfrage bis zur Abrechnung.
 
-**Live:** [project-prepper.dunkelstrom.net](https://project-prepper.dunkelstrom.net)
+**Live:** [project-prepper.vercel.app](https://project-prepper.vercel.app)
 
 ---
 
@@ -14,6 +14,13 @@ Projektmanagement-App für Veranstaltungstechnik — von der Anfrage bis zur Abr
 - Datei-Upload (Grundrisse, PDFs)
 - Budget-Planung (Honorar, Technik, Transport) mit Netto/Brutto-Ansicht
 - Echtzeit-Zusammenarbeit mit Presence-Anzeige
+
+### Kalender
+- Eigener Kalender mit Gruppen und Farbcodes
+- Monats- und Wochenansicht
+- **CalDAV-Server** — Zwei-Wege-Sync mit Apple Calendar, Thunderbird, Android (DAVx5), Outlook (Plugin)
+- **iCal-Feed** — Nur-Lesen-Abo für Google Calendar, Outlook Web, etc.
+- ETag/CTag-basierte Synchronisation
 
 ### Inventar
 - Equipment-Verwaltung mit dynamischen Kategorien
@@ -29,12 +36,14 @@ Projektmanagement-App für Veranstaltungstechnik — von der Anfrage bis zur Abr
 - Telegram-Bot-Integration für Benachrichtigungen
 
 ### Team
+- Multi-Tenant mit Organisationen
 - Rollen-System (Admin / Manager / Mitglied)
 - Feingranulare Permissions (13 Checkboxen pro User)
 - Team-Freigabe per Abstimmung (Unanimous Vote)
 - Org-Einladungen per Email
 - Testuser-Erstellung für UI-Tests
 - Admin-Impersonation
+- MFA (TOTP) für alle User
 
 ### Kosten
 - Kostenposten pro Projekt (Personal, Material, Inventar, Extern)
@@ -51,9 +60,10 @@ Projektmanagement-App für Veranstaltungstechnik — von der Anfrage bis zur Abr
 | **Next.js 16** | App Router, Turbopack |
 | **React 19** | UI Components |
 | **TypeScript 5.9** | Type Safety |
-| **Supabase** | Auth, PostgreSQL, Realtime, Storage, Edge Functions |
+| **Supabase** | Auth, PostgreSQL, Realtime, Storage |
 | **Tailwind CSS 4** | Styling |
 | **Vercel** | Hosting & Deployment |
+| **Cloudflare Worker** | CalDAV-Proxy (PROPFIND/REPORT → POST) |
 
 ---
 
@@ -61,34 +71,41 @@ Projektmanagement-App für Veranstaltungstechnik — von der Anfrage bis zur Abr
 
 ```
 src/
-├── app/              # Next.js App Router (Pages & Layouts)
+├── app/              # Next.js App Router (Pages & API Routes)
 ├── components/       # React Components (UI, Layout, Features)
 ├── contexts/         # React Contexts (Org, Impersonation)
 ├── hooks/            # Custom Hooks (Auth, Realtime, Presence)
-├── lib/              # Supabase Client (Browser & Server)
+├── lib/              # Supabase Client, CalDAV-Server
+│   └── caldav/       # CalDAV Protocol (Auth, Handlers, iCal, XML)
 ├── types/            # TypeScript Definitionen
 └── middleware.ts     # Auth Guard & Session Refresh
+
+supabase/
+└── migrations/       # 53 SQL-Migrationen
+
+cloudflare-caldav-proxy/
+└── worker.js         # Proxy: PROPFIND/REPORT → POST (Vercel-Kompatibilität)
 ```
 
 ### Datenbank
-- **34 Migrationen** — von Schema-Setup bis Feature-Erweiterungen
+- **53 Migrationen** — von Schema-Setup bis CalDAV-Support
 - **Row Level Security** auf allen Tabellen
-- **Realtime** für Live-Updates (Projekte, Inventar, Aufgaben, etc.)
-- **Edge Functions** für Email-Versand und Telegram-Bot
+- **Realtime** für Live-Updates (Projekte, Inventar, Kalender, Aufgaben, etc.)
+- **Service-Role Client** für CalDAV (RLS-Bypass mit Token-Auth)
+
+### CalDAV-Server
+- Vollständiges CalDAV-Protokoll (PROPFIND, REPORT, GET, PUT, DELETE)
+- Token-basierte Auth (im URL + Basic Auth)
+- ETag für optimistic concurrency, CTag für Collection-Sync
+- Cloudflare Worker als Proxy, da Vercel non-standard HTTP-Methoden blockt
 
 ---
 
 ## Entwicklung
 
 ```bash
-# Dependencies installieren
 npm install
-
-# Dev-Server starten
 npm run dev
-
-# Production Build
-npm run build
 ```
 
 ### Umgebungsvariablen
@@ -96,6 +113,7 @@ npm run build
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
+SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ```
 
 ---
@@ -105,17 +123,17 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJ...
 Push auf `main` → Vercel deployed automatisch.
 
 ```bash
-git add .
-git commit -m "Beschreibung"
 git push origin main
 ```
 
-Erreichbar unter:
-- https://project-prepper.dunkelstrom.net (Custom Domain)
-- https://project-prepper.vercel.app (Vercel)
+CalDAV-Proxy (Cloudflare Worker):
+```bash
+cd cloudflare-caldav-proxy
+npx wrangler deploy
+```
 
 ---
 
 ## Lizenz
 
-Privates Projekt.
+Privates Projekt — alle Rechte vorbehalten.
