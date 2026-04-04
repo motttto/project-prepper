@@ -146,7 +146,7 @@ export default function AdminPage() {
   const { orgId } = useOrg();
   const { startImpersonating } = useImpersonate();
 
-  const [activeTab, setActiveTab] = useState<"roles" | "log">("roles");
+  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system">("roles");
 
   // ── Rollen & Berechtigungen State ──
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -401,9 +401,10 @@ export default function AdminPage() {
   }
 
   // ── Tab Config ──
-  const tabs: { key: "roles" | "log"; label: string }[] = [
+  const tabs: { key: "roles" | "log" | "system"; label: string }[] = [
     { key: "roles", label: "Rollen & Berechtigungen" },
     { key: "log", label: "Protokoll" },
+    { key: "system", label: "System" },
   ];
 
   return (
@@ -479,7 +480,7 @@ export default function AdminPage() {
           roleLabels={roleLabels}
           roleBadgeStyles={roleBadgeStyles}
         />
-      ) : (
+      ) : activeTab === "log" ? (
         <LogTab
           entries={logEntries}
           loading={logLoading}
@@ -488,6 +489,8 @@ export default function AdminPage() {
           setFilterAction={setFilterAction}
           loadEntries={loadLogEntries}
         />
+      ) : (
+        <SystemTab />
       )}
 
       {/* Invite Modal */}
@@ -1097,6 +1100,197 @@ function InviteModal({
               </button>
             </form>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════
+// ── System Tab ──
+// ══════════════════════════════════════════════
+
+function SystemTab() {
+  const techStack = [
+    { name: "Next.js", version: "16.1", desc: "App Router + Turbopack" },
+    { name: "React", version: "19", desc: "UI Components" },
+    { name: "TypeScript", version: "5.9", desc: "Type Safety" },
+    { name: "Supabase", version: "", desc: "Auth, PostgreSQL, Realtime, Storage" },
+    { name: "Tailwind CSS", version: "4.2", desc: "Styling" },
+    { name: "Vercel", version: "", desc: "Hosting & Deployment" },
+    { name: "Cloudflare Worker", version: "", desc: "CalDAV-Proxy" },
+  ];
+
+  const deploySteps = [
+    {
+      title: "App (Vercel)",
+      icon: "\u25B2",
+      desc: "Automatisch bei Push auf main",
+      steps: [
+        "Code committen: git add . && git commit -m \"...\"",
+        "Pushen: git push origin main",
+        "Vercel baut und deployed automatisch",
+        "Status: vercel.com/dashboard",
+      ],
+    },
+    {
+      title: "CalDAV-Proxy (Cloudflare Worker)",
+      icon: "\u2601\uFE0F",
+      desc: "Manuell deployen wenn Worker-Code geaendert wird",
+      steps: [
+        "cd cloudflare-caldav-proxy",
+        "npx wrangler deploy",
+        "Worker URL: caldav-proxy.post-cd8.workers.dev",
+        "Wird benoetigt weil Vercel PROPFIND/REPORT blockt",
+      ],
+    },
+    {
+      title: "Datenbank (Supabase)",
+      icon: "\u{1F5C4}\uFE0F",
+      desc: "Migrationen manuell ausfuehren",
+      steps: [
+        "SQL-Datei in supabase/migrations/ erstellen",
+        "Im Supabase Dashboard → SQL Editor ausfuehren",
+        "Oder: supabase db push (wenn CLI eingerichtet)",
+        "Aktuell: 53 Migrationen",
+      ],
+    },
+  ];
+
+  const features = [
+    { name: "Projekte", desc: "Verwaltung mit Status-Workflow, 8 Tabs, Budget, Dateien" },
+    { name: "Kalender", desc: "Monats-/Wochenansicht, CalDAV Zwei-Wege-Sync, iCal-Feed" },
+    { name: "Inventar", desc: "Equipment mit Kategorien, Einzelstuecke, Fotos, Excel-Import" },
+    { name: "Anfragen", desc: "Pipeline von Erstanfrage bis Angebot, Team-Verfuegbarkeit" },
+    { name: "Kosten", desc: "Pro Projekt + globale Uebersicht, USt-Saetze, Budget vs. Ist" },
+    { name: "Team", desc: "Multi-Tenant, Rollen, Permissions, Einladungen, Impersonation" },
+  ];
+
+  const sectionStyle: React.CSSProperties = {
+    background: "var(--color-surface)",
+    border: "1px solid var(--color-border)",
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* App Info */}
+      <div className="rounded-xl p-6" style={sectionStyle}>
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold text-white"
+            style={{ background: "var(--color-primary)" }}>
+            <IconZap size={22} />
+          </div>
+          <div>
+            <h2 className="text-lg font-bold">Project Prepper</h2>
+            <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+              Projektmanagement fuer Veranstaltungstechnik
+            </p>
+          </div>
+        </div>
+
+        {/* Feature-Liste */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-4">
+          {features.map((f) => (
+            <div key={f.name} className="flex items-start gap-2.5 p-2.5 rounded-lg" style={{ background: "var(--color-muted)" }}>
+              <span className="text-xs font-bold mt-0.5" style={{ color: "var(--color-primary)" }}>•</span>
+              <div>
+                <p className="text-sm font-semibold">{f.name}</p>
+                <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>{f.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Tech Stack */}
+      <div className="rounded-xl p-6" style={sectionStyle}>
+        <h3 className="text-base font-bold mb-4">Tech Stack</h3>
+        <div className="space-y-2">
+          {techStack.map((t) => (
+            <div key={t.name} className="flex items-center gap-3 px-3 py-2 rounded-lg" style={{ background: "var(--color-muted)" }}>
+              <span className="text-sm font-bold w-40">{t.name} {t.version && <span className="font-normal text-xs" style={{ color: "var(--color-primary)" }}>{t.version}</span>}</span>
+              <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>{t.desc}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Deployment */}
+      <div className="rounded-xl p-6" style={sectionStyle}>
+        <h3 className="text-base font-bold mb-4">Deployment</h3>
+        <div className="space-y-4">
+          {deploySteps.map((d) => (
+            <div key={d.title} className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border-light)" }}>
+              <div className="flex items-center gap-3 px-4 py-3" style={{ background: "var(--color-muted)" }}>
+                <span className="text-lg">{d.icon}</span>
+                <div>
+                  <p className="text-sm font-bold">{d.title}</p>
+                  <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>{d.desc}</p>
+                </div>
+              </div>
+              <div className="px-4 py-3">
+                <ol className="space-y-1.5">
+                  {d.steps.map((step, i) => (
+                    <li key={i} className="flex items-start gap-2 text-xs">
+                      <span className="font-bold flex-shrink-0 w-4 text-right" style={{ color: "var(--color-primary)" }}>{i + 1}.</span>
+                      <code className="font-mono text-[11px] break-all" style={{ color: "var(--color-foreground)" }}>{step}</code>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Zusammenfassung */}
+        <div className="mt-4 p-3 rounded-lg text-xs" style={{ background: "var(--color-primary-light)", border: "1px solid var(--color-primary)", color: "var(--color-primary)" }}>
+          <strong>Kurzfassung:</strong> git push origin main deployed die App automatisch auf Vercel.
+          CalDAV-Proxy nur bei Aenderungen am Worker manuell deployen (npx wrangler deploy).
+          Datenbank-Migrationen im Supabase SQL Editor ausfuehren.
+        </div>
+      </div>
+
+      {/* Architektur */}
+      <div className="rounded-xl p-6" style={sectionStyle}>
+        <h3 className="text-base font-bold mb-4">Architektur</h3>
+        <pre className="text-[11px] font-mono p-4 rounded-lg overflow-x-auto leading-relaxed" style={{ background: "var(--color-muted)", color: "var(--color-foreground)" }}>
+{`src/
+├── app/                 # Next.js App Router (Pages & API Routes)
+│   ├── (auth)/          # Login, Pending
+│   ├── (dashboard)/     # Geschuetzte Seiten (Sidebar-Layout)
+│   ├── api/caldav/      # CalDAV-Server (Zwei-Wege-Sync)
+│   └── api/calendar/    # iCal-Feed (Nur-Lesen)
+├── components/          # React Components
+├── contexts/            # Org-Context, Impersonation
+├── hooks/               # Auth, Realtime, Presence
+├── lib/                 # Supabase Client, CalDAV-Server
+│   └── caldav/          # Auth, Handlers, iCal, XML
+└── middleware.ts        # Auth Guard
+
+supabase/migrations/     # 53 SQL-Migrationen
+cloudflare-caldav-proxy/ # PROPFIND/REPORT → POST Proxy`}
+        </pre>
+      </div>
+
+      {/* CalDAV Info */}
+      <div className="rounded-xl p-6" style={sectionStyle}>
+        <h3 className="text-base font-bold mb-4">CalDAV-Server</h3>
+        <div className="space-y-3 text-sm">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {[
+              { label: "Protokoll", value: "PROPFIND, REPORT, GET, PUT, DELETE" },
+              { label: "Auth", value: "Token in URL + HTTP Basic Auth" },
+              { label: "Sync", value: "ETag (Event) + CTag (Collection)" },
+              { label: "Proxy", value: "Cloudflare Worker (Vercel blockt non-standard Methoden)" },
+              { label: "Clients", value: "Apple Calendar, Thunderbird, DAVx5, Outlook (Plugin)" },
+              { label: "Feed", value: "iCal-Abo (Nur-Lesen) fuer Google Calendar, Outlook Web" },
+            ].map((item) => (
+              <div key={item.label} className="p-2.5 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                <p className="text-xs font-bold" style={{ color: "var(--color-primary)" }}>{item.label}</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>{item.value}</p>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
