@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
+import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import type { CostItem, Project } from "@/types/database";
 import { IconPlus, IconX, IconTrash, IconFilter } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
@@ -26,13 +28,23 @@ const categoryColors: Record<CostItem["category"], { bg: string; color: string }
 
 export default function CostsPage() {
   const supabase = createClient();
+  const router = useRouter();
   const { orgId } = useOrg();
+  const currentUser = useCurrentUser();
+  const canEdit = hasPermission(currentUser, "costs_edit");
   const [costs, setCosts] = useState<CostItem[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string>("all");
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Permission guard: redirect if user lacks costs_view
+  useEffect(() => {
+    if (currentUser && !hasPermission(currentUser, "costs_view")) {
+      router.push("/dashboard");
+    }
+  }, [currentUser, router]);
 
   // Formular
   const [formProjectId, setFormProjectId] = useState("");
@@ -123,16 +135,18 @@ export default function CostsPage() {
             {costs.length} Positionen
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
-          style={{ background: "var(--color-primary)" }}
-          onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
-          onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
-        >
-          <IconPlus size={16} />
-          Neue Position
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowCreate(!showCreate)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
+            style={{ background: "var(--color-primary)" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
+          >
+            <IconPlus size={16} />
+            Neue Position
+          </button>
+        )}
       </div>
 
       {/* Create Form */}
@@ -325,11 +339,13 @@ export default function CostsPage() {
                       ) : <span style={{ color: "var(--color-muted-foreground)" }}>–</span>}
                     </td>
                     <td className="px-4 py-3">
-                      <button onClick={() => handleDelete(cost.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity"
-                        style={{ color: "var(--color-destructive)" }} title="Löschen">
-                        <IconTrash size={14} />
-                      </button>
+                      {canEdit && (
+                        <button onClick={() => handleDelete(cost.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity"
+                          style={{ color: "var(--color-destructive)" }} title="Löschen">
+                          <IconTrash size={14} />
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );

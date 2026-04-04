@@ -11,7 +11,7 @@ import { SaveIndicator } from "@/components/ui/save-indicator";
 import { appConfirm } from "@/components/ui/confirm-dialog";
 import { StaleDataBanner } from "@/components/ui/stale-data-banner";
 import { DateInput } from "@/components/ui/date-input";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import { InquiryTeamSection } from "@/components/inquiries/inquiry-team-section";
 import type { Inquiry, InquiryStatus } from "@/types/database";
 import {
@@ -48,6 +48,14 @@ export default function InquiryDetailPage() {
   const router = useRouter();
   const supabase = createClient();
   const { orgId } = useOrg();
+  const currentUser = useCurrentUser();
+
+  // Permission guard: redirect if user lacks inquiries_view
+  useEffect(() => {
+    if (currentUser && !hasPermission(currentUser, "inquiries_view")) {
+      router.push("/dashboard");
+    }
+  }, [currentUser, router]);
 
   const [inquiry, setInquiry] = useState<Inquiry | null>(null);
   const [loading, setLoading] = useState(true);
@@ -153,6 +161,7 @@ function InquiryDetailContent({
   const router = useRouter();
   const { orgId } = useOrg();
   const currentUser = useCurrentUser();
+  const canEditInquiry = hasPermission(currentUser, "inquiries_edit");
 
   // Telegram-Chat-ID der Org laden
   const [telegramChatId, setTelegramChatId] = useState<number | null>(null);
@@ -452,16 +461,18 @@ function InquiryDetailContent({
             </span>
           </div>
         </div>
-        <button
-          onClick={handleDelete}
-          className="p-2 rounded-lg transition-colors"
-          style={{ color: "var(--color-destructive)" }}
-          onMouseEnter={(e) => e.currentTarget.style.background = "color-mix(in srgb, var(--color-destructive) 10%, transparent)"}
-          onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-          title="Anfrage löschen"
-        >
-          <IconTrash size={18} />
-        </button>
+        {canEditInquiry && (
+          <button
+            onClick={handleDelete}
+            className="p-2 rounded-lg transition-colors"
+            style={{ color: "var(--color-destructive)" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "color-mix(in srgb, var(--color-destructive) 10%, transparent)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            title="Anfrage löschen"
+          >
+            <IconTrash size={18} />
+          </button>
+        )}
       </div>
 
       {/* Stale-Data Banner */}
@@ -486,8 +497,9 @@ function InquiryDetailContent({
             return (
               <button
                 key={step}
-                onClick={() => handleStatusPipeline(step)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all"
+                onClick={() => canEditInquiry && handleStatusPipeline(step)}
+                disabled={!canEditInquiry}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{
                   background: isActive ? statusColors[step].bg : "var(--color-muted)",
                   color: isActive ? statusColors[step].color : "var(--color-muted-foreground)",

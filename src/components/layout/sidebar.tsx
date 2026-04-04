@@ -21,13 +21,14 @@ import { useImpersonate } from "@/contexts/impersonate-context";
 import type { PermissionModule } from "@/types/database";
 import { modulePermissionMap } from "@/types/database";
 
-const navItems: { href: string; label: string; icon: typeof IconDashboard; permission?: PermissionModule }[] = [
+const navItems: { href: string; label: string; icon: typeof IconDashboard; permission?: PermissionModule; adminOnly?: boolean }[] = [
   { href: "/team", label: "Team", icon: IconUsers, permission: "team" },
   { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
   { href: "/inquiries", label: "Anfragen", icon: IconInbox, permission: "inquiries" },
   { href: "/projects", label: "Projekte", icon: IconProjects, permission: "projects" },
   { href: "/inventory", label: "Inventar", icon: IconInventory, permission: "inventory" },
   { href: "/costs", label: "Kosten", icon: IconCosts, permission: "costs" },
+  { href: "/team/activity", label: "Admin", icon: IconZap, adminOnly: true },
 ];
 
 interface SidebarProps {
@@ -158,6 +159,11 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {navItems.filter((item) => {
+          // Admin-only Items: nur für Admins sichtbar
+          if (item.adminOnly) {
+            if (impersonating) return false;
+            return currentUser?.roleName === "admin" || currentUser?.isSystem;
+          }
           if (!item.permission) return true;
           // Bei Impersonation: Permissions des impersonierten Users nutzen
           if (impersonating) {

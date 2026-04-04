@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
+import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import type { InventoryItem, InventoryCategory, Booking } from "@/types/database";
 import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity, IconEdit, IconSave, IconHandshake } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
@@ -63,6 +64,10 @@ const defaultCategories: { name: string; icon: string; prefix: string }[] = [
 export default function InventoryPage() {
   const supabase = createClient();
   const { orgId } = useOrg();
+  const currentUser = useCurrentUser();
+  const canEdit = hasPermission(currentUser, "inventory_edit");
+  const canExport = hasPermission(currentUser, "excel_export");
+  const canImport = hasPermission(currentUser, "excel_import");
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [bookingMap, setBookingMap] = useState<Map<string, ItemBookingData>>(new Map());
   const [loading, setLoading] = useState(true);
@@ -441,49 +446,57 @@ export default function InventoryPage() {
             <IconHandshake size={16} />
             <span className="hidden sm:inline">Leihgaben</span>
           </button>
-          <button
-            onClick={() => setShowCategoryManager(true)}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
-            style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
-            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-          >
-            <IconEdit size={16} />
-            <span className="hidden sm:inline">Kategorien</span>
-          </button>
-          <button
-            onClick={() => setShowImport(true)}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
-            style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
-            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-          >
-            <IconUpload size={16} />
-            <span className="hidden sm:inline">Excel-Import</span>
-            <span className="sm:hidden">Import</span>
-          </button>
-          <button
-            onClick={handleExportXLS}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
-            style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
-            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-          >
-            <IconDownload size={16} />
-            <span className="hidden sm:inline">Excel-Export</span>
-            <span className="sm:hidden">Export</span>
-          </button>
-          <button
-            onClick={() => setShowCreate(!showCreate)}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
-            style={{ background: "var(--color-primary)" }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
-            onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
-          >
-            <IconPlus size={16} />
-            <span className="hidden sm:inline">Neuer Artikel</span>
+          {canEdit && (
+            <button
+              onClick={() => setShowCategoryManager(true)}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
+              style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              <IconEdit size={16} />
+              <span className="hidden sm:inline">Kategorien</span>
+            </button>
+          )}
+          {canImport && (
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
+              style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              <IconUpload size={16} />
+              <span className="hidden sm:inline">Excel-Import</span>
+              <span className="sm:hidden">Import</span>
+            </button>
+          )}
+          {canExport && (
+            <button
+              onClick={handleExportXLS}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
+              style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              <IconDownload size={16} />
+              <span className="hidden sm:inline">Excel-Export</span>
+              <span className="sm:hidden">Export</span>
+            </button>
+          )}
+          {canEdit && (
+            <button
+              onClick={() => setShowCreate(!showCreate)}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
+              style={{ background: "var(--color-primary)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
+            >
+              <IconPlus size={16} />
+              <span className="hidden sm:inline">Neuer Artikel</span>
             <span className="sm:hidden">Neu</span>
           </button>
+          )}
         </div>
       </div>
 
@@ -1002,14 +1015,16 @@ export default function InventoryPage() {
                     {item.location || "–"}
                   </td>
                   <td className="px-2 sm:px-4 py-3.5">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded transition-opacity"
-                      style={{ color: "var(--color-destructive)" }}
-                      title="Löschen"
-                    >
-                      <IconTrash size={15} />
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded transition-opacity"
+                        style={{ color: "var(--color-destructive)" }}
+                        title="Löschen"
+                      >
+                        <IconTrash size={15} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

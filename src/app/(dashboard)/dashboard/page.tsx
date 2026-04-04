@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import { useOrg } from "@/contexts/org-context";
 import type { Project, InventoryItem, CostItem, Booking, ProjectTask, Inquiry, EquipmentLoan, OrgPartnership, OrgDecision, EquipmentRequest } from "@/types/database";
 import {
@@ -169,7 +169,8 @@ export default function DashboardPage() {
     (sum, c) => sum + (c.amount_actual !== null ? Number(c.amount_actual) : 0),
     0
   );
-  const hasCostAccess = costs.length > 0 || isAdmin;
+  const hasCostAccess = hasPermission(currentUser, "costs");
+  const hasInquiryAccess = hasPermission(currentUser, "inquiries");
   const activeBookings = bookings.filter((b) => b.status !== "returned");
   const totalInventory = inventory.reduce((sum, i) => sum + i.quantity, 0);
 
@@ -315,16 +316,18 @@ export default function DashboardPage() {
           urgent={overdueCount > 0}
         />
 
-        {/* 7. Offene Anfragen */}
-        <DashboardCard
-          label="Offene Anfragen"
-          value={openInquiryCount}
-          subtext={`${inquiriesWithOffer} mit Angebot`}
-          icon={<IconInbox size={18} />}
-          iconBg="var(--color-primary-light)"
-          iconColor="var(--color-primary)"
-          href="/inquiries"
-        />
+        {/* 7. Offene Anfragen — nur bei Berechtigung */}
+        {hasInquiryAccess && (
+          <DashboardCard
+            label="Offene Anfragen"
+            value={openInquiryCount}
+            subtext={`${inquiriesWithOffer} mit Angebot`}
+            icon={<IconInbox size={18} />}
+            iconBg="var(--color-primary-light)"
+            iconColor="var(--color-primary)"
+            href="/inquiries"
+          />
+        )}
       </div>
 
       {/* Zweite KPI-Reihe: Phase 1-6 Features */}

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import type { Project } from "@/types/database";
 import { IconPlus, IconSearch, IconX, IconChevronRight, IconTrash, IconHandshake, IconUser } from "@/components/ui/icons";
 import { DateInput } from "@/components/ui/date-input";
@@ -46,6 +46,7 @@ export default function ProjectsPage() {
   const router = useRouter();
   const { orgId } = useOrg();
   const currentUser = useCurrentUser();
+  const canEdit = hasPermission(currentUser, "projects_edit");
   const [projects, setProjects] = useState<(Project & { isPartner?: boolean })[]>([]);
   const [myProjectIds, setMyProjectIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -265,16 +266,18 @@ export default function ProjectsPage() {
                 : `${projects.length} Projekte insgesamt`}
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
-          style={{ background: "var(--color-primary)" }}
-          onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
-          onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
-        >
-          <IconPlus size={16} />
-          Neues Projekt
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => setShowCreate(!showCreate)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
+            style={{ background: "var(--color-primary)" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
+          >
+            <IconPlus size={16} />
+            Neues Projekt
+          </button>
+        )}
       </div>
 
       {/* Create Form */}

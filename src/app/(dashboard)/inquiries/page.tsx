@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
+import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { DateInput } from "@/components/ui/date-input";
 import { showToast } from "@/hooks/use-toast";
@@ -57,6 +58,16 @@ export default function InquiriesPage() {
   const supabase = createClient();
   const router = useRouter();
   const { orgId } = useOrg();
+  const currentUser = useCurrentUser();
+  const canCreate = hasPermission(currentUser, "inquiries_create");
+  const canEditInquiry = hasPermission(currentUser, "inquiries_edit");
+
+  // Permission guard: redirect if user lacks inquiries_view
+  useEffect(() => {
+    if (currentUser && !hasPermission(currentUser, "inquiries_view")) {
+      router.push("/dashboard");
+    }
+  }, [currentUser, router]);
 
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -253,16 +264,18 @@ export default function InquiriesPage() {
             {inquiries.length} Anfragen &middot; {statusCounts.open || 0} offen
           </p>
         </div>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
-          style={{ background: "var(--color-primary)" }}
-          onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
-          onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
-        >
-          <IconPlus size={16} />
-          Neue Anfrage
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => setShowCreate(!showCreate)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
+            style={{ background: "var(--color-primary)" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
+          >
+            <IconPlus size={16} />
+            Neue Anfrage
+          </button>
+        )}
       </div>
 
       {/* KPI Mini-Stats */}
@@ -455,21 +468,29 @@ export default function InquiriesPage() {
               >
                 {/* Status Dot + Status-Wechsel */}
                 <div className="relative">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setStatusMenuId(statusMenuId === inquiry.id ? null : inquiry.id);
-                    }}
-                    className="w-3 h-3 rounded-full flex-shrink-0 cursor-pointer transition-all"
-                    style={{
-                      background: statusColors[inquiry.status].dot,
-                      boxShadow: `0 0 0 0px ${statusColors[inquiry.status].dot}`,
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.boxShadow = `0 0 0 3px color-mix(in srgb, ${statusColors[inquiry.status].dot} 30%, transparent)`}
-                    onMouseLeave={(e) => e.currentTarget.style.boxShadow = `0 0 0 0px ${statusColors[inquiry.status].dot}`}
-                    title={`Status: ${statusLabels[inquiry.status]}`}
-                  />
-                  {statusMenuId === inquiry.id && (
+                  {canEditInquiry ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setStatusMenuId(statusMenuId === inquiry.id ? null : inquiry.id);
+                      }}
+                      className="w-3 h-3 rounded-full flex-shrink-0 cursor-pointer transition-all"
+                      style={{
+                        background: statusColors[inquiry.status].dot,
+                        boxShadow: `0 0 0 0px ${statusColors[inquiry.status].dot}`,
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.boxShadow = `0 0 0 3px color-mix(in srgb, ${statusColors[inquiry.status].dot} 30%, transparent)`}
+                      onMouseLeave={(e) => e.currentTarget.style.boxShadow = `0 0 0 0px ${statusColors[inquiry.status].dot}`}
+                      title={`Status: ${statusLabels[inquiry.status]}`}
+                    />
+                  ) : (
+                    <span
+                      className="w-3 h-3 rounded-full flex-shrink-0 inline-block"
+                      style={{ background: statusColors[inquiry.status].dot }}
+                      title={`Status: ${statusLabels[inquiry.status]}`}
+                    />
+                  )}
+                  {canEditInquiry && statusMenuId === inquiry.id && (
                     <>
                       <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setStatusMenuId(null); }} />
                       <div
@@ -564,14 +585,16 @@ export default function InquiriesPage() {
                 )}
 
                 {/* Delete + Chevron */}
-                <button
-                  onClick={(e) => handleDelete(e, inquiry.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded transition-opacity flex-shrink-0"
-                  style={{ color: "var(--color-destructive)" }}
-                  title="Löschen"
-                >
-                  <IconTrash size={14} />
-                </button>
+                {canEditInquiry && (
+                  <button
+                    onClick={(e) => handleDelete(e, inquiry.id)}
+                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded transition-opacity flex-shrink-0"
+                    style={{ color: "var(--color-destructive)" }}
+                    title="Löschen"
+                  >
+                    <IconTrash size={14} />
+                  </button>
+                )}
                 <IconChevronRight
                   size={16}
                   className="opacity-30 group-hover:opacity-60 transition-opacity flex-shrink-0"
