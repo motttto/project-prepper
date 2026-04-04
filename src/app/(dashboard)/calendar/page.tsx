@@ -1260,7 +1260,7 @@ function SubscribeInfoModal({
                   <div className="space-y-2">
                     {[
                       { label: "Server", value: "caldav-proxy.post-cd8.workers.dev" },
-                      { label: "Benutzer", value: "caldav" },
+                      { label: "Benutzer", value: orgName || "caldav" },
                       { label: "Passwort", value: caldavToken || "" },
                     ].map((field) => (
                       <div key={field.label} className="flex items-center gap-3 p-2.5 rounded-lg" style={{ background: "var(--color-muted)" }}>
