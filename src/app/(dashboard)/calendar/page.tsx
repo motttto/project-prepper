@@ -1234,23 +1234,25 @@ function SubscribeInfoModal({
                   <h3 className="text-sm font-semibold mb-2">Kompatibilität</h3>
                   <div className="grid grid-cols-2 gap-1.5">
                     {[
-                      { name: "Apple Calendar", ok: true },
-                      { name: "Thunderbird", ok: true },
-                      { name: "Android (DAVx5)", ok: true },
-                      { name: "Outlook (Plugin)", ok: true },
-                      { name: "Google Calendar", ok: false },
-                      { name: "Outlook Web", ok: false },
+                      { name: "Apple Calendar", ok: true, hint: "" },
+                      { name: "Android (DAVx5)", ok: true, hint: "" },
+                      { name: "Thunderbird", ok: true, hint: "Windows / Mac / Linux" },
+                      { name: "Outlook Desktop", ok: true, hint: "mit Plugin" },
+                      { name: "Google Calendar", ok: false, hint: "nur Feed" },
+                      { name: "Outlook Web", ok: false, hint: "nur Feed" },
                     ].map((app) => (
                       <div key={app.name} className="flex items-center gap-2 px-2.5 py-1.5 rounded text-xs" style={{ background: "var(--color-muted)" }}>
                         <span style={{ color: app.ok ? "var(--color-success)" : "var(--color-muted-foreground)" }}>
                           {app.ok ? "\u2713" : "\u2717"}
                         </span>
-                        <span style={{ color: app.ok ? "var(--color-foreground)" : "var(--color-muted-foreground)" }}>{app.name}</span>
+                        <span style={{ color: app.ok ? "var(--color-foreground)" : "var(--color-muted-foreground)" }}>
+                          {app.name}{app.hint ? <span className="opacity-60"> ({app.hint})</span> : null}
+                        </span>
                       </div>
                     ))}
                   </div>
                   <p className="text-[11px] mt-1.5" style={{ color: "var(--color-muted-foreground)" }}>
-                    Google Calendar und Outlook Web unterstützen kein CalDAV — nutze dort den Nur-Lesen-Feed.
+                    Windows-Tipp: Thunderbird ist die beste kostenlose Option für Zwei-Wege-Sync. Google Calendar und Outlook Web nutzen den Nur-Lesen-Feed.
                   </p>
                 </div>
 
@@ -1306,16 +1308,18 @@ function SubscribeInfoModal({
                         "Benutzername: caldav, Passwort: oben kopieren",
                         "Kalender auswählen und synchronisieren",
                       ]},
-                      { title: "Thunderbird", icon: "🦊", steps: [
+                      { title: "Thunderbird (Windows / Mac / Linux)", icon: "🦊", steps: [
+                        "thunderbird.net → kostenlos herunterladen und installieren",
                         "Kalender → Neuer Kalender → Im Netzwerk",
                         "Format: CalDAV",
                         "URL: https://caldav-proxy.post-cd8.workers.dev/.well-known/caldav",
                         "Zugangsdaten eingeben wenn gefragt",
                       ]},
-                      { title: "Outlook (Desktop)", icon: "📧", steps: [
-                        "\"CalDav Synchronizer\" Plugin installieren (kostenlos)",
-                        "caldavsynchronizer.org → Download → Add-In installieren",
-                        "Neues Profil: CalDAV-URL und Zugangsdaten eintragen",
+                      { title: "Outlook Desktop (mit Plugin)", icon: "📧", steps: [
+                        "caldavsynchronizer.org → \"CalDav Synchronizer\" herunterladen",
+                        "Outlook schließen → Add-In installieren → Outlook starten",
+                        "CalDav Synchronizer → Neues Profil anlegen",
+                        "Server-URL und Zugangsdaten von oben eintragen",
                       ]},
                     ].map((instr) => (
                       <div key={instr.title} className="p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
@@ -1350,21 +1354,25 @@ function SubscribeInfoModal({
                   <h3 className="text-sm font-semibold mb-2">Kompatibilität</h3>
                   <div className="grid grid-cols-2 gap-1.5">
                     {[
-                      { name: "Apple Calendar" },
-                      { name: "Google Calendar" },
-                      { name: "Outlook (Desktop)" },
-                      { name: "Outlook Web / 365" },
-                      { name: "Thunderbird" },
-                      { name: "Android" },
+                      { name: "Apple Calendar", hint: "Mac / iPhone" },
+                      { name: "Google Calendar", hint: "Web / Android" },
+                      { name: "Outlook", hint: "Desktop / Web / 365" },
+                      { name: "Windows Kalender", hint: "Windows 10 / 11" },
+                      { name: "Thunderbird", hint: "Windows / Mac / Linux" },
+                      { name: "Android", hint: "Google / ICSx5" },
                     ].map((app) => (
                       <div key={app.name} className="flex items-center gap-2 px-2.5 py-1.5 rounded text-xs" style={{ background: "var(--color-muted)" }}>
                         <span style={{ color: "var(--color-success)" }}>{"\u2713"}</span>
                         <span>{app.name}</span>
+                        {app.hint && <span className="ml-auto text-[10px]" style={{ color: "var(--color-muted-foreground)" }}>{app.hint}</span>}
                       </div>
                     ))}
                   </div>
                   <p className="text-[11px] mt-1.5" style={{ color: "var(--color-muted-foreground)" }}>
-                    Alle Kalender-Apps unterstützen iCal-Feeds. Wenn deine App CalDAV kann, nutze besser den Zwei-Wege-Sync.
+                    Alle Kalender-Apps unterstützen iCal-Feeds. Für Zwei-Wege-Sync (Termine bearbeiten) nutze den CalDAV-Tab.
+                  </p>
+                  <p className="text-[11px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                    💡 <strong>Windows-Tipp:</strong> Für Zwei-Wege-Sync auf Windows nutze Thunderbird (kostenlos) — siehe CalDAV-Tab.
                   </p>
                 </div>
 
@@ -1440,24 +1448,36 @@ function SubscribeInfoModal({
                         "\"Andere\" → Kalenderabo hinzufügen",
                         "Die Abo-URL einfügen und bestätigen",
                       ]},
-                      { title: "Google Calendar", icon: "📅", steps: [
-                        "Google Calendar am PC öffnen",
+                      { title: "Google Calendar (Web / Android)", icon: "📅", steps: [
+                        "Google Calendar am PC öffnen (calendar.google.com)",
                         "Links bei \"Weitere Kalender\" auf + → Per URL",
                         "Die Abo-URL einfügen und \"Kalender hinzufügen\"",
                         "Hinweis: Google aktualisiert nur alle paar Stunden",
                       ]},
-                      { title: "Outlook (Desktop / Web)", icon: "📧", steps: [
+                      { title: "Outlook Web / 365", icon: "📧", steps: [
+                        "outlook.live.com oder outlook.office.com öffnen",
                         "Kalender → Kalender hinzufügen → Aus dem Internet abonnieren",
                         "Die Abo-URL einfügen und \"Importieren\"",
                       ]},
-                      { title: "Android", icon: "🤖", steps: [
-                        "Am einfachsten: Google Calendar nutzen (siehe oben)",
-                        "Oder: ICSx5 App installieren (F-Droid, kostenlos)",
-                        "URL-Abo hinzufügen und Abo-URL einfügen",
+                      { title: "Outlook Desktop (Windows)", icon: "💼", steps: [
+                        "Kalender-Ansicht öffnen → Startseite → Kalender öffnen → Aus dem Internet",
+                        "Die Abo-URL einfügen und bestätigen",
+                        "Hinweis: Für Zwei-Wege-Sync nutze CalDAV mit Thunderbird",
                       ]},
-                      { title: "Thunderbird", icon: "🦊", steps: [
+                      { title: "Windows Kalender-App", icon: "🪟", steps: [
+                        "Einstellungen → Konten verwalten → Konto hinzufügen → Anderes Konto",
+                        "Die Abo-URL als iCal-Feed eintragen",
+                        "Alternativ: Abo-URL im Browser öffnen → \"Öffnen mit Kalender\" wählen",
+                      ]},
+                      { title: "Thunderbird (Windows / Mac / Linux)", icon: "🦊", steps: [
                         "Kalender → Neuer Kalender → Im Netzwerk",
                         "Format: iCalendar (ICS), die Abo-URL einfügen",
+                        "Tipp: Thunderbird kann auch CalDAV für Zwei-Wege-Sync (siehe CalDAV-Tab)",
+                      ]},
+                      { title: "Android", icon: "🤖", steps: [
+                        "Am einfachsten: Google Calendar nutzen (siehe oben)",
+                        "Oder: ICSx5 App installieren (F-Droid / Play Store, kostenlos)",
+                        "URL-Abo hinzufügen und Abo-URL einfügen",
                       ]},
                     ].map((instr) => (
                       <div key={instr.title} className="p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
