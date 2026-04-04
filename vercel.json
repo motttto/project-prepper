@@ -1,0 +1,23 @@
+{
+  "functions": {
+    "src/app/api/caldav/[token]/[[...path]]/route.ts": {
+      "includeFiles": "src/lib/caldav/**"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/caldav/:path*",
+      "destination": "/api/caldav/:path*"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/api/caldav/(.*)",
+      "headers": [
+        { "key": "DAV", "value": "1, calendar-access" },
+        { "key": "Access-Control-Allow-Methods", "value": "OPTIONS, GET, POST, PUT, DELETE, PROPFIND, REPORT" },
+        { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Depth, Authorization, If-Match, If-None-Match" }
+      ]
+    }
+  ]
+}

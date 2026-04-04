@@ -1,6 +1,9 @@
 /**
  * CalDAV Catch-All Route Handler
  *
+ * Vercel blockt non-standard HTTP Methoden (PROPFIND, REPORT) auf CDN-Level.
+ * Lösung: Cloudflare Worker als Proxy, der PROPFIND/REPORT → POST + X-HTTP-Method Header umschreibt.
+ *
  * URL-Struktur:
  *   /api/caldav/{token}/                          → Principal (PROPFIND)
  *   /api/caldav/{token}/calendars/                → Calendar Home (PROPFIND)
@@ -84,30 +87,109 @@ async function authenticate(
 }
 
 // ============================================================
-// DAV Headers (für alle Responses)
+// Zentraler Dispatcher — verarbeitet die echte CalDAV-Methode
 // ============================================================
 
-function davHeaders(extra?: Record<string, string>): Record<string, string> {
-  return {
-    DAV: "1, calendar-access",
-    "Content-Type": "application/xml; charset=utf-8",
-    ...extra,
-  };
+async function dispatch(
+  method: string,
+  req: NextRequest,
+  token: string,
+  path: string[] | undefined
+): Promise<Response> {
+  const auth = await authenticate(req, token);
+  if (!auth) return unauthorizedResponse();
+
+  const parsed = parsePath(path);
+  const baseHref = `/api/caldav/${token}/`;
+
+  switch (method) {
+    case "OPTIONS":
+      return handleOptions();
+
+    case "PROPFIND": {
+      const body = await req.text();
+      const depth = req.headers.get("depth") || req.headers.get("x-depth") || "0";
+      switch (parsed.type) {
+        case "principal":
+          return handlePropfindPrincipal(auth, baseHref, body, depth);
+        case "calendar-home":
+          return handlePropfindCalendarHome(auth, baseHref, body, depth);
+        case "calendar":
+          return handlePropfindCalendar(auth, parsed.groupId, baseHref, body, depth);
+        case "event":
+          return handleGetEvent(auth, parsed.groupId, parsed.eventFile, baseHref);
+        default:
+          return new Response("Not Found", { status: 404 });
+      }
+    }
+
+    case "REPORT": {
+      const body = await req.text();
+      if (parsed.type === "calendar") {
+        return handleReport(auth, parsed.groupId, baseHref, body);
+      }
+      return new Response("Bad Request", { status: 400 });
+    }
+
+    case "GET": {
+      if (parsed.type === "event") {
+        return handleGetEvent(auth, parsed.groupId, parsed.eventFile, baseHref);
+      }
+      return new Response("CalDAV Server — Project Prepper", {
+        status: 200,
+        headers: { "Content-Type": "text/plain", DAV: "1, calendar-access" },
+      });
+    }
+
+    case "PUT": {
+      if (!auth.readWrite) {
+        return new Response("Forbidden — read-only token", { status: 403 });
+      }
+      if (parsed.type !== "event") {
+        return new Response("Bad Request", { status: 400 });
+      }
+      const body = await req.text();
+      const ifMatch = req.headers.get("if-match");
+      return handlePutEvent(auth, parsed.groupId, parsed.eventFile, body, ifMatch, baseHref);
+    }
+
+    case "DELETE": {
+      if (!auth.readWrite) {
+        return new Response("Forbidden — read-only token", { status: 403 });
+      }
+      if (parsed.type !== "event") {
+        return new Response("Bad Request", { status: 400 });
+      }
+      return handleDeleteEvent(auth, parsed.groupId, parsed.eventFile);
+    }
+
+    default:
+      return new Response(`Method ${method} not supported`, { status: 405 });
+  }
 }
 
 // ============================================================
 // Route Handlers
 // ============================================================
 
+// POST = Tunnel für PROPFIND/REPORT (via Cloudflare Worker Proxy)
+// Der Proxy setzt X-HTTP-Method auf die echte Methode
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ token: string; path?: string[] }> }
+) {
+  const { token, path } = await params;
+  const realMethod = req.headers.get("x-http-method") || "POST";
+  return dispatch(realMethod.toUpperCase(), req, token, path);
+}
+
+// Native Methoden — funktionieren lokal, nicht auf Vercel
 export async function OPTIONS(
   req: NextRequest,
   { params }: { params: Promise<{ token: string; path?: string[] }> }
 ) {
-  const { token } = await params;
-  const auth = await authenticate(req, token);
-  if (!auth) return unauthorizedResponse();
-
-  return handleOptions();
+  const { token, path } = await params;
+  return dispatch("OPTIONS", req, token, path);
 }
 
 export async function GET(
@@ -115,67 +197,7 @@ export async function GET(
   { params }: { params: Promise<{ token: string; path?: string[] }> }
 ) {
   const { token, path } = await params;
-  const auth = await authenticate(req, token);
-  if (!auth) return unauthorizedResponse();
-
-  const parsed = parsePath(path);
-  const baseHref = `/api/caldav/${token}/`;
-
-  if (parsed.type === "event") {
-    return handleGetEvent(auth, parsed.groupId, parsed.eventFile, baseHref);
-  }
-
-  // GET auf andere Pfade → leere 200 (manche Clients machen das)
-  return new Response("CalDAV Server — Project Prepper", {
-    status: 200,
-    headers: davHeaders({ "Content-Type": "text/plain" }),
-  });
-}
-
-export async function PROPFIND(
-  req: NextRequest,
-  { params }: { params: Promise<{ token: string; path?: string[] }> }
-) {
-  const { token, path } = await params;
-  const auth = await authenticate(req, token);
-  if (!auth) return unauthorizedResponse();
-
-  const parsed = parsePath(path);
-  const baseHref = `/api/caldav/${token}/`;
-  const body = await req.text();
-  const depth = req.headers.get("depth") || "0";
-
-  switch (parsed.type) {
-    case "principal":
-      return handlePropfindPrincipal(auth, baseHref, body, depth);
-    case "calendar-home":
-      return handlePropfindCalendarHome(auth, baseHref, body, depth);
-    case "calendar":
-      return handlePropfindCalendar(auth, parsed.groupId, baseHref, body, depth);
-    case "event":
-      return handleGetEvent(auth, parsed.groupId, parsed.eventFile, baseHref);
-    default:
-      return new Response("Not Found", { status: 404 });
-  }
-}
-
-export async function REPORT(
-  req: NextRequest,
-  { params }: { params: Promise<{ token: string; path?: string[] }> }
-) {
-  const { token, path } = await params;
-  const auth = await authenticate(req, token);
-  if (!auth) return unauthorizedResponse();
-
-  const parsed = parsePath(path);
-  const baseHref = `/api/caldav/${token}/`;
-  const body = await req.text();
-
-  if (parsed.type === "calendar") {
-    return handleReport(auth, parsed.groupId, baseHref, body);
-  }
-
-  return new Response("Bad Request", { status: 400 });
+  return dispatch("GET", req, token, path);
 }
 
 export async function PUT(
@@ -183,22 +205,7 @@ export async function PUT(
   { params }: { params: Promise<{ token: string; path?: string[] }> }
 ) {
   const { token, path } = await params;
-  const auth = await authenticate(req, token);
-  if (!auth) return unauthorizedResponse();
-
-  if (!auth.readWrite) {
-    return new Response("Forbidden — read-only token", { status: 403 });
-  }
-
-  const parsed = parsePath(path);
-  if (parsed.type !== "event") {
-    return new Response("Bad Request", { status: 400 });
-  }
-
-  const body = await req.text();
-  const ifMatch = req.headers.get("if-match");
-
-  return handlePutEvent(auth, parsed.groupId, parsed.eventFile, body, ifMatch, `/api/caldav/${token}/`);
+  return dispatch("PUT", req, token, path);
 }
 
 export async function DELETE(
@@ -206,17 +213,5 @@ export async function DELETE(
   { params }: { params: Promise<{ token: string; path?: string[] }> }
 ) {
   const { token, path } = await params;
-  const auth = await authenticate(req, token);
-  if (!auth) return unauthorizedResponse();
-
-  if (!auth.readWrite) {
-    return new Response("Forbidden — read-only token", { status: 403 });
-  }
-
-  const parsed = parsePath(path);
-  if (parsed.type !== "event") {
-    return new Response("Bad Request", { status: 400 });
-  }
-
-  return handleDeleteEvent(auth, parsed.groupId, parsed.eventFile);
+  return dispatch("DELETE", req, token, path);
 }
