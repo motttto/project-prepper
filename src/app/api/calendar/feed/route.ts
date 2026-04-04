@@ -2,25 +2,41 @@ import { type NextRequest } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 
 /**
- * iCal Feed — exportiert Kalender-Events als .ics für Abo in Apple Calendar, Google etc.
- * GET /api/calendar/feed?org_id=xxx[&group_id=yyy]
+ * iCal Feed — exportiert Kalender-Events als .ics
+ * GET /api/calendar/feed?token=xxx[&group_id=yyy]
  *
- * URL kann direkt als "Kalender abonnieren" in Apple Calendar / Google Calendar / Outlook verwendet werden.
+ * Authentifizierung über Feed-Token (kein Session-Cookie nötig).
+ * Damit können Apple Calendar, Google Calendar, Outlook etc. den Feed abonnieren.
  */
 export async function GET(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
   const { searchParams } = new URL(request.url);
-  const orgId = searchParams.get("org_id");
+  const token = searchParams.get("token");
   const groupId = searchParams.get("group_id");
 
-  if (!orgId) {
-    return new Response("org_id required", { status: 400 });
+  if (!token) {
+    return new Response("token parameter required", { status: 400 });
   }
+
+  // Token validieren + org_id laden (service-level query, bypasses RLS via server client)
+  const { data: feedToken, error: tokenError } = await supabase
+    .from("calendar_feed_tokens")
+    .select("id, org_id, profile_id")
+    .eq("token", token)
+    .maybeSingle();
+
+  if (tokenError || !feedToken) {
+    return new Response("Invalid or expired token", { status: 401 });
+  }
+
+  const orgId = feedToken.org_id;
+
+  // Update last_used_at (fire and forget)
+  supabase
+    .from("calendar_feed_tokens")
+    .update({ last_used_at: new Date().toISOString() })
+    .eq("id", feedToken.id)
+    .then();
 
   // Fetch events
   let query = supabase
@@ -38,14 +54,13 @@ export async function GET(request: NextRequest) {
     return new Response("Database error", { status: 500 });
   }
 
-  // Fetch org name for calendar title
+  // Org-Name für Kalender-Titel
   const { data: org } = await supabase
     .from("organizations")
     .select("name")
     .eq("id", orgId)
     .single();
 
-  // Fetch group name if filtered
   let calName = org?.name ? `${org.name} — Team-Kalender` : "Team-Kalender";
   if (groupId) {
     const { data: group } = await supabase
@@ -56,7 +71,7 @@ export async function GET(request: NextRequest) {
     if (group) calName = `${org?.name || "Team"} — ${group.name}`;
   }
 
-  // Generate iCal
+  // iCal generieren
   const icsLines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
@@ -64,6 +79,7 @@ export async function GET(request: NextRequest) {
     `X-WR-CALNAME:${escapeIcal(calName)}`,
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
+    "X-WR-TIMEZONE:Europe/Berlin",
   ];
 
   for (const evt of events || []) {
@@ -78,7 +94,6 @@ export async function GET(request: NextRequest) {
     if (evt.all_day) {
       icsLines.push(`DTSTART;VALUE=DATE:${formatIcalDateOnly(evt.start_at)}`);
       if (evt.end_at) {
-        // iCal: all-day DTEND is exclusive (next day)
         const endDate = new Date(evt.end_at);
         endDate.setDate(endDate.getDate() + 1);
         icsLines.push(`DTEND;VALUE=DATE:${formatIcalDateOnly(endDate.toISOString())}`);
@@ -99,13 +114,11 @@ export async function GET(request: NextRequest) {
 
   icsLines.push("END:VCALENDAR");
 
-  const icsContent = icsLines.join("\r\n");
-
-  return new Response(icsContent, {
+  return new Response(icsLines.join("\r\n"), {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${calName}.ics"`,
-      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Content-Disposition": `inline; filename="calendar.ics"`,
+      "Cache-Control": "public, max-age=300", // 5 Min Cache
     },
   });
 }

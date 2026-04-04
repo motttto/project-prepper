@@ -274,20 +274,13 @@ export default function CalendarPage() {
 
   return (
     <div>
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <IconCalendar size={24} />
-            Team-Kalender
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-            Gemeinsamer Kalender des Teams
-          </p>
-        </div>
-
+      {/* Header — Titel + Aktionen */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+        <h1 className="text-2xl font-bold flex items-center gap-2">
+          <IconCalendar size={24} />
+          Team-Kalender
+        </h1>
         <div className="flex items-center gap-2">
-          {/* Neuer Termin */}
           <button
             onClick={() => { setCreateForDate(new Date()); setShowCreateModal(true); }}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors"
@@ -296,8 +289,13 @@ export default function CalendarPage() {
             <IconPlus size={14} />
             Neuer Termin
           </button>
-
-          {/* Einbinden */}
+          <button
+            onClick={() => setShowGroupManager(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
+          >
+            Gruppen
+          </button>
           <button
             onClick={() => setShowSubscribeInfo(true)}
             className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
@@ -306,21 +304,29 @@ export default function CalendarPage() {
           >
             Einbinden
           </button>
+        </div>
+      </div>
 
-          {/* Gruppen verwalten */}
-          <button
-            onClick={() => setShowGroupManager(true)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-            style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
-          >
-            Gruppen
-          </button>
+      {/* Toolbar — Navigation + View Toggle + Gruppen-Filter */}
+      <div className="flex flex-col gap-2 mb-3">
+        {/* Zeile 1: Nav + View */}
+        <div className="flex items-center justify-between gap-2 p-2 rounded-xl" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+          <div className="flex items-center gap-1.5">
+            <button onClick={goPrev} className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity" style={{ background: "var(--color-muted)" }}>&lsaquo;</button>
+            <button onClick={goNext} className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity" style={{ background: "var(--color-muted)" }}>&rsaquo;</button>
+            <button onClick={goToday} className="px-2.5 py-1 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity" style={{ background: "var(--color-muted)" }}>Heute</button>
+          </div>
 
-          {/* View Toggle */}
+          <span className="text-sm font-semibold">
+            {viewMode === "month"
+              ? `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`
+              : (() => { const d = getWeekDays(); return `${d[0].getDate()}. ${MONTH_NAMES[d[0].getMonth()].slice(0, 3)} – ${d[6].getDate()}. ${MONTH_NAMES[d[6].getMonth()].slice(0, 3)} ${d[6].getFullYear()}`; })()}
+          </span>
+
           <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
             <button
               onClick={() => setViewMode("month")}
-              className="px-3 py-1.5 text-xs font-medium transition-colors"
+              className="px-3 py-1 text-xs font-medium transition-colors"
               style={{
                 background: viewMode === "month" ? "var(--color-primary)" : "transparent",
                 color: viewMode === "month" ? "white" : "var(--color-muted-foreground)",
@@ -328,54 +334,44 @@ export default function CalendarPage() {
             >Monat</button>
             <button
               onClick={() => setViewMode("week")}
-              className="px-3 py-1.5 text-xs font-medium transition-colors"
+              className="px-3 py-1 text-xs font-medium transition-colors"
               style={{
                 background: viewMode === "week" ? "var(--color-primary)" : "transparent",
                 color: viewMode === "week" ? "white" : "var(--color-muted-foreground)",
               }}
             >Woche</button>
           </div>
-
-          {/* Nav */}
-          <button onClick={goToday} className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ border: "1px solid var(--color-border)" }}>Heute</button>
-          <button onClick={goPrev} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ border: "1px solid var(--color-border)" }}>&lsaquo;</button>
-          <span className="text-sm font-semibold min-w-[160px] text-center">
-            {viewMode === "month"
-              ? `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`
-              : (() => { const d = getWeekDays(); return `${d[0].getDate()}. ${MONTH_NAMES[d[0].getMonth()].slice(0, 3)} – ${d[6].getDate()}. ${MONTH_NAMES[d[6].getMonth()].slice(0, 3)} ${d[6].getFullYear()}`; })()}
-          </span>
-          <button onClick={goNext} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ border: "1px solid var(--color-border)" }}>&rsaquo;</button>
         </div>
+
+        {/* Zeile 2: Gruppen-Filter */}
+        {groups.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {groups.map((group, idx) => {
+              const color = getGroupColor(group, idx);
+              const isHidden = hiddenGroups.has(group.id);
+              return (
+                <button
+                  key={group.id}
+                  onClick={() => toggleGroup(group.id)}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
+                  style={{
+                    background: isHidden ? "var(--color-muted)" : `${color}18`,
+                    color: isHidden ? "var(--color-muted-foreground)" : color,
+                    border: `1.5px solid ${isHidden ? "transparent" : color}`,
+                    opacity: isHidden ? 0.5 : 1,
+                  }}
+                >
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ background: isHidden ? "var(--color-muted-foreground)" : color }}
+                  />
+                  {group.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
-
-      {/* Kalender-Gruppen-Legende / Filter */}
-      {groups.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          {groups.map((group, idx) => {
-            const color = getGroupColor(group, idx);
-            const isHidden = hiddenGroups.has(group.id);
-            return (
-              <button
-                key={group.id}
-                onClick={() => toggleGroup(group.id)}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
-                style={{
-                  background: isHidden ? "var(--color-muted)" : `${color}18`,
-                  color: isHidden ? "var(--color-muted-foreground)" : color,
-                  border: `1.5px solid ${isHidden ? "transparent" : color}`,
-                  opacity: isHidden ? 0.5 : 1,
-                }}
-              >
-                <span
-                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                  style={{ background: isHidden ? "var(--color-muted-foreground)" : color }}
-                />
-                {group.name}
-              </button>
-            );
-          })}
-        </div>
-      )}
 
       {loading && <div className="text-center py-4 text-sm" style={{ color: "var(--color-muted-foreground)" }}>Kalender wird geladen...</div>}
 
@@ -1097,11 +1093,43 @@ function SubscribeInfoModal({
   isAdmin: boolean;
   onClose: () => void;
 }) {
+  const supabase = createClient();
+  const [feedToken, setFeedToken] = useState<string | null>(null);
+  const [loadingToken, setLoadingToken] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
-  const feedUrl = `${baseUrl}/api/calendar/feed?org_id=${orgId}`;
+
+  // Token laden oder erstellen
+  useEffect(() => {
+    async function loadOrCreateToken() {
+      setLoadingToken(true);
+      // Bestehenden Token suchen
+      const { data: existing } = await supabase
+        .from("calendar_feed_tokens")
+        .select("token")
+        .eq("org_id", orgId)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing?.token) {
+        setFeedToken(existing.token);
+      } else {
+        // Neuen erstellen
+        const { data: newToken } = await supabase
+          .from("calendar_feed_tokens")
+          .insert({ org_id: orgId })
+          .select("token")
+          .single();
+        if (newToken) setFeedToken(newToken.token);
+      }
+      setLoadingToken(false);
+    }
+    loadOrCreateToken();
+  }, [supabase, orgId]);
+
+  const feedUrl = feedToken ? `${baseUrl}/api/calendar/feed?token=${feedToken}` : "";
   const webcalUrl = feedUrl.replace(/^https?:/, "webcal:");
 
   async function handleImport() {
@@ -1129,34 +1157,21 @@ function SubscribeInfoModal({
     showToast("URL kopiert", "success");
   }
 
-  const instructions = [
-    {
-      title: "Apple Calendar (iPhone / Mac)",
-      icon: "🍎",
-      steps: [
-        "Einstellungen → Kalender → Accounts → Account hinzufügen",
-        "\"Andere\" → Kalenderabo hinzufügen",
-        "Die Abo-URL einfügen und bestätigen",
-      ],
-    },
-    {
-      title: "Google Calendar",
-      icon: "📅",
-      steps: [
-        "Google Calendar öffnen (am PC)",
-        "Links bei \"Weitere Kalender\" auf + → Per URL",
-        "Die Abo-URL einfügen und \"Kalender hinzufügen\"",
-      ],
-    },
-    {
-      title: "Outlook",
-      icon: "📧",
-      steps: [
-        "Kalender → Kalender hinzufügen → Aus dem Internet abonnieren",
-        "Die Abo-URL einfügen und \"Importieren\"",
-      ],
-    },
-  ];
+  async function regenerateToken() {
+    if (!(await appConfirm("Neuen Token generieren? Der alte wird ungültig und bestehende Abos müssen neu eingerichtet werden.", { variant: "danger", confirmLabel: "Neu generieren" }))) return;
+    // Alten löschen
+    await supabase.from("calendar_feed_tokens").delete().eq("org_id", orgId);
+    // Neuen erstellen
+    const { data } = await supabase
+      .from("calendar_feed_tokens")
+      .insert({ org_id: orgId })
+      .select("token")
+      .single();
+    if (data) {
+      setFeedToken(data.token);
+      showToast("Neuer Token erstellt", "success");
+    }
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }} onClick={onClose}>
@@ -1167,97 +1182,136 @@ function SubscribeInfoModal({
         </div>
 
         <div className="px-6 py-5 space-y-5">
-          {/* Abo-URL */}
-          <div>
-            <h3 className="text-sm font-semibold mb-2">Abo-URL (alle Termine)</h3>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                readOnly
-                value={feedUrl}
-                className="flex-1 px-3 py-2 rounded-lg text-xs font-mono"
-                style={{ border: "1px solid var(--color-border)", background: "var(--color-muted)" }}
-                onClick={(e) => (e.target as HTMLInputElement).select()}
-              />
-              <button
-                onClick={() => copyToClipboard(feedUrl)}
-                className="px-3 py-2 rounded-lg text-xs font-medium text-white flex-shrink-0"
-                style={{ background: "var(--color-primary)" }}
-              >
-                Kopieren
-              </button>
-            </div>
-            <p className="text-[11px] mt-1.5" style={{ color: "var(--color-muted-foreground)" }}>
-              Diese URL in deiner Kalender-App als Abo einfügen. Updates werden automatisch synchronisiert.
-            </p>
-          </div>
-
-          {/* Webcal-Link */}
-          <div>
-            <a
-              href={webcalUrl}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-              style={{ background: "var(--color-primary)" }}
-            >
-              <IconCalendar size={16} />
-              Direkt in Kalender-App öffnen
-            </a>
-            <p className="text-[11px] mt-1.5" style={{ color: "var(--color-muted-foreground)" }}>
-              Öffnet das Kalender-Abo direkt in deiner Standard-Kalender-App (funktioniert auf Mac/iPhone).
-            </p>
-          </div>
-
-          {/* Pro Gruppe */}
-          {groups.length > 1 && (
-            <div>
-              <h3 className="text-sm font-semibold mb-2">Einzelne Gruppen abonnieren</h3>
-              <div className="space-y-1.5">
-                {groups.map((group) => {
-                  const groupFeedUrl = `${feedUrl}&group_id=${group.id}`;
-                  return (
-                    <div key={group.id} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: "var(--color-muted)" }}>
-                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: group.color }} />
-                      <span className="flex-1 text-sm font-medium truncate">{group.name}</span>
-                      <button
-                        onClick={() => copyToClipboard(groupFeedUrl)}
-                        className="px-2 py-1 rounded text-[10px] font-medium flex-shrink-0"
-                        style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
-                      >
-                        URL kopieren
-                      </button>
-                    </div>
-                  );
-                })}
+          {loadingToken ? (
+            <div className="text-center py-4 text-sm" style={{ color: "var(--color-muted-foreground)" }}>Token wird geladen...</div>
+          ) : feedToken ? (
+            <>
+              {/* Info-Banner */}
+              <div className="p-3 rounded-lg text-xs" style={{ background: "var(--color-primary-light)", border: "1px solid var(--color-primary)", color: "var(--color-primary)" }}>
+                Termine aus Project Prepper werden automatisch in deine Kalender-App synchronisiert. Neue Termine bitte in der Web-App anlegen — sie erscheinen dann auf allen Geräten.
               </div>
-            </div>
-          )}
 
-          {/* Anleitungen */}
-          <div>
-            <h3 className="text-sm font-semibold mb-3">Anleitung pro Gerät</h3>
-            <div className="space-y-3">
-              {instructions.map((instr) => (
-                <div key={instr.title} className="p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
-                  <p className="text-sm font-semibold mb-1.5">{instr.icon} {instr.title}</p>
-                  <ol className="space-y-1">
-                    {instr.steps.map((step, i) => (
-                      <li key={i} className="text-xs flex gap-2" style={{ color: "var(--color-muted-foreground)" }}>
-                        <span className="font-bold flex-shrink-0" style={{ color: "var(--color-primary)" }}>{i + 1}.</span>
-                        {step}
-                      </li>
-                    ))}
-                  </ol>
+              {/* Direkt-Abo Button */}
+              <div>
+                <a
+                  href={webcalUrl}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
+                  style={{ background: "var(--color-primary)" }}
+                >
+                  <IconCalendar size={16} />
+                  In Kalender-App abonnieren
+                </a>
+                <p className="text-[11px] mt-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+                  Klick öffnet direkt deine Standard-Kalender-App (Mac / iPhone).
+                </p>
+              </div>
+
+              {/* Abo-URL */}
+              <div>
+                <h3 className="text-sm font-semibold mb-2">Abo-URL manuell einrichten</h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={feedUrl}
+                    className="flex-1 px-3 py-2 rounded-lg text-[10px] font-mono"
+                    style={{ border: "1px solid var(--color-border)", background: "var(--color-muted)" }}
+                    onClick={(e) => (e.target as HTMLInputElement).select()}
+                  />
+                  <button
+                    onClick={() => copyToClipboard(feedUrl)}
+                    className="px-3 py-2 rounded-lg text-xs font-medium text-white flex-shrink-0"
+                    style={{ background: "var(--color-primary)" }}
+                  >
+                    Kopieren
+                  </button>
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+
+              {/* Pro Gruppe */}
+              {groups.length > 1 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Einzelne Gruppen abonnieren</h3>
+                  <div className="space-y-1.5">
+                    {groups.map((group) => {
+                      const groupUrl = `${feedUrl}&group_id=${group.id}`;
+                      return (
+                        <div key={group.id} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                          <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: group.color }} />
+                          <span className="flex-1 text-sm font-medium truncate">{group.name}</span>
+                          <button
+                            onClick={() => copyToClipboard(groupUrl)}
+                            className="px-2 py-1 rounded text-[10px] font-medium flex-shrink-0"
+                            style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
+                          >
+                            URL kopieren
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Anleitungen */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3">Anleitung</h3>
+                <div className="space-y-3">
+                  {[
+                    { title: "Apple Calendar (iPhone / Mac)", icon: "🍎", steps: [
+                      "Einstellungen → Kalender → Accounts → Account hinzufügen",
+                      "\"Andere\" → Kalenderabo hinzufügen",
+                      "Die Abo-URL einfügen und bestätigen",
+                    ]},
+                    { title: "Google Calendar", icon: "📅", steps: [
+                      "Google Calendar öffnen (am PC)",
+                      "Links bei \"Weitere Kalender\" auf + → Per URL",
+                      "Die Abo-URL einfügen und \"Kalender hinzufügen\"",
+                    ]},
+                    { title: "Outlook", icon: "📧", steps: [
+                      "Kalender → Kalender hinzufügen → Aus dem Internet abonnieren",
+                      "Die Abo-URL einfügen und \"Importieren\"",
+                    ]},
+                  ].map((instr) => (
+                    <div key={instr.title} className="p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                      <p className="text-sm font-semibold mb-1.5">{instr.icon} {instr.title}</p>
+                      <ol className="space-y-1">
+                        {instr.steps.map((step, i) => (
+                          <li key={i} className="text-xs flex gap-2" style={{ color: "var(--color-muted-foreground)" }}>
+                            <span className="font-bold flex-shrink-0" style={{ color: "var(--color-primary)" }}>{i + 1}.</span>
+                            {step}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Token neu generieren */}
+              <div className="pt-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+                <button
+                  onClick={regenerateToken}
+                  className="text-xs font-medium transition-colors hover:opacity-80"
+                  style={{ color: "var(--color-destructive)" }}
+                >
+                  Feed-Token neu generieren
+                </button>
+                <p className="text-[11px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                  Macht den aktuellen Link ungültig. Nötig falls der Link kompromittiert wurde.
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-4 text-sm" style={{ color: "var(--color-destructive)" }}>Token konnte nicht erstellt werden.</div>
+          )}
 
           {/* Nextcloud Import (nur Admin) */}
           {isAdmin && (
             <div className="pt-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
               <h3 className="text-sm font-semibold mb-2">Nextcloud Import</h3>
               <p className="text-xs mb-3" style={{ color: "var(--color-muted-foreground)" }}>
-                Alle Termine und Gruppen aus dem verbundenen Nextcloud-Kalender importieren. Bestehende Gruppen werden nicht doppelt angelegt.
+                Alle Termine und Gruppen aus dem verbundenen Nextcloud-Kalender importieren.
               </p>
               <button
                 onClick={handleImport}
