@@ -6,6 +6,7 @@ import { ImpersonateProvider } from "@/contexts/impersonate-context";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { ImpersonateBanner } from "@/components/layout/impersonate-banner";
+import { ToastProvider } from "@/components/ui/toast-provider";
 
 export default function DashboardLayout({
   children,
@@ -38,6 +39,7 @@ export default function DashboardLayout({
               {children}
             </div>
           </main>
+          <ToastProvider />
         </div>
       </ImpersonateProvider>
     </OrgProvider>

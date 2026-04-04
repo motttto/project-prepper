@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
-import type { TeamMember, ProjectContact } from "@/types/database";
+import type { TeamMember, ProjectContact, ProjectGuest, ProjectMember } from "@/types/database";
 import { IconPlus, IconTrash } from "@/components/ui/icons";
+import { showToast } from "@/hooks/use-toast";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 
 interface TabTeamProps {
@@ -24,9 +25,22 @@ const defaultDepartments = [
 
 export function TabTeam({ projectId }: TabTeamProps) {
   const supabase = createClient();
+  const [projectMembers, setProjectMembers] = useState<(ProjectMember & { profiles?: { name: string; email: string } })[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [contacts, setContacts] = useState<ProjectContact[]>([]);
+  const [guests, setGuests] = useState<ProjectGuest[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Guest form
+  const [showGuestForm, setShowGuestForm] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [guestCompany, setGuestCompany] = useState("");
+  const [guestRole, setGuestRole] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestPlusOnes, setGuestPlusOnes] = useState(0);
+  const [guestNotes, setGuestNotes] = useState("");
+  const [savingGuest, setSavingGuest] = useState(false);
 
   // Team form
   const [showTeamForm, setShowTeamForm] = useState(false);
@@ -48,11 +62,15 @@ export function TabTeam({ projectId }: TabTeamProps) {
   const [savingContact, setSavingContact] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [teamRes, contactsRes] = await Promise.all([
+    const [membersRes, teamRes, guestsRes, contactsRes] = await Promise.all([
+      supabase.from("project_members").select("*, profiles(name, email)").eq("project_id", projectId),
       supabase.from("project_team").select("*").eq("project_id", projectId).order("department").order("created_at"),
+      supabase.from("project_guests").select("*").eq("project_id", projectId).order("created_at"),
       supabase.from("project_contacts").select("*").eq("project_id", projectId).order("created_at"),
     ]);
+    if (membersRes.data) setProjectMembers(membersRes.data as any);
     if (teamRes.data) setMembers(teamRes.data as TeamMember[]);
+    if (guestsRes.data) setGuests(guestsRes.data as ProjectGuest[]);
     if (contactsRes.data) setContacts(contactsRes.data as ProjectContact[]);
     setLoading(false);
   }, [supabase, projectId]);
@@ -69,6 +87,16 @@ export function TabTeam({ projectId }: TabTeamProps) {
   });
   useRealtimeTable({
     table: "project_contacts",
+    filter: { column: "project_id", value: projectId },
+    onDataChange: loadData,
+  });
+  useRealtimeTable({
+    table: "project_guests",
+    filter: { column: "project_id", value: projectId },
+    onDataChange: loadData,
+  });
+  useRealtimeTable({
+    table: "project_members",
     filter: { column: "project_id", value: projectId },
     onDataChange: loadData,
   });
@@ -105,6 +133,78 @@ export function TabTeam({ projectId }: TabTeamProps) {
   function getDeptColor(dept: string) {
     return deptColors[dept] || { bg: "var(--color-muted)", text: "var(--color-muted-foreground)" };
   }
+
+  // Guest handlers
+  async function handleAddGuest(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingGuest(true);
+    const { error } = await supabase.from("project_guests").insert({
+      project_id: projectId,
+      name: guestName,
+      company: guestCompany || null,
+      role: guestRole || null,
+      email: guestEmail || null,
+      phone: guestPhone || null,
+      plus_ones: guestPlusOnes,
+      notes: guestNotes || null,
+    });
+    if (error) {
+      showToast("Fehler: " + error.message, "error");
+    } else {
+      setGuestName(""); setGuestCompany(""); setGuestRole(""); setGuestEmail(""); setGuestPhone(""); setGuestPlusOnes(0); setGuestNotes("");
+      setShowGuestForm(false);
+      loadData();
+      showToast("Gast hinzugefügt", "success");
+    }
+    setSavingGuest(false);
+  }
+
+  async function handleDeleteGuest(id: string) {
+    if (!confirm("Gast wirklich entfernen?")) return;
+    const { error } = await supabase.from("project_guests").delete().eq("id", id);
+    if (error) {
+      showToast("Fehler: " + error.message, "error");
+    } else {
+      loadData();
+      showToast("Gast entfernt", "success");
+    }
+  }
+
+  async function handleGuestStatusChange(id: string, status: ProjectGuest["status"]) {
+    await supabase.from("project_guests").update({ status }).eq("id", id);
+    loadData();
+  }
+
+  const guestStatusLabels: Record<ProjectGuest["status"], string> = {
+    invited: "Eingeladen",
+    confirmed: "Zugesagt",
+    declined: "Abgesagt",
+    attended: "Anwesend",
+  };
+  const guestStatusColors: Record<ProjectGuest["status"], { bg: string; text: string }> = {
+    invited: { bg: "var(--color-info-light)", text: "var(--color-info)" },
+    confirmed: { bg: "var(--color-success-light)", text: "var(--color-success)" },
+    declined: { bg: "var(--color-destructive-light)", text: "var(--color-destructive)" },
+    attended: { bg: "#dbeafe", text: "#1d4ed8" },
+  };
+
+  const guestStats = useMemo(() => {
+    const total = guests.reduce((sum, g) => sum + 1 + g.plus_ones, 0);
+    const confirmed = guests.filter(g => g.status === "confirmed" || g.status === "attended")
+      .reduce((sum, g) => sum + 1 + g.plus_ones, 0);
+    return { total, confirmed };
+  }, [guests]);
+
+  const memberRoleLabels: Record<string, string> = {
+    owner: "Inhaber",
+    editor: "Bearbeiter",
+    viewer: "Betrachter",
+  };
+  const memberRoleColors: Record<string, { bg: string; text: string }> = {
+    owner: { bg: "#fef3c7", text: "#b45309" },
+    editor: { bg: "#dbeafe", text: "#1d4ed8" },
+    viewer: { bg: "var(--color-muted)", text: "var(--color-muted-foreground)" },
+  };
 
   async function handleAddTeamMember(e: React.FormEvent) {
     e.preventDefault();
@@ -165,6 +265,202 @@ export function TabTeam({ projectId }: TabTeamProps) {
 
   return (
     <div className="space-y-8">
+      {/* ===== PROJECT MEMBERS SECTION ===== */}
+      <div>
+        <div className="flex items-center gap-3 mb-4">
+          <h2 className="text-lg font-semibold">Projekt-Mitglieder</h2>
+          <span className="text-xs px-2 py-0.5 rounded-full"
+            style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
+            {projectMembers.length} Personen
+          </span>
+        </div>
+        {projectMembers.length === 0 ? (
+          <div className="text-center py-6 rounded-lg"
+            style={{ border: "2px dashed var(--color-border)", color: "var(--color-muted-foreground)" }}>
+            Noch keine Mitglieder
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {projectMembers.map((pm) => {
+              const rc = memberRoleColors[pm.role] || memberRoleColors.viewer;
+              return (
+                <div key={pm.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
+                  style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                    style={{ background: rc.bg, color: rc.text }}>
+                    {(pm.profiles?.name || "?").charAt(0).toUpperCase()}
+                  </div>
+                  <div>
+                    <div className="text-sm font-medium">{pm.profiles?.name || "Unbekannt"}</div>
+                    <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                      {pm.profiles?.email}
+                    </div>
+                  </div>
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium ml-1"
+                    style={{ background: rc.bg, color: rc.text }}>
+                    {memberRoleLabels[pm.role] || pm.role}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ===== GUESTS SECTION ===== */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold">Gästeliste</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full"
+              style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
+              {guestStats.confirmed}/{guestStats.total} Personen
+            </span>
+          </div>
+          <button
+            onClick={() => setShowGuestForm(!showGuestForm)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white rounded-lg transition-colors"
+            style={{ background: "var(--color-primary)" }}
+          >
+            <IconPlus size={16} />
+            Gast hinzufügen
+          </button>
+        </div>
+
+        {showGuestForm && (
+          <div className="mb-4 p-5 rounded-lg" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
+            <h3 className="font-medium mb-3">Neuer Gast</h3>
+            <form onSubmit={handleAddGuest} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Name *</label>
+                  <input type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
+                    placeholder="z.B. Lisa Müller" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Firma</label>
+                  <input type="text" value={guestCompany} onChange={(e) => setGuestCompany(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
+                    placeholder="z.B. Agentur XY" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Rolle</label>
+                  <input type="text" value={guestRole} onChange={(e) => setGuestRole(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
+                    placeholder="z.B. VIP, Presse, Sponsor" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">E-Mail</label>
+                  <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Telefon</label>
+                  <input type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">+Begleitung</label>
+                  <input type="number" min={0} value={guestPlusOnes} onChange={(e) => setGuestPlusOnes(parseInt(e.target.value) || 0)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Notizen</label>
+                  <input type="text" value={guestNotes} onChange={(e) => setGuestNotes(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
+                    placeholder="z.B. Allergien, Parkplatz" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" disabled={savingGuest}
+                  className="px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50"
+                  style={{ background: "var(--color-primary)" }}>
+                  {savingGuest ? "Wird gespeichert..." : "Hinzufügen"}
+                </button>
+                <button type="button" onClick={() => setShowGuestForm(false)}
+                  className="px-4 py-2 text-sm rounded-lg"
+                  style={{ border: "1px solid var(--color-border)" }}>
+                  Abbrechen
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {guests.length === 0 ? (
+          <div className="text-center py-6 rounded-lg"
+            style={{ border: "2px dashed var(--color-border)", color: "var(--color-muted-foreground)" }}>
+            Noch keine Gäste eingetragen
+          </div>
+        ) : (
+          <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[550px]">
+              <thead>
+                <tr style={{ background: "var(--color-muted)" }}>
+                  <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--color-muted-foreground)" }}>Name</th>
+                  <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--color-muted-foreground)" }}>Firma / Rolle</th>
+                  <th className="text-center px-3 py-3 font-medium" style={{ color: "var(--color-muted-foreground)" }}>+1</th>
+                  <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--color-muted-foreground)" }}>Status</th>
+                  <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--color-muted-foreground)" }}>Kontakt</th>
+                  <th className="px-4 py-3 w-10" />
+                </tr>
+              </thead>
+              <tbody>
+                {guests.map((g) => {
+                  const sc = guestStatusColors[g.status];
+                  return (
+                    <tr key={g.id} style={{ borderTop: "1px solid var(--color-border)" }} className="group">
+                      <td className="px-4 py-3">
+                        <div className="font-medium">{g.name}</div>
+                        {g.notes && <div className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>{g.notes}</div>}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div>{g.company || "–"}</div>
+                        {g.role && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>{g.role}</span>}
+                      </td>
+                      <td className="px-3 py-3 text-center">
+                        {g.plus_ones > 0 ? (
+                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}>+{g.plus_ones}</span>
+                        ) : "–"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <select
+                          value={g.status}
+                          onChange={(e) => handleGuestStatusChange(g.id, e.target.value as ProjectGuest["status"])}
+                          className="text-xs px-2 py-1 rounded-full font-medium border-0 cursor-pointer"
+                          style={{ background: sc.bg, color: sc.text }}
+                        >
+                          {Object.entries(guestStatusLabels).map(([val, label]) => (
+                            <option key={val} value={val}>{label}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="px-4 py-3 text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                        {g.email && <div>{g.email}</div>}
+                        {g.phone && <div>{g.phone}</div>}
+                        {!g.email && !g.phone && "–"}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button onClick={() => handleDeleteGuest(g.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded"
+                          style={{ color: "var(--color-destructive)" }} title="Entfernen">
+                          <IconTrash size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ===== TEAM SECTION ===== */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -387,7 +683,8 @@ export function TabTeam({ projectId }: TabTeamProps) {
           </div>
         ) : (
           <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[500px]">
               <thead>
                 <tr style={{ background: "var(--color-muted)" }}>
                   <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--color-muted-foreground)" }}>Name</th>
@@ -424,6 +721,7 @@ export function TabTeam({ projectId }: TabTeamProps) {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>

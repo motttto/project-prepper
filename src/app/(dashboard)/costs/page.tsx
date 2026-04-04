@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import type { CostItem, Project } from "@/types/database";
 import { IconPlus, IconX, IconTrash, IconFilter } from "@/components/ui/icons";
+import { showToast } from "@/hooks/use-toast";
 
 const categoryLabels: Record<CostItem["category"], string> = {
   personnel: "Personal",
@@ -64,19 +65,27 @@ export default function CostsPage() {
       amount_planned: formPlanned,
       amount_actual: formActual !== "" ? Number(formActual) : null,
     });
-    if (!error) {
+    if (error) {
+      showToast("Fehler beim Erstellen: " + error.message, "error");
+    } else {
       setFormProjectId(""); setFormCategory("other"); setFormDescription("");
       setFormPlanned(0); setFormActual("");
       setShowCreate(false);
       loadData();
+      showToast("Kostenposition erstellt", "success");
     }
     setSaving(false);
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Kostenposition wirklich löschen?")) return;
-    await supabase.from("cost_items").delete().eq("id", id);
-    loadData();
+    const { error } = await supabase.from("cost_items").delete().eq("id", id);
+    if (error) {
+      showToast("Fehler beim Löschen: " + error.message, "error");
+    } else {
+      loadData();
+      showToast("Kostenposition gelöscht", "success");
+    }
   }
 
   const filtered = useMemo(() =>
@@ -262,7 +271,8 @@ export default function CostsPage() {
       ) : (
         <div className="rounded-xl overflow-hidden"
           style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)", boxShadow: "var(--shadow-sm)" }}>
-          <table className="w-full">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[600px]">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--color-border-light)" }}>
                 {selectedProject === "all" && (
@@ -346,6 +356,7 @@ export default function CostsPage() {
               </tr>
             </tfoot>
           </table>
+          </div>
         </div>
       )}
     </div>

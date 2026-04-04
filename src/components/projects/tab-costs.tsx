@@ -359,7 +359,8 @@ export function TabCosts({ projectId, project }: TabCostsProps) {
         </div>
       ) : (
         <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm min-w-[600px]">
             <thead>
               <tr style={{ background: "var(--color-muted)" }}>
                 <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--color-muted-foreground)" }}>Kategorie</th>
@@ -449,6 +450,7 @@ export function TabCosts({ projectId, project }: TabCostsProps) {
               </tr>
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

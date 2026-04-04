@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { DateInput } from "@/components/ui/date-input";
+import { showToast } from "@/hooks/use-toast";
 import type { Inquiry, InquiryStatus } from "@/types/database";
 import {
   IconPlus,
@@ -192,13 +193,16 @@ export default function InquiriesPage() {
       notes: formNotes || null,
       created_by: user?.id,
     });
-    if (!error) {
+    if (error) {
+      showToast("Fehler beim Erstellen: " + error.message, "error");
+    } else {
       setFormTitle(""); setFormClientName(""); setFormClientContact("");
       setFormClientPhone(""); setFormClientEmail(""); setFormDateStart("");
       setFormDateEnd(""); setFormVenue(""); setFormBudget("");
       setFormProbability(""); setFormNotes("");
       setShowCreate(false);
       loadInquiries();
+      showToast("Anfrage erstellt", "success");
     }
     setSaving(false);
   }
@@ -206,15 +210,24 @@ export default function InquiriesPage() {
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.stopPropagation();
     if (!confirm("Anfrage wirklich löschen?")) return;
-    await supabase.from("inquiries").delete().eq("id", id);
-    loadInquiries();
+    const { error } = await supabase.from("inquiries").delete().eq("id", id);
+    if (error) {
+      showToast("Fehler beim Löschen: " + error.message, "error");
+    } else {
+      loadInquiries();
+      showToast("Anfrage gelöscht", "success");
+    }
   }
 
   async function handleStatusChange(e: React.MouseEvent, id: string, newStatus: InquiryStatus) {
     e.stopPropagation();
     setStatusMenuId(null);
-    await supabase.from("inquiries").update({ status: newStatus }).eq("id", id);
-    loadInquiries();
+    const { error } = await supabase.from("inquiries").update({ status: newStatus }).eq("id", id);
+    if (error) {
+      showToast("Status konnte nicht geändert werden", "error");
+    } else {
+      loadInquiries();
+    }
   }
 
   const today = new Date().toISOString().split("T")[0];

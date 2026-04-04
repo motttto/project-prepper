@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import type { InventoryItem, InventoryCategory, Booking } from "@/types/database";
 import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity, IconEdit, IconSave, IconHandshake } from "@/components/ui/icons";
+import { showToast } from "@/hooks/use-toast";
 import { ExcelImport } from "@/components/inventory/excel-import";
 import { InventoryDetailModal } from "@/components/inventory/inventory-detail-modal";
 import { EquipmentLoansPanel } from "@/components/inventory/equipment-loans-panel";
@@ -96,6 +97,9 @@ export default function InventoryPage() {
 
   // Dynamische Kategorien aus DB
   const [dbCategories, setDbCategories] = useState<InventoryCategory[]>([]);
+
+  // Profile-Map für Eigentumsanteile
+  const [profileMap, setProfileMap] = useState<Map<string, string>>(new Map());
 
   // Computed: Icon- und Prefix-Maps aus DB-Kategorien
   const categoryIcons = useMemo(() => {
@@ -206,6 +210,25 @@ export default function InventoryPage() {
     loadCategories();
   }, [loadCategories]);
 
+  // Profile für Eigentumsanteile laden
+  useEffect(() => {
+    async function loadProfiles() {
+      if (!orgId) return;
+      const { data } = await supabase
+        .from("org_memberships")
+        .select("profile_id, profiles(id, name)")
+        .eq("org_id", orgId);
+      if (data) {
+        const map = new Map<string, string>();
+        for (const m of data as any[]) {
+          map.set(m.profiles?.id || m.profile_id, m.profiles?.name || "");
+        }
+        setProfileMap(map);
+      }
+    }
+    loadProfiles();
+  }, [supabase, orgId]);
+
   // Realtime: Kategorien
   useRealtimeTable({
     table: "inventory_categories",
@@ -250,7 +273,9 @@ export default function InventoryPage() {
       manufacturer_url: formManufacturerUrl || null,
       manual_url: formManualUrl || null,
     });
-    if (!error) {
+    if (error) {
+      showToast("Fehler beim Erstellen: " + error.message, "error");
+    } else {
       setFormInventoryNumber(""); setFormName(""); setFormDescription(""); setFormCategory("");
       setFormQuantity(1); setFormCondition("new"); setFormCostPerDay(0); setFormLocation("");
       setFormDeviceName(""); setFormSerialNumber(""); setFormPurchasePrice("");
@@ -259,6 +284,7 @@ export default function InventoryPage() {
       setFormManufacturerUrl(""); setFormManualUrl(""); setShowCreateDetails(false);
       setShowCreate(false);
       loadItems();
+      showToast("Artikel erstellt", "success");
     }
     setSaving(false);
   }
@@ -272,8 +298,13 @@ export default function InventoryPage() {
         await supabase.storage.from("inventory-images").remove([decodeURIComponent(path)]);
       }
     }
-    await supabase.from("inventory_items").delete().eq("id", item.id);
-    loadItems();
+    const { error } = await supabase.from("inventory_items").delete().eq("id", item.id);
+    if (error) {
+      showToast("Fehler beim Löschen: " + error.message, "error");
+    } else {
+      loadItems();
+      showToast("Artikel gelöscht", "success");
+    }
   }
 
   // Kategorien: DB-Kategorien in Sortierreihenfolge, plus unbekannte aus Items
@@ -774,20 +805,20 @@ export default function InventoryPage() {
           style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)", boxShadow: "var(--shadow-sm)" }}
         >
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[900px]">
+          <table className="w-full">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--color-border-light)" }}>
-                <th className="w-14 px-3 py-3"></th>
-                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Inv.-Nr.</th>
-                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Artikel</th>
-                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Kategorie</th>
-                <th className="text-center px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Menge</th>
-                <th className="text-center px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Verfügbar</th>
-                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Zustand</th>
-                <th className="text-right px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>&euro;/Tag</th>
-                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Pate</th>
-                <th className="text-left px-4 py-3 text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Ort</th>
-                <th className="w-10 px-4 py-3"></th>
+                <th className="w-14 px-3 py-3 hidden sm:table-cell"></th>
+                <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Artikel</th>
+                <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden md:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Kategorie</th>
+                <th className="text-center px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Menge</th>
+                <th className="text-center px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden sm:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Verfügbar</th>
+                <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Zustand</th>
+                <th className="text-right px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden sm:table-cell" style={{ color: "var(--color-muted-foreground)" }}>&euro;/Tag</th>
+                <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Eigentum</th>
+                <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Pate</th>
+                <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Ort</th>
+                <th className="w-10 px-2 sm:px-4 py-3"></th>
               </tr>
             </thead>
             <tbody>
@@ -800,7 +831,8 @@ export default function InventoryPage() {
                   onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-surface-hover)"}
                   onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                 >
-                  <td className="px-3 py-3.5">
+                  {/* Bild — hidden on mobile */}
+                  <td className="px-3 py-3.5 hidden sm:table-cell">
                     {item.image_url ? (
                       <img
                         src={item.image_url}
@@ -817,20 +849,24 @@ export default function InventoryPage() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3.5">
-                    <span className="font-mono text-sm px-1.5 py-0.5 rounded"
-                      style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
-                      {item.inventory_number}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5">
+                  {/* Artikel — always visible, includes inv-nr on mobile */}
+                  <td className="px-3 sm:px-4 py-3.5">
                     <div className="font-medium text-sm">{item.name}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="font-mono text-xs px-1 py-0.5 rounded"
+                        style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
+                        {item.inventory_number}
+                      </span>
+                      {/* Kategorie inline on mobile */}
+                      <span className="text-xs md:hidden" style={{ color: "var(--color-muted-foreground)" }}>
+                        {categoryIcons[item.category] || "📁"} {item.category}
+                      </span>
+                    </div>
                     {item.description && (
-                      <div className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
+                      <div className="text-xs mt-0.5 hidden sm:block" style={{ color: "var(--color-muted-foreground)" }}>
                         {item.description}
                       </div>
                     )}
-                    {/* Ausleihe-Info */}
                     {bookingMap.has(item.id) && (() => {
                       const bd = bookingMap.get(item.id)!;
                       if (bd.bookings.length === 1) {
@@ -850,13 +886,15 @@ export default function InventoryPage() {
                       );
                     })()}
                   </td>
-                  <td className="px-4 py-3.5">
+                  {/* Kategorie — hidden on mobile */}
+                  <td className="px-3 sm:px-4 py-3.5 hidden md:table-cell">
                     <span className="text-sm flex items-center gap-1">
                       <span>{categoryIcons[item.category] || "📁"}</span>
                       {item.category}
                     </span>
                   </td>
-                  <td className="px-4 py-3.5 text-center">
+                  {/* Menge */}
+                  <td className="px-2 sm:px-4 py-3.5 text-center">
                     <span
                       className="inline-flex items-center justify-center w-8 h-6 rounded text-sm font-semibold"
                       style={{
@@ -867,13 +905,12 @@ export default function InventoryPage() {
                       {item.quantity}
                     </span>
                   </td>
-                  {/* Verfügbar-Spalte */}
-                  <td className="px-4 py-3.5 text-center">
+                  {/* Verfügbar — hidden on mobile */}
+                  <td className="px-2 sm:px-4 py-3.5 text-center hidden sm:table-cell">
                     {(() => {
                       const booked = bookingMap.get(item.id)?.bookedQty || 0;
                       const available = Math.max(0, item.quantity - booked);
                       if (booked === 0) {
-                        // Nichts ausgeliehen → grüner Haken
                         return (
                           <span
                             className="inline-flex items-center justify-center px-2 h-6 rounded text-xs font-semibold"
@@ -885,7 +922,6 @@ export default function InventoryPage() {
                         );
                       }
                       if (available === 0) {
-                        // Alles ausgeliehen → Rot
                         return (
                           <span
                             className="inline-flex items-center justify-center px-2 h-6 rounded text-xs font-semibold"
@@ -896,7 +932,6 @@ export default function InventoryPage() {
                           </span>
                         );
                       }
-                      // Teilweise ausgeliehen → Warning
                       return (
                         <span
                           className="inline-flex items-center justify-center px-2 h-6 rounded text-xs font-semibold"
@@ -908,7 +943,8 @@ export default function InventoryPage() {
                       );
                     })()}
                   </td>
-                  <td className="px-4 py-3.5">
+                  {/* Zustand — hidden on mobile+tablet */}
+                  <td className="px-3 sm:px-4 py-3.5 hidden lg:table-cell">
                     <span
                       className="text-xs px-2 py-0.5 rounded-full font-medium"
                       style={conditionStyles[item.condition]}
@@ -916,16 +952,52 @@ export default function InventoryPage() {
                       {conditionLabels[item.condition]}
                     </span>
                   </td>
-                  <td className="px-4 py-3.5 text-right text-sm tabular-nums">
+                  {/* €/Tag — hidden on mobile */}
+                  <td className="px-2 sm:px-4 py-3.5 text-right text-sm tabular-nums hidden sm:table-cell">
                     {Number(item.cost_per_day).toFixed(2)} &euro;
                   </td>
-                  <td className="px-4 py-3.5 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                  {/* Eigentum — always visible */}
+                  <td className="px-3 sm:px-4 py-3.5">
+                    {item.ownership_shares && item.ownership_shares.length > 0 ? (
+                      <div className="flex flex-wrap gap-1" title={
+                        (item.ownership_shares as any[]).map((s: any) =>
+                          `${profileMap.get(s.profile_id) || "?"}: ${s.percentage}%`
+                        ).join(", ")
+                      }>
+                        {(item.ownership_shares as any[]).map((share: any) => {
+                          const name = profileMap.get(share.profile_id) || "?";
+                          const parts = name.split(" ");
+                          const short = parts.length > 1
+                            ? parts.map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)
+                            : name.slice(0, 3);
+                          return (
+                            <span
+                              key={share.profile_id}
+                              className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full font-medium"
+                              style={{ background: "var(--color-primary-light, rgba(99,102,241,0.1))", color: "var(--color-primary)" }}
+                              title={`${name}: ${share.percentage}%`}
+                            >
+                              <span className="font-semibold">{short}</span>
+                              <span className="tabular-nums">{share.percentage}%</span>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
+                        Org
+                      </span>
+                    )}
+                  </td>
+                  {/* Pate — hidden until xl */}
+                  <td className="px-3 sm:px-4 py-3.5 text-sm hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>
                     {item.purchased_by || "–"}
                   </td>
-                  <td className="px-4 py-3.5 text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                  {/* Ort — hidden until xl */}
+                  <td className="px-3 sm:px-4 py-3.5 text-sm hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>
                     {item.location || "–"}
                   </td>
-                  <td className="px-4 py-3.5">
+                  <td className="px-2 sm:px-4 py-3.5">
                     <button
                       onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
                       className="opacity-0 group-hover:opacity-100 p-1.5 rounded transition-opacity"

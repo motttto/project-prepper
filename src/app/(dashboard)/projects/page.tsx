@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import type { Project } from "@/types/database";
 import { IconPlus, IconSearch, IconX, IconChevronRight, IconTrash, IconHandshake, IconUser } from "@/components/ui/icons";
 import { DateInput } from "@/components/ui/date-input";
+import { showToast } from "@/hooks/use-toast";
 
 const statusLabels: Record<Project["status"], string> = {
   draft: "Entwurf",
@@ -190,7 +191,9 @@ export default function ProjectsPage() {
       org_id: orgId,
     });
 
-    if (!error) {
+    if (error) {
+      showToast("Fehler beim Erstellen: " + error.message, "error");
+    } else {
       setFormName("");
       setFormDescription("");
       setFormDateStart("");
@@ -198,6 +201,7 @@ export default function ProjectsPage() {
       setFormStatus("draft");
       setShowCreate(false);
       loadProjects();
+      showToast("Projekt erstellt", "success");
     }
     setSaving(false);
   }
@@ -209,7 +213,9 @@ export default function ProjectsPage() {
       .from("projects")
       .update({ status: newStatus })
       .eq("id", projectId);
-    if (!error) {
+    if (error) {
+      showToast("Status konnte nicht geändert werden", "error");
+    } else {
       setProjects((prev) =>
         prev.map((p) => (p.id === projectId ? { ...p, status: newStatus } : p))
       );
@@ -219,8 +225,13 @@ export default function ProjectsPage() {
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.stopPropagation();
     if (!confirm("Projekt wirklich löschen?")) return;
-    await supabase.from("projects").delete().eq("id", id);
-    loadProjects();
+    const { error } = await supabase.from("projects").delete().eq("id", id);
+    if (error) {
+      showToast("Fehler beim Löschen: " + error.message, "error");
+    } else {
+      loadProjects();
+      showToast("Projekt gelöscht", "success");
+    }
   }
 
   if (loading) {

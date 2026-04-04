@@ -183,7 +183,8 @@ export function TabMaterials({ projectId, project, onProjectUpdate }: TabMateria
           </div>
         ) : (
           <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[450px]">
               <thead>
                 <tr style={{ background: "var(--color-muted)" }}>
                   <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--color-muted-foreground)" }}>Material</th>
@@ -232,6 +233,7 @@ export function TabMaterials({ projectId, project, onProjectUpdate }: TabMateria
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
         )}
       </div>
