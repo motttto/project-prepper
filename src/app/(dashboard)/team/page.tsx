@@ -2,15 +2,12 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { useInvitations } from "@/hooks/use-invitations";
 import { useOrg } from "@/contexts/org-context";
-import { useImpersonate } from "@/contexts/impersonate-context";
-import type { TeamVote, InventoryItem, OrgInvitation, OrgGuest, UserPermissions, PermissionKey } from "@/types/database";
-import { permissionGroups, defaultPermissionsByRole, allPermissionKeys } from "@/types/database";
+import type { TeamVote, InventoryItem, OrgInvitation, OrgGuest, UserPermissions } from "@/types/database";
 import {
   IconUsers,
   IconUserPlus,
@@ -22,13 +19,11 @@ import {
   IconMail,
   IconPlus,
   IconTrash,
-  IconEye,
 } from "@/components/ui/icons";
 import {
   RoleBadge,
   RoleBadgeGroup,
   orgRoleLabels,
-  orgBadgeStyles,
 } from "@/components/ui/role-badge";
 import { DecisionPanel } from "@/components/decisions/decision-panel";
 import { ExitSettlementWizard } from "@/components/team/exit-settlement-wizard";
@@ -79,10 +74,10 @@ export default function TeamPage() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [showInactive, setShowInactive] = useState(false);
   const [invProcessing, setInvProcessing] = useState<string | null>(null);
-  const { startImpersonating } = useImpersonate();
+  // Impersonation jetzt in /admin
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [orgInvitations, setOrgInvitations] = useState<OrgInvitation[]>([]);
-  const [expandedPermissions, setExpandedPermissions] = useState<string | null>(null);
+  // expandedPermissions entfernt — jetzt in /admin
   const [exitMember, setExitMember] = useState<{ id: string; name: string } | null>(null);
 
   // Gäste
@@ -316,17 +311,6 @@ export default function TeamPage() {
     setProcessing(null);
   }
 
-  // Admin: Rolle aendern — org_memberships
-  async function handleRoleChange(profileId: string, newRoleId: string) {
-    if (!orgId) return;
-    await supabase
-      .from("org_memberships")
-      .update({ role_id: newRoleId })
-      .eq("profile_id", profileId)
-      .eq("org_id", orgId);
-    await loadData();
-  }
-
   // Admin: Deaktivieren / Reaktivieren — org_memberships
   async function handleToggleActive(profileId: string, activate: boolean) {
     if (!orgId) return;
@@ -339,30 +323,6 @@ export default function TeamPage() {
       })
       .eq("profile_id", profileId)
       .eq("org_id", orgId);
-    await loadData();
-    setProcessing(null);
-  }
-
-  // Testuser erstellen via DB-Funktion (erstellt echten auth.users + profiles + org_membership)
-  async function handleCreateTestUser() {
-    if (!orgId || !currentUser) return;
-    setProcessing("testuser");
-
-    const testNames = ["Max Mustermann", "Erika Musterfrau", "Test User", "Anna Schmidt", "Lukas Weber", "Sophie Müller", "Jonas Fischer", "Lena Bauer"];
-    const randomName = testNames[Math.floor(Math.random() * testNames.length)];
-    const randomSuffix = Math.floor(Math.random() * 1000);
-    const testEmail = `test.${randomSuffix}@example.com`;
-
-    const memberRole = roles.find((r) => r.name === "member");
-    if (!memberRole) { setProcessing(null); return; }
-
-    await supabase.rpc("create_test_user", {
-      p_org_id: orgId,
-      p_name: `${randomName} (Test)`,
-      p_email: testEmail,
-      p_role_id: memberRole.id,
-    });
-
     await loadData();
     setProcessing(null);
   }
@@ -392,34 +352,9 @@ export default function TeamPage() {
     setProcessing(null);
   }
 
-  // Berechtigung togglen
-  async function handleTogglePermission(member: OrgMember, key: PermissionKey) {
-    if (!orgId) return;
-    const roleName = getRoleName(member);
-    const defaults = defaultPermissionsByRole[roleName] || defaultPermissionsByRole.member;
-    const current: UserPermissions = member.permissions || { ...defaults };
-    const updated = { ...current, [key]: !current[key] };
-    await supabase
-      .from("org_memberships")
-      .update({ permissions: updated })
-      .eq("profile_id", member.profile_id)
-      .eq("org_id", orgId);
-    setMembers((prev) =>
-      prev.map((m) =>
-        m.profile_id === member.profile_id ? { ...m, permissions: updated } : m
-      )
-    );
-  }
-
-  function getMemberPermissions(member: OrgMember): UserPermissions {
-    const roleName = getRoleName(member);
-    return member.permissions || defaultPermissionsByRole[roleName] || defaultPermissionsByRole.member;
-  }
-
   const pendingOrgInvitations = orgInvitations.filter((i) => i.status === "pending");
 
   const roleLabels = orgRoleLabels;
-  const roleBadgeStyles = orgBadgeStyles;
 
   if (loading) {
     return (
@@ -446,38 +381,16 @@ export default function TeamPage() {
           </p>
         </div>
         {isAdmin && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleCreateTestUser}
-              disabled={processing === "testuser"}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-              style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-            >
-              <IconPlus size={16} />
-              Testuser
-            </button>
-            <Link
-              href="/team/activity"
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-              style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-muted)"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
-            >
-              📋 Protokoll
-            </Link>
-            <button
-              onClick={() => setShowInviteModal(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors"
-              style={{ background: "var(--color-primary)" }}
-              onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
-              onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
-            >
-              <IconUserPlus size={16} />
-              Mitglied einladen
-            </button>
-          </div>
+          <button
+            onClick={() => setShowInviteModal(true)}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+            style={{ background: "var(--color-primary)" }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-primary-hover)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "var(--color-primary)"}
+          >
+            <IconUserPlus size={16} />
+            Mitglied einladen
+          </button>
         )}
       </div>
 
@@ -909,30 +822,20 @@ export default function TeamPage() {
           {activeMembers.map((member, idx) => {
             const profile = member.profiles;
             const orgRoleName = getRoleName(member);
-            const badgeStyle = roleBadgeStyles[orgRoleName] || roleBadgeStyles.member;
             const isSelf = currentUser?.id === member.profile_id;
             const isSystemUser = profile?.is_system;
-            const isLastAdmin =
-              getRoleName(member) === "admin" &&
-              activeMembers.filter((m) => getRoleName(m) === "admin")
-                .length <= 1;
             const patenCount = getPatenItems(profile?.name || "").length;
-            const isExpanded = expandedPermissions === member.profile_id;
-            const memberPerms = getMemberPermissions(member);
-            const canEditPerms = isAdmin && !isSelf && orgRoleName !== "admin" && !isSystemUser;
 
             return (
-              <div key={member.id}>
               <div
+                key={member.id}
                 className="flex items-center gap-4 px-5 py-3.5"
                 style={{
                   borderBottom:
-                    (idx < activeMembers.length - 1 && !isExpanded)
+                    idx < activeMembers.length - 1
                       ? "1px solid var(--color-border-light)"
                       : "none",
-                  cursor: canEditPerms ? "pointer" : undefined,
                 }}
-                onClick={() => canEditPerms && setExpandedPermissions(isExpanded ? null : member.profile_id)}
               >
                 {/* Avatar */}
                 <div
@@ -989,29 +892,8 @@ export default function TeamPage() {
                   </span>
                 )}
 
-                {/* Rolle */}
-                {isAdmin && !isSelf && !isSystemUser ? (
-                  <div className="flex items-center gap-1.5 flex-shrink-0">
-                    <select
-                      value={member.role_id}
-                      onChange={(e) =>
-                        handleRoleChange(member.profile_id, e.target.value)
-                      }
-                      className="px-2 py-1 rounded text-xs font-medium"
-                      style={{
-                        background: badgeStyle.bg,
-                        color: badgeStyle.color,
-                        border: "1px solid transparent",
-                      }}
-                    >
-                      {roles.map((r) => (
-                        <option key={r.id} value={r.id}>
-                          {roleLabels[r.name] || r.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : isSystemUser ? (
+                {/* Rolle Badge */}
+                {isSystemUser ? (
                   <RoleBadgeGroup badges={[
                     { role: "system", type: "org" },
                     { role: orgRoleName, type: "org" },
@@ -1033,78 +915,6 @@ export default function TeamPage() {
                     year: "numeric",
                   })}
                 </span>
-
-                {/* Admin: Als User anzeigen + Aktiv-Toggle */}
-                {isAdmin && !isSelf && !isSystemUser && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      startImpersonating({
-                        profileId: member.profile_id,
-                        name: profile?.name || "",
-                        roleName: orgRoleName,
-                        permissions: getMemberPermissions(member),
-                      });
-                    }}
-                    className="p-1.5 rounded transition-colors flex-shrink-0"
-                    style={{ color: "var(--color-info)" }}
-                    title={`App als ${profile?.name} anzeigen`}
-                  >
-                    <IconEye size={15} />
-                  </button>
-                )}
-                {isAdmin && !isSelf && !isLastAdmin && !isSystemUser && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleToggleActive(member.profile_id, false); }}
-                    disabled={processing === member.profile_id}
-                    className="relative w-9 h-5 rounded-full flex-shrink-0 transition-colors disabled:opacity-50"
-                    style={{ background: "var(--color-success)" }}
-                    title="Aktiv — klicken zum Deaktivieren"
-                  >
-                    <span
-                      className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-white transition-all"
-                      style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.2)" }}
-                    />
-                  </button>
-                )}
-              </div>
-
-              {/* Berechtigungen (aufklappbar) */}
-              {isExpanded && canEditPerms && (
-                <div
-                  className="px-5 py-3"
-                  style={{
-                    background: "var(--color-muted)",
-                    borderBottom: idx < activeMembers.length - 1 ? "1px solid var(--color-border-light)" : "none",
-                  }}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-6 gap-y-3">
-                    {permissionGroups.map((group) => (
-                      <div key={group.label}>
-                        <p className="text-xs font-semibold mb-1.5" style={{ color: "var(--color-muted-foreground)" }}>
-                          {group.label}
-                        </p>
-                        {group.permissions.map(({ key, label }) => (
-                          <label
-                            key={key}
-                            className="flex items-center gap-1.5 text-xs cursor-pointer select-none py-0.5"
-                          >
-                            <input
-                              type="checkbox"
-                              checked={memberPerms[key] ?? false}
-                              onChange={() => handleTogglePermission(member, key)}
-                              className="rounded"
-                              style={{ accentColor: "var(--color-primary)" }}
-                            />
-                            {label}
-                          </label>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
               </div>
             );
           })}

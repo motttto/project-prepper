@@ -28,7 +28,7 @@ const navItems: { href: string; label: string; icon: typeof IconDashboard; permi
   { href: "/projects", label: "Projekte", icon: IconProjects, permission: "projects" },
   { href: "/inventory", label: "Inventar", icon: IconInventory, permission: "inventory" },
   { href: "/costs", label: "Kosten", icon: IconCosts, permission: "costs" },
-  { href: "/team/activity", label: "Admin", icon: IconZap, adminOnly: true },
+  { href: "/admin", label: "Admin", icon: IconZap, adminOnly: true },
 ];
 
 interface SidebarProps {
