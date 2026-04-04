@@ -70,14 +70,14 @@ export async function handlePropfindPrincipal(
 ): Promise<Response> {
   const supabase = createServiceClient();
 
-  // Profil-Name holen
-  const { data: profile } = await supabase
-    .from("profiles")
+  // Org-Name als Account-Displayname holen
+  const { data: org } = await supabase
+    .from("organizations")
     .select("name")
-    .eq("id", auth.profileId)
+    .eq("id", auth.orgId)
     .single();
 
-  const displayName = profile?.name || "CalDAV User";
+  const displayName = org?.name || "Project Prepper";
 
   const xml = multistatus(
     response(baseHref, principalProps(baseHref, displayName))
