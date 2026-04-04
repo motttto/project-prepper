@@ -81,4 +81,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE calendar_events;
 CREATE TRIGGER set_calendar_events_updated_at
   BEFORE UPDATE ON calendar_events
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at();
+  EXECUTE FUNCTION handle_updated_at();

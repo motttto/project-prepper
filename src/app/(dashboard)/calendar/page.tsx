@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { IconCalendar, IconPlus, IconTrash, IconX } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
 import { appConfirm } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 type CalendarGroup = {
   id: string;
@@ -70,6 +71,7 @@ function toDateTimeInputValue(d: Date): string {
 export default function CalendarPage() {
   const supabase = createClient();
   const { orgId } = useOrg();
+  const currentUser = useCurrentUser();
 
   const [groups, setGroups] = useState<CalendarGroup[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
@@ -84,6 +86,7 @@ export default function CalendarPage() {
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
   const [createForDate, setCreateForDate] = useState<Date | null>(null);
   const [showGroupManager, setShowGroupManager] = useState(false);
+  const [showSubscribeInfo, setShowSubscribeInfo] = useState(false);
 
   // Group color helper
   const getEventColor = useCallback((event: CalendarEvent) => {
@@ -292,6 +295,16 @@ export default function CalendarPage() {
           >
             <IconPlus size={14} />
             Neuer Termin
+          </button>
+
+          {/* Einbinden */}
+          <button
+            onClick={() => setShowSubscribeInfo(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
+            title="Kalender auf anderen Geräten einbinden"
+          >
+            Einbinden
           </button>
 
           {/* Gruppen verwalten */}
@@ -515,6 +528,16 @@ export default function CalendarPage() {
           groups={groups}
           inputStyle={inputStyle}
           onClose={() => setShowGroupManager(false)}
+        />
+      )}
+
+      {/* === SUBSCRIBE INFO MODAL === */}
+      {showSubscribeInfo && orgId && (
+        <SubscribeInfoModal
+          orgId={orgId}
+          groups={groups}
+          isAdmin={currentUser?.roleName === "admin"}
+          onClose={() => setShowSubscribeInfo(false)}
         />
       )}
     </div>
@@ -1053,6 +1076,210 @@ function GroupManager({
         </div>
 
         <div className="px-6 py-3 flex justify-end" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-muted)" }}>
+            Schließen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// === Subscribe Info Modal ===
+function SubscribeInfoModal({
+  orgId,
+  groups,
+  isAdmin,
+  onClose,
+}: {
+  orgId: string;
+  groups: CalendarGroup[];
+  isAdmin: boolean;
+  onClose: () => void;
+}) {
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<string | null>(null);
+
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  const feedUrl = `${baseUrl}/api/calendar/feed?org_id=${orgId}`;
+  const webcalUrl = feedUrl.replace(/^https?:/, "webcal:");
+
+  async function handleImport() {
+    setImporting(true);
+    setImportResult(null);
+    try {
+      const res = await fetch(`/api/calendar/import?org_id=${orgId}`, { method: "POST" });
+      const data = await res.json();
+      if (res.ok) {
+        setImportResult(`Import erfolgreich: ${data.groupsCreated} Gruppen und ${data.eventsCreated} Termine importiert.`);
+        showToast("Import abgeschlossen", "success");
+      } else {
+        setImportResult(`Fehler: ${data.error}`);
+        showToast("Import fehlgeschlagen", "error");
+      }
+    } catch {
+      setImportResult("Verbindungsfehler");
+      showToast("Import fehlgeschlagen", "error");
+    }
+    setImporting(false);
+  }
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+    showToast("URL kopiert", "success");
+  }
+
+  const instructions = [
+    {
+      title: "Apple Calendar (iPhone / Mac)",
+      icon: "🍎",
+      steps: [
+        "Einstellungen → Kalender → Accounts → Account hinzufügen",
+        "\"Andere\" → Kalenderabo hinzufügen",
+        "Die Abo-URL einfügen und bestätigen",
+      ],
+    },
+    {
+      title: "Google Calendar",
+      icon: "📅",
+      steps: [
+        "Google Calendar öffnen (am PC)",
+        "Links bei \"Weitere Kalender\" auf + → Per URL",
+        "Die Abo-URL einfügen und \"Kalender hinzufügen\"",
+      ],
+    },
+    {
+      title: "Outlook",
+      icon: "📧",
+      steps: [
+        "Kalender → Kalender hinzufügen → Aus dem Internet abonnieren",
+        "Die Abo-URL einfügen und \"Importieren\"",
+      ],
+    },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }} onClick={onClose}>
+      <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl" style={{ background: "var(--color-surface)", boxShadow: "var(--shadow-lg)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 sticky top-0" style={{ borderBottom: "1px solid var(--color-border-light)", background: "var(--color-surface)" }}>
+          <h2 className="text-lg font-bold">Kalender einbinden</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: "var(--color-muted-foreground)" }}><IconX size={20} /></button>
+        </div>
+
+        <div className="px-6 py-5 space-y-5">
+          {/* Abo-URL */}
+          <div>
+            <h3 className="text-sm font-semibold mb-2">Abo-URL (alle Termine)</h3>
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                readOnly
+                value={feedUrl}
+                className="flex-1 px-3 py-2 rounded-lg text-xs font-mono"
+                style={{ border: "1px solid var(--color-border)", background: "var(--color-muted)" }}
+                onClick={(e) => (e.target as HTMLInputElement).select()}
+              />
+              <button
+                onClick={() => copyToClipboard(feedUrl)}
+                className="px-3 py-2 rounded-lg text-xs font-medium text-white flex-shrink-0"
+                style={{ background: "var(--color-primary)" }}
+              >
+                Kopieren
+              </button>
+            </div>
+            <p className="text-[11px] mt-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+              Diese URL in deiner Kalender-App als Abo einfügen. Updates werden automatisch synchronisiert.
+            </p>
+          </div>
+
+          {/* Webcal-Link */}
+          <div>
+            <a
+              href={webcalUrl}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+              style={{ background: "var(--color-primary)" }}
+            >
+              <IconCalendar size={16} />
+              Direkt in Kalender-App öffnen
+            </a>
+            <p className="text-[11px] mt-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+              Öffnet das Kalender-Abo direkt in deiner Standard-Kalender-App (funktioniert auf Mac/iPhone).
+            </p>
+          </div>
+
+          {/* Pro Gruppe */}
+          {groups.length > 1 && (
+            <div>
+              <h3 className="text-sm font-semibold mb-2">Einzelne Gruppen abonnieren</h3>
+              <div className="space-y-1.5">
+                {groups.map((group) => {
+                  const groupFeedUrl = `${feedUrl}&group_id=${group.id}`;
+                  return (
+                    <div key={group.id} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: group.color }} />
+                      <span className="flex-1 text-sm font-medium truncate">{group.name}</span>
+                      <button
+                        onClick={() => copyToClipboard(groupFeedUrl)}
+                        className="px-2 py-1 rounded text-[10px] font-medium flex-shrink-0"
+                        style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
+                      >
+                        URL kopieren
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Anleitungen */}
+          <div>
+            <h3 className="text-sm font-semibold mb-3">Anleitung pro Gerät</h3>
+            <div className="space-y-3">
+              {instructions.map((instr) => (
+                <div key={instr.title} className="p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                  <p className="text-sm font-semibold mb-1.5">{instr.icon} {instr.title}</p>
+                  <ol className="space-y-1">
+                    {instr.steps.map((step, i) => (
+                      <li key={i} className="text-xs flex gap-2" style={{ color: "var(--color-muted-foreground)" }}>
+                        <span className="font-bold flex-shrink-0" style={{ color: "var(--color-primary)" }}>{i + 1}.</span>
+                        {step}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Nextcloud Import (nur Admin) */}
+          {isAdmin && (
+            <div className="pt-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+              <h3 className="text-sm font-semibold mb-2">Nextcloud Import</h3>
+              <p className="text-xs mb-3" style={{ color: "var(--color-muted-foreground)" }}>
+                Alle Termine und Gruppen aus dem verbundenen Nextcloud-Kalender importieren. Bestehende Gruppen werden nicht doppelt angelegt.
+              </p>
+              <button
+                onClick={handleImport}
+                disabled={importing}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 transition-colors"
+                style={{ background: "var(--color-primary)" }}
+              >
+                {importing ? "Importiere..." : "Aus Nextcloud importieren"}
+              </button>
+              {importResult && (
+                <p className="text-xs mt-2 p-2 rounded-lg" style={{
+                  background: importResult.startsWith("Import erfolgreich") ? "var(--color-success-light)" : "var(--color-destructive-light)",
+                  color: importResult.startsWith("Import erfolgreich") ? "var(--color-success)" : "var(--color-destructive)",
+                }}>
+                  {importResult}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="px-6 py-3 flex justify-end sticky bottom-0" style={{ borderTop: "1px solid var(--color-border-light)", background: "var(--color-surface)" }}>
           <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-muted)" }}>
             Schließen
           </button>
