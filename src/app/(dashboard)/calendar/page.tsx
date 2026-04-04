@@ -1158,7 +1158,8 @@ function SubscribeInfoModal({
 
   const feedUrl = feedToken ? `${baseUrl}/api/calendar/feed?token=${feedToken}` : "";
   const webcalUrl = feedUrl.replace(/^https?:/, "webcal:");
-  const caldavUrl = caldavToken ? `${baseUrl}/api/caldav/${caldavToken}/` : "";
+  // CalDAV läuft über Cloudflare Worker Proxy (Vercel blockt PROPFIND/REPORT)
+  const caldavUrl = caldavToken ? `https://caldav-proxy.post-cd8.workers.dev/api/caldav/${caldavToken}/` : "";
 
   async function handleImport() {
     setImporting(true);
