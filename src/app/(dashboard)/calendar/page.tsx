@@ -1243,47 +1243,27 @@ function SubscribeInfoModal({
                   Zwei-Wege-Sync: Termine in Apple Calendar, Thunderbird oder anderen CalDAV-Apps erstellen, bearbeiten und löschen — alles synchronisiert sich automatisch mit Project Prepper.
                 </div>
 
-                {/* CalDAV Server-URL */}
-                <div>
-                  <h3 className="text-sm font-semibold mb-2">Server-URL</h3>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={caldavUrl}
-                      className="flex-1 px-3 py-2 rounded-lg text-[10px] font-mono"
-                      style={{ border: "1px solid var(--color-border)", background: "var(--color-muted)" }}
-                      onClick={(e) => (e.target as HTMLInputElement).select()}
-                    />
-                    <button
-                      onClick={() => copyToClipboard(caldavUrl)}
-                      className="px-3 py-2 rounded-lg text-xs font-medium text-white flex-shrink-0"
-                      style={{ background: "var(--color-primary)" }}
-                    >
-                      Kopieren
-                    </button>
-                  </div>
-                </div>
-
-                {/* Zugangsdaten */}
+                {/* Zugangsdaten — alles an einem Ort */}
                 <div>
                   <h3 className="text-sm font-semibold mb-2">Zugangsdaten</h3>
                   <div className="space-y-2">
-                    <div className="flex items-center gap-3 p-2.5 rounded-lg" style={{ background: "var(--color-muted)" }}>
-                      <span className="text-xs font-medium w-20" style={{ color: "var(--color-muted-foreground)" }}>Benutzer:</span>
-                      <span className="text-xs font-mono">caldav</span>
-                    </div>
-                    <div className="flex items-center gap-3 p-2.5 rounded-lg" style={{ background: "var(--color-muted)" }}>
-                      <span className="text-xs font-medium w-20" style={{ color: "var(--color-muted-foreground)" }}>Passwort:</span>
-                      <span className="text-[10px] font-mono flex-1 truncate">{caldavToken}</span>
-                      <button
-                        onClick={() => copyToClipboard(caldavToken)}
-                        className="px-2 py-1 rounded text-[10px] font-medium flex-shrink-0"
-                        style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
-                      >
-                        Kopieren
-                      </button>
-                    </div>
+                    {[
+                      { label: "Server", value: "caldav-proxy.post-cd8.workers.dev" },
+                      { label: "Benutzer", value: "caldav" },
+                      { label: "Passwort", value: caldavToken || "" },
+                    ].map((field) => (
+                      <div key={field.label} className="flex items-center gap-3 p-2.5 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                        <span className="text-xs font-medium w-16 flex-shrink-0" style={{ color: "var(--color-muted-foreground)" }}>{field.label}:</span>
+                        <span className="text-[10px] font-mono flex-1 truncate select-all">{field.value}</span>
+                        <button
+                          onClick={() => copyToClipboard(field.value)}
+                          className="px-2 py-1 rounded text-[10px] font-medium flex-shrink-0"
+                          style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
+                        >
+                          Kopieren
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
@@ -1296,18 +1276,19 @@ function SubscribeInfoModal({
                         "Systemeinstellungen → Internetaccounts → Anderer Account",
                         "\"CalDAV-Account\" auswählen",
                         "Account-Typ: \"Manuell\"",
-                        "Benutzername: caldav, Passwort: den Token einfügen",
-                        "Server-Adresse: die Server-URL einfügen",
+                        "Server: oben kopieren und einfügen",
+                        "Benutzername: caldav",
+                        "Passwort: oben kopieren und einfügen",
                       ]},
                       { title: "Apple Calendar (iPhone / iPad)", icon: "📱", steps: [
                         "Einstellungen → Kalender → Accounts → Account hinzufügen",
                         "\"Andere\" → CalDAV-Account hinzufügen",
-                        "Server: die Server-URL einfügen",
-                        "Benutzername: caldav, Passwort: den Token",
+                        "Server: oben kopieren und einfügen",
+                        "Benutzername: caldav, Passwort: oben kopieren",
                       ]},
                       { title: "Thunderbird", icon: "🦊", steps: [
                         "Kalender → Neuer Kalender → Im Netzwerk",
-                        "Format: CalDAV, die Server-URL einfügen",
+                        "Format: CalDAV, Server-URL einfügen",
                         "Zugangsdaten eingeben wenn gefragt",
                       ]},
                     ].map((instr) => (
