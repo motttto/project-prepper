@@ -270,7 +270,7 @@ export function TabTeam({ projectId }: TabTeamProps) {
       {/* ===== PROJECT MEMBERS SECTION ===== */}
       <div>
         <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-lg font-semibold">Projekt-Mitglieder</h2>
+          <h2 className="text-lg font-semibold">Projekt-Team</h2>
           <span className="text-xs px-2 py-0.5 rounded-full"
             style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
             {projectMembers.length} Personen

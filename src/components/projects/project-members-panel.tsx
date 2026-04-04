@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
-import type { ProjectMember, ProjectInvitation, User } from "@/types/database";
+import type { ProjectMember, ProjectInvitation, ProjectGuest, OrgGuest, User } from "@/types/database";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
-import { IconX, IconUserPlus, IconTrash, IconSend, IconShield, IconEye } from "@/components/ui/icons";
+import { useOrg } from "@/contexts/org-context";
+import { showToast } from "@/hooks/use-toast";
+import { IconX, IconUserPlus, IconTrash, IconSend, IconShield, IconEye, IconPlus } from "@/components/ui/icons";
 
 interface ProjectMembersPanelProps {
   projectId: string;
@@ -32,6 +34,7 @@ export function ProjectMembersPanel({
   onClose,
 }: ProjectMembersPanelProps) {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [invitations, setInvitations] = useState<ProjectInvitation[]>([]);
   const [allProfiles, setAllProfiles] = useState<User[]>([]);
@@ -44,8 +47,16 @@ export function ProjectMembersPanel({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Guest state
+  const [projectGuests, setProjectGuests] = useState<(ProjectGuest & { org_guests?: OrgGuest })[]>([]);
+  const [orgGuests, setOrgGuests] = useState<OrgGuest[]>([]);
+  const [selectedGuestId, setSelectedGuestId] = useState("");
+  const [guestPlusOnes, setGuestPlusOnes] = useState(0);
+  const [savingGuest, setSavingGuest] = useState(false);
+  const [showGuestForm, setShowGuestForm] = useState(false);
+
   const loadData = useCallback(async () => {
-    const [membersRes, invitationsRes, profilesRes] = await Promise.all([
+    const [membersRes, invitationsRes, profilesRes, guestsRes, orgGuestsRes] = await Promise.all([
       supabase
         .from("project_members")
         .select("*, profiles(name, email)")
@@ -61,13 +72,23 @@ export function ProjectMembersPanel({
         .from("profiles")
         .select("id, email, name, role_id")
         .order("name"),
+      supabase
+        .from("project_guests")
+        .select("*, org_guests(*)")
+        .eq("project_id", projectId)
+        .order("created_at"),
+      orgId
+        ? supabase.from("org_guests").select("*").eq("org_id", orgId).order("name")
+        : Promise.resolve({ data: [] }),
     ]);
 
     if (membersRes.data) setMembers(membersRes.data as ProjectMember[]);
     if (invitationsRes.data) setInvitations(invitationsRes.data as ProjectInvitation[]);
     if (profilesRes.data) setAllProfiles(profilesRes.data as User[]);
+    if (guestsRes.data) setProjectGuests(guestsRes.data as any);
+    if (orgGuestsRes.data) setOrgGuests(orgGuestsRes.data as OrgGuest[]);
     setLoading(false);
-  }, [supabase, projectId]);
+  }, [supabase, projectId, orgId]);
 
   useEffect(() => {
     if (show) loadData();
@@ -86,6 +107,45 @@ export function ProjectMembersPanel({
     onDataChange: loadData,
     enabled: show,
   });
+  useRealtimeTable({
+    table: "project_guests",
+    filter: { column: "project_id", value: projectId },
+    onDataChange: loadData,
+    enabled: show,
+  });
+
+  // Verfügbare Gäste (noch nicht diesem Projekt zugewiesen)
+  const availableOrgGuests = useMemo(() => {
+    const assignedIds = new Set(projectGuests.map(g => g.org_guest_id));
+    return orgGuests.filter(g => !assignedIds.has(g.id));
+  }, [orgGuests, projectGuests]);
+
+  async function handleAddGuest() {
+    if (!selectedGuestId) return;
+    setSavingGuest(true);
+    const { error: err } = await supabase.from("project_guests").insert({
+      project_id: projectId,
+      org_guest_id: selectedGuestId,
+      plus_ones: guestPlusOnes,
+    });
+    if (err) {
+      showToast("Fehler: " + err.message, "error");
+    } else {
+      showToast("Gast hinzugefügt", "success");
+      setSelectedGuestId("");
+      setGuestPlusOnes(0);
+      setShowGuestForm(false);
+      loadData();
+    }
+    setSavingGuest(false);
+  }
+
+  async function handleRemoveGuest(id: string) {
+    if (!confirm("Gast wirklich entfernen?")) return;
+    await supabase.from("project_guests").delete().eq("id", id);
+    showToast("Gast entfernt", "success");
+    loadData();
+  }
 
   // Verfügbare Profiles (noch nicht Mitglied oder eingeladen)
   const memberIds = new Set(members.map((m) => m.profile_id));
@@ -267,6 +327,112 @@ export function ProjectMembersPanel({
                   </div>
                 </div>
               )}
+
+              {/* Gäste */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>
+                    Gäste ({projectGuests.length})
+                  </h3>
+                  {isOwner && (
+                    <button
+                      onClick={() => setShowGuestForm(!showGuestForm)}
+                      className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium"
+                      style={{ background: "var(--color-primary)", color: "white" }}
+                    >
+                      <IconPlus size={12} /> Gast zuweisen
+                    </button>
+                  )}
+                </div>
+
+                {showGuestForm && (
+                  <div className="p-3 rounded-lg space-y-3 mb-2"
+                    style={{ border: "1px solid var(--color-border)" }}>
+                    {availableOrgGuests.length === 0 ? (
+                      <p className="text-sm" style={{ color: "var(--color-text-muted)" }}>
+                        Keine weiteren Gäste verfügbar. Neue Gäste unter <strong>Team → Gäste</strong> anlegen.
+                      </p>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-xs mb-1" style={{ color: "var(--color-text-muted)" }}>Gast</label>
+                          <select value={selectedGuestId} onChange={(e) => setSelectedGuestId(e.target.value)}
+                            className="w-full p-2 rounded-lg text-sm"
+                            style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+                            <option value="">— Gast wählen —</option>
+                            {availableOrgGuests.map(g => (
+                              <option key={g.id} value={g.id}>
+                                {g.name}{g.company ? ` (${g.company})` : ""}{g.role ? ` — ${g.role}` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs mb-1" style={{ color: "var(--color-text-muted)" }}>+Begleitung</label>
+                          <input type="number" min={0} value={guestPlusOnes}
+                            onChange={(e) => setGuestPlusOnes(parseInt(e.target.value) || 0)}
+                            className="w-full p-2 rounded-lg text-sm"
+                            style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }} />
+                        </div>
+                      </>
+                    )}
+                    <div className="flex gap-2">
+                      <button onClick={handleAddGuest} disabled={!selectedGuestId || savingGuest}
+                        className="px-3 py-1.5 rounded-lg text-sm font-medium disabled:opacity-50"
+                        style={{ background: "var(--color-primary)", color: "white" }}>
+                        {savingGuest ? "Wird gespeichert..." : "Zuweisen"}
+                      </button>
+                      <button onClick={() => { setShowGuestForm(false); setSelectedGuestId(""); }}
+                        className="px-3 py-1.5 rounded-lg text-sm"
+                        style={{ border: "1px solid var(--color-border)" }}>
+                        Abbrechen
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {projectGuests.length > 0 && (
+                  <div className="space-y-2">
+                    {projectGuests.map((pg) => {
+                      const og = pg.org_guests;
+                      const name = og?.name || pg.name || "?";
+                      const detail = og?.company || og?.role;
+                      return (
+                        <div key={pg.id} className="flex items-center justify-between p-2 rounded-lg"
+                          style={{ background: "var(--color-muted)" }}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                              style={{ background: "#e0e7ff", color: "#4338ca" }}>
+                              {name[0]?.toUpperCase() || "?"}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium">
+                                {name}
+                                {pg.plus_ones > 0 && (
+                                  <span className="ml-1.5 text-xs px-1.5 py-0.5 rounded"
+                                    style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}>
+                                    +{pg.plus_ones}
+                                  </span>
+                                )}
+                              </p>
+                              {detail && (
+                                <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>{detail}</p>
+                              )}
+                            </div>
+                          </div>
+                          {isOwner && (
+                            <button onClick={() => handleRemoveGuest(pg.id)}
+                              className="p-1 rounded hover:opacity-70"
+                              style={{ color: "var(--color-destructive)" }} title="Entfernen">
+                              <IconTrash size={14} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
 
               {/* Aktionen (nur für Owner) */}
               {isOwner && !mode && (
