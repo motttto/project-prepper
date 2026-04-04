@@ -67,13 +67,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "start and end params required" }, { status: 400 });
     }
 
-    // Events aus allen Kalendern laden
-    const allEvents: CalendarEvent[] = [];
+    // Events aus allen Kalendern PARALLEL laden
+    const eventResults = await Promise.all(
+      calendars.map(async (cal) => {
+        const calUrl = cal.path.startsWith("http") ? cal.path : `${baseUrl}${cal.path}`;
 
-    for (const cal of calendars) {
-      const calUrl = cal.path.startsWith("http") ? cal.path : `${baseUrl}${cal.path}`;
-
-      const reportBody = `<?xml version="1.0" encoding="utf-8" ?>
+        const reportBody = `<?xml version="1.0" encoding="utf-8" ?>
 <c:calendar-query xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
   <d:prop>
     <d:getetag />
@@ -89,18 +88,25 @@ export async function GET(request: NextRequest) {
   </c:filter>
 </c:calendar-query>`;
 
-      const reportRes = await fetch(calUrl, {
-        method: "REPORT",
-        headers: { Authorization: authHeader, "Content-Type": "application/xml; charset=utf-8", Depth: "1" },
-        body: reportBody,
-      });
+        try {
+          const reportRes = await fetch(calUrl, {
+            method: "REPORT",
+            headers: { Authorization: authHeader, "Content-Type": "application/xml; charset=utf-8", Depth: "1" },
+            body: reportBody,
+          });
 
-      if (reportRes.ok) {
-        const reportXml = await reportRes.text();
-        const events = parseICalEvents(reportXml, cal.id, cal.name);
-        allEvents.push(...events);
-      }
-    }
+          if (reportRes.ok) {
+            const reportXml = await reportRes.text();
+            return parseICalEvents(reportXml, cal.id, cal.name);
+          }
+        } catch (e) {
+          console.error(`[CalDAV] REPORT failed for ${cal.name}:`, e);
+        }
+        return [];
+      })
+    );
+
+    const allEvents: CalendarEvent[] = eventResults.flat();
 
     allEvents.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
     return NextResponse.json({ calendars, events: allEvents });
