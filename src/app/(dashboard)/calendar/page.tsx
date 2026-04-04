@@ -531,6 +531,7 @@ export default function CalendarPage() {
       {showSubscribeInfo && orgId && (
         <SubscribeInfoModal
           orgId={orgId}
+          profileId={currentUser?.id || ""}
           groups={groups}
           isAdmin={currentUser?.roleName === "admin"}
           onClose={() => setShowSubscribeInfo(false)}
@@ -1084,53 +1085,80 @@ function GroupManager({
 // === Subscribe Info Modal ===
 function SubscribeInfoModal({
   orgId,
+  profileId,
   groups,
   isAdmin,
   onClose,
 }: {
   orgId: string;
+  profileId: string;
   groups: CalendarGroup[];
   isAdmin: boolean;
   onClose: () => void;
 }) {
   const supabase = createClient();
   const [feedToken, setFeedToken] = useState<string | null>(null);
+  const [caldavToken, setCaldavToken] = useState<string | null>(null);
   const [loadingToken, setLoadingToken] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState<string | null>(null);
+  const [tab, setTab] = useState<"feed" | "caldav">("caldav");
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
 
-  // Token laden oder erstellen
+  // Tokens laden oder erstellen
   useEffect(() => {
-    async function loadOrCreateToken() {
+    async function loadOrCreateTokens() {
       setLoadingToken(true);
-      // Bestehenden Token suchen
-      const { data: existing } = await supabase
+
+      // Feed-Token (read-only)
+      const { data: existingFeed } = await supabase
         .from("calendar_feed_tokens")
         .select("token")
         .eq("org_id", orgId)
+        .eq("read_write", false)
         .limit(1)
         .maybeSingle();
 
-      if (existing?.token) {
-        setFeedToken(existing.token);
+      if (existingFeed?.token) {
+        setFeedToken(existingFeed.token);
       } else {
-        // Neuen erstellen
-        const { data: newToken } = await supabase
+        const { data: newFeed } = await supabase
           .from("calendar_feed_tokens")
-          .insert({ org_id: orgId })
+          .insert({ org_id: orgId, profile_id: profileId, read_write: false })
           .select("token")
           .single();
-        if (newToken) setFeedToken(newToken.token);
+        if (newFeed) setFeedToken(newFeed.token);
       }
+
+      // CalDAV-Token (read-write)
+      const { data: existingCaldav } = await supabase
+        .from("calendar_feed_tokens")
+        .select("token")
+        .eq("org_id", orgId)
+        .eq("read_write", true)
+        .limit(1)
+        .maybeSingle();
+
+      if (existingCaldav?.token) {
+        setCaldavToken(existingCaldav.token);
+      } else {
+        const { data: newCaldav } = await supabase
+          .from("calendar_feed_tokens")
+          .insert({ org_id: orgId, profile_id: profileId, read_write: true })
+          .select("token")
+          .single();
+        if (newCaldav) setCaldavToken(newCaldav.token);
+      }
+
       setLoadingToken(false);
     }
-    loadOrCreateToken();
+    loadOrCreateTokens();
   }, [supabase, orgId]);
 
   const feedUrl = feedToken ? `${baseUrl}/api/calendar/feed?token=${feedToken}` : "";
   const webcalUrl = feedUrl.replace(/^https?:/, "webcal:");
+  const caldavUrl = caldavToken ? `${baseUrl}/api/caldav/${caldavToken}/` : "";
 
   async function handleImport() {
     setImporting(true);
@@ -1157,18 +1185,19 @@ function SubscribeInfoModal({
     showToast("URL kopiert", "success");
   }
 
-  async function regenerateToken() {
-    if (!(await appConfirm("Neuen Token generieren? Der alte wird ungültig und bestehende Abos müssen neu eingerichtet werden.", { variant: "danger", confirmLabel: "Neu generieren" }))) return;
+  async function regenerateToken(readWrite: boolean) {
+    if (!(await appConfirm("Neuen Token generieren? Der alte wird ungültig und bestehende Verbindungen müssen neu eingerichtet werden.", { variant: "danger", confirmLabel: "Neu generieren" }))) return;
     // Alten löschen
-    await supabase.from("calendar_feed_tokens").delete().eq("org_id", orgId);
+    await supabase.from("calendar_feed_tokens").delete().eq("org_id", orgId).eq("read_write", readWrite);
     // Neuen erstellen
     const { data } = await supabase
       .from("calendar_feed_tokens")
-      .insert({ org_id: orgId })
+      .insert({ org_id: orgId, profile_id: profileId, read_write: readWrite })
       .select("token")
       .single();
     if (data) {
-      setFeedToken(data.token);
+      if (readWrite) setCaldavToken(data.token);
+      else setFeedToken(data.token);
       showToast("Neuer Token erstellt", "success");
     }
   }
@@ -1181,129 +1210,260 @@ function SubscribeInfoModal({
           <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: "var(--color-muted-foreground)" }}><IconX size={20} /></button>
         </div>
 
+        {/* Tab-Auswahl */}
+        <div className="flex px-6 pt-3 gap-1" style={{ borderBottom: "1px solid var(--color-border-light)" }}>
+          {[
+            { key: "caldav" as const, label: "Zwei-Wege-Sync (CalDAV)" },
+            { key: "feed" as const, label: "Nur lesen (iCal)" },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className="px-3 py-2 text-xs font-medium rounded-t-lg transition-colors"
+              style={{
+                background: tab === t.key ? "var(--color-surface)" : "transparent",
+                color: tab === t.key ? "var(--color-primary)" : "var(--color-muted-foreground)",
+                borderBottom: tab === t.key ? "2px solid var(--color-primary)" : "2px solid transparent",
+              }}
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+
         <div className="px-6 py-5 space-y-5">
           {loadingToken ? (
             <div className="text-center py-4 text-sm" style={{ color: "var(--color-muted-foreground)" }}>Token wird geladen...</div>
-          ) : feedToken ? (
-            <>
-              {/* Info-Banner */}
-              <div className="p-3 rounded-lg text-xs" style={{ background: "var(--color-primary-light)", border: "1px solid var(--color-primary)", color: "var(--color-primary)" }}>
-                Termine aus Project Prepper werden automatisch in deine Kalender-App synchronisiert. Neue Termine bitte in der Web-App anlegen — sie erscheinen dann auf allen Geräten.
-              </div>
-
-              {/* Direkt-Abo Button */}
-              <div>
-                <a
-                  href={webcalUrl}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
-                  style={{ background: "var(--color-primary)" }}
-                >
-                  <IconCalendar size={16} />
-                  In Kalender-App abonnieren
-                </a>
-                <p className="text-[11px] mt-1.5" style={{ color: "var(--color-muted-foreground)" }}>
-                  Klick öffnet direkt deine Standard-Kalender-App (Mac / iPhone).
-                </p>
-              </div>
-
-              {/* Abo-URL */}
-              <div>
-                <h3 className="text-sm font-semibold mb-2">Abo-URL manuell einrichten</h3>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={feedUrl}
-                    className="flex-1 px-3 py-2 rounded-lg text-[10px] font-mono"
-                    style={{ border: "1px solid var(--color-border)", background: "var(--color-muted)" }}
-                    onClick={(e) => (e.target as HTMLInputElement).select()}
-                  />
-                  <button
-                    onClick={() => copyToClipboard(feedUrl)}
-                    className="px-3 py-2 rounded-lg text-xs font-medium text-white flex-shrink-0"
-                    style={{ background: "var(--color-primary)" }}
-                  >
-                    Kopieren
-                  </button>
+          ) : tab === "caldav" ? (
+            /* ========== CalDAV (Zwei-Wege-Sync) ========== */
+            caldavToken ? (
+              <>
+                <div className="p-3 rounded-lg text-xs" style={{ background: "var(--color-success-light)", border: "1px solid var(--color-success)", color: "var(--color-success)" }}>
+                  Zwei-Wege-Sync: Termine in Apple Calendar, Thunderbird oder anderen CalDAV-Apps erstellen, bearbeiten und löschen — alles synchronisiert sich automatisch mit Project Prepper.
                 </div>
-              </div>
 
-              {/* Pro Gruppe */}
-              {groups.length > 1 && (
+                {/* CalDAV Server-URL */}
                 <div>
-                  <h3 className="text-sm font-semibold mb-2">Einzelne Gruppen abonnieren</h3>
-                  <div className="space-y-1.5">
-                    {groups.map((group) => {
-                      const groupUrl = `${feedUrl}&group_id=${group.id}`;
-                      return (
-                        <div key={group.id} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: "var(--color-muted)" }}>
-                          <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: group.color }} />
-                          <span className="flex-1 text-sm font-medium truncate">{group.name}</span>
-                          <button
-                            onClick={() => copyToClipboard(groupUrl)}
-                            className="px-2 py-1 rounded text-[10px] font-medium flex-shrink-0"
-                            style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
-                          >
-                            URL kopieren
-                          </button>
-                        </div>
-                      );
-                    })}
+                  <h3 className="text-sm font-semibold mb-2">Server-URL</h3>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={caldavUrl}
+                      className="flex-1 px-3 py-2 rounded-lg text-[10px] font-mono"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-muted)" }}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      onClick={() => copyToClipboard(caldavUrl)}
+                      className="px-3 py-2 rounded-lg text-xs font-medium text-white flex-shrink-0"
+                      style={{ background: "var(--color-primary)" }}
+                    >
+                      Kopieren
+                    </button>
                   </div>
                 </div>
-              )}
 
-              {/* Anleitungen */}
-              <div>
-                <h3 className="text-sm font-semibold mb-3">Anleitung</h3>
-                <div className="space-y-3">
-                  {[
-                    { title: "Apple Calendar (iPhone / Mac)", icon: "🍎", steps: [
-                      "Einstellungen → Kalender → Accounts → Account hinzufügen",
-                      "\"Andere\" → Kalenderabo hinzufügen",
-                      "Die Abo-URL einfügen und bestätigen",
-                    ]},
-                    { title: "Google Calendar", icon: "📅", steps: [
-                      "Google Calendar öffnen (am PC)",
-                      "Links bei \"Weitere Kalender\" auf + → Per URL",
-                      "Die Abo-URL einfügen und \"Kalender hinzufügen\"",
-                    ]},
-                    { title: "Outlook", icon: "📧", steps: [
-                      "Kalender → Kalender hinzufügen → Aus dem Internet abonnieren",
-                      "Die Abo-URL einfügen und \"Importieren\"",
-                    ]},
-                  ].map((instr) => (
-                    <div key={instr.title} className="p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
-                      <p className="text-sm font-semibold mb-1.5">{instr.icon} {instr.title}</p>
-                      <ol className="space-y-1">
-                        {instr.steps.map((step, i) => (
-                          <li key={i} className="text-xs flex gap-2" style={{ color: "var(--color-muted-foreground)" }}>
-                            <span className="font-bold flex-shrink-0" style={{ color: "var(--color-primary)" }}>{i + 1}.</span>
-                            {step}
-                          </li>
-                        ))}
-                      </ol>
+                {/* Zugangsdaten */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Zugangsdaten</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3 p-2.5 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                      <span className="text-xs font-medium w-20" style={{ color: "var(--color-muted-foreground)" }}>Benutzer:</span>
+                      <span className="text-xs font-mono">caldav</span>
                     </div>
-                  ))}
+                    <div className="flex items-center gap-3 p-2.5 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                      <span className="text-xs font-medium w-20" style={{ color: "var(--color-muted-foreground)" }}>Passwort:</span>
+                      <span className="text-[10px] font-mono flex-1 truncate">{caldavToken}</span>
+                      <button
+                        onClick={() => copyToClipboard(caldavToken)}
+                        className="px-2 py-1 rounded text-[10px] font-medium flex-shrink-0"
+                        style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
+                      >
+                        Kopieren
+                      </button>
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              {/* Token neu generieren */}
-              <div className="pt-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
-                <button
-                  onClick={regenerateToken}
-                  className="text-xs font-medium transition-colors hover:opacity-80"
-                  style={{ color: "var(--color-destructive)" }}
-                >
-                  Feed-Token neu generieren
-                </button>
-                <p className="text-[11px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-                  Macht den aktuellen Link ungültig. Nötig falls der Link kompromittiert wurde.
-                </p>
-              </div>
-            </>
+                {/* CalDAV Anleitungen */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-3">Anleitung</h3>
+                  <div className="space-y-3">
+                    {[
+                      { title: "Apple Calendar (Mac)", icon: "🍎", steps: [
+                        "Systemeinstellungen → Internetaccounts → Anderer Account",
+                        "\"CalDAV-Account\" auswählen",
+                        "Account-Typ: \"Manuell\"",
+                        "Benutzername: caldav, Passwort: den Token einfügen",
+                        "Server-Adresse: die Server-URL einfügen",
+                      ]},
+                      { title: "Apple Calendar (iPhone / iPad)", icon: "📱", steps: [
+                        "Einstellungen → Kalender → Accounts → Account hinzufügen",
+                        "\"Andere\" → CalDAV-Account hinzufügen",
+                        "Server: die Server-URL einfügen",
+                        "Benutzername: caldav, Passwort: den Token",
+                      ]},
+                      { title: "Thunderbird", icon: "🦊", steps: [
+                        "Kalender → Neuer Kalender → Im Netzwerk",
+                        "Format: CalDAV, die Server-URL einfügen",
+                        "Zugangsdaten eingeben wenn gefragt",
+                      ]},
+                    ].map((instr) => (
+                      <div key={instr.title} className="p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                        <p className="text-sm font-semibold mb-1.5">{instr.icon} {instr.title}</p>
+                        <ol className="space-y-1">
+                          {instr.steps.map((step, i) => (
+                            <li key={i} className="text-xs flex gap-2" style={{ color: "var(--color-muted-foreground)" }}>
+                              <span className="font-bold flex-shrink-0" style={{ color: "var(--color-primary)" }}>{i + 1}.</span>
+                              {step}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Token neu generieren */}
+                <div className="pt-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+                  <button
+                    onClick={() => regenerateToken(true)}
+                    className="text-xs font-medium transition-colors hover:opacity-80"
+                    style={{ color: "var(--color-destructive)" }}
+                  >
+                    CalDAV-Token neu generieren
+                  </button>
+                  <p className="text-[11px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                    Macht den aktuellen Zugang ungültig. Bestehende Verbindungen müssen neu eingerichtet werden.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4 text-sm" style={{ color: "var(--color-destructive)" }}>Token konnte nicht erstellt werden.</div>
+            )
           ) : (
-            <div className="text-center py-4 text-sm" style={{ color: "var(--color-destructive)" }}>Token konnte nicht erstellt werden.</div>
+            /* ========== iCal Feed (Nur lesen) ========== */
+            feedToken ? (
+              <>
+                <div className="p-3 rounded-lg text-xs" style={{ background: "var(--color-primary-light)", border: "1px solid var(--color-primary)", color: "var(--color-primary)" }}>
+                  Nur-Lesen-Feed: Termine aus Project Prepper werden automatisch synchronisiert. Neue Termine nur in der Web-App erstellen.
+                </div>
+
+                {/* Direkt-Abo Button */}
+                <div>
+                  <a
+                    href={webcalUrl}
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white transition-colors"
+                    style={{ background: "var(--color-primary)" }}
+                  >
+                    <IconCalendar size={16} />
+                    In Kalender-App abonnieren
+                  </a>
+                  <p className="text-[11px] mt-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+                    Klick öffnet direkt deine Standard-Kalender-App (Mac / iPhone).
+                  </p>
+                </div>
+
+                {/* Abo-URL */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Abo-URL manuell einrichten</h3>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      readOnly
+                      value={feedUrl}
+                      className="flex-1 px-3 py-2 rounded-lg text-[10px] font-mono"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-muted)" }}
+                      onClick={(e) => (e.target as HTMLInputElement).select()}
+                    />
+                    <button
+                      onClick={() => copyToClipboard(feedUrl)}
+                      className="px-3 py-2 rounded-lg text-xs font-medium text-white flex-shrink-0"
+                      style={{ background: "var(--color-primary)" }}
+                    >
+                      Kopieren
+                    </button>
+                  </div>
+                </div>
+
+                {/* Pro Gruppe */}
+                {groups.length > 1 && (
+                  <div>
+                    <h3 className="text-sm font-semibold mb-2">Einzelne Gruppen abonnieren</h3>
+                    <div className="space-y-1.5">
+                      {groups.map((group) => {
+                        const groupUrl = `${feedUrl}&group_id=${group.id}`;
+                        return (
+                          <div key={group.id} className="flex items-center gap-2 p-2 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: group.color }} />
+                            <span className="flex-1 text-sm font-medium truncate">{group.name}</span>
+                            <button
+                              onClick={() => copyToClipboard(groupUrl)}
+                              className="px-2 py-1 rounded text-[10px] font-medium flex-shrink-0"
+                              style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
+                            >
+                              URL kopieren
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Anleitungen */}
+                <div>
+                  <h3 className="text-sm font-semibold mb-3">Anleitung</h3>
+                  <div className="space-y-3">
+                    {[
+                      { title: "Apple Calendar (iPhone / Mac)", icon: "🍎", steps: [
+                        "Einstellungen → Kalender → Accounts → Account hinzufügen",
+                        "\"Andere\" → Kalenderabo hinzufügen",
+                        "Die Abo-URL einfügen und bestätigen",
+                      ]},
+                      { title: "Google Calendar", icon: "📅", steps: [
+                        "Google Calendar öffnen (am PC)",
+                        "Links bei \"Weitere Kalender\" auf + → Per URL",
+                        "Die Abo-URL einfügen und \"Kalender hinzufügen\"",
+                      ]},
+                      { title: "Outlook", icon: "📧", steps: [
+                        "Kalender → Kalender hinzufügen → Aus dem Internet abonnieren",
+                        "Die Abo-URL einfügen und \"Importieren\"",
+                      ]},
+                    ].map((instr) => (
+                      <div key={instr.title} className="p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                        <p className="text-sm font-semibold mb-1.5">{instr.icon} {instr.title}</p>
+                        <ol className="space-y-1">
+                          {instr.steps.map((step, i) => (
+                            <li key={i} className="text-xs flex gap-2" style={{ color: "var(--color-muted-foreground)" }}>
+                              <span className="font-bold flex-shrink-0" style={{ color: "var(--color-primary)" }}>{i + 1}.</span>
+                              {step}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Token neu generieren */}
+                <div className="pt-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+                  <button
+                    onClick={() => regenerateToken(false)}
+                    className="text-xs font-medium transition-colors hover:opacity-80"
+                    style={{ color: "var(--color-destructive)" }}
+                  >
+                    Feed-Token neu generieren
+                  </button>
+                  <p className="text-[11px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                    Macht den aktuellen Link ungültig. Nötig falls der Link kompromittiert wurde.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-4 text-sm" style={{ color: "var(--color-destructive)" }}>Token konnte nicht erstellt werden.</div>
+            )
           )}
 
           {/* Nextcloud Import (nur Admin) */}
