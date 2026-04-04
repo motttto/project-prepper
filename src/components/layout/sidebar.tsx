@@ -110,9 +110,9 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   return (
     <aside
       className={`
-        fixed inset-y-0 left-0 z-50 w-[260px] min-h-screen flex flex-col
+        fixed inset-y-0 left-0 z-50 w-[260px] h-screen flex flex-col
         transform transition-transform duration-200 ease-in-out
-        lg:relative lg:translate-x-0 lg:z-auto
+        lg:sticky lg:top-0 lg:translate-x-0 lg:z-auto
         ${isOpen ? "translate-x-0" : "-translate-x-full"}
       `}
       style={{ background: "var(--color-sidebar)" }}
