@@ -10,6 +10,7 @@ import {
   IconUser,
   IconTelegram,
   IconX,
+  IconShield,
 } from "@/components/ui/icons";
 import imageCompression from "browser-image-compression";
 import { RoleBadge, RoleBadgeGroup, orgBadgeStyles } from "@/components/ui/role-badge";
@@ -48,6 +49,8 @@ export default function ProfilePage() {
   // Messages
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+  const [mfaLoading, setMfaLoading] = useState(true);
 
   // Track changes
   const hasNameChange = profile ? name !== profile.name : false;
@@ -99,6 +102,17 @@ export default function ProfilePage() {
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  // MFA-Status laden
+  useEffect(() => {
+    async function checkMfa() {
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const verified = factors?.totp?.filter((f) => f.status === "verified") ?? [];
+      setMfaEnabled(verified.length > 0);
+      setMfaLoading(false);
+    }
+    checkMfa();
+  }, [supabase]);
 
   // Clear messages after 5s
   useEffect(() => {
@@ -461,6 +475,86 @@ export default function ProfilePage() {
                 {saving ? "Wird gespeichert..." : "Änderungen speichern"}
               </button>
             </div>
+          </div>
+        </div>
+
+        {/* ────────────── 2FA-Status ────────────── */}
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{
+            background: "var(--color-surface)",
+            border: "1px solid var(--color-border)",
+          }}
+        >
+          <div className="p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <IconShield size={20} style={{ color: "var(--color-primary)" }} />
+              <h2 className="text-base font-semibold">Zwei-Faktor-Authentifizierung</h2>
+            </div>
+
+            {mfaLoading ? (
+              <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                Wird geladen...
+              </p>
+            ) : mfaEnabled ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ background: "var(--color-success)" }}
+                  />
+                  <span className="text-sm">2FA ist aktiv</span>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      background: "var(--color-success-light)",
+                      color: "var(--color-success)",
+                    }}
+                  >
+                    TOTP
+                  </span>
+                </div>
+                <button
+                  onClick={async () => {
+                    const { data: factors } = await supabase.auth.mfa.listFactors();
+                    const verified = factors?.totp?.filter((f) => f.status === "verified") ?? [];
+                    for (const f of verified) {
+                      await supabase.auth.mfa.unenroll({ factorId: f.id });
+                    }
+                    // Direkt zum Neu-Setup weiterleiten
+                    window.location.href = "/mfa/setup";
+                  }}
+                  className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+                  style={{
+                    color: "var(--color-muted-foreground)",
+                    border: "1px solid var(--color-border)",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-primary)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-muted-foreground)")}
+                >
+                  Neu einrichten
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p
+                  className="text-sm mb-3"
+                  style={{ color: "var(--color-muted-foreground)" }}
+                >
+                  2FA ist noch nicht eingerichtet. Diese Sicherheitsfunktion ist verpflichtend.
+                </p>
+                <button
+                  onClick={() => (window.location.href = "/mfa/setup")}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                  style={{ background: "var(--color-primary)" }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-primary-hover)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "var(--color-primary)")}
+                >
+                  <IconShield size={16} />
+                  2FA jetzt einrichten
+                </button>
+              </div>
+            )}
           </div>
         </div>
 

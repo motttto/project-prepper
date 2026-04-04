@@ -43,7 +43,17 @@ function LoginPage() {
       return;
     }
 
-    router.push(redirectTo || "/dashboard");
+    // MFA-Status prüfen
+    const { data: factors } = await supabase.auth.mfa.listFactors();
+    const verifiedFactors = factors?.totp?.filter((f) => f.status === "verified") ?? [];
+
+    if (verifiedFactors.length > 0) {
+      // MFA eingerichtet → Code-Eingabe
+      router.push("/mfa/verify");
+    } else {
+      // Kein MFA → Setup erzwingen
+      router.push("/mfa/setup");
+    }
     router.refresh();
   }
 

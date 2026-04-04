@@ -36,18 +36,19 @@ export async function middleware(request: NextRequest) {
   const isPendingPage = pathname === "/pending";
   const isAuthCallback = pathname.startsWith("/auth/callback");
   const isOrgPage = pathname.startsWith("/org/");
+  const isMfaPage = pathname.startsWith("/mfa/");
 
   // Nicht eingeloggt? → Weiterleitung zum Login
-  // (außer man ist bereits auf /login, Startseite oder Auth-Callback)
-  if (!user && !isAuthPage && !isHomePage && !isAuthCallback) {
+  // (außer man ist bereits auf /login, Startseite, Auth-Callback oder MFA-Seite)
+  if (!user && !isAuthPage && !isHomePage && !isAuthCallback && !isMfaPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 
-  // Eingeloggt → Org-Status prüfen
+  // Eingeloggt → MFA + Org-Status prüfen
   if (user) {
-    // Profil laden
+    // Profil laden (wird auch für MFA-Check gebraucht, System-User skippen MFA)
     const { data: profile } = await supabase
       .from("profiles")
       .select("is_system")
@@ -56,7 +57,7 @@ export async function middleware(request: NextRequest) {
 
     const isSystem = profile?.is_system ?? false;
 
-    // System-User hat immer Zugang
+    // System-User hat immer Zugang (kein MFA-Zwang)
     if (isSystem) {
       if (isAuthPage) {
         const url = request.nextUrl.clone();
@@ -64,6 +65,33 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(url);
       }
       return supabaseResponse;
+    }
+
+    // MFA-Enforcement für alle normalen User
+    // (überspringe für MFA-Seiten selbst, Auth-Callback und Login)
+    if (!isMfaPage && !isAuthCallback && !isAuthPage) {
+      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+
+      if (aal) {
+        // User hat MFA eingerichtet aber nicht in dieser Session verifiziert
+        if (aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+          const url = request.nextUrl.clone();
+          url.pathname = "/mfa/verify";
+          return NextResponse.redirect(url);
+        }
+
+        // User hat kein MFA eingerichtet → Setup erzwingen
+        if (aal.nextLevel === "aal1" && aal.currentLevel === "aal1") {
+          const { data: factors } = await supabase.auth.mfa.listFactors();
+          const hasVerifiedFactor = factors?.totp?.some((f) => f.status === "verified") ?? false;
+
+          if (!hasVerifiedFactor) {
+            const url = request.nextUrl.clone();
+            url.pathname = "/mfa/setup";
+            return NextResponse.redirect(url);
+          }
+        }
+      }
     }
 
     // Org-Mitgliedschaften prüfen
