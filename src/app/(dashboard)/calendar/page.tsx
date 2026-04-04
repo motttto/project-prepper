@@ -267,13 +267,14 @@ export default function CalendarPage() {
     });
   }
 
-  // Nur Einzel-Tag-Events für die Monatsansicht (keine Spanning-Events)
+  // Nur zeitgebundene Einzel-Tag-Events für die Monatsansicht
+  // (Ganztägige + mehrtägige Events werden als Spanning-Bars gerendert)
   function getSingleDayEventsForDay(date: Date): CalendarEvent[] {
     return events.filter((e) => {
       if (e.group_id && hiddenGroups.has(e.group_id)) return false;
       if (isMultiDayEvent(e)) return false;
+      if (e.all_day) return false; // Ganztägig → wird als Spanning-Bar gezeigt
       const eStart = new Date(e.start_at);
-      if (e.all_day) return isSameDay(eStart, date);
       return isSameDay(eStart, date);
     });
   }
@@ -442,6 +443,23 @@ export default function CalendarPage() {
         {/* Zeile 2: Gruppen-Filter */}
         {groups.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
+            {/* Alle ein/aus */}
+            {groups.length > 1 && (
+              <button
+                onClick={() => {
+                  const allHidden = groups.every((g) => hiddenGroups.has(g.id));
+                  setHiddenGroups(allHidden ? new Set() : new Set(groups.map((g) => g.id)));
+                }}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                style={{
+                  background: groups.every((g) => hiddenGroups.has(g.id)) ? "var(--color-muted)" : "var(--color-primary-light)",
+                  color: groups.every((g) => hiddenGroups.has(g.id)) ? "var(--color-muted-foreground)" : "var(--color-primary)",
+                  border: `1.5px solid ${groups.every((g) => hiddenGroups.has(g.id)) ? "transparent" : "var(--color-primary)"}`,
+                }}
+              >
+                Alle
+              </button>
+            )}
             {groups.map((group, idx) => {
               const color = getGroupColor(group, idx);
               const isHidden = hiddenGroups.has(group.id);
