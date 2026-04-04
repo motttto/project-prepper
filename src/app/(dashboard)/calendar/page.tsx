@@ -1189,23 +1189,6 @@ function SubscribeInfoModal({
     showToast("URL kopiert", "success");
   }
 
-  async function regenerateToken(readWrite: boolean) {
-    if (!(await appConfirm("Neuen Token generieren? Der alte wird ungültig und bestehende Verbindungen müssen neu eingerichtet werden.", { variant: "danger", confirmLabel: "Neu generieren" }))) return;
-    // Alten löschen
-    await supabase.from("calendar_feed_tokens").delete().eq("org_id", orgId).eq("read_write", readWrite);
-    // Neuen erstellen
-    const { data } = await supabase
-      .from("calendar_feed_tokens")
-      .insert({ org_id: orgId, profile_id: profileId, read_write: readWrite })
-      .select("token")
-      .single();
-    if (data) {
-      if (readWrite) setCaldavToken(data.token);
-      else setFeedToken(data.token);
-      showToast("Neuer Token erstellt", "success");
-    }
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }} onClick={onClose}>
       <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl" style={{ background: "var(--color-surface)", boxShadow: "var(--shadow-lg)" }} onClick={(e) => e.stopPropagation()}>
@@ -1348,19 +1331,6 @@ function SubscribeInfoModal({
                   </div>
                 </div>
 
-                {/* Token neu generieren */}
-                <div className="pt-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
-                  <button
-                    onClick={() => regenerateToken(true)}
-                    className="text-xs font-medium transition-colors hover:opacity-80"
-                    style={{ color: "var(--color-destructive)" }}
-                  >
-                    CalDAV-Token neu generieren
-                  </button>
-                  <p className="text-[11px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-                    Macht den aktuellen Zugang ungültig. Bestehende Verbindungen müssen neu eingerichtet werden.
-                  </p>
-                </div>
               </>
             ) : (
               <div className="text-center py-4 text-sm" style={{ color: "var(--color-destructive)" }}>Token konnte nicht erstellt werden.</div>
@@ -1503,19 +1473,6 @@ function SubscribeInfoModal({
                   </div>
                 </div>
 
-                {/* Token neu generieren */}
-                <div className="pt-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
-                  <button
-                    onClick={() => regenerateToken(false)}
-                    className="text-xs font-medium transition-colors hover:opacity-80"
-                    style={{ color: "var(--color-destructive)" }}
-                  >
-                    Feed-Token neu generieren
-                  </button>
-                  <p className="text-[11px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-                    Macht den aktuellen Link ungültig. Nötig falls der Link kompromittiert wurde.
-                  </p>
-                </div>
               </>
             ) : (
               <div className="text-center py-4 text-sm" style={{ color: "var(--color-destructive)" }}>Token konnte nicht erstellt werden.</div>
