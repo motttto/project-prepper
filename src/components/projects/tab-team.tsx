@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
-import type { TeamMember, ProjectContact, ProjectGuest, ProjectMember } from "@/types/database";
+import type { TeamMember, ProjectContact, ProjectGuest, ProjectMember, OrgGuest } from "@/types/database";
 import { IconPlus, IconTrash } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
+import { useOrg } from "@/contexts/org-context";
 
 interface TabTeamProps {
   projectId: string;
@@ -25,21 +26,18 @@ const defaultDepartments = [
 
 export function TabTeam({ projectId }: TabTeamProps) {
   const supabase = createClient();
+  const { orgId } = useOrg();
   const [projectMembers, setProjectMembers] = useState<(ProjectMember & { profiles?: { name: string; email: string } })[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [contacts, setContacts] = useState<ProjectContact[]>([]);
-  const [guests, setGuests] = useState<ProjectGuest[]>([]);
+  const [guests, setGuests] = useState<(ProjectGuest & { org_guests?: OrgGuest })[]>([]);
+  const [orgGuests, setOrgGuests] = useState<OrgGuest[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Guest form
-  const [showGuestForm, setShowGuestForm] = useState(false);
-  const [guestName, setGuestName] = useState("");
-  const [guestCompany, setGuestCompany] = useState("");
-  const [guestRole, setGuestRole] = useState("");
-  const [guestEmail, setGuestEmail] = useState("");
-  const [guestPhone, setGuestPhone] = useState("");
+  const [showGuestPicker, setShowGuestPicker] = useState(false);
+  const [selectedOrgGuestId, setSelectedOrgGuestId] = useState("");
   const [guestPlusOnes, setGuestPlusOnes] = useState(0);
-  const [guestNotes, setGuestNotes] = useState("");
   const [savingGuest, setSavingGuest] = useState(false);
 
   // Team form
@@ -62,18 +60,20 @@ export function TabTeam({ projectId }: TabTeamProps) {
   const [savingContact, setSavingContact] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [membersRes, teamRes, guestsRes, contactsRes] = await Promise.all([
+    const [membersRes, teamRes, guestsRes, contactsRes, orgGuestsRes] = await Promise.all([
       supabase.from("project_members").select("*, profiles(name, email)").eq("project_id", projectId),
       supabase.from("project_team").select("*").eq("project_id", projectId).order("department").order("created_at"),
-      supabase.from("project_guests").select("*").eq("project_id", projectId).order("created_at"),
+      supabase.from("project_guests").select("*, org_guests(*)").eq("project_id", projectId).order("created_at"),
       supabase.from("project_contacts").select("*").eq("project_id", projectId).order("created_at"),
+      orgId ? supabase.from("org_guests").select("*").eq("org_id", orgId).order("name") : Promise.resolve({ data: [] }),
     ]);
     if (membersRes.data) setProjectMembers(membersRes.data as any);
     if (teamRes.data) setMembers(teamRes.data as TeamMember[]);
-    if (guestsRes.data) setGuests(guestsRes.data as ProjectGuest[]);
+    if (guestsRes.data) setGuests(guestsRes.data as any);
     if (contactsRes.data) setContacts(contactsRes.data as ProjectContact[]);
+    if (orgGuestsRes.data) setOrgGuests(orgGuestsRes.data as OrgGuest[]);
     setLoading(false);
-  }, [supabase, projectId]);
+  }, [supabase, projectId, orgId]);
 
   useEffect(() => {
     loadData();
@@ -137,27 +137,29 @@ export function TabTeam({ projectId }: TabTeamProps) {
   // Guest handlers
   async function handleAddGuest(e: React.FormEvent) {
     e.preventDefault();
+    if (!selectedOrgGuestId) return;
     setSavingGuest(true);
     const { error } = await supabase.from("project_guests").insert({
       project_id: projectId,
-      name: guestName,
-      company: guestCompany || null,
-      role: guestRole || null,
-      email: guestEmail || null,
-      phone: guestPhone || null,
+      org_guest_id: selectedOrgGuestId,
       plus_ones: guestPlusOnes,
-      notes: guestNotes || null,
     });
     if (error) {
       showToast("Fehler: " + error.message, "error");
     } else {
-      setGuestName(""); setGuestCompany(""); setGuestRole(""); setGuestEmail(""); setGuestPhone(""); setGuestPlusOnes(0); setGuestNotes("");
-      setShowGuestForm(false);
+      setSelectedOrgGuestId(""); setGuestPlusOnes(0);
+      setShowGuestPicker(false);
       loadData();
       showToast("Gast hinzugefügt", "success");
     }
     setSavingGuest(false);
   }
+
+  // Nur Gäste anzeigen die noch nicht zugewiesen sind
+  const availableGuests = useMemo(() => {
+    const assignedIds = new Set(guests.map(g => g.org_guest_id));
+    return orgGuests.filter(g => !assignedIds.has(g.id));
+  }, [orgGuests, guests]);
 
   async function handleDeleteGuest(id: string) {
     if (!confirm("Gast wirklich entfernen?")) return;
@@ -318,82 +320,64 @@ export function TabTeam({ projectId }: TabTeamProps) {
             </span>
           </div>
           <button
-            onClick={() => setShowGuestForm(!showGuestForm)}
+            onClick={() => setShowGuestPicker(!showGuestPicker)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white rounded-lg transition-colors"
             style={{ background: "var(--color-primary)" }}
           >
             <IconPlus size={16} />
-            Gast hinzufügen
+            Gast zuweisen
           </button>
         </div>
 
-        {showGuestForm && (
+        {showGuestPicker && (
           <div className="mb-4 p-5 rounded-lg" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
-            <h3 className="font-medium mb-3">Neuer Gast</h3>
-            <form onSubmit={handleAddGuest} className="space-y-3">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Name *</label>
-                  <input type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
-                    placeholder="z.B. Lisa Müller" required />
+            <h3 className="font-medium mb-3">Gast aus Verzeichnis zuweisen</h3>
+            {availableGuests.length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+                Keine weiteren Gäste verfügbar. Neue Gäste können unter <strong>Team → Gäste</strong> angelegt werden.
+              </p>
+            ) : (
+              <form onSubmit={handleAddGuest} className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-medium mb-1">Gast auswählen *</label>
+                    <select value={selectedOrgGuestId} onChange={(e) => setSelectedOrgGuestId(e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} required>
+                      <option value="">— Gast wählen —</option>
+                      {availableGuests.map(g => (
+                        <option key={g.id} value={g.id}>
+                          {g.name}{g.company ? ` (${g.company})` : ""}{g.role ? ` — ${g.role}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1">+Begleitung</label>
+                    <input type="number" min={0} value={guestPlusOnes} onChange={(e) => setGuestPlusOnes(parseInt(e.target.value) || 0)}
+                      className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Firma</label>
-                  <input type="text" value={guestCompany} onChange={(e) => setGuestCompany(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
-                    placeholder="z.B. Agentur XY" />
+                <div className="flex gap-2">
+                  <button type="submit" disabled={savingGuest || !selectedOrgGuestId}
+                    className="px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50"
+                    style={{ background: "var(--color-primary)" }}>
+                    {savingGuest ? "Wird gespeichert..." : "Zuweisen"}
+                  </button>
+                  <button type="button" onClick={() => setShowGuestPicker(false)}
+                    className="px-4 py-2 text-sm rounded-lg"
+                    style={{ border: "1px solid var(--color-border)" }}>
+                    Abbrechen
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Rolle</label>
-                  <input type="text" value={guestRole} onChange={(e) => setGuestRole(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
-                    placeholder="z.B. VIP, Presse, Sponsor" />
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">E-Mail</label>
-                  <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Telefon</label>
-                  <input type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">+Begleitung</label>
-                  <input type="number" min={0} value={guestPlusOnes} onChange={(e) => setGuestPlusOnes(parseInt(e.target.value) || 0)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Notizen</label>
-                  <input type="text" value={guestNotes} onChange={(e) => setGuestNotes(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
-                    placeholder="z.B. Allergien, Parkplatz" />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button type="submit" disabled={savingGuest}
-                  className="px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50"
-                  style={{ background: "var(--color-primary)" }}>
-                  {savingGuest ? "Wird gespeichert..." : "Hinzufügen"}
-                </button>
-                <button type="button" onClick={() => setShowGuestForm(false)}
-                  className="px-4 py-2 text-sm rounded-lg"
-                  style={{ border: "1px solid var(--color-border)" }}>
-                  Abbrechen
-                </button>
-              </div>
-            </form>
+              </form>
+            )}
           </div>
         )}
 
         {guests.length === 0 ? (
           <div className="text-center py-6 rounded-lg"
             style={{ border: "2px dashed var(--color-border)", color: "var(--color-muted-foreground)" }}>
-            Noch keine Gäste eingetragen
+            Noch keine Gäste zugewiesen. Gäste werden unter Team → Gäste verwaltet.
           </div>
         ) : (
           <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
@@ -411,16 +395,23 @@ export function TabTeam({ projectId }: TabTeamProps) {
               </thead>
               <tbody>
                 {guests.map((g) => {
+                  const og = g.org_guests;
+                  const displayName = og?.name || g.name || "?";
+                  const displayCompany = og?.company || g.company;
+                  const displayRole = og?.role || g.role;
+                  const displayEmail = og?.email || g.email;
+                  const displayPhone = og?.phone || g.phone;
+                  const displayNotes = og?.notes || g.notes;
                   const sc = guestStatusColors[g.status];
                   return (
                     <tr key={g.id} style={{ borderTop: "1px solid var(--color-border)" }} className="group">
                       <td className="px-4 py-3">
-                        <div className="font-medium">{g.name}</div>
-                        {g.notes && <div className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>{g.notes}</div>}
+                        <div className="font-medium">{displayName}</div>
+                        {displayNotes && <div className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>{displayNotes}</div>}
                       </td>
                       <td className="px-4 py-3">
-                        <div>{g.company || "–"}</div>
-                        {g.role && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>{g.role}</span>}
+                        <div>{displayCompany || "–"}</div>
+                        {displayRole && <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>{displayRole}</span>}
                       </td>
                       <td className="px-3 py-3 text-center">
                         {g.plus_ones > 0 ? (
@@ -440,9 +431,9 @@ export function TabTeam({ projectId }: TabTeamProps) {
                         </select>
                       </td>
                       <td className="px-4 py-3 text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                        {g.email && <div>{g.email}</div>}
-                        {g.phone && <div>{g.phone}</div>}
-                        {!g.email && !g.phone && "–"}
+                        {displayEmail && <div>{displayEmail}</div>}
+                        {displayPhone && <div>{displayPhone}</div>}
+                        {!displayEmail && !displayPhone && "–"}
                       </td>
                       <td className="px-4 py-3 text-right">
                         <button onClick={() => handleDeleteGuest(g.id)}

@@ -8,7 +8,7 @@ import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { useInvitations } from "@/hooks/use-invitations";
 import { useOrg } from "@/contexts/org-context";
 import { useImpersonate } from "@/contexts/impersonate-context";
-import type { TeamVote, InventoryItem, OrgInvitation, UserPermissions, PermissionKey } from "@/types/database";
+import type { TeamVote, InventoryItem, OrgInvitation, OrgGuest, UserPermissions, PermissionKey } from "@/types/database";
 import { permissionGroups, defaultPermissionsByRole, allPermissionKeys } from "@/types/database";
 import {
   IconUsers,
@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/role-badge";
 import { DecisionPanel } from "@/components/decisions/decision-panel";
 import { ExitSettlementWizard } from "@/components/team/exit-settlement-wizard";
+import { showToast } from "@/hooks/use-toast";
 
 type OrgMember = {
   id: string;
@@ -80,6 +81,18 @@ export default function TeamPage() {
   const [orgInvitations, setOrgInvitations] = useState<OrgInvitation[]>([]);
   const [expandedPermissions, setExpandedPermissions] = useState<string | null>(null);
   const [exitMember, setExitMember] = useState<{ id: string; name: string } | null>(null);
+
+  // Gäste
+  const [orgGuests, setOrgGuests] = useState<OrgGuest[]>([]);
+  const [showGuestForm, setShowGuestForm] = useState(false);
+  const [guestName, setGuestName] = useState("");
+  const [guestCompany, setGuestCompany] = useState("");
+  const [guestRole, setGuestRole] = useState("");
+  const [guestEmail, setGuestEmail] = useState("");
+  const [guestPhone, setGuestPhone] = useState("");
+  const [guestNotes, setGuestNotes] = useState("");
+  const [savingGuest, setSavingGuest] = useState(false);
+  const [editingGuest, setEditingGuest] = useState<string | null>(null);
 
   const isAdmin = currentUser?.roleName === "admin" || currentUser?.isSystem;
 
@@ -131,11 +144,67 @@ export default function TeamPage() {
     loadOrgInvitations();
   }, [loadOrgInvitations]);
 
+  // Org-Gäste laden
+  const loadGuests = useCallback(async () => {
+    if (!orgId) return;
+    const { data } = await supabase
+      .from("org_guests")
+      .select("*")
+      .eq("org_id", orgId)
+      .order("name");
+    if (data) setOrgGuests(data as OrgGuest[]);
+  }, [supabase, orgId]);
+
+  useEffect(() => {
+    loadGuests();
+  }, [loadGuests]);
+
   // Realtime — org-scoped
   useRealtimeTable({ table: "org_memberships", onDataChange: loadData, orgFilter: orgId || undefined });
   useRealtimeTable({ table: "team_votes", onDataChange: loadData, orgFilter: orgId || undefined });
   useRealtimeTable({ table: "inventory_items", onDataChange: loadData, orgFilter: orgId || undefined });
   useRealtimeTable({ table: "org_invitations", onDataChange: loadOrgInvitations, orgFilter: orgId || undefined });
+  useRealtimeTable({ table: "org_guests", onDataChange: loadGuests, orgFilter: orgId || undefined });
+
+  // Guest handlers
+  async function handleAddGuest(e: React.FormEvent) {
+    e.preventDefault();
+    if (!orgId || !guestName.trim()) return;
+    setSavingGuest(true);
+    const { error } = await supabase.from("org_guests").insert({
+      org_id: orgId,
+      name: guestName.trim(),
+      company: guestCompany || null,
+      role: guestRole || null,
+      email: guestEmail || null,
+      phone: guestPhone || null,
+      notes: guestNotes || null,
+    });
+    if (!error) {
+      showToast("Gast hinzugefügt", "success");
+      setGuestName(""); setGuestCompany(""); setGuestRole(""); setGuestEmail(""); setGuestPhone(""); setGuestNotes("");
+      setShowGuestForm(false);
+    } else {
+      showToast("Fehler: " + error.message, "error");
+    }
+    setSavingGuest(false);
+  }
+
+  async function handleUpdateGuest(id: string, updates: Partial<OrgGuest>) {
+    const { error } = await supabase.from("org_guests").update(updates).eq("id", id);
+    if (error) showToast("Fehler: " + error.message, "error");
+    else {
+      showToast("Gast aktualisiert", "success");
+      setEditingGuest(null);
+    }
+  }
+
+  async function handleDeleteGuest(id: string) {
+    if (!confirm("Gast wirklich löschen?")) return;
+    const { error } = await supabase.from("org_guests").delete().eq("id", id);
+    if (error) showToast("Fehler: " + error.message, "error");
+    else showToast("Gast entfernt", "success");
+  }
 
   // Berechnungen
   const activeMembers = members.filter((m) => m.is_active);
@@ -1027,6 +1096,140 @@ export default function TeamPage() {
             );
           })}
         </div>
+      </div>
+
+      {/* ===== GÄSTE-VERZEICHNIS ===== */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold flex items-center gap-2">
+              <IconUsers className="w-5 h-5" />
+              Gäste
+            </h2>
+            <span className="text-xs px-2 py-0.5 rounded-full"
+              style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
+              {orgGuests.length}
+            </span>
+          </div>
+          <button
+            onClick={() => setShowGuestForm(!showGuestForm)}
+            className="flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg font-medium transition-colors"
+            style={{ background: "var(--color-primary)", color: "var(--color-primary-foreground)" }}
+          >
+            <IconPlus className="w-4 h-4" />
+            Neuer Gast
+          </button>
+        </div>
+
+        {showGuestForm && (
+          <div className="rounded-xl p-4 mb-4" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+            <form onSubmit={handleAddGuest} className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--color-muted-foreground)" }}>Name *</label>
+                  <input type="text" value={guestName} onChange={(e) => setGuestName(e.target.value)}
+                    className="w-full rounded-lg px-3 py-2 text-sm" style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
+                    required placeholder="Max Mustermann" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--color-muted-foreground)" }}>Firma</label>
+                  <input type="text" value={guestCompany} onChange={(e) => setGuestCompany(e.target.value)}
+                    className="w-full rounded-lg px-3 py-2 text-sm" style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
+                    placeholder="Firma GmbH" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--color-muted-foreground)" }}>Rolle</label>
+                  <input type="text" value={guestRole} onChange={(e) => setGuestRole(e.target.value)}
+                    className="w-full rounded-lg px-3 py-2 text-sm" style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
+                    placeholder="z.B. Kunde, VIP, Sponsor" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--color-muted-foreground)" }}>E-Mail</label>
+                  <input type="email" value={guestEmail} onChange={(e) => setGuestEmail(e.target.value)}
+                    className="w-full rounded-lg px-3 py-2 text-sm" style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
+                    placeholder="max@firma.de" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--color-muted-foreground)" }}>Telefon</label>
+                  <input type="tel" value={guestPhone} onChange={(e) => setGuestPhone(e.target.value)}
+                    className="w-full rounded-lg px-3 py-2 text-sm" style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
+                    placeholder="+49 ..." />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1 block" style={{ color: "var(--color-muted-foreground)" }}>Notizen</label>
+                  <input type="text" value={guestNotes} onChange={(e) => setGuestNotes(e.target.value)}
+                    className="w-full rounded-lg px-3 py-2 text-sm" style={{ background: "var(--color-background)", border: "1px solid var(--color-border)" }}
+                    placeholder="Sonderwünsche, Allergien..." />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" disabled={savingGuest}
+                  className="px-4 py-2 rounded-lg text-sm font-medium"
+                  style={{ background: "var(--color-primary)", color: "var(--color-primary-foreground)" }}>
+                  {savingGuest ? "Wird gespeichert..." : "Hinzufügen"}
+                </button>
+                <button type="button" onClick={() => setShowGuestForm(false)}
+                  className="px-4 py-2 rounded-lg text-sm"
+                  style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
+                  Abbrechen
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {orgGuests.length === 0 ? (
+          <p className="text-sm py-4" style={{ color: "var(--color-muted-foreground)" }}>
+            Noch keine Gäste eingetragen. Gäste können hier zentral verwaltet und Projekten zugewiesen werden.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-xl" style={{ border: "1px solid var(--color-border)" }}>
+            <table className="w-full text-sm" style={{ minWidth: 600 }}>
+              <thead>
+                <tr style={{ background: "var(--color-muted)", borderBottom: "1px solid var(--color-border)" }}>
+                  <th className="text-left px-4 py-2.5 font-medium">Name</th>
+                  <th className="text-left px-4 py-2.5 font-medium hidden sm:table-cell">Firma / Rolle</th>
+                  <th className="text-left px-4 py-2.5 font-medium hidden md:table-cell">Kontakt</th>
+                  <th className="text-left px-4 py-2.5 font-medium hidden lg:table-cell">Notizen</th>
+                  <th className="w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {orgGuests.map((g) => (
+                  <tr key={g.id} className="group transition-colors"
+                    style={{ borderBottom: "1px solid var(--color-border-light)" }}>
+                    <td className="px-4 py-2.5 font-medium">
+                      {g.name}
+                      {g.company && <span className="sm:hidden text-xs ml-1" style={{ color: "var(--color-muted-foreground)" }}>· {g.company}</span>}
+                    </td>
+                    <td className="px-4 py-2.5 hidden sm:table-cell">
+                      <div className="flex flex-col">
+                        {g.company && <span className="text-xs">{g.company}</span>}
+                        {g.role && <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>{g.role}</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 hidden md:table-cell">
+                      <div className="flex flex-col gap-0.5 text-xs">
+                        {g.email && <span>{g.email}</span>}
+                        {g.phone && <span style={{ color: "var(--color-muted-foreground)" }}>{g.phone}</span>}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 hidden lg:table-cell">
+                      <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>{g.notes || "—"}</span>
+                    </td>
+                    <td className="px-2 py-2.5">
+                      <button onClick={() => handleDeleteGuest(g.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded transition-opacity"
+                        title="Löschen">
+                        <IconTrash className="w-4 h-4" style={{ color: "var(--color-danger)" }} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Inaktive / Ehemalige */}

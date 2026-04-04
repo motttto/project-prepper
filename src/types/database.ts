@@ -292,10 +292,23 @@ export type ProjectContact = {
   created_at: string;
 };
 
+export type OrgGuest = {
+  id: string;
+  org_id: string;
+  name: string;
+  company: string | null;
+  role: string | null;
+  email: string | null;
+  phone: string | null;
+  notes: string | null;
+  created_at: string;
+};
+
 export type ProjectGuest = {
   id: string;
   project_id: string;
-  name: string;
+  org_guest_id: string | null;
+  name: string | null;
   company: string | null;
   role: string | null;
   email: string | null;
@@ -304,6 +317,7 @@ export type ProjectGuest = {
   notes: string | null;
   status: "invited" | "confirmed" | "declined" | "attended";
   created_at: string;
+  org_guests?: OrgGuest;
 };
 
 export type Consumable = {
