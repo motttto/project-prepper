@@ -1276,9 +1276,9 @@ function SubscribeInfoModal({
                       </div>
                     ))}
                   </div>
-                  <p className="text-[11px]" style={{ color: "var(--color-muted-foreground)" }}>
-                    Tipp: Nach dem Einrichten kannst du den Account in den Systemeinstellungen umbenennen (z.B. in &quot;{orgName || "Project Prepper"}&quot;).
-                  </p>
+                  <div className="p-2.5 rounded-lg text-[11px]" style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
+                    <strong style={{ color: "var(--color-foreground)" }}>Nach dem Einrichten:</strong> Der Account erscheint mit der Server-Adresse als Name. Um ihn umzubenennen: Systemeinstellungen → Internetaccounts → Account anklicken → Beschreibung in &quot;{orgName || "Project Prepper"}&quot; ändern.
+                  </div>
                 </div>
 
                 {/* CalDAV Anleitungen */}
