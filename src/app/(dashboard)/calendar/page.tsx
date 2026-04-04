@@ -396,65 +396,16 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* === WOCHENANSICHT === */}
+      {/* === WOCHENANSICHT (Apple Calendar Style) === */}
       {viewMode === "week" && (
-        <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-          {getWeekDays().map((day, idx) => {
-            const isToday = isSameDay(day, today);
-            const dayEvents = getEventsForDay(day);
-            const dayName = day.toLocaleDateString("de-DE", { weekday: "long" });
-            return (
-              <div key={idx} style={{ borderBottom: idx < 6 ? "1px solid var(--color-border-light)" : "none", background: isToday ? "var(--color-primary-light)" : "transparent" }}>
-                <div className="flex items-center gap-3 px-4 py-2.5">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-sm"
-                    style={{ background: isToday ? "var(--color-primary)" : "var(--color-muted)", color: isToday ? "white" : "var(--color-foreground)" }}>
-                    {day.getDate()}
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{dayName}</p>
-                    <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>{day.toLocaleDateString("de-DE", { day: "numeric", month: "long" })}</p>
-                  </div>
-                  <div className="ml-auto flex items-center gap-2">
-                    {dayEvents.length === 0 && <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>Keine Termine</span>}
-                    <button
-                      onClick={() => { setCreateForDate(day); setShowCreateModal(true); }}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors"
-                      style={{ color: "var(--color-primary)", border: "1px solid var(--color-border)" }}
-                      title="Termin hinzufügen"
-                    >
-                      <IconPlus size={14} />
-                    </button>
-                  </div>
-                </div>
-                {dayEvents.length > 0 && (
-                  <div className="px-4 pb-3 space-y-1.5 ml-12">
-                    {dayEvents.map((event) => {
-                      const color = getCalColorForEvent(event);
-                      return (
-                        <button
-                          key={event.uid + event.start}
-                          onClick={() => setSelectedEvent(event)}
-                          className="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg transition-opacity hover:opacity-80"
-                          style={{ background: `${color}15` }}
-                        >
-                          <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ background: color }} />
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate" style={{ color }}>{event.summary}</p>
-                            <p className="text-xs" style={{ color, opacity: 0.7 }}>
-                              {event.allDay ? "Ganztägig" : `${formatTime(event.start)} – ${formatTime(event.end)}`}
-                              {event.location && ` · ${event.location}`}
-                            </p>
-                          </div>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: `${color}20`, color }}>{event.calendarName}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
+        <WeekTimeGrid
+          days={getWeekDays()}
+          today={today}
+          getEventsForDay={getEventsForDay}
+          getCalColorForEvent={getCalColorForEvent}
+          onEventClick={setSelectedEvent}
+          onCreateClick={(date) => { setCreateForDate(date); setShowCreateModal(true); }}
+        />
       )}
 
       {/* === EVENT DETAIL MODAL === */}
@@ -519,6 +470,291 @@ export default function CalendarPage() {
       )}
     </div>
   );
+}
+
+// === Week Time Grid (Apple Calendar Style) ===
+const HOUR_HEIGHT = 60; // px per hour
+const START_HOUR = 6;
+const END_HOUR = 23;
+const TOTAL_HOURS = END_HOUR - START_HOUR;
+
+function WeekTimeGrid({
+  days,
+  today,
+  getEventsForDay,
+  getCalColorForEvent,
+  onEventClick,
+  onCreateClick,
+}: {
+  days: Date[];
+  today: Date;
+  getEventsForDay: (date: Date) => CalendarEvent[];
+  getCalColorForEvent: (event: CalendarEvent) => string;
+  onEventClick: (event: CalendarEvent) => void;
+  onCreateClick: (date: Date) => void;
+}) {
+  // All-day events per day
+  const allDayRows: { day: Date; events: CalendarEvent[] }[] = days.map((day) => ({
+    day,
+    events: getEventsForDay(day).filter((e) => e.allDay),
+  }));
+  const hasAllDay = allDayRows.some((r) => r.events.length > 0);
+  const maxAllDay = Math.max(1, ...allDayRows.map((r) => r.events.length));
+
+  // Current time indicator
+  const now = new Date();
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const nowTop = ((nowMinutes - START_HOUR * 60) / (TOTAL_HOURS * 60)) * (TOTAL_HOURS * HOUR_HEIGHT);
+
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+      {/* Column Headers */}
+      <div className="flex" style={{ borderBottom: "1px solid var(--color-border)" }}>
+        {/* Time gutter */}
+        <div className="flex-shrink-0 w-[52px]" />
+        {/* Day columns */}
+        {days.map((day, idx) => {
+          const isToday = isSameDay(day, today);
+          const dayShort = day.toLocaleDateString("de-DE", { weekday: "short" });
+          return (
+            <div
+              key={idx}
+              className="flex-1 text-center py-2 min-w-0"
+              style={{
+                borderLeft: "1px solid var(--color-border-light)",
+                background: isToday ? "var(--color-primary-light)" : "transparent",
+              }}
+            >
+              <p className="text-[10px] uppercase font-semibold" style={{ color: isToday ? "var(--color-primary)" : "var(--color-muted-foreground)" }}>
+                {dayShort}
+              </p>
+              <p
+                className="text-lg font-bold leading-tight w-8 h-8 mx-auto flex items-center justify-center rounded-full"
+                style={{
+                  background: isToday ? "var(--color-primary)" : "transparent",
+                  color: isToday ? "white" : "var(--color-foreground)",
+                }}
+              >
+                {day.getDate()}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* All-day row */}
+      {hasAllDay && (
+        <div className="flex" style={{ borderBottom: "1px solid var(--color-border)" }}>
+          <div className="flex-shrink-0 w-[52px] flex items-start justify-end pr-2 pt-1">
+            <span className="text-[10px]" style={{ color: "var(--color-muted-foreground)" }}>Ganzt.</span>
+          </div>
+          {days.map((day, idx) => {
+            const dayAllDay = allDayRows[idx].events;
+            return (
+              <div
+                key={idx}
+                className="flex-1 min-w-0 p-0.5"
+                style={{
+                  borderLeft: "1px solid var(--color-border-light)",
+                  minHeight: maxAllDay * 22 + 4,
+                }}
+              >
+                {dayAllDay.map((event) => {
+                  const color = getCalColorForEvent(event);
+                  return (
+                    <button
+                      key={event.uid}
+                      onClick={() => onEventClick(event)}
+                      className="w-full text-left text-[10px] font-medium px-1 py-0.5 rounded truncate mb-0.5 transition-opacity hover:opacity-80"
+                      style={{ background: `${color}25`, color, lineHeight: "1.3" }}
+                      title={event.summary}
+                    >
+                      {event.summary}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Time grid */}
+      <div className="flex overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
+        {/* Hour labels */}
+        <div className="flex-shrink-0 w-[52px] relative" style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}>
+          {Array.from({ length: TOTAL_HOURS }, (_, i) => (
+            <div
+              key={i}
+              className="absolute right-2 text-[10px] font-medium"
+              style={{
+                top: i * HOUR_HEIGHT - 6,
+                color: "var(--color-muted-foreground)",
+              }}
+            >
+              {String(START_HOUR + i).padStart(2, "0")}:00
+            </div>
+          ))}
+        </div>
+
+        {/* Day columns with events */}
+        {days.map((day, dayIdx) => {
+          const isToday = isSameDay(day, today);
+          const timedEvents = getEventsForDay(day).filter((e) => !e.allDay);
+
+          // Layout overlapping events
+          const positioned = layoutEvents(timedEvents);
+
+          return (
+            <div
+              key={dayIdx}
+              className="flex-1 min-w-0 relative"
+              style={{
+                height: TOTAL_HOURS * HOUR_HEIGHT,
+                borderLeft: "1px solid var(--color-border-light)",
+                background: isToday ? "rgba(var(--color-primary-rgb, 0,102,255), 0.03)" : "transparent",
+              }}
+              onDoubleClick={(e) => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                const y = e.clientY - rect.top;
+                const hour = Math.floor(y / HOUR_HEIGHT) + START_HOUR;
+                const clickDate = new Date(day);
+                clickDate.setHours(hour, 0, 0, 0);
+                onCreateClick(clickDate);
+              }}
+            >
+              {/* Hour grid lines */}
+              {Array.from({ length: TOTAL_HOURS }, (_, i) => (
+                <div
+                  key={i}
+                  className="absolute left-0 right-0"
+                  style={{
+                    top: i * HOUR_HEIGHT,
+                    height: 1,
+                    background: "var(--color-border-light)",
+                  }}
+                />
+              ))}
+
+              {/* Half-hour lines */}
+              {Array.from({ length: TOTAL_HOURS }, (_, i) => (
+                <div
+                  key={`half-${i}`}
+                  className="absolute left-0 right-0"
+                  style={{
+                    top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2,
+                    height: 1,
+                    background: "var(--color-border-light)",
+                    opacity: 0.4,
+                  }}
+                />
+              ))}
+
+              {/* Current time line */}
+              {isToday && nowMinutes >= START_HOUR * 60 && nowMinutes <= END_HOUR * 60 && (
+                <div className="absolute left-0 right-0 z-10 pointer-events-none" style={{ top: nowTop }}>
+                  <div className="relative">
+                    <div className="absolute -left-[5px] -top-[5px] w-[10px] h-[10px] rounded-full" style={{ background: "var(--color-destructive)" }} />
+                    <div className="h-[2px]" style={{ background: "var(--color-destructive)" }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Events */}
+              {positioned.map(({ event, top, height, left, width }) => {
+                const color = getCalColorForEvent(event);
+                return (
+                  <button
+                    key={event.uid}
+                    onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
+                    className="absolute rounded px-1.5 py-0.5 overflow-hidden text-left transition-opacity hover:opacity-90 z-[5]"
+                    style={{
+                      top,
+                      height: Math.max(height, 18),
+                      left: `${left}%`,
+                      width: `${width}%`,
+                      background: `${color}20`,
+                      borderLeft: `3px solid ${color}`,
+                      color,
+                    }}
+                    title={`${event.summary}\n${formatTime(event.start)} – ${formatTime(event.end)}`}
+                  >
+                    <p className="text-[10px] font-semibold truncate leading-tight">{event.summary}</p>
+                    {height > 28 && (
+                      <p className="text-[9px] opacity-70 truncate">{formatTime(event.start)} – {formatTime(event.end)}</p>
+                    )}
+                    {height > 44 && event.location && (
+                      <p className="text-[9px] opacity-60 truncate">📍 {event.location}</p>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Layout overlapping events into columns (like Apple Calendar)
+function layoutEvents(events: CalendarEvent[]): {
+  event: CalendarEvent;
+  top: number;
+  height: number;
+  left: number;
+  width: number;
+}[] {
+  if (events.length === 0) return [];
+
+  // Convert to { event, startMin, endMin }
+  const items = events.map((event) => {
+    const s = new Date(event.start);
+    const e = new Date(event.end);
+    const startMin = s.getHours() * 60 + s.getMinutes();
+    const endMin = e.getHours() * 60 + e.getMinutes();
+    return { event, startMin, endMin: Math.max(endMin, startMin + 15) };
+  }).sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+
+  // Assign columns
+  const columns: (typeof items)[] = [];
+
+  for (const item of items) {
+    let placed = false;
+    for (const col of columns) {
+      const lastInCol = col[col.length - 1];
+      if (lastInCol.endMin <= item.startMin) {
+        col.push(item);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      columns.push([item]);
+    }
+  }
+
+  // Build column index map
+  const colMap = new Map<string, number>();
+  columns.forEach((col, colIdx) => {
+    col.forEach((item) => {
+      colMap.set(item.event.uid, colIdx);
+    });
+  });
+
+  const totalCols = columns.length;
+  const padding = 2; // % padding between
+
+  return items.map((item) => {
+    const colIdx = colMap.get(item.event.uid) || 0;
+    const top = ((item.startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
+    const height = ((item.endMin - item.startMin) / 60) * HOUR_HEIGHT;
+    const colWidth = (100 - padding) / totalCols;
+    const left = colIdx * colWidth + padding / 2;
+    const width = colWidth - padding / 2;
+
+    return { event: item.event, top, height, left, width };
+  });
 }
 
 // === Event Form Modal ===
