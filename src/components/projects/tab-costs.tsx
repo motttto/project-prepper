@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import type { Project, CostItem } from "@/types/database";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 
 interface TabCostsProps {
   projectId: string;
@@ -127,7 +128,7 @@ export function TabCosts({ projectId, project }: TabCostsProps) {
   }
 
   async function handleDeleteCost(id: string) {
-    if (!confirm("Kostenposition wirklich löschen?")) return;
+    if (!(await appConfirm("Kostenposition wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     await supabase.from("cost_items").delete().eq("id", id);
     loadCosts();
   }

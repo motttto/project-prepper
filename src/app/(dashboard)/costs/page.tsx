@@ -6,6 +6,7 @@ import { useOrg } from "@/contexts/org-context";
 import type { CostItem, Project } from "@/types/database";
 import { IconPlus, IconX, IconTrash, IconFilter } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 
 const categoryLabels: Record<CostItem["category"], string> = {
   personnel: "Personal",
@@ -78,7 +79,7 @@ export default function CostsPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Kostenposition wirklich löschen?")) return;
+    if (!(await appConfirm("Kostenposition wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     const { error } = await supabase.from("cost_items").delete().eq("id", id);
     if (error) {
       showToast("Fehler beim Löschen: " + error.message, "error");

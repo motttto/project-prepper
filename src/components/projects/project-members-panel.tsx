@@ -7,6 +7,7 @@ import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { useOrg } from "@/contexts/org-context";
 import { showToast } from "@/hooks/use-toast";
 import { IconX, IconUserPlus, IconTrash, IconSend, IconShield, IconEye, IconPlus } from "@/components/ui/icons";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 
 interface ProjectMembersPanelProps {
   projectId: string;
@@ -141,7 +142,7 @@ export function ProjectMembersPanel({
   }
 
   async function handleRemoveGuest(id: string) {
-    if (!confirm("Gast wirklich entfernen?")) return;
+    if (!(await appConfirm("Gast wirklich entfernen?", { variant: "danger", confirmLabel: "Entfernen" }))) return;
     await supabase.from("project_guests").delete().eq("id", id);
     showToast("Gast entfernt", "success");
     loadData();
@@ -203,7 +204,7 @@ export function ProjectMembersPanel({
   }
 
   async function handleRemoveMember(memberId: string) {
-    if (!confirm("Mitglied wirklich entfernen?")) return;
+    if (!(await appConfirm("Mitglied wirklich entfernen?", { variant: "danger", confirmLabel: "Entfernen" }))) return;
     await supabase.from("project_members").delete().eq("id", memberId);
     loadData();
   }

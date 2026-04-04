@@ -7,6 +7,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import type { EquipmentLoan, InventoryItem, LoanStatus } from "@/types/database";
 import { IconX, IconPlus, IconCheck, IconArrowLeft } from "@/components/ui/icons";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 
 const statusLabels: Record<LoanStatus, string> = {
   requested: "Angefragt",
@@ -152,7 +153,7 @@ export function EquipmentLoansPanel({ show, onClose, filterItemId }: EquipmentLo
   }
 
   async function markLost(loanId: string) {
-    if (!confirm("Wirklich als verloren markieren?")) return;
+    if (!(await appConfirm("Wirklich als verloren markieren?", { variant: "danger", confirmLabel: "Als verloren markieren" }))) return;
     await supabase
       .from("equipment_loans")
       .update({ status: "lost" })

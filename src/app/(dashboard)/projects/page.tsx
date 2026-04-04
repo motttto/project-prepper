@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import type { Project } from "@/types/database";
 import { IconPlus, IconSearch, IconX, IconChevronRight, IconTrash, IconHandshake, IconUser } from "@/components/ui/icons";
 import { DateInput } from "@/components/ui/date-input";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 import { showToast } from "@/hooks/use-toast";
 import { logActivity } from "@/lib/activity-log";
 
@@ -228,7 +229,7 @@ export default function ProjectsPage() {
 
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.stopPropagation();
-    if (!confirm("Projekt wirklich löschen?")) return;
+    if (!(await appConfirm("Projekt wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     const { error } = await supabase.from("projects").delete().eq("id", id);
     if (error) {
       showToast("Fehler beim Löschen: " + error.message, "error");

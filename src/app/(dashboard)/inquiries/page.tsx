@@ -8,6 +8,7 @@ import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { DateInput } from "@/components/ui/date-input";
 import { showToast } from "@/hooks/use-toast";
 import type { Inquiry, InquiryStatus } from "@/types/database";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 import {
   IconPlus,
   IconSearch,
@@ -209,7 +210,7 @@ export default function InquiriesPage() {
 
   async function handleDelete(e: React.MouseEvent, id: string) {
     e.stopPropagation();
-    if (!confirm("Anfrage wirklich löschen?")) return;
+    if (!(await appConfirm("Anfrage wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     const { error } = await supabase.from("inquiries").delete().eq("id", id);
     if (error) {
       showToast("Fehler beim Löschen: " + error.message, "error");

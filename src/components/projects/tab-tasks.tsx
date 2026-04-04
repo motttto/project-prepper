@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import type { ProjectTask, TaskStatus, TaskPriority, TaskAssignmentStatus } from "@/types/database";
 import { IconPlus, IconX, IconTrash, IconEdit, IconCheck } from "@/components/ui/icons";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { DateInput } from "@/components/ui/date-input";
 
@@ -300,7 +301,7 @@ export function TabTasks({ projectId }: TabTasksProps) {
   }
 
   async function handleDelete(taskId: string) {
-    if (!confirm("Aufgabe wirklich löschen?")) return;
+    if (!(await appConfirm("Aufgabe wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     await supabase.from("project_tasks").delete().eq("id", taskId);
     loadData();
   }

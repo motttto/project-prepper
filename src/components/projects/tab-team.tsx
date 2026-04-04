@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import type { TeamMember, ProjectContact, ProjectGuest, ProjectMember, OrgGuest } from "@/types/database";
 import { IconPlus, IconTrash } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { useOrg } from "@/contexts/org-context";
 
@@ -162,7 +163,7 @@ export function TabTeam({ projectId }: TabTeamProps) {
   }, [orgGuests, guests]);
 
   async function handleDeleteGuest(id: string) {
-    if (!confirm("Gast wirklich entfernen?")) return;
+    if (!(await appConfirm("Gast wirklich entfernen?", { variant: "danger", confirmLabel: "Entfernen" }))) return;
     const { error } = await supabase.from("project_guests").delete().eq("id", id);
     if (error) {
       showToast("Fehler: " + error.message, "error");
@@ -229,7 +230,7 @@ export function TabTeam({ projectId }: TabTeamProps) {
   }
 
   async function handleDeleteTeamMember(id: string) {
-    if (!confirm("Teammitglied wirklich entfernen?")) return;
+    if (!(await appConfirm("Teammitglied wirklich entfernen?", { variant: "danger", confirmLabel: "Entfernen" }))) return;
     await supabase.from("project_team").delete().eq("id", id);
     loadData();
   }
@@ -254,7 +255,7 @@ export function TabTeam({ projectId }: TabTeamProps) {
   }
 
   async function handleDeleteContact(id: string) {
-    if (!confirm("Kontakt wirklich entfernen?")) return;
+    if (!(await appConfirm("Kontakt wirklich entfernen?", { variant: "danger", confirmLabel: "Entfernen" }))) return;
     await supabase.from("project_contacts").delete().eq("id", id);
     loadData();
   }

@@ -8,6 +8,7 @@ import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconI
 import { showToast } from "@/hooks/use-toast";
 import { logActivity } from "@/lib/activity-log";
 import { ExcelImport } from "@/components/inventory/excel-import";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 import { InventoryDetailModal } from "@/components/inventory/inventory-detail-modal";
 import { EquipmentLoansPanel } from "@/components/inventory/equipment-loans-panel";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
@@ -292,7 +293,7 @@ export default function InventoryPage() {
   }
 
   async function handleDelete(item: InventoryItem) {
-    if (!confirm("Artikel wirklich löschen?")) return;
+    if (!(await appConfirm("Artikel wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     // Storage-Datei löschen falls vorhanden
     if (item.image_url) {
       const path = item.image_url.split("/inventory-images/")[1];

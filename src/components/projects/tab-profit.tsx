@@ -8,6 +8,7 @@ import { useImpersonate } from "@/contexts/impersonate-context";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { showToast } from "@/hooks/use-toast";
 import { logActivity } from "@/lib/activity-log";
+import { appConfirm, appAlert } from "@/components/ui/confirm-dialog";
 import type {
   Project,
   ProjectProfitShare,
@@ -372,7 +373,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   }
 
   async function handleDeletePurchase(decisionId: string) {
-    if (!confirm("Anschaffung wirklich löschen?")) return;
+    if (!(await appConfirm("Anschaffung wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     // Votes werden per CASCADE gelöscht
     const { error } = await supabase.from("org_decisions").delete().eq("id", decisionId);
     if (error) {
@@ -507,7 +508,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     if (error) {
       setAddingToInventory(null);
       setSuccessMessage(null);
-      alert(`Fehler beim Hinzufügen: ${error.message}`);
+      await appAlert(`Fehler beim Hinzufügen: ${error.message}`);
       return;
     }
 

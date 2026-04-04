@@ -6,6 +6,7 @@ import type { Project, ScheduleEntry } from "@/types/database";
 import { IconPlus, IconTrash } from "@/components/ui/icons";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { DateInput } from "@/components/ui/date-input";
+import { appConfirm, appAlert } from "@/components/ui/confirm-dialog";
 
 interface TabScheduleProps {
   projectId: string;
@@ -123,13 +124,13 @@ export function TabSchedule({ projectId, project }: TabScheduleProps) {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Eintrag wirklich löschen?")) return;
+    if (!(await appConfirm("Eintrag wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     await supabase.from("project_schedule").delete().eq("id", id);
     loadEntries();
   }
 
   async function handleLoadTemplate() {
-    if (!confirm("Standardvorlage laden? Dies erstellt die typischen Ablaufpunkte.")) return;
+    if (!(await appConfirm("Standardvorlage laden? Dies erstellt die typischen Ablaufpunkte."))) return;
     setLoadingTemplate(true);
 
     const setupDate = project.setup_date || project.show_date || "";
@@ -149,7 +150,7 @@ export function TabSchedule({ projectId, project }: TabScheduleProps) {
     ].filter((entry) => entry.schedule_date !== "");
 
     if (templateEntries.length === 0) {
-      alert("Bitte zuerst Show-Datum im Projekt setzen.");
+      await appAlert("Bitte zuerst Show-Datum im Projekt setzen.");
       setLoadingTemplate(false);
       return;
     }

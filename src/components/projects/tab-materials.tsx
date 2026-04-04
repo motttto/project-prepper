@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import type { Project, Consumable } from "@/types/database";
 import { IconPlus, IconTrash } from "@/components/ui/icons";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 
 interface TabMaterialsProps {
@@ -73,7 +74,7 @@ export function TabMaterials({ projectId, project, onProjectUpdate }: TabMateria
   }
 
   async function handleDeleteConsumable(id: string) {
-    if (!confirm("Material wirklich löschen?")) return;
+    if (!(await appConfirm("Material wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     await supabase.from("project_consumables").delete().eq("id", id);
     loadConsumables();
   }

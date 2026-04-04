@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import type { ChecklistWithItems, ChecklistItem } from "@/types/database";
 import { IconPlus, IconTrash } from "@/components/ui/icons";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 
 interface TabChecklistsProps {
@@ -77,7 +78,7 @@ export function TabChecklists({ projectId }: TabChecklistsProps) {
   }
 
   async function handleDeleteChecklist(id: string) {
-    if (!confirm("Checkliste und alle Einträge wirklich löschen?")) return;
+    if (!(await appConfirm("Checkliste und alle Einträge wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     await supabase.from("project_checklists").delete().eq("id", id);
     loadChecklists();
   }

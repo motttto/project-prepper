@@ -34,6 +34,7 @@ import { DecisionPanel } from "@/components/decisions/decision-panel";
 import { ExitSettlementWizard } from "@/components/team/exit-settlement-wizard";
 import { showToast } from "@/hooks/use-toast";
 import { logActivity } from "@/lib/activity-log";
+import { appConfirm, appAlert } from "@/components/ui/confirm-dialog";
 
 type OrgMember = {
   id: string;
@@ -203,7 +204,7 @@ export default function TeamPage() {
   }
 
   async function handleDeleteGuest(id: string) {
-    if (!confirm("Gast wirklich löschen?")) return;
+    if (!(await appConfirm("Gast wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     const { error } = await supabase.from("org_guests").delete().eq("id", id);
     if (error) showToast("Fehler: " + error.message, "error");
     else showToast("Gast entfernt", "success");
@@ -379,7 +380,7 @@ export default function TeamPage() {
     const confirmMsg = isTestUser
       ? `Testuser "${profileName}" komplett löschen?`
       : `"${profileName}" aus der Organisation entfernen?`;
-    if (!confirm(confirmMsg)) return;
+    if (!(await appConfirm(confirmMsg, { variant: "danger", confirmLabel: "Entfernen" }))) return;
 
     setProcessing(profileId);
     await supabase.rpc("remove_org_member", {
@@ -726,7 +727,7 @@ export default function TeamPage() {
                           body: { invitation_id: inv.id },
                         }).catch((err: unknown) => console.error("Email resend error:", err));
                         setProcessing(null);
-                        alert("Einladungs-Email erneut gesendet!");
+                        await appAlert("Einladungs-Email erneut gesendet!");
                       }}
                       disabled={processing === inv.id}
                       className="px-2.5 py-1 rounded text-xs font-medium flex-shrink-0 transition-colors disabled:opacity-50"

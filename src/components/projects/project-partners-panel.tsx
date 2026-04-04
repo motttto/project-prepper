@@ -6,6 +6,7 @@ import { useProjectOrgs } from "@/hooks/use-project-orgs";
 import { useOrg } from "@/contexts/org-context";
 import type { Organization } from "@/types/database";
 import { IconX, IconHandshake, IconCheck, IconTrash } from "@/components/ui/icons";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 
 interface ProjectPartnersPanelProps {
   projectId: string;
@@ -106,7 +107,7 @@ export function ProjectPartnersPanel({
   }
 
   async function handleRemove(projectOrgId: string) {
-    if (!confirm("Partner-Organisation wirklich entfernen? Offene Buchungsanfragen werden abgelehnt.")) return;
+    if (!(await appConfirm("Partner-Organisation wirklich entfernen? Offene Buchungsanfragen werden abgelehnt.", { variant: "danger", confirmLabel: "Entfernen" }))) return;
     await removeOrg(projectOrgId);
   }
 

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase";
 import type { Project, Booking, InventoryItem } from "@/types/database";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { DateInput } from "@/components/ui/date-input";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 
 type BookingWithItem = Booking & { inventory_items: InventoryItem };
 
@@ -317,7 +318,7 @@ export function TabEquipment({ projectId, project, currentOrgId }: TabEquipmentP
   }
 
   async function handleDeleteBooking(bookingId: string) {
-    if (!confirm("Buchung wirklich löschen?")) return;
+    if (!(await appConfirm("Buchung wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     await supabase.from("bookings").delete().eq("id", bookingId);
     loadData();
   }

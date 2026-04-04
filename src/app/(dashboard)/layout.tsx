@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { TopBar } from "@/components/layout/top-bar";
 import { ImpersonateBanner } from "@/components/layout/impersonate-banner";
 import { ToastProvider } from "@/components/ui/toast-provider";
+import { ConfirmDialogProvider } from "@/components/ui/confirm-dialog";
 
 export default function DashboardLayout({
   children,
@@ -40,6 +41,7 @@ export default function DashboardLayout({
             </div>
           </main>
           <ToastProvider />
+          <ConfirmDialogProvider />
         </div>
       </ImpersonateProvider>
     </OrgProvider>

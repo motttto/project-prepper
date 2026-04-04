@@ -8,6 +8,7 @@ import { useFieldTracking } from "@/hooks/use-field-tracking";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { SaveIndicator } from "@/components/ui/save-indicator";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 import { StaleDataBanner } from "@/components/ui/stale-data-banner";
 import { DateInput } from "@/components/ui/date-input";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -314,7 +315,7 @@ function InquiryDetailContent({
   // Delete
   // ─────────────────────────────────────────────────────────────────────────
   async function handleDelete() {
-    if (!confirm("Anfrage wirklich löschen?")) return;
+    if (!(await appConfirm("Anfrage wirklich löschen?", { variant: "danger", confirmLabel: "Löschen" }))) return;
     await supabase.from("inquiries").delete().eq("id", inquiry.id);
     router.push("/inquiries");
   }

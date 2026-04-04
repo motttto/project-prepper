@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase";
 import type { InventoryItem } from "@/types/database";
 import { IconX, IconUpload, IconCheck } from "@/components/ui/icons";
+import { appAlert } from "@/components/ui/confirm-dialog";
 import * as XLSX from "xlsx";
 
 interface ExcelImportProps {
@@ -79,14 +80,14 @@ export function ExcelImport({ existingItems, onClose, onImportComplete, category
 
     setFileName(file.name);
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       const data = new Uint8Array(evt.target?.result as ArrayBuffer);
       const wb = XLSX.read(data, { type: "array" });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const json = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1, defval: "" });
 
       if (json.length < 2) {
-        alert("Die Datei enthält keine Daten (mindestens Kopfzeile + 1 Datenzeile benötigt).");
+        await appAlert("Die Datei enthält keine Daten (mindestens Kopfzeile + 1 Datenzeile benötigt).");
         return;
       }
 
