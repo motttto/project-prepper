@@ -1,28 +1,30 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { IconCalendar, IconPlus, IconTrash, IconX } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
 import { appConfirm } from "@/components/ui/confirm-dialog";
+import { createClient } from "@/lib/supabase";
+import { useOrg } from "@/contexts/org-context";
 
-type CalendarInfo = {
+type CalendarGroup = {
   id: string;
   name: string;
-  path: string;
-  color?: string;
+  color: string;
+  sort_order: number;
 };
 
 type CalendarEvent = {
-  uid: string;
+  id: string;
+  group_id: string | null;
   summary: string;
-  start: string;
-  end: string;
-  allDay: boolean;
-  location?: string;
-  description?: string;
-  calendarId: string;
-  calendarName: string;
-  href: string;
+  description: string | null;
+  location: string | null;
+  all_day: boolean;
+  start_at: string;
+  end_at: string | null;
+  created_by: string | null;
+  groupName?: string;
 };
 
 type ViewMode = "month" | "week";
@@ -33,13 +35,12 @@ const MONTH_NAMES = [
   "Juli", "August", "September", "Oktober", "November", "Dezember",
 ];
 
-// Fallback-Farben pro Kalender-Index
 const CALENDAR_COLORS = [
   "#0066FF", "#22C55E", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899", "#06B6D4", "#F97316",
 ];
 
-function getCalColor(cal: CalendarInfo, idx: number): string {
-  return cal.color || CALENDAR_COLORS[idx % CALENDAR_COLORS.length];
+function getGroupColor(group: CalendarGroup | undefined, idx: number): string {
+  return group?.color || CALENDAR_COLORS[idx % CALENDAR_COLORS.length];
 }
 
 function isSameDay(d1: Date, d2: Date): boolean {
@@ -67,30 +68,43 @@ function toDateTimeInputValue(d: Date): string {
 }
 
 export default function CalendarPage() {
-  const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
+  const supabase = createClient();
+  const { orgId } = useOrg();
+
+  const [groups, setGroups] = useState<CalendarGroup[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [hiddenCalendars, setHiddenCalendars] = useState<Set<string>>(new Set());
+  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
 
   // Modals
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editEvent, setEditEvent] = useState<CalendarEvent | null>(null);
   const [createForDate, setCreateForDate] = useState<Date | null>(null);
+  const [showGroupManager, setShowGroupManager] = useState(false);
 
-  // Helpers
-  const getCalColorForEvent = useCallback((event: CalendarEvent) => {
-    const idx = calendars.findIndex((c) => c.id === event.calendarId);
-    const cal = calendars[idx];
-    return cal ? getCalColor(cal, idx) : "#666";
-  }, [calendars]);
+  // Group color helper
+  const getEventColor = useCallback((event: CalendarEvent) => {
+    const idx = groups.findIndex((g) => g.id === event.group_id);
+    return getGroupColor(groups[idx], idx);
+  }, [groups]);
+
+  // === Data Loading ===
+  const fetchGroups = useCallback(async () => {
+    if (!orgId) return;
+    const { data } = await supabase
+      .from("calendar_groups")
+      .select("*")
+      .eq("org_id", orgId)
+      .order("sort_order");
+    if (data) setGroups(data);
+  }, [supabase, orgId]);
 
   const fetchEvents = useCallback(async () => {
+    if (!orgId) return;
     setLoading(true);
-    setError(null);
 
     let start: Date;
     let end: Date;
@@ -103,19 +117,31 @@ export default function CalendarPage() {
       end = new Date(monday); end.setDate(end.getDate() + 8);
     }
 
-    try {
-      const res = await fetch(`/api/calendar?start=${start.toISOString()}&end=${end.toISOString()}`);
-      const data = await res.json();
-      if (!res.ok) { setError(data.error || "Fehler"); setEvents([]); }
-      else {
-        setCalendars(data.calendars || []);
-        setEvents(data.events || []);
-      }
-    } catch { setError("Verbindung fehlgeschlagen"); }
-    finally { setLoading(false); }
-  }, [currentDate, viewMode]);
+    const { data } = await supabase
+      .from("calendar_events")
+      .select("*")
+      .eq("org_id", orgId)
+      .gte("start_at", start.toISOString())
+      .lte("start_at", end.toISOString())
+      .order("start_at");
 
+    if (data) setEvents(data);
+    setLoading(false);
+  }, [supabase, orgId, currentDate, viewMode]);
+
+  useEffect(() => { fetchGroups(); }, [fetchGroups]);
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+  // Realtime
+  useEffect(() => {
+    if (!orgId) return;
+    const channel = supabase
+      .channel("calendar-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "calendar_events", filter: `org_id=eq.${orgId}` }, () => fetchEvents())
+      .on("postgres_changes", { event: "*", schema: "public", table: "calendar_groups", filter: `org_id=eq.${orgId}` }, () => fetchGroups())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [supabase, orgId, fetchEvents, fetchGroups]);
 
   // Navigation
   function goNext() {
@@ -130,74 +156,77 @@ export default function CalendarPage() {
   }
   function goToday() { setCurrentDate(new Date()); }
 
-  // Toggle Kalender-Sichtbarkeit
-  function toggleCalendar(calId: string) {
-    setHiddenCalendars((prev) => {
+  function toggleGroup(groupId: string) {
+    setHiddenGroups((prev) => {
       const next = new Set(prev);
-      next.has(calId) ? next.delete(calId) : next.add(calId);
+      next.has(groupId) ? next.delete(groupId) : next.add(groupId);
       return next;
     });
   }
 
-  // Gefilterte Events
+  // Events für einen Tag (gefiltert)
   function getEventsForDay(date: Date): CalendarEvent[] {
     return events.filter((e) => {
-      if (hiddenCalendars.has(e.calendarId)) return false;
-      const eStart = new Date(e.start);
-      const eEnd = new Date(e.end);
-      if (e.allDay) {
+      if (e.group_id && hiddenGroups.has(e.group_id)) return false;
+      const eStart = new Date(e.start_at);
+      const eEnd = e.end_at ? new Date(e.end_at) : eStart;
+      if (e.all_day) {
         const dayStart = new Date(date); dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date(date); dayEnd.setHours(23, 59, 59, 999);
-        return eStart <= dayEnd && eEnd > dayStart;
+        return eStart <= dayEnd && eEnd >= dayStart;
       }
       return isSameDay(eStart, date);
     });
   }
 
-  // Delete
+  // === CRUD ===
   async function handleDelete(event: CalendarEvent) {
     if (!(await appConfirm(`"${event.summary}" wirklich löschen?`, { variant: "danger", confirmLabel: "Löschen" }))) return;
-    try {
-      const res = await fetch(`/api/calendar?href=${encodeURIComponent(event.href)}`, { method: "DELETE" });
-      if (res.ok) {
-        showToast("Termin gelöscht", "success");
-        setSelectedEvent(null);
-        setEditEvent(null);
-        fetchEvents();
-      } else {
-        showToast("Fehler beim Löschen", "error");
-      }
-    } catch { showToast("Fehler beim Löschen", "error"); }
+    const { error } = await supabase.from("calendar_events").delete().eq("id", event.id);
+    if (error) { showToast("Fehler beim Löschen", "error"); }
+    else {
+      showToast("Termin gelöscht", "success");
+      setSelectedEvent(null);
+      setEditEvent(null);
+    }
   }
 
-  // Save (create/update)
   async function handleSave(data: {
-    calendarPath: string;
-    uid?: string;
+    group_id: string | null;
+    id?: string;
     summary: string;
-    start: string;
-    end: string;
-    allDay: boolean;
+    start_at: string;
+    end_at: string | null;
+    all_day: boolean;
     location?: string;
     description?: string;
   }) {
-    try {
-      const res = await fetch("/api/calendar", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (res.ok) {
-        showToast(data.uid ? "Termin aktualisiert" : "Termin erstellt", "success");
-        setShowCreateModal(false);
-        setEditEvent(null);
-        setSelectedEvent(null);
-        fetchEvents();
-      } else {
-        const err = await res.json();
-        showToast(err.error || "Fehler", "error");
-      }
-    } catch { showToast("Fehler beim Speichern", "error"); }
+    const payload = {
+      org_id: orgId,
+      group_id: data.group_id || null,
+      summary: data.summary,
+      start_at: data.start_at,
+      end_at: data.end_at,
+      all_day: data.all_day,
+      location: data.location || null,
+      description: data.description || null,
+    };
+
+    let error;
+    if (data.id) {
+      ({ error } = await supabase.from("calendar_events").update(payload).eq("id", data.id));
+    } else {
+      ({ error } = await supabase.from("calendar_events").insert(payload));
+    }
+
+    if (error) {
+      showToast(error.message || "Fehler beim Speichern", "error");
+    } else {
+      showToast(data.id ? "Termin aktualisiert" : "Termin erstellt", "success");
+      setShowCreateModal(false);
+      setEditEvent(null);
+      setSelectedEvent(null);
+    }
   }
 
   // Monats-Grid
@@ -236,6 +265,10 @@ export default function CalendarPage() {
 
   const inputStyle = { border: "1px solid var(--color-border)", background: "var(--color-background)" };
 
+  // "Ohne Gruppe" als filter
+  const ungroupedEvents = events.filter((e) => !e.group_id);
+  const hasUngrouped = ungroupedEvents.length > 0;
+
   return (
     <div>
       {/* Header */}
@@ -259,6 +292,15 @@ export default function CalendarPage() {
           >
             <IconPlus size={14} />
             Neuer Termin
+          </button>
+
+          {/* Gruppen verwalten */}
+          <button
+            onClick={() => setShowGroupManager(true)}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
+          >
+            Gruppen
           </button>
 
           {/* View Toggle */}
@@ -293,16 +335,16 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Kalender-Legende / Filter */}
-      {calendars.length > 0 && (
+      {/* Kalender-Gruppen-Legende / Filter */}
+      {groups.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          {calendars.map((cal, idx) => {
-            const color = getCalColor(cal, idx);
-            const isHidden = hiddenCalendars.has(cal.id);
+          {groups.map((group, idx) => {
+            const color = getGroupColor(group, idx);
+            const isHidden = hiddenGroups.has(group.id);
             return (
               <button
-                key={cal.id}
-                onClick={() => toggleCalendar(cal.id)}
+                key={group.id}
+                onClick={() => toggleGroup(group.id)}
                 className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
                 style={{
                   background: isHidden ? "var(--color-muted)" : `${color}18`,
@@ -315,19 +357,11 @@ export default function CalendarPage() {
                   className="w-2.5 h-2.5 rounded-full flex-shrink-0"
                   style={{ background: isHidden ? "var(--color-muted-foreground)" : color }}
                 />
-                {cal.name}
+                {group.name}
               </button>
             );
           })}
         </div>
-      )}
-
-      {/* Error */}
-      {error && (
-        <div className="p-3 rounded-lg text-sm mb-4" style={{
-          background: "var(--color-destructive-light)", color: "var(--color-destructive)",
-          border: "1px solid var(--color-destructive)",
-        }}>{error}</div>
       )}
 
       {loading && <div className="text-center py-4 text-sm" style={{ color: "var(--color-muted-foreground)" }}>Kalender wird geladen...</div>}
@@ -359,7 +393,6 @@ export default function CalendarPage() {
                         {day.getDate()}
                       </span>
                     </div>
-                    {/* Add button on hover */}
                     <button
                       onClick={(e) => { e.stopPropagation(); setCreateForDate(day); setShowCreateModal(true); }}
                       className="absolute top-0.5 right-0.5 w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
@@ -370,16 +403,16 @@ export default function CalendarPage() {
                     </button>
                     <div className="space-y-0.5">
                       {dayEvents.slice(0, 3).map((event) => {
-                        const color = getCalColorForEvent(event);
+                        const color = getEventColor(event);
                         return (
                           <button
-                            key={event.uid + event.start}
+                            key={event.id + event.start_at}
                             onClick={() => setSelectedEvent(event)}
                             className="w-full text-left px-1 py-0.5 rounded text-[10px] leading-tight truncate font-medium transition-opacity hover:opacity-80"
                             style={{ background: `${color}20`, color }}
                             title={event.summary}
                           >
-                            {!event.allDay && <span className="font-normal opacity-75">{formatTime(event.start)} </span>}
+                            {!event.all_day && <span className="font-normal opacity-75">{formatTime(event.start_at)} </span>}
                             {event.summary}
                           </button>
                         );
@@ -402,7 +435,7 @@ export default function CalendarPage() {
           days={getWeekDays()}
           today={today}
           getEventsForDay={getEventsForDay}
-          getCalColorForEvent={getCalColorForEvent}
+          getEventColor={getEventColor}
           onEventClick={setSelectedEvent}
           onCreateClick={(date) => { setCreateForDate(date); setShowCreateModal(true); }}
         />
@@ -412,22 +445,27 @@ export default function CalendarPage() {
       {selectedEvent && !editEvent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }} onClick={() => setSelectedEvent(null)}>
           <div className="w-full max-w-md rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", boxShadow: "var(--shadow-lg)" }} onClick={(e) => e.stopPropagation()}>
-            <div className="px-6 py-4" style={{ background: `${getCalColorForEvent(selectedEvent)}15`, borderBottom: "1px solid var(--color-border-light)" }}>
+            <div className="px-6 py-4" style={{ background: `${getEventColor(selectedEvent)}15`, borderBottom: "1px solid var(--color-border-light)" }}>
               <div className="flex items-start justify-between gap-3">
-                <h2 className="text-lg font-bold" style={{ color: getCalColorForEvent(selectedEvent) }}>{selectedEvent.summary}</h2>
-                <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-medium mt-1"
-                  style={{ background: `${getCalColorForEvent(selectedEvent)}25`, color: getCalColorForEvent(selectedEvent) }}>
-                  {selectedEvent.calendarName}
-                </span>
+                <h2 className="text-lg font-bold" style={{ color: getEventColor(selectedEvent) }}>{selectedEvent.summary}</h2>
+                {selectedEvent.group_id && (() => {
+                  const g = groups.find((gr) => gr.id === selectedEvent.group_id);
+                  return g ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0 font-medium mt-1"
+                      style={{ background: `${g.color}25`, color: g.color }}>
+                      {g.name}
+                    </span>
+                  ) : null;
+                })()}
               </div>
             </div>
             <div className="px-6 py-4 space-y-3">
               <div className="flex items-start gap-3">
                 <IconCalendar size={16} style={{ color: "var(--color-muted-foreground)", marginTop: 2 }} />
                 <div>
-                  <p className="text-sm font-medium">{new Date(selectedEvent.start).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+                  <p className="text-sm font-medium">{new Date(selectedEvent.start_at).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
                   <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                    {selectedEvent.allDay ? "Ganztägig" : `${formatTime(selectedEvent.start)} – ${formatTime(selectedEvent.end)}`}
+                    {selectedEvent.all_day ? "Ganztägig" : `${formatTime(selectedEvent.start_at)} – ${selectedEvent.end_at ? formatTime(selectedEvent.end_at) : ""}`}
                   </p>
                 </div>
               </div>
@@ -459,7 +497,7 @@ export default function CalendarPage() {
       {/* === CREATE / EDIT MODAL === */}
       {(showCreateModal || editEvent) && (
         <EventFormModal
-          calendars={calendars}
+          groups={groups}
           event={editEvent || undefined}
           defaultDate={createForDate || new Date()}
           inputStyle={inputStyle}
@@ -468,12 +506,23 @@ export default function CalendarPage() {
           onClose={() => { setShowCreateModal(false); setEditEvent(null); setCreateForDate(null); }}
         />
       )}
+
+      {/* === GROUP MANAGER MODAL === */}
+      {showGroupManager && (
+        <GroupManager
+          supabase={supabase}
+          orgId={orgId!}
+          groups={groups}
+          inputStyle={inputStyle}
+          onClose={() => setShowGroupManager(false)}
+        />
+      )}
     </div>
   );
 }
 
 // === Week Time Grid (Apple Calendar Style) ===
-const HOUR_HEIGHT = 60; // px per hour
+const HOUR_HEIGHT = 60;
 const START_HOUR = 6;
 const END_HOUR = 23;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
@@ -482,26 +531,24 @@ function WeekTimeGrid({
   days,
   today,
   getEventsForDay,
-  getCalColorForEvent,
+  getEventColor,
   onEventClick,
   onCreateClick,
 }: {
   days: Date[];
   today: Date;
   getEventsForDay: (date: Date) => CalendarEvent[];
-  getCalColorForEvent: (event: CalendarEvent) => string;
+  getEventColor: (event: CalendarEvent) => string;
   onEventClick: (event: CalendarEvent) => void;
   onCreateClick: (date: Date) => void;
 }) {
-  // All-day events per day
   const allDayRows: { day: Date; events: CalendarEvent[] }[] = days.map((day) => ({
     day,
-    events: getEventsForDay(day).filter((e) => e.allDay),
+    events: getEventsForDay(day).filter((e) => e.all_day),
   }));
   const hasAllDay = allDayRows.some((r) => r.events.length > 0);
   const maxAllDay = Math.max(1, ...allDayRows.map((r) => r.events.length));
 
-  // Current time indicator
   const now = new Date();
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
   const nowTop = ((nowMinutes - START_HOUR * 60) / (TOTAL_HOURS * 60)) * (TOTAL_HOURS * HOUR_HEIGHT);
@@ -510,9 +557,7 @@ function WeekTimeGrid({
     <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
       {/* Column Headers */}
       <div className="flex" style={{ borderBottom: "1px solid var(--color-border)" }}>
-        {/* Time gutter */}
         <div className="flex-shrink-0 w-[52px]" />
-        {/* Day columns */}
         {days.map((day, idx) => {
           const isToday = isSameDay(day, today);
           const dayShort = day.toLocaleDateString("de-DE", { weekday: "short" });
@@ -554,16 +599,13 @@ function WeekTimeGrid({
               <div
                 key={idx}
                 className="flex-1 min-w-0 p-0.5"
-                style={{
-                  borderLeft: "1px solid var(--color-border-light)",
-                  minHeight: maxAllDay * 22 + 4,
-                }}
+                style={{ borderLeft: "1px solid var(--color-border-light)", minHeight: maxAllDay * 22 + 4 }}
               >
                 {dayAllDay.map((event) => {
-                  const color = getCalColorForEvent(event);
+                  const color = getEventColor(event);
                   return (
                     <button
-                      key={event.uid}
+                      key={event.id}
                       onClick={() => onEventClick(event)}
                       className="w-full text-left text-[10px] font-medium px-1 py-0.5 rounded truncate mb-0.5 transition-opacity hover:opacity-80"
                       style={{ background: `${color}25`, color, lineHeight: "1.3" }}
@@ -581,28 +623,18 @@ function WeekTimeGrid({
 
       {/* Time grid */}
       <div className="flex overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
-        {/* Hour labels */}
         <div className="flex-shrink-0 w-[52px] relative" style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}>
           {Array.from({ length: TOTAL_HOURS }, (_, i) => (
-            <div
-              key={i}
-              className="absolute right-2 text-[10px] font-medium"
-              style={{
-                top: i * HOUR_HEIGHT - 6,
-                color: "var(--color-muted-foreground)",
-              }}
-            >
+            <div key={i} className="absolute right-2 text-[10px] font-medium"
+              style={{ top: i * HOUR_HEIGHT - 6, color: "var(--color-muted-foreground)" }}>
               {String(START_HOUR + i).padStart(2, "0")}:00
             </div>
           ))}
         </div>
 
-        {/* Day columns with events */}
         {days.map((day, dayIdx) => {
           const isToday = isSameDay(day, today);
-          const timedEvents = getEventsForDay(day).filter((e) => !e.allDay);
-
-          // Layout overlapping events
+          const timedEvents = getEventsForDay(day).filter((e) => !e.all_day);
           const positioned = layoutEvents(timedEvents);
 
           return (
@@ -623,34 +655,13 @@ function WeekTimeGrid({
                 onCreateClick(clickDate);
               }}
             >
-              {/* Hour grid lines */}
               {Array.from({ length: TOTAL_HOURS }, (_, i) => (
-                <div
-                  key={i}
-                  className="absolute left-0 right-0"
-                  style={{
-                    top: i * HOUR_HEIGHT,
-                    height: 1,
-                    background: "var(--color-border-light)",
-                  }}
-                />
+                <div key={i} className="absolute left-0 right-0" style={{ top: i * HOUR_HEIGHT, height: 1, background: "var(--color-border-light)" }} />
+              ))}
+              {Array.from({ length: TOTAL_HOURS }, (_, i) => (
+                <div key={`half-${i}`} className="absolute left-0 right-0" style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2, height: 1, background: "var(--color-border-light)", opacity: 0.4 }} />
               ))}
 
-              {/* Half-hour lines */}
-              {Array.from({ length: TOTAL_HOURS }, (_, i) => (
-                <div
-                  key={`half-${i}`}
-                  className="absolute left-0 right-0"
-                  style={{
-                    top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2,
-                    height: 1,
-                    background: "var(--color-border-light)",
-                    opacity: 0.4,
-                  }}
-                />
-              ))}
-
-              {/* Current time line */}
               {isToday && nowMinutes >= START_HOUR * 60 && nowMinutes <= END_HOUR * 60 && (
                 <div className="absolute left-0 right-0 z-10 pointer-events-none" style={{ top: nowTop }}>
                   <div className="relative">
@@ -660,12 +671,11 @@ function WeekTimeGrid({
                 </div>
               )}
 
-              {/* Events */}
               {positioned.map(({ event, top, height, left, width }) => {
-                const color = getCalColorForEvent(event);
+                const color = getEventColor(event);
                 return (
                   <button
-                    key={event.uid}
+                    key={event.id}
                     onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
                     className="absolute rounded px-1.5 py-0.5 overflow-hidden text-left transition-opacity hover:opacity-90 z-[5]"
                     style={{
@@ -677,11 +687,11 @@ function WeekTimeGrid({
                       borderLeft: `3px solid ${color}`,
                       color,
                     }}
-                    title={`${event.summary}\n${formatTime(event.start)} – ${formatTime(event.end)}`}
+                    title={`${event.summary}\n${formatTime(event.start_at)} – ${event.end_at ? formatTime(event.end_at) : ""}`}
                   >
                     <p className="text-[10px] font-semibold truncate leading-tight">{event.summary}</p>
                     {height > 28 && (
-                      <p className="text-[9px] opacity-70 truncate">{formatTime(event.start)} – {formatTime(event.end)}</p>
+                      <p className="text-[9px] opacity-70 truncate">{formatTime(event.start_at)} – {event.end_at ? formatTime(event.end_at) : ""}</p>
                     )}
                     {height > 44 && event.location && (
                       <p className="text-[9px] opacity-60 truncate">📍 {event.location}</p>
@@ -707,16 +717,14 @@ function layoutEvents(events: CalendarEvent[]): {
 }[] {
   if (events.length === 0) return [];
 
-  // Convert to { event, startMin, endMin }
   const items = events.map((event) => {
-    const s = new Date(event.start);
-    const e = new Date(event.end);
+    const s = new Date(event.start_at);
+    const e = event.end_at ? new Date(event.end_at) : new Date(s.getTime() + 60 * 60 * 1000);
     const startMin = s.getHours() * 60 + s.getMinutes();
     const endMin = e.getHours() * 60 + e.getMinutes();
     return { event, startMin, endMin: Math.max(endMin, startMin + 15) };
   }).sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
 
-  // Assign columns
   const columns: (typeof items)[] = [];
 
   for (const item of items) {
@@ -734,19 +742,18 @@ function layoutEvents(events: CalendarEvent[]): {
     }
   }
 
-  // Build column index map
   const colMap = new Map<string, number>();
   columns.forEach((col, colIdx) => {
     col.forEach((item) => {
-      colMap.set(item.event.uid, colIdx);
+      colMap.set(item.event.id, colIdx);
     });
   });
 
   const totalCols = columns.length;
-  const padding = 2; // % padding between
+  const padding = 2;
 
   return items.map((item) => {
-    const colIdx = colMap.get(item.event.uid) || 0;
+    const colIdx = colMap.get(item.event.id) || 0;
     const top = ((item.startMin - START_HOUR * 60) / 60) * HOUR_HEIGHT;
     const height = ((item.endMin - item.startMin) / 60) * HOUR_HEIGHT;
     const colWidth = (100 - padding) / totalCols;
@@ -759,7 +766,7 @@ function layoutEvents(events: CalendarEvent[]): {
 
 // === Event Form Modal ===
 function EventFormModal({
-  calendars,
+  groups,
   event,
   defaultDate,
   inputStyle,
@@ -767,7 +774,7 @@ function EventFormModal({
   onDelete,
   onClose,
 }: {
-  calendars: CalendarInfo[];
+  groups: CalendarGroup[];
   event?: CalendarEvent;
   defaultDate: Date;
   inputStyle: React.CSSProperties;
@@ -777,22 +784,33 @@ function EventFormModal({
 }) {
   const isEdit = !!event;
 
-  const [calendarId, setCalendarId] = useState(event?.calendarId || calendars[0]?.id || "");
+  const [groupId, setGroupId] = useState(event?.group_id || groups[0]?.id || "");
   const [summary, setSummary] = useState(event?.summary || "");
-  const [allDay, setAllDay] = useState(event?.allDay ?? true);
+  const [allDay, setAllDay] = useState(event?.all_day ?? true);
   const [startDate, setStartDate] = useState(() => {
-    if (event) return event.allDay ? event.start : toDateTimeInputValue(new Date(event.start));
-    return toDateInputValue(defaultDate);
+    if (event) return event.all_day ? event.start_at.split("T")[0] : toDateTimeInputValue(new Date(event.start_at));
+    return defaultDate.getHours() > 0 ? toDateTimeInputValue(defaultDate) : toDateInputValue(defaultDate);
   });
   const [endDate, setEndDate] = useState(() => {
-    if (event) return event.allDay ? event.end : toDateTimeInputValue(new Date(event.end));
+    if (event && event.end_at) return event.all_day ? event.end_at.split("T")[0] : toDateTimeInputValue(new Date(event.end_at));
+    if (defaultDate.getHours() > 0) {
+      const end = new Date(defaultDate);
+      end.setHours(end.getHours() + 1);
+      return toDateTimeInputValue(end);
+    }
     return toDateInputValue(defaultDate);
   });
   const [location, setLocation] = useState(event?.location || "");
   const [description, setDescription] = useState(event?.description || "");
   const [saving, setSaving] = useState(false);
 
-  // Update date format when allDay changes
+  // Auto-detect allDay based on defaultDate
+  useEffect(() => {
+    if (!event && defaultDate.getHours() > 0) {
+      setAllDay(false);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (allDay) {
       setStartDate((v) => v.includes("T") ? v.split("T")[0] : v);
@@ -805,28 +823,28 @@ function EventFormModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!summary.trim() || !calendarId) return;
+    if (!summary.trim()) return;
     setSaving(true);
-
-    const cal = calendars.find((c) => c.id === calendarId);
-    if (!cal) return;
 
     let formattedStart = startDate;
     let formattedEnd = endDate;
 
-    if (!allDay) {
-      // Convert to full ISO
+    if (allDay) {
+      // Ganztägig: als Date ohne Zeit, aber als ISO
+      formattedStart = new Date(startDate + "T00:00:00").toISOString();
+      formattedEnd = new Date((endDate || startDate) + "T23:59:59").toISOString();
+    } else {
       formattedStart = new Date(startDate).toISOString();
       formattedEnd = new Date(endDate).toISOString();
     }
 
     await onSave({
-      calendarPath: cal.path,
-      uid: event?.uid,
+      id: event?.id,
+      group_id: groupId || null,
       summary: summary.trim(),
-      start: formattedStart,
-      end: formattedEnd,
-      allDay,
+      start_at: formattedStart,
+      end_at: formattedEnd,
+      all_day: allDay,
       location: location.trim() || undefined,
       description: description.trim() || undefined,
     });
@@ -842,7 +860,6 @@ function EventFormModal({
         </div>
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
-          {/* Titel */}
           <div>
             <label className="block text-sm font-medium mb-1">Titel *</label>
             <input type="text" value={summary} onChange={(e) => setSummary(e.target.value)}
@@ -850,60 +867,44 @@ function EventFormModal({
               placeholder="Termin-Titel" required autoFocus />
           </div>
 
-          {/* Kalender */}
-          <div>
-            <label className="block text-sm font-medium mb-1">Kalender</label>
-            <select value={calendarId} onChange={(e) => setCalendarId(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
-              {calendars.map((cal, idx) => (
-                <option key={cal.id} value={cal.id}>
-                  {cal.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {groups.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium mb-1">Gruppe</label>
+              <select value={groupId} onChange={(e) => setGroupId(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}>
+                <option value="">Keine Gruppe</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
-          {/* Ganztägig Toggle */}
           <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
             <input type="checkbox" checked={allDay} onChange={(e) => setAllDay(e.target.checked)}
               style={{ accentColor: "var(--color-primary)" }} />
             Ganztägig
           </label>
 
-          {/* Datum/Zeit */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>Von</label>
-              <input
-                type={allDay ? "date" : "datetime-local"}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={inputStyle}
-                required
-              />
+              <input type={allDay ? "date" : "datetime-local"} value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} required />
             </div>
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>Bis</label>
-              <input
-                type={allDay ? "date" : "datetime-local"}
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-lg text-sm"
-                style={inputStyle}
-              />
+              <input type={allDay ? "date" : "datetime-local"} value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
             </div>
           </div>
 
-          {/* Ort */}
           <div>
             <label className="block text-sm font-medium mb-1">Ort</label>
             <input type="text" value={location} onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
-              placeholder="Veranstaltungsort" />
+              className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} placeholder="Veranstaltungsort" />
           </div>
 
-          {/* Beschreibung */}
           <div>
             <label className="block text-sm font-medium mb-1">Beschreibung</label>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)}
@@ -911,7 +912,6 @@ function EventFormModal({
               rows={3} placeholder="Notizen zum Termin..." />
           </div>
 
-          {/* Buttons */}
           <div className="flex items-center justify-between pt-2">
             <div>
               {isEdit && onDelete && (
@@ -935,6 +935,128 @@ function EventFormModal({
             </div>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// === Group Manager Modal ===
+function GroupManager({
+  supabase,
+  orgId,
+  groups,
+  inputStyle,
+  onClose,
+}: {
+  supabase: any;
+  orgId: string;
+  groups: CalendarGroup[];
+  inputStyle: React.CSSProperties;
+  onClose: () => void;
+}) {
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState("#0066FF");
+  const [saving, setSaving] = useState(false);
+
+  async function addGroup() {
+    if (!newName.trim()) return;
+    setSaving(true);
+    const { error } = await supabase.from("calendar_groups").insert({
+      org_id: orgId,
+      name: newName.trim(),
+      color: newColor,
+      sort_order: groups.length,
+    });
+    if (error) showToast("Fehler: " + error.message, "error");
+    else {
+      showToast("Gruppe erstellt", "success");
+      setNewName("");
+    }
+    setSaving(false);
+  }
+
+  async function deleteGroup(id: string, name: string) {
+    if (!(await appConfirm(`Gruppe "${name}" löschen? Events bleiben erhalten (ohne Gruppe).`, { variant: "danger", confirmLabel: "Löschen" }))) return;
+    const { error } = await supabase.from("calendar_groups").delete().eq("id", id);
+    if (error) showToast("Fehler: " + error.message, "error");
+    else showToast("Gruppe gelöscht", "success");
+  }
+
+  async function updateGroup(id: string, updates: Partial<CalendarGroup>) {
+    await supabase.from("calendar_groups").update(updates).eq("id", id);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }} onClick={onClose}>
+      <div className="w-full max-w-md rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", boxShadow: "var(--shadow-lg)" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4" style={{ borderBottom: "1px solid var(--color-border-light)" }}>
+          <h2 className="text-lg font-bold">Kalender-Gruppen</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg" style={{ color: "var(--color-muted-foreground)" }}><IconX size={20} /></button>
+        </div>
+
+        <div className="px-6 py-4 space-y-3">
+          {/* Bestehende Gruppen */}
+          {groups.length === 0 && (
+            <p className="text-sm text-center py-4" style={{ color: "var(--color-muted-foreground)" }}>
+              Noch keine Gruppen erstellt
+            </p>
+          )}
+          {groups.map((group) => (
+            <div key={group.id} className="flex items-center gap-3 p-2 rounded-lg" style={{ background: "var(--color-muted)" }}>
+              <input
+                type="color"
+                value={group.color}
+                onChange={(e) => updateGroup(group.id, { color: e.target.value })}
+                className="w-8 h-8 rounded cursor-pointer border-0"
+                title="Farbe ändern"
+              />
+              <span className="flex-1 text-sm font-medium">{group.name}</span>
+              <button
+                onClick={() => deleteGroup(group.id, group.name)}
+                className="p-1.5 rounded transition-colors hover:opacity-70"
+                style={{ color: "var(--color-destructive)" }}
+              >
+                <IconTrash size={14} />
+              </button>
+            </div>
+          ))}
+
+          {/* Neue Gruppe */}
+          <div className="pt-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-muted-foreground)" }}>Neue Gruppe</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="color"
+                value={newColor}
+                onChange={(e) => setNewColor(e.target.value)}
+                className="w-8 h-8 rounded cursor-pointer border-0"
+              />
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Gruppenname..."
+                className="flex-1 px-3 py-1.5 rounded-lg text-sm"
+                style={inputStyle}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGroup(); } }}
+              />
+              <button
+                onClick={addGroup}
+                disabled={saving || !newName.trim()}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                style={{ background: "var(--color-primary)" }}
+              >
+                {saving ? "..." : "Erstellen"}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-3 flex justify-end" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium" style={{ background: "var(--color-muted)" }}>
+            Schließen
+          </button>
+        </div>
       </div>
     </div>
   );
