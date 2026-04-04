@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import type { OrgDecision, OrgDecisionVote, DecisionType, VoteChoice } from "@/types/database";
-import { IconPlus, IconCheck, IconX } from "@/components/ui/icons";
+import { IconPlus, IconCheck, IconX, IconChevronRight } from "@/components/ui/icons";
 
 const decisionTypeLabels: Record<DecisionType, string> = {
   general: "Allgemein",
@@ -26,6 +27,7 @@ const statusLabels: Record<string, { label: string; color: string; bg: string }>
 
 export function DecisionPanel() {
   const supabase = createClient();
+  const router = useRouter();
   const { orgId } = useOrg();
   const user = useCurrentUser();
 
@@ -46,7 +48,7 @@ export function DecisionPanel() {
     if (!orgId) return;
     const { data } = await supabase
       .from("org_decisions")
-      .select("*, creator:created_by(name, avatar_url)")
+      .select("*, creator:created_by(name, avatar_url), project:related_project_id(id, name)")
       .eq("org_id", orgId)
       .order("created_at", { ascending: false });
     if (data) setDecisions(data);
@@ -267,10 +269,20 @@ export function DecisionPanel() {
             </div>
 
             {/* Meta */}
-            <div className="flex items-center gap-3 mb-3 text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+            <div className="flex items-center gap-3 mb-3 text-xs flex-wrap" style={{ color: "var(--color-muted-foreground)" }}>
               <span className="px-1.5 py-0.5 rounded" style={{ background: "var(--color-muted)" }}>
                 {decisionTypeLabels[decision.decision_type]}
               </span>
+              {(decision as any).project?.name && (
+                <button
+                  onClick={() => router.push(`/projects/${(decision as any).project.id}?tab=profit`)}
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded font-medium transition-colors hover:opacity-80"
+                  style={{ background: "#dbeafe", color: "#1d4ed8" }}
+                >
+                  📁 {(decision as any).project.name}
+                  <IconChevronRight size={10} />
+                </button>
+              )}
               <span>von {(decision as any).creator?.name || "Unbekannt"}</span>
               <span>{new Date(decision.created_at).toLocaleDateString("de-DE")}</span>
               <span>{decision.requires_unanimous ? "Einstimmig" : "Mehrheit"}</span>
@@ -391,28 +403,37 @@ export function DecisionPanel() {
           <h4 className="text-xs font-semibold" style={{ color: "var(--color-muted-foreground)" }}>
             Abgeschlossen ({closedDecisions.length})
           </h4>
-          {closedDecisions.map((decision) => (
-            <div
-              key={decision.id}
-              className="flex items-center justify-between px-3 py-2 rounded-lg"
-              style={{ background: "var(--color-muted)" }}
-            >
-              <div className="flex items-center gap-2">
-                <span
-                  className="px-1.5 py-0.5 rounded text-xs"
-                  style={{ background: statusLabels[decision.status].bg, color: statusLabels[decision.status].color }}
-                >
-                  {statusLabels[decision.status].label}
+          {closedDecisions.map((decision) => {
+            const proj = (decision as any).project;
+            return (
+              <div
+                key={decision.id}
+                className={`flex items-center justify-between px-3 py-2 rounded-lg ${proj ? "cursor-pointer hover:opacity-80" : ""}`}
+                style={{ background: "var(--color-muted)" }}
+                onClick={proj ? () => router.push(`/projects/${proj.id}?tab=profit`) : undefined}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span
+                    className="px-1.5 py-0.5 rounded text-xs"
+                    style={{ background: statusLabels[decision.status].bg, color: statusLabels[decision.status].color }}
+                  >
+                    {statusLabels[decision.status].label}
+                  </span>
+                  <span className="text-sm">{decision.title}</span>
+                  {proj && (
+                    <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#dbeafe", color: "#1d4ed8" }}>
+                      📁 {proj.name}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs shrink-0" style={{ color: "var(--color-muted-foreground)" }}>
+                  {decision.resolved_at
+                    ? new Date(decision.resolved_at).toLocaleDateString("de-DE")
+                    : new Date(decision.created_at).toLocaleDateString("de-DE")}
                 </span>
-                <span className="text-sm">{decision.title}</span>
               </div>
-              <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                {decision.resolved_at
-                  ? new Date(decision.resolved_at).toLocaleDateString("de-DE")
-                  : new Date(decision.created_at).toLocaleDateString("de-DE")}
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
