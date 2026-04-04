@@ -6,6 +6,7 @@ import { useOrg } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useImpersonate } from "@/contexts/impersonate-context";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
+import { showToast } from "@/hooks/use-toast";
 import type {
   Project,
   ProjectProfitShare,
@@ -369,8 +370,14 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   }
 
   async function handleDeletePurchase(decisionId: string) {
+    if (!confirm("Anschaffung wirklich löschen?")) return;
     // Votes werden per CASCADE gelöscht
-    await supabase.from("org_decisions").delete().eq("id", decisionId);
+    const { error } = await supabase.from("org_decisions").delete().eq("id", decisionId);
+    if (error) {
+      showToast("Fehler beim Löschen: " + error.message, "error");
+    } else {
+      showToast("Anschaffung gelöscht", "success");
+    }
     await loadPurchases();
   }
 
