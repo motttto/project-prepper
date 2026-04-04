@@ -275,30 +275,30 @@ export default function CalendarPage() {
   return (
     <div>
       {/* Header — Titel + Aktionen */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-        <h1 className="text-2xl font-bold flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <h1 className="text-2xl font-bold flex items-center gap-2.5">
           <IconCalendar size={24} />
           Team-Kalender
         </h1>
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setCreateForDate(new Date()); setShowCreateModal(true); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors hover:opacity-90"
             style={{ background: "var(--color-primary)" }}
           >
-            <IconPlus size={14} />
+            <IconPlus size={15} />
             Neuer Termin
           </button>
           <button
             onClick={() => setShowGroupManager(true)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
             style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
           >
             Gruppen
           </button>
           <button
             onClick={() => setShowSubscribeInfo(true)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
             style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
             title="Kalender auf anderen Geräten einbinden"
           >
@@ -308,25 +308,25 @@ export default function CalendarPage() {
       </div>
 
       {/* Toolbar — Navigation + View Toggle + Gruppen-Filter */}
-      <div className="flex flex-col gap-2 mb-3">
+      <div className="flex flex-col gap-2 mb-4">
         {/* Zeile 1: Nav + View */}
-        <div className="flex items-center justify-between gap-2 p-2 rounded-xl" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-          <div className="flex items-center gap-1.5">
-            <button onClick={goPrev} className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity" style={{ background: "var(--color-muted)" }}>&lsaquo;</button>
-            <button onClick={goNext} className="w-7 h-7 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity" style={{ background: "var(--color-muted)" }}>&rsaquo;</button>
-            <button onClick={goToday} className="px-2.5 py-1 rounded-lg text-xs font-medium hover:opacity-80 transition-opacity" style={{ background: "var(--color-muted)" }}>Heute</button>
+        <div className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
+          <div className="flex items-center gap-2">
+            <button onClick={goPrev} className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity text-base" style={{ background: "var(--color-muted)" }} aria-label="Zurück">&lsaquo;</button>
+            <button onClick={goNext} className="w-8 h-8 rounded-lg flex items-center justify-center hover:opacity-80 transition-opacity text-base" style={{ background: "var(--color-muted)" }} aria-label="Vor">&rsaquo;</button>
+            <button onClick={goToday} className="px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-80 transition-opacity" style={{ background: "var(--color-muted)" }}>Heute</button>
           </div>
 
-          <span className="text-sm font-semibold">
+          <h2 className="text-base font-bold tracking-tight">
             {viewMode === "month"
               ? `${MONTH_NAMES[currentDate.getMonth()]} ${currentDate.getFullYear()}`
               : (() => { const d = getWeekDays(); return `${d[0].getDate()}. ${MONTH_NAMES[d[0].getMonth()].slice(0, 3)} – ${d[6].getDate()}. ${MONTH_NAMES[d[6].getMonth()].slice(0, 3)} ${d[6].getFullYear()}`; })()}
-          </span>
+          </h2>
 
           <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-border)" }}>
             <button
               onClick={() => setViewMode("month")}
-              className="px-3 py-1 text-xs font-medium transition-colors"
+              className="px-3.5 py-1.5 text-xs font-semibold transition-colors"
               style={{
                 background: viewMode === "month" ? "var(--color-primary)" : "transparent",
                 color: viewMode === "month" ? "white" : "var(--color-muted-foreground)",
@@ -334,7 +334,7 @@ export default function CalendarPage() {
             >Monat</button>
             <button
               onClick={() => setViewMode("week")}
-              className="px-3 py-1 text-xs font-medium transition-colors"
+              className="px-3.5 py-1.5 text-xs font-semibold transition-colors"
               style={{
                 background: viewMode === "week" ? "var(--color-primary)" : "transparent",
                 color: viewMode === "week" ? "white" : "var(--color-muted-foreground)",
@@ -345,7 +345,7 @@ export default function CalendarPage() {
 
         {/* Zeile 2: Gruppen-Filter */}
         {groups.length > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex flex-wrap items-center gap-2">
             {groups.map((group, idx) => {
               const color = getGroupColor(group, idx);
               const isHidden = hiddenGroups.has(group.id);
@@ -353,7 +353,7 @@ export default function CalendarPage() {
                 <button
                   key={group.id}
                   onClick={() => toggleGroup(group.id)}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-all"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                   style={{
                     background: isHidden ? "var(--color-muted)" : `${color}18`,
                     color: isHidden ? "var(--color-muted-foreground)" : color,
@@ -362,7 +362,7 @@ export default function CalendarPage() {
                   }}
                 >
                   <span
-                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    className="w-3 h-3 rounded-full flex-shrink-0"
                     style={{ background: isHidden ? "var(--color-muted-foreground)" : color }}
                   />
                   {group.name}
@@ -378,38 +378,57 @@ export default function CalendarPage() {
       {/* === MONATSANSICHT === */}
       {viewMode === "month" && (
         <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-          <div className="grid grid-cols-7" style={{ borderBottom: "1px solid var(--color-border)" }}>
-            {WEEKDAYS.map((day) => (
-              <div key={day} className="text-center text-xs font-semibold py-2" style={{ color: "var(--color-muted-foreground)" }}>{day}</div>
+          {/* Wochentag-Header */}
+          <div className="grid grid-cols-7" style={{ borderBottom: "2px solid var(--color-border)" }}>
+            {WEEKDAYS.map((day, i) => (
+              <div key={day} className="text-center text-[11px] font-bold uppercase tracking-wider py-2.5"
+                style={{ color: i >= 5 ? "var(--color-primary)" : "var(--color-muted-foreground)" }}>
+                {day}
+              </div>
             ))}
           </div>
           {getMonthDays().map((week, wIdx) => (
-            <div key={wIdx} className="grid grid-cols-7" style={{ borderBottom: wIdx < getMonthDays().length - 1 ? "1px solid var(--color-border-light)" : "none", minHeight: 100 }}>
+            <div key={wIdx} className="grid grid-cols-7" style={{ borderBottom: wIdx < getMonthDays().length - 1 ? "1px solid var(--color-border-light)" : "none" }}>
               {week.map((day, dIdx) => {
                 const isCurrentMonth = day.getMonth() === currentDate.getMonth();
                 const isToday = isSameDay(day, today);
+                const isWeekend = dIdx >= 5;
                 const dayEvents = getEventsForDay(day);
                 return (
                   <div
                     key={dIdx}
-                    className="p-1 min-h-[80px] relative group cursor-pointer"
-                    style={{ borderRight: dIdx < 6 ? "1px solid var(--color-border-light)" : "none", opacity: isCurrentMonth ? 1 : 0.35 }}
+                    className="p-1.5 min-h-[100px] relative group cursor-pointer transition-colors"
+                    style={{
+                      borderRight: dIdx < 6 ? "1px solid var(--color-border-light)" : "none",
+                      opacity: isCurrentMonth ? 1 : 0.3,
+                      background: isToday
+                        ? "rgba(var(--color-primary-rgb, 0,102,255), 0.06)"
+                        : isWeekend
+                        ? "rgba(var(--color-primary-rgb, 0,102,255), 0.02)"
+                        : "transparent",
+                    }}
                     onDoubleClick={() => { setCreateForDate(day); setShowCreateModal(true); }}
                   >
-                    <div className="flex justify-center mb-0.5">
-                      <span className="text-xs font-medium w-6 h-6 flex items-center justify-center rounded-full"
-                        style={{ background: isToday ? "var(--color-primary)" : "transparent", color: isToday ? "white" : "var(--color-foreground)" }}>
+                    {/* Tageszahl */}
+                    <div className="flex justify-center mb-1">
+                      <span className={`text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? "shadow-sm" : ""}`}
+                        style={{
+                          background: isToday ? "var(--color-primary)" : "transparent",
+                          color: isToday ? "white" : isWeekend ? "var(--color-primary)" : "var(--color-foreground)",
+                        }}>
                         {day.getDate()}
                       </span>
                     </div>
+                    {/* Schnell-Erstellen Button */}
                     <button
                       onClick={(e) => { e.stopPropagation(); setCreateForDate(day); setShowCreateModal(true); }}
-                      className="absolute top-0.5 right-0.5 w-5 h-5 rounded flex items-center justify-center opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-opacity"
-                      style={{ color: "var(--color-primary)" }}
+                      className="absolute top-1 right-1 w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
+                      style={{ color: "var(--color-primary)", background: "var(--color-primary-light)" }}
                       title="Termin hinzufügen"
                     >
                       <IconPlus size={12} />
                     </button>
+                    {/* Events */}
                     <div className="space-y-0.5">
                       {dayEvents.slice(0, 3).map((event) => {
                         const color = getEventColor(event);
@@ -417,17 +436,23 @@ export default function CalendarPage() {
                           <button
                             key={event.id + event.start_at}
                             onClick={() => setSelectedEvent(event)}
-                            className="w-full text-left px-1 py-0.5 rounded text-[10px] leading-tight truncate font-medium transition-opacity hover:opacity-80"
-                            style={{ background: `${color}20`, color }}
+                            className="w-full text-left px-1.5 py-[3px] rounded text-[11px] leading-tight truncate font-medium transition-opacity hover:opacity-80 flex items-center gap-0"
+                            style={{ background: `${color}18`, borderLeft: `3px solid ${color}`, color }}
                             title={event.summary}
                           >
-                            {!event.all_day && <span className="font-normal opacity-75">{formatTime(event.start_at)} </span>}
-                            {event.summary}
+                            {!event.all_day && <span className="font-normal opacity-70 mr-1 flex-shrink-0">{formatTime(event.start_at)}</span>}
+                            <span className="truncate">{event.summary}</span>
                           </button>
                         );
                       })}
                       {dayEvents.length > 3 && (
-                        <span className="text-[10px] px-1" style={{ color: "var(--color-muted-foreground)" }}>+{dayEvents.length - 3} weitere</span>
+                        <button
+                          onClick={() => { /* TODO: Show all events */ }}
+                          className="text-[11px] font-semibold px-1.5 py-0.5 rounded hover:opacity-80 transition-opacity w-full text-left"
+                          style={{ color: "var(--color-primary)" }}
+                        >
+                          +{dayEvents.length - 3} weitere
+                        </button>
                       )}
                     </div>
                   </div>
@@ -543,7 +568,7 @@ export default function CalendarPage() {
 }
 
 // === Week Time Grid (Apple Calendar Style) ===
-const HOUR_HEIGHT = 60;
+const HOUR_HEIGHT = 64;
 const START_HOUR = 6;
 const END_HOUR = 23;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
@@ -577,28 +602,29 @@ function WeekTimeGrid({
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
       {/* Column Headers */}
-      <div className="flex" style={{ borderBottom: "1px solid var(--color-border)" }}>
-        <div className="flex-shrink-0 w-[52px]" />
+      <div className="flex" style={{ borderBottom: "2px solid var(--color-border)" }}>
+        <div className="flex-shrink-0 w-[56px]" />
         {days.map((day, idx) => {
           const isToday = isSameDay(day, today);
+          const isWeekend = idx >= 5;
           const dayShort = day.toLocaleDateString("de-DE", { weekday: "short" });
           return (
             <div
               key={idx}
-              className="flex-1 text-center py-2 min-w-0"
+              className="flex-1 text-center py-2.5 min-w-0"
               style={{
                 borderLeft: "1px solid var(--color-border-light)",
                 background: isToday ? "var(--color-primary-light)" : "transparent",
               }}
             >
-              <p className="text-[10px] uppercase font-semibold" style={{ color: isToday ? "var(--color-primary)" : "var(--color-muted-foreground)" }}>
+              <p className="text-[10px] uppercase font-bold tracking-wider" style={{ color: isToday ? "var(--color-primary)" : isWeekend ? "var(--color-primary)" : "var(--color-muted-foreground)" }}>
                 {dayShort}
               </p>
               <p
-                className="text-lg font-bold leading-tight w-8 h-8 mx-auto flex items-center justify-center rounded-full"
+                className={`text-lg font-bold leading-tight w-9 h-9 mx-auto flex items-center justify-center rounded-full ${isToday ? "shadow-sm" : ""}`}
                 style={{
                   background: isToday ? "var(--color-primary)" : "transparent",
-                  color: isToday ? "white" : "var(--color-foreground)",
+                  color: isToday ? "white" : isWeekend ? "var(--color-primary)" : "var(--color-foreground)",
                 }}
               >
                 {day.getDate()}
@@ -611,16 +637,16 @@ function WeekTimeGrid({
       {/* All-day row */}
       {hasAllDay && (
         <div className="flex" style={{ borderBottom: "1px solid var(--color-border)" }}>
-          <div className="flex-shrink-0 w-[52px] flex items-start justify-end pr-2 pt-1">
-            <span className="text-[10px]" style={{ color: "var(--color-muted-foreground)" }}>Ganzt.</span>
+          <div className="flex-shrink-0 w-[56px] flex items-start justify-end pr-2 pt-1.5">
+            <span className="text-[10px] font-medium" style={{ color: "var(--color-muted-foreground)" }}>Ganzt.</span>
           </div>
           {days.map((day, idx) => {
             const dayAllDay = allDayRows[idx].events;
             return (
               <div
                 key={idx}
-                className="flex-1 min-w-0 p-0.5"
-                style={{ borderLeft: "1px solid var(--color-border-light)", minHeight: maxAllDay * 22 + 4 }}
+                className="flex-1 min-w-0 p-1"
+                style={{ borderLeft: "1px solid var(--color-border-light)", minHeight: maxAllDay * 24 + 8 }}
               >
                 {dayAllDay.map((event) => {
                   const color = getEventColor(event);
@@ -628,8 +654,8 @@ function WeekTimeGrid({
                     <button
                       key={event.id}
                       onClick={() => onEventClick(event)}
-                      className="w-full text-left text-[10px] font-medium px-1 py-0.5 rounded truncate mb-0.5 transition-opacity hover:opacity-80"
-                      style={{ background: `${color}25`, color, lineHeight: "1.3" }}
+                      className="w-full text-left text-[11px] font-semibold px-1.5 py-[3px] rounded truncate mb-0.5 transition-opacity hover:opacity-80"
+                      style={{ background: `${color}25`, borderLeft: `3px solid ${color}`, color, lineHeight: "1.3" }}
                       title={event.summary}
                     >
                       {event.summary}
@@ -644,17 +670,20 @@ function WeekTimeGrid({
 
       {/* Time grid */}
       <div className="flex overflow-y-auto" style={{ maxHeight: "calc(100vh - 280px)" }}>
-        <div className="flex-shrink-0 w-[52px] relative" style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}>
+        {/* Stundenleiste */}
+        <div className="flex-shrink-0 w-[56px] relative" style={{ height: TOTAL_HOURS * HOUR_HEIGHT }}>
           {Array.from({ length: TOTAL_HOURS }, (_, i) => (
-            <div key={i} className="absolute right-2 text-[10px] font-medium"
-              style={{ top: i * HOUR_HEIGHT - 6, color: "var(--color-muted-foreground)" }}>
-              {String(START_HOUR + i).padStart(2, "0")}:00
+            <div key={i} className="absolute right-3 text-[11px] font-medium"
+              style={{ top: i * HOUR_HEIGHT - 7, color: "var(--color-muted-foreground)" }}>
+              {String(START_HOUR + i).padStart(2, "0")}
+              <span className="text-[9px] opacity-60">:00</span>
             </div>
           ))}
         </div>
 
         {days.map((day, dayIdx) => {
           const isToday = isSameDay(day, today);
+          const isWeekend = dayIdx >= 5;
           const timedEvents = getEventsForDay(day).filter((e) => !e.all_day);
           const positioned = layoutEvents(timedEvents);
 
@@ -665,7 +694,11 @@ function WeekTimeGrid({
               style={{
                 height: TOTAL_HOURS * HOUR_HEIGHT,
                 borderLeft: "1px solid var(--color-border-light)",
-                background: isToday ? "rgba(var(--color-primary-rgb, 0,102,255), 0.03)" : "transparent",
+                background: isToday
+                  ? "rgba(var(--color-primary-rgb, 0,102,255), 0.05)"
+                  : isWeekend
+                  ? "rgba(var(--color-primary-rgb, 0,102,255), 0.02)"
+                  : "transparent",
               }}
               onDoubleClick={(e) => {
                 const rect = e.currentTarget.getBoundingClientRect();
@@ -676,46 +709,50 @@ function WeekTimeGrid({
                 onCreateClick(clickDate);
               }}
             >
+              {/* Volle Stunden */}
               {Array.from({ length: TOTAL_HOURS }, (_, i) => (
-                <div key={i} className="absolute left-0 right-0" style={{ top: i * HOUR_HEIGHT, height: 1, background: "var(--color-border-light)" }} />
+                <div key={i} className="absolute left-0 right-0" style={{ top: i * HOUR_HEIGHT, height: 1, background: "var(--color-border)" }} />
               ))}
+              {/* Halbe Stunden */}
               {Array.from({ length: TOTAL_HOURS }, (_, i) => (
-                <div key={`half-${i}`} className="absolute left-0 right-0" style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2, height: 1, background: "var(--color-border-light)", opacity: 0.4 }} />
+                <div key={`half-${i}`} className="absolute left-0 right-0" style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2, height: 1, background: "var(--color-border-light)", opacity: 0.6 }} />
               ))}
 
+              {/* Now-Linie */}
               {isToday && nowMinutes >= START_HOUR * 60 && nowMinutes <= END_HOUR * 60 && (
                 <div className="absolute left-0 right-0 z-10 pointer-events-none" style={{ top: nowTop }}>
                   <div className="relative">
-                    <div className="absolute -left-[5px] -top-[5px] w-[10px] h-[10px] rounded-full" style={{ background: "var(--color-destructive)" }} />
-                    <div className="h-[2px]" style={{ background: "var(--color-destructive)" }} />
+                    <div className="absolute -left-[6px] -top-[6px] w-[12px] h-[12px] rounded-full" style={{ background: "var(--color-destructive)" }} />
+                    <div className="h-[2px]" style={{ background: "var(--color-destructive)", boxShadow: "0 0 4px rgba(239,68,68,0.4)" }} />
                   </div>
                 </div>
               )}
 
+              {/* Events */}
               {positioned.map(({ event, top, height, left, width }) => {
                 const color = getEventColor(event);
                 return (
                   <button
                     key={event.id}
                     onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
-                    className="absolute rounded px-1.5 py-0.5 overflow-hidden text-left transition-opacity hover:opacity-90 z-[5]"
+                    className="absolute rounded-md px-2 py-1 overflow-hidden text-left transition-all hover:opacity-90 hover:shadow-sm z-[5]"
                     style={{
                       top,
-                      height: Math.max(height, 18),
+                      height: Math.max(height, 20),
                       left: `${left}%`,
                       width: `${width}%`,
-                      background: `${color}20`,
+                      background: `${color}25`,
                       borderLeft: `3px solid ${color}`,
                       color,
                     }}
                     title={`${event.summary}\n${formatTime(event.start_at)} – ${event.end_at ? formatTime(event.end_at) : ""}`}
                   >
-                    <p className="text-[10px] font-semibold truncate leading-tight">{event.summary}</p>
-                    {height > 28 && (
-                      <p className="text-[9px] opacity-70 truncate">{formatTime(event.start_at)} – {event.end_at ? formatTime(event.end_at) : ""}</p>
+                    <p className="text-[11px] font-semibold truncate leading-tight">{event.summary}</p>
+                    {height > 30 && (
+                      <p className="text-[10px] opacity-75 truncate">{formatTime(event.start_at)} – {event.end_at ? formatTime(event.end_at) : ""}</p>
                     )}
-                    {height > 44 && event.location && (
-                      <p className="text-[9px] opacity-60 truncate">📍 {event.location}</p>
+                    {height > 48 && event.location && (
+                      <p className="text-[10px] opacity-60 truncate mt-0.5">📍 {event.location}</p>
                     )}
                   </button>
                 );
