@@ -1259,14 +1259,13 @@ function SubscribeInfoModal({
                   <h3 className="text-sm font-semibold mb-2">Zugangsdaten</h3>
                   <div className="space-y-2">
                     {[
-                      { label: "Account", value: orgName || "Project Prepper", mono: false },
-                      { label: "Server", value: "caldav-proxy.post-cd8.workers.dev", mono: true },
-                      { label: "Benutzer", value: "caldav", mono: true },
-                      { label: "Passwort", value: caldavToken || "", mono: true },
+                      { label: "Server", value: "caldav-proxy.post-cd8.workers.dev" },
+                      { label: "Benutzer", value: "caldav" },
+                      { label: "Passwort", value: caldavToken || "" },
                     ].map((field) => (
                       <div key={field.label} className="flex items-center gap-3 p-2.5 rounded-lg" style={{ background: "var(--color-muted)" }}>
                         <span className="text-xs font-medium w-16 flex-shrink-0" style={{ color: "var(--color-muted-foreground)" }}>{field.label}:</span>
-                        <span className={`text-[10px] flex-1 truncate select-all ${field.mono ? "font-mono" : "font-semibold text-xs"}`}>{field.value}</span>
+                        <span className="text-[10px] font-mono flex-1 truncate select-all">{field.value}</span>
                         <button
                           onClick={() => copyToClipboard(field.value)}
                           className="px-2 py-1 rounded text-[10px] font-medium flex-shrink-0"
@@ -1277,6 +1276,9 @@ function SubscribeInfoModal({
                       </div>
                     ))}
                   </div>
+                  <p className="text-[11px]" style={{ color: "var(--color-muted-foreground)" }}>
+                    Tipp: Nach dem Einrichten kannst du den Account in den Systemeinstellungen umbenennen (z.B. in &quot;{orgName || "Project Prepper"}&quot;).
+                  </p>
                 </div>
 
                 {/* CalDAV Anleitungen */}
