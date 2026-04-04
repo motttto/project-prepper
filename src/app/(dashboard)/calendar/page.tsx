@@ -60,6 +60,91 @@ function getMonday(d: Date): Date {
   return result;
 }
 
+function isMultiDayEvent(event: CalendarEvent): boolean {
+  const start = new Date(event.start_at);
+  const end = event.end_at ? new Date(event.end_at) : start;
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  return end.getTime() > start.getTime();
+}
+
+type SpanningEvent = {
+  event: CalendarEvent;
+  startCol: number;  // 0-6 (Position in der Woche)
+  span: number;      // Anzahl Spalten
+  lane: number;      // Vertikale Zeile (0, 1, 2, ...)
+};
+
+function getSpanningEventsForWeek(
+  week: Date[],
+  events: CalendarEvent[],
+  hiddenGroups: Set<string>
+): SpanningEvent[] {
+  const weekStart = new Date(week[0]); weekStart.setHours(0, 0, 0, 0);
+  const weekEnd = new Date(week[6]); weekEnd.setHours(23, 59, 59, 999);
+
+  // Multi-Day Events finden, die in diese Woche fallen
+  const multiDay = events.filter((e) => {
+    if (e.group_id && hiddenGroups.has(e.group_id)) return false;
+    if (!isMultiDayEvent(e)) return false;
+    const eStart = new Date(e.start_at); eStart.setHours(0, 0, 0, 0);
+    const eEnd = e.end_at ? new Date(e.end_at) : eStart; eEnd.setHours(23, 59, 59, 999);
+    return eStart <= weekEnd && eEnd >= weekStart;
+  });
+
+  // Einzel-Tag ganztägige Events auch als Spanning (span=1) behandeln
+  const singleAllDay = events.filter((e) => {
+    if (e.group_id && hiddenGroups.has(e.group_id)) return false;
+    if (isMultiDayEvent(e)) return false;
+    if (!e.all_day) return false;
+    const eStart = new Date(e.start_at); eStart.setHours(0, 0, 0, 0);
+    return eStart >= weekStart && eStart <= weekEnd;
+  });
+
+  const allSpanning = [...multiDay, ...singleAllDay];
+
+  // Start-Col und Span berechnen
+  const positioned: Omit<SpanningEvent, "lane">[] = allSpanning.map((event) => {
+    const eStart = new Date(event.start_at); eStart.setHours(0, 0, 0, 0);
+    const eEnd = event.end_at ? new Date(event.end_at) : new Date(eStart); eEnd.setHours(0, 0, 0, 0);
+
+    // Clamp zum Wochenbereich
+    const visibleStart = eStart < weekStart ? weekStart : eStart;
+    const visibleEnd = eEnd > new Date(week[6]) ? new Date(week[6]) : eEnd;
+
+    const startCol = Math.round((visibleStart.getTime() - weekStart.getTime()) / 86400000);
+    const endCol = Math.round((visibleEnd.getTime() - weekStart.getTime()) / 86400000);
+    const span = Math.max(1, endCol - startCol + 1);
+
+    return { event, startCol: Math.max(0, Math.min(6, startCol)), span: Math.min(span, 7 - startCol) };
+  });
+
+  // Sortieren: längere Events zuerst, dann nach Start
+  positioned.sort((a, b) => b.span - a.span || a.startCol - b.startCol);
+
+  // Lane-Zuweisung (Greedy-Algorithmus)
+  const result: SpanningEvent[] = [];
+  const lanes: boolean[][] = []; // lanes[lane][col] = belegt?
+
+  for (const item of positioned) {
+    let lane = 0;
+    while (true) {
+      if (!lanes[lane]) lanes[lane] = Array(7).fill(false);
+      const canFit = !lanes[lane].slice(item.startCol, item.startCol + item.span).some(Boolean);
+      if (canFit) break;
+      lane++;
+    }
+    // Lane belegen
+    if (!lanes[lane]) lanes[lane] = Array(7).fill(false);
+    for (let c = item.startCol; c < item.startCol + item.span; c++) {
+      lanes[lane][c] = true;
+    }
+    result.push({ ...item, lane });
+  }
+
+  return result;
+}
+
 function toDateInputValue(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
@@ -167,7 +252,7 @@ export default function CalendarPage() {
     });
   }
 
-  // Events für einen Tag (gefiltert)
+  // Events für einen Tag (gefiltert) — nur Einzel-Tag Events (nicht mehrtägig)
   function getEventsForDay(date: Date): CalendarEvent[] {
     return events.filter((e) => {
       if (e.group_id && hiddenGroups.has(e.group_id)) return false;
@@ -178,6 +263,17 @@ export default function CalendarPage() {
         const dayEnd = new Date(date); dayEnd.setHours(23, 59, 59, 999);
         return eStart <= dayEnd && eEnd >= dayStart;
       }
+      return isSameDay(eStart, date);
+    });
+  }
+
+  // Nur Einzel-Tag-Events für die Monatsansicht (keine Spanning-Events)
+  function getSingleDayEventsForDay(date: Date): CalendarEvent[] {
+    return events.filter((e) => {
+      if (e.group_id && hiddenGroups.has(e.group_id)) return false;
+      if (isMultiDayEvent(e)) return false;
+      const eStart = new Date(e.start_at);
+      if (e.all_day) return isSameDay(eStart, date);
       return isSameDay(eStart, date);
     });
   }
@@ -387,79 +483,127 @@ export default function CalendarPage() {
               </div>
             ))}
           </div>
-          {getMonthDays().map((week, wIdx) => (
-            <div key={wIdx} className="grid grid-cols-7" style={{ borderBottom: wIdx < getMonthDays().length - 1 ? "1px solid var(--color-border-light)" : "none" }}>
-              {week.map((day, dIdx) => {
-                const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-                const isToday = isSameDay(day, today);
-                const isWeekend = dIdx >= 5;
-                const dayEvents = getEventsForDay(day);
-                return (
-                  <div
-                    key={dIdx}
-                    className="p-1.5 min-h-[100px] relative group cursor-pointer transition-colors"
-                    style={{
-                      borderRight: dIdx < 6 ? "1px solid var(--color-border-light)" : "none",
-                      opacity: isCurrentMonth ? 1 : 0.3,
-                      background: isToday
-                        ? "rgba(var(--color-primary-rgb, 0,102,255), 0.06)"
-                        : isWeekend
-                        ? "rgba(var(--color-primary-rgb, 0,102,255), 0.02)"
-                        : "transparent",
-                    }}
-                    onDoubleClick={() => { setCreateForDate(day); setShowCreateModal(true); }}
-                  >
-                    {/* Tageszahl */}
-                    <div className="flex justify-center mb-1">
-                      <span className={`text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? "shadow-sm" : ""}`}
+          {getMonthDays().map((week, wIdx) => {
+            const spanningEvents = getSpanningEventsForWeek(week, events, hiddenGroups);
+            const maxLane = spanningEvents.length > 0 ? Math.max(...spanningEvents.map((s) => s.lane)) + 1 : 0;
+            const SPAN_ROW_HEIGHT = 22;
+            const spanningHeight = maxLane * SPAN_ROW_HEIGHT;
+
+            return (
+              <div key={wIdx} className="relative" style={{ borderBottom: wIdx < getMonthDays().length - 1 ? "1px solid var(--color-border-light)" : "none" }}>
+                {/* Tages-Grid (Hintergrund + Tageszahlen + Einzelevents) */}
+                <div className="grid grid-cols-7">
+                  {week.map((day, dIdx) => {
+                    const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+                    const isToday = isSameDay(day, today);
+                    const isWeekend = dIdx >= 5;
+                    const singleEvents = getSingleDayEventsForDay(day);
+                    return (
+                      <div
+                        key={dIdx}
+                        className="p-1.5 relative group cursor-pointer transition-colors"
                         style={{
-                          background: isToday ? "var(--color-primary)" : "transparent",
-                          color: isToday ? "white" : isWeekend ? "var(--color-primary)" : "var(--color-foreground)",
-                        }}>
-                        {day.getDate()}
-                      </span>
-                    </div>
-                    {/* Schnell-Erstellen Button */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setCreateForDate(day); setShowCreateModal(true); }}
-                      className="absolute top-1 right-1 w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all"
-                      style={{ color: "var(--color-primary)", background: "var(--color-primary-light)" }}
-                      title="Termin hinzufügen"
-                    >
-                      <IconPlus size={12} />
-                    </button>
-                    {/* Events */}
-                    <div className="space-y-0.5">
-                      {dayEvents.slice(0, 3).map((event) => {
-                        const color = getEventColor(event);
-                        return (
-                          <button
-                            key={event.id + event.start_at}
-                            onClick={() => setSelectedEvent(event)}
-                            className="w-full text-left px-1.5 py-[3px] rounded text-[11px] leading-tight truncate font-medium transition-opacity hover:opacity-80 flex items-center gap-0"
-                            style={{ background: `${color}18`, borderLeft: `3px solid ${color}`, color }}
-                            title={event.summary}
-                          >
-                            {!event.all_day && <span className="font-normal opacity-70 mr-1 flex-shrink-0">{formatTime(event.start_at)}</span>}
-                            <span className="truncate">{event.summary}</span>
-                          </button>
-                        );
-                      })}
-                      {dayEvents.length > 3 && (
+                          borderRight: dIdx < 6 ? "1px solid var(--color-border-light)" : "none",
+                          opacity: isCurrentMonth ? 1 : 0.3,
+                          minHeight: 36 + spanningHeight + 48,
+                          background: isToday
+                            ? "rgba(var(--color-primary-rgb, 0,102,255), 0.06)"
+                            : isWeekend
+                            ? "rgba(var(--color-primary-rgb, 0,102,255), 0.02)"
+                            : "transparent",
+                        }}
+                        onDoubleClick={() => { setCreateForDate(day); setShowCreateModal(true); }}
+                      >
+                        {/* Tageszahl */}
+                        <div className="flex justify-center mb-1">
+                          <span className={`text-xs font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? "shadow-sm" : ""}`}
+                            style={{
+                              background: isToday ? "var(--color-primary)" : "transparent",
+                              color: isToday ? "white" : isWeekend ? "var(--color-primary)" : "var(--color-foreground)",
+                            }}>
+                            {day.getDate()}
+                          </span>
+                        </div>
+                        {/* Schnell-Erstellen Button */}
                         <button
-                          onClick={() => { /* TODO: Show all events */ }}
-                          className="text-[11px] font-semibold px-1.5 py-0.5 rounded hover:opacity-80 transition-opacity w-full text-left"
-                          style={{ color: "var(--color-primary)" }}
+                          onClick={(e) => { e.stopPropagation(); setCreateForDate(day); setShowCreateModal(true); }}
+                          className="absolute top-1 right-1 w-6 h-6 rounded-md flex items-center justify-center opacity-0 group-hover:opacity-60 hover:!opacity-100 transition-all z-10"
+                          style={{ color: "var(--color-primary)", background: "var(--color-primary-light)" }}
+                          title="Termin hinzufügen"
                         >
-                          +{dayEvents.length - 3} weitere
+                          <IconPlus size={12} />
                         </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+                        {/* Platzhalter für Spanning-Events */}
+                        {spanningHeight > 0 && <div style={{ height: spanningHeight }} />}
+                        {/* Einzel-Tag Events (timed) */}
+                        <div className="space-y-0.5">
+                          {singleEvents.slice(0, 3).map((event) => {
+                            const color = getEventColor(event);
+                            return (
+                              <button
+                                key={event.id + event.start_at}
+                                onClick={() => setSelectedEvent(event)}
+                                className="w-full text-left px-1.5 py-[3px] rounded text-[11px] leading-tight truncate font-medium transition-opacity hover:opacity-80 flex items-center gap-0"
+                                style={{ background: `${color}18`, borderLeft: `3px solid ${color}`, color }}
+                                title={event.summary}
+                              >
+                                {!event.all_day && <span className="font-normal opacity-70 mr-1 flex-shrink-0">{formatTime(event.start_at)}</span>}
+                                <span className="truncate">{event.summary}</span>
+                              </button>
+                            );
+                          })}
+                          {singleEvents.length > 3 && (
+                            <button
+                              onClick={() => { /* TODO: Show all events */ }}
+                              className="text-[11px] font-semibold px-1.5 py-0.5 rounded hover:opacity-80 transition-opacity w-full text-left"
+                              style={{ color: "var(--color-primary)" }}
+                            >
+                              +{singleEvents.length - 3} weitere
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Spanning-Events (absolut über die Wochenzeile) */}
+                {spanningEvents.map((sp) => {
+                  const color = getEventColor(sp.event);
+                  const eStart = new Date(sp.event.start_at); eStart.setHours(0, 0, 0, 0);
+                  const weekStartDate = new Date(week[0]); weekStartDate.setHours(0, 0, 0, 0);
+                  const isStart = eStart >= weekStartDate;
+                  const eEnd = sp.event.end_at ? new Date(sp.event.end_at) : eStart; eEnd.setHours(0, 0, 0, 0);
+                  const weekEndDate = new Date(week[6]); weekEndDate.setHours(0, 0, 0, 0);
+                  const isEnd = eEnd <= weekEndDate;
+
+                  return (
+                    <button
+                      key={`${sp.event.id}-${wIdx}-span`}
+                      onClick={() => setSelectedEvent(sp.event)}
+                      className="absolute text-[11px] font-semibold truncate transition-opacity hover:opacity-80 z-[5] flex items-center"
+                      style={{
+                        top: 36 + sp.lane * SPAN_ROW_HEIGHT,
+                        left: `calc(${(sp.startCol / 7) * 100}% + 3px)`,
+                        width: `calc(${(sp.span / 7) * 100}% - 6px)`,
+                        height: SPAN_ROW_HEIGHT - 3,
+                        background: `${color}30`,
+                        borderLeft: isStart ? `3px solid ${color}` : "none",
+                        borderRadius: isStart && isEnd ? "4px" : isStart ? "4px 0 0 4px" : isEnd ? "0 4px 4px 0" : "0",
+                        color,
+                        paddingLeft: isStart ? 6 : 4,
+                        paddingRight: 4,
+                      }}
+                      title={sp.event.summary}
+                    >
+                      {isStart && <span className="truncate">{sp.event.summary}</span>}
+                      {!isStart && <span className="truncate opacity-60">{sp.event.summary}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
       )}
 
