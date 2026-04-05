@@ -284,12 +284,12 @@ export default function CalendarPage() {
     if (!skipConfirm) {
       if (!(await appConfirm(`"${event.summary}" wirklich löschen?`, { variant: "danger", confirmLabel: "Löschen" }))) return;
     }
-    const { error, count } = await supabase
-      .from("calendar_events")
-      .delete({ count: "exact" })
-      .eq("id", event.id);
-    if (error || count === 0) {
-      showToast(error?.message || "Termin konnte nicht gelöscht werden. Eventuell fehlende Berechtigung.", "error");
+    // Service-Route nutzen für zuverlässiges Löschen (RLS-Bypass)
+    const res = await fetch(`/api/calendar/delete?id=${event.id}&org_id=${orgId}`, { method: "DELETE" });
+    if (!res.ok) {
+      const msg = await res.text().catch(() => "Unbekannter Fehler");
+      console.error("[Calendar] Delete error:", msg);
+      showToast("Termin konnte nicht gelöscht werden.", "error");
     } else {
       showToast("Termin gelöscht", "success");
       setSelectedEvent(null);
