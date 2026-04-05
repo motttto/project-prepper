@@ -48,6 +48,16 @@ function isSameDay(d1: Date, d2: Date): boolean {
   return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate();
 }
 
+// Für all_day Events: UTC-Datum als lokales Datum lesen (verhindert Timezone-Shift)
+function eventDate(dateStr: string, allDay: boolean): Date {
+  if (allDay) {
+    // "2026-04-05T00:00:00Z" → Date(2026, 3, 5) lokal, nicht UTC-shifted
+    const [y, m, d] = dateStr.split("T")[0].split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(dateStr);
+}
+
 function formatTime(dateStr: string): string {
   return new Date(dateStr).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
 }
@@ -61,8 +71,8 @@ function getMonday(d: Date): Date {
 }
 
 function isMultiDayEvent(event: CalendarEvent): boolean {
-  const start = new Date(event.start_at);
-  const end = event.end_at ? new Date(event.end_at) : start;
+  const start = eventDate(event.start_at, event.all_day);
+  const end = event.end_at ? eventDate(event.end_at, event.all_day) : start;
   start.setHours(0, 0, 0, 0);
   end.setHours(0, 0, 0, 0);
   return end.getTime() > start.getTime();
@@ -87,8 +97,8 @@ function getSpanningEventsForWeek(
   const multiDay = events.filter((e) => {
     if (e.group_id && hiddenGroups.has(e.group_id)) return false;
     if (!isMultiDayEvent(e)) return false;
-    const eStart = new Date(e.start_at); eStart.setHours(0, 0, 0, 0);
-    const eEnd = e.end_at ? new Date(e.end_at) : eStart; eEnd.setHours(23, 59, 59, 999);
+    const eStart = eventDate(e.start_at, e.all_day); eStart.setHours(0, 0, 0, 0);
+    const eEnd = e.end_at ? eventDate(e.end_at, e.all_day) : eStart; eEnd.setHours(23, 59, 59, 999);
     return eStart <= weekEnd && eEnd >= weekStart;
   });
 
@@ -97,7 +107,7 @@ function getSpanningEventsForWeek(
     if (e.group_id && hiddenGroups.has(e.group_id)) return false;
     if (isMultiDayEvent(e)) return false;
     if (!e.all_day) return false;
-    const eStart = new Date(e.start_at); eStart.setHours(0, 0, 0, 0);
+    const eStart = eventDate(e.start_at, e.all_day); eStart.setHours(0, 0, 0, 0);
     return eStart >= weekStart && eStart <= weekEnd;
   });
 
@@ -105,8 +115,8 @@ function getSpanningEventsForWeek(
 
   // Start-Col und Span berechnen
   const positioned: Omit<SpanningEvent, "lane">[] = allSpanning.map((event) => {
-    const eStart = new Date(event.start_at); eStart.setHours(0, 0, 0, 0);
-    const eEnd = event.end_at ? new Date(event.end_at) : new Date(eStart); eEnd.setHours(0, 0, 0, 0);
+    const eStart = eventDate(event.start_at, event.all_day); eStart.setHours(0, 0, 0, 0);
+    const eEnd = event.end_at ? eventDate(event.end_at, event.all_day) : new Date(eStart); eEnd.setHours(0, 0, 0, 0);
 
     // Clamp zum Wochenbereich
     const visibleStart = eStart < weekStart ? weekStart : eStart;
@@ -256,8 +266,8 @@ export default function CalendarPage() {
   function getEventsForDay(date: Date): CalendarEvent[] {
     return events.filter((e) => {
       if (e.group_id && hiddenGroups.has(e.group_id)) return false;
-      const eStart = new Date(e.start_at);
-      const eEnd = e.end_at ? new Date(e.end_at) : eStart;
+      const eStart = eventDate(e.start_at, e.all_day);
+      const eEnd = e.end_at ? eventDate(e.end_at, e.all_day) : eStart;
       if (e.all_day) {
         const dayStart = new Date(date); dayStart.setHours(0, 0, 0, 0);
         const dayEnd = new Date(date); dayEnd.setHours(23, 59, 59, 999);
@@ -274,7 +284,7 @@ export default function CalendarPage() {
       if (e.group_id && hiddenGroups.has(e.group_id)) return false;
       if (isMultiDayEvent(e)) return false;
       if (e.all_day) return false; // Ganztägig → wird als Spanning-Bar gezeigt
-      const eStart = new Date(e.start_at);
+      const eStart = eventDate(e.start_at, e.all_day);
       return isSameDay(eStart, date);
     });
   }
@@ -596,10 +606,10 @@ export default function CalendarPage() {
                 {/* Spanning-Events (absolut über die Wochenzeile) */}
                 {spanningEvents.map((sp) => {
                   const color = getEventColor(sp.event);
-                  const eStart = new Date(sp.event.start_at); eStart.setHours(0, 0, 0, 0);
+                  const eStart = eventDate(sp.event.start_at, sp.event.all_day); eStart.setHours(0, 0, 0, 0);
                   const weekStartDate = new Date(week[0]); weekStartDate.setHours(0, 0, 0, 0);
                   const isStart = eStart >= weekStartDate;
-                  const eEnd = sp.event.end_at ? new Date(sp.event.end_at) : eStart; eEnd.setHours(0, 0, 0, 0);
+                  const eEnd = sp.event.end_at ? eventDate(sp.event.end_at, sp.event.all_day) : eStart; eEnd.setHours(0, 0, 0, 0);
                   const weekEndDate = new Date(week[6]); weekEndDate.setHours(0, 0, 0, 0);
                   const isEnd = eEnd <= weekEndDate;
 
@@ -995,7 +1005,7 @@ function EventDetailModal({
           <div className="flex items-start gap-3">
             <IconCalendar size={16} style={{ color: "var(--color-muted-foreground)", marginTop: 2 }} />
             <div>
-              <p className="text-sm font-medium">{new Date(event.start_at).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
+              <p className="text-sm font-medium">{eventDate(event.start_at, event.all_day).toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}</p>
               <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
                 {event.all_day ? "Ganztägig" : `${formatTime(event.start_at)} – ${event.end_at ? formatTime(event.end_at) : ""}`}
               </p>
@@ -1118,9 +1128,9 @@ function EventFormModal({
     let formattedEnd = endDate;
 
     if (allDay) {
-      // Ganztägig: als Date ohne Zeit, aber als ISO
-      formattedStart = new Date(startDate + "T00:00:00").toISOString();
-      formattedEnd = new Date((endDate || startDate) + "T23:59:59").toISOString();
+      // Ganztägig: explizit UTC-Mitternacht um Timezone-Offset zu vermeiden
+      formattedStart = startDate + "T00:00:00Z";
+      formattedEnd = (endDate || startDate) + "T23:59:59Z";
     } else {
       formattedStart = new Date(startDate).toISOString();
       formattedEnd = new Date(endDate).toISOString();
