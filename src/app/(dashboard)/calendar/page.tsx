@@ -182,6 +182,7 @@ export default function CalendarPage() {
   const [createForDate, setCreateForDate] = useState<Date | null>(null);
   const [showGroupManager, setShowGroupManager] = useState(false);
   const [showSubscribeInfo, setShowSubscribeInfo] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   // Group color helper
   const getEventColor = useCallback((event: CalendarEvent) => {
@@ -383,6 +384,23 @@ export default function CalendarPage() {
 
   const inputStyle = { border: "1px solid var(--color-border)", background: "var(--color-background)" };
 
+  const handleForceSync = useCallback(async () => {
+    if (!orgId || syncing) return;
+    setSyncing(true);
+    try {
+      const res = await fetch(`/api/calendar/debug?org_id=${orgId}&action=bump_ctags`, { method: "POST" });
+      if (res.ok) {
+        showToast("Sync angestoßen — CTags aktualisiert", "success");
+      } else {
+        showToast("Sync fehlgeschlagen", "error");
+      }
+    } catch {
+      showToast("Sync fehlgeschlagen", "error");
+    } finally {
+      setSyncing(false);
+    }
+  }, [orgId, syncing]);
+
   // "Ohne Gruppe" als filter
   const ungroupedEvents = events.filter((e) => !e.group_id);
   const hasUngrouped = ungroupedEvents.length > 0;
@@ -418,6 +436,15 @@ export default function CalendarPage() {
             title="Kalender auf anderen Geräten einbinden"
           >
             Einbinden
+          </button>
+          <button
+            onClick={handleForceSync}
+            disabled={syncing}
+            className="px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:opacity-80"
+            style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)", opacity: syncing ? 0.5 : 1 }}
+            title="Sync mit externen Kalender-Apps erzwingen (CTag Bump)"
+          >
+            {syncing ? "Sync..." : "Sync"}
           </button>
         </div>
       </div>
