@@ -292,6 +292,7 @@ export default function CalendarPage() {
       showToast("Termin konnte nicht gelöscht werden.", "error");
     } else {
       showToast("Termin gelöscht", "success");
+      setEvents(prev => prev.filter(e => e.id !== event.id));
       setSelectedEvent(null);
       setEditEvent(null);
       setShowCreateModal(false);
