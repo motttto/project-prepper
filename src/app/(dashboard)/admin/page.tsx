@@ -1140,6 +1140,10 @@ function ServicesTab({ orgId }: { orgId: string }) {
   const [dbStats, setDbStats] = useState<{ table: string; count: number }[]>([]);
   const [calendarDebug, setCalendarDebug] = useState<{ groups: number; events: number; tokens: number; ctags: { name: string; ctag: number }[] }>({ groups: 0, events: 0, tokens: 0, ctags: [] });
   const [checking, setChecking] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  const [pushResult, setPushResult] = useState<any>(null);
+  const [debugResult, setDebugResult] = useState<any>(null);
+  const [loadingDebug, setLoadingDebug] = useState(false);
 
   const updateService = useCallback((name: string, update: Partial<ServiceCheck>) => {
     setServices(prev => prev.map(s => s.name === name ? { ...s, ...update } : s));
@@ -1425,6 +1429,129 @@ function ServicesTab({ orgId }: { orgId: string }) {
             </p>
           </div>
         )}
+
+        {/* Push CalDAV + Debug */}
+        <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+          <div className="flex items-center gap-3 mb-3">
+            <button
+              onClick={async () => {
+                setPushing(true);
+                setPushResult(null);
+                try {
+                  const res = await fetch(`/api/calendar/debug?org_id=${orgId}&action=bump_ctags`, { method: "POST" });
+                  const data = await res.json();
+                  setPushResult(data);
+                  // CTags neu laden
+                  runChecks();
+                } catch (e: any) {
+                  setPushResult({ error: e.message });
+                }
+                setPushing(false);
+              }}
+              disabled={pushing}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors disabled:opacity-50"
+              style={{ background: "var(--color-primary)" }}
+            >
+              {pushing ? "\u23F3 Pushe..." : "\u{1F504} Force CTag Bump"}
+            </button>
+            <button
+              onClick={async () => {
+                setLoadingDebug(true);
+                setDebugResult(null);
+                try {
+                  const res = await fetch(`/api/calendar/debug?org_id=${orgId}`);
+                  const data = await res.json();
+                  setDebugResult(data);
+                } catch (e: any) {
+                  setDebugResult({ error: e.message });
+                }
+                setLoadingDebug(false);
+              }}
+              disabled={loadingDebug}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+            >
+              {loadingDebug ? "\u23F3 Lade..." : "\u{1F50D} CalDAV Debug"}
+            </button>
+          </div>
+
+          <p className="text-[11px] mb-3" style={{ color: "var(--color-muted-foreground)" }}>
+            <strong>Force CTag Bump</strong> erhoet alle CTags und zwingt Apple Calendar zum Re-Sync (Cmd+R in Apple Calendar).
+            <br />
+            <strong>CalDAV Debug</strong> zeigt die letzten Events, iCal-Output und testet den CalDAV GET-Endpoint.
+          </p>
+
+          {/* Push Result */}
+          {pushResult && (
+            <div className="mb-3 p-3 rounded-lg text-xs" style={{
+              background: pushResult.error ? "var(--color-destructive-light)" : "var(--color-success-light, #dcfce7)",
+              color: pushResult.error ? "var(--color-destructive)" : "var(--color-success, #16a34a)",
+            }}>
+              {pushResult.error ? (
+                <p>Fehler: {pushResult.error}</p>
+              ) : (
+                <div>
+                  <p className="font-bold mb-1">CTags aktualisiert:</p>
+                  {pushResult.results?.map((r: any) => (
+                    <p key={r.name}>{r.success ? "\u2705" : "\u274C"} {r.name}: {r.oldCtag} → {r.newCtag}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Debug Result */}
+          {debugResult && (
+            <div className="space-y-3">
+              {/* Letzte Events */}
+              {debugResult.recentEvents?.length > 0 && (
+                <div>
+                  <p className="text-xs font-bold mb-1">Letzte Events:</p>
+                  <div className="space-y-1">
+                    {debugResult.recentEvents.map((e: any) => (
+                      <div key={e.id} className="px-3 py-2 rounded-lg text-[11px] font-mono" style={{ background: "var(--color-muted)" }}>
+                        <span className="font-bold">{e.summary}</span>
+                        <span className="mx-2" style={{ color: "var(--color-muted-foreground)" }}>|</span>
+                        <span>{e.all_day ? "Ganztaegig" : ""} {e.start_at?.split("T")[0]}</span>
+                        <span className="mx-2" style={{ color: "var(--color-muted-foreground)" }}>|</span>
+                        <span style={{ color: "var(--color-muted-foreground)" }}>UID: {e.caldav_uid?.substring(0, 12)}...</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* iCal Sample */}
+              {debugResult.icalSample && (
+                <div>
+                  <p className="text-xs font-bold mb-1">iCal-Output (neuestes Event):</p>
+                  <pre className="p-3 rounded-lg text-[11px] font-mono overflow-x-auto whitespace-pre-wrap" style={{ background: "var(--color-muted)", color: "var(--color-foreground)" }}>
+                    {debugResult.icalSample}
+                  </pre>
+                </div>
+              )}
+
+              {/* CalDAV GET Test */}
+              {debugResult.caldavGetTest && (
+                <div>
+                  <p className="text-xs font-bold mb-1">CalDAV GET Test:</p>
+                  <div className="p-3 rounded-lg text-[11px] font-mono" style={{
+                    background: debugResult.caldavGetTest.status === 200 ? "var(--color-success-light, #dcfce7)" : "var(--color-destructive-light)",
+                    color: debugResult.caldavGetTest.status === 200 ? "var(--color-success, #16a34a)" : "var(--color-destructive)",
+                  }}>
+                    <p>HTTP {debugResult.caldavGetTest.status}</p>
+                    <p className="truncate" style={{ color: "var(--color-muted-foreground)" }}>{debugResult.caldavGetTest.url}</p>
+                    {debugResult.caldavGetTest.body && (
+                      <pre className="mt-1 whitespace-pre-wrap text-[10px]" style={{ color: "var(--color-foreground)" }}>
+                        {debugResult.caldavGetTest.body}
+                      </pre>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* DB Stats */}
