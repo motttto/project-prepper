@@ -22,6 +22,7 @@ import {
   parseMultigetHrefs,
   isCalendarMultiget,
   isCalendarQuery,
+  isSyncCollection,
 } from "./xml";
 
 // ============================================================
@@ -177,6 +178,18 @@ export async function handleReport(
 ): Promise<Response> {
   const supabase = createServiceClient();
   const calHref = `${baseHref}calendars/${groupId}/`;
+
+  // sync-collection nicht unterstützt — Apple Calendar soll CTag-basiert synchen
+  if (isSyncCollection(body)) {
+    return davResponse(
+      multistatus(
+        response(calHref,
+          propstatOk(`<d:supported-report-set/>`)
+        )
+      ),
+      403
+    );
+  }
 
   if (isCalendarMultiget(body)) {
     return handleMultiget(auth, groupId, baseHref, body);

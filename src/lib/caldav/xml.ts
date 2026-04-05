@@ -46,6 +46,17 @@ export function calendarProps(name: string, color: string, ctag: number): string
     `<ical:calendar-color>${escapeXml(color)}FF</ical:calendar-color>`,
     `<cs:getctag>${ctag}</cs:getctag>`,
     `<cal:supported-calendar-component-set><cal:comp name="VEVENT"/></cal:supported-calendar-component-set>`,
+    `<d:supported-report-set>`,
+    `<d:supported-report><d:report><cal:calendar-multiget/></d:report></d:supported-report>`,
+    `<d:supported-report><d:report><cal:calendar-query/></d:report></d:supported-report>`,
+    `</d:supported-report-set>`,
+    `<d:current-user-privilege-set>`,
+    `<d:privilege><d:read/></d:privilege>`,
+    `<d:privilege><d:write/></d:privilege>`,
+    `<d:privilege><d:write-content/></d:privilege>`,
+    `<d:privilege><d:bind/></d:privilege>`,
+    `<d:privilege><d:unbind/></d:privilege>`,
+    `</d:current-user-privilege-set>`,
   ].join("\n"));
 }
 
@@ -102,6 +113,10 @@ export function isCalendarMultiget(xml: string): boolean {
 
 export function isCalendarQuery(xml: string): boolean {
   return xml.includes("calendar-query");
+}
+
+export function isSyncCollection(xml: string): boolean {
+  return xml.includes("sync-collection");
 }
 
 // === Helper ===
