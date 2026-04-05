@@ -146,7 +146,7 @@ export default function AdminPage() {
   const { orgId } = useOrg();
   const { startImpersonating } = useImpersonate();
 
-  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system">("roles");
+  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system" | "services">("roles");
 
   // ── Rollen & Berechtigungen State ──
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -401,9 +401,10 @@ export default function AdminPage() {
   }
 
   // ── Tab Config ──
-  const tabs: { key: "roles" | "log" | "system"; label: string }[] = [
+  const tabs: { key: "roles" | "log" | "system" | "services"; label: string }[] = [
     { key: "roles", label: "Rollen & Berechtigungen" },
     { key: "log", label: "Protokoll" },
+    { key: "services", label: "Services" },
     { key: "system", label: "System" },
   ];
 
@@ -489,6 +490,8 @@ export default function AdminPage() {
           setFilterAction={setFilterAction}
           loadEntries={loadLogEntries}
         />
+      ) : activeTab === "services" ? (
+        <ServicesTab orgId={orgId || ""} />
       ) : (
         <SystemTab />
       )}
@@ -1109,6 +1112,366 @@ function InviteModal({
 // ══════════════════════════════════════════════
 // ── System Tab ──
 // ══════════════════════════════════════════════
+
+// ── Services & Debug Tab ──
+
+type ServiceStatus = "checking" | "online" | "degraded" | "offline" | "unknown";
+
+type ServiceCheck = {
+  name: string;
+  url: string;
+  status: ServiceStatus;
+  latency: number | null;
+  detail: string;
+  lastCheck: Date | null;
+};
+
+function ServicesTab({ orgId }: { orgId: string }) {
+  const supabase = createClient();
+  const [services, setServices] = useState<ServiceCheck[]>([
+    { name: "Supabase Database", url: "", status: "checking", latency: null, detail: "", lastCheck: null },
+    { name: "Supabase Auth", url: "", status: "checking", latency: null, detail: "", lastCheck: null },
+    { name: "Supabase Realtime", url: "", status: "checking", latency: null, detail: "", lastCheck: null },
+    { name: "Vercel App", url: "", status: "checking", latency: null, detail: "", lastCheck: null },
+    { name: "CalDAV Proxy", url: "caldav-proxy.post-cd8.workers.dev", status: "checking", latency: null, detail: "", lastCheck: null },
+    { name: "CalDAV Server", url: "", status: "checking", latency: null, detail: "", lastCheck: null },
+    { name: "iCal Feed", url: "", status: "checking", latency: null, detail: "", lastCheck: null },
+  ]);
+  const [dbStats, setDbStats] = useState<{ table: string; count: number }[]>([]);
+  const [calendarDebug, setCalendarDebug] = useState<{ groups: number; events: number; tokens: number; ctags: { name: string; ctag: number }[] }>({ groups: 0, events: 0, tokens: 0, ctags: [] });
+  const [checking, setChecking] = useState(false);
+
+  const updateService = useCallback((name: string, update: Partial<ServiceCheck>) => {
+    setServices(prev => prev.map(s => s.name === name ? { ...s, ...update } : s));
+  }, []);
+
+  const runChecks = useCallback(async () => {
+    setChecking(true);
+    setServices(prev => prev.map(s => ({ ...s, status: "checking" as ServiceStatus, latency: null, detail: "" })));
+
+    // 1. Supabase Database
+    const dbStart = performance.now();
+    try {
+      const { count, error } = await supabase.from("organizations").select("*", { count: "exact", head: true });
+      const lat = Math.round(performance.now() - dbStart);
+      if (error) {
+        updateService("Supabase Database", { status: "offline", latency: lat, detail: error.message, lastCheck: new Date() });
+      } else {
+        updateService("Supabase Database", { status: "online", latency: lat, detail: `${count ?? 0} Organisationen`, lastCheck: new Date() });
+      }
+    } catch (e: any) {
+      updateService("Supabase Database", { status: "offline", latency: Math.round(performance.now() - dbStart), detail: e.message, lastCheck: new Date() });
+    }
+
+    // 2. Supabase Auth
+    const authStart = performance.now();
+    try {
+      const { data, error } = await supabase.auth.getUser();
+      const lat = Math.round(performance.now() - authStart);
+      if (error) {
+        updateService("Supabase Auth", { status: "degraded", latency: lat, detail: error.message, lastCheck: new Date() });
+      } else {
+        updateService("Supabase Auth", { status: "online", latency: lat, detail: `User: ${data.user?.email || "anonym"}`, lastCheck: new Date() });
+      }
+    } catch (e: any) {
+      updateService("Supabase Auth", { status: "offline", latency: Math.round(performance.now() - authStart), detail: e.message, lastCheck: new Date() });
+    }
+
+    // 3. Supabase Realtime
+    const rtStart = performance.now();
+    try {
+      const channel = supabase.channel("health-check");
+      const sub = await new Promise<string>((resolve) => {
+        const timeout = setTimeout(() => resolve("timeout"), 5000);
+        channel.subscribe((status) => {
+          clearTimeout(timeout);
+          resolve(status);
+        });
+      });
+      supabase.removeChannel(channel);
+      const lat = Math.round(performance.now() - rtStart);
+      if (sub === "SUBSCRIBED") {
+        updateService("Supabase Realtime", { status: "online", latency: lat, detail: "WebSocket verbunden", lastCheck: new Date() });
+      } else if (sub === "timeout") {
+        updateService("Supabase Realtime", { status: "degraded", latency: lat, detail: "Timeout (>5s)", lastCheck: new Date() });
+      } else {
+        updateService("Supabase Realtime", { status: "degraded", latency: lat, detail: `Status: ${sub}`, lastCheck: new Date() });
+      }
+    } catch (e: any) {
+      updateService("Supabase Realtime", { status: "offline", latency: Math.round(performance.now() - rtStart), detail: e.message, lastCheck: new Date() });
+    }
+
+    // 4. Vercel App
+    const appStart = performance.now();
+    try {
+      const res = await fetch("/api/calendar/feed?health=1", { method: "HEAD" });
+      const lat = Math.round(performance.now() - appStart);
+      updateService("Vercel App", { status: res.ok || res.status === 400 ? "online" : "degraded", latency: lat, detail: `HTTP ${res.status}`, lastCheck: new Date() });
+    } catch (e: any) {
+      updateService("Vercel App", { status: "offline", latency: Math.round(performance.now() - appStart), detail: e.message, lastCheck: new Date() });
+    }
+
+    // 5. CalDAV Proxy (Cloudflare Worker)
+    const cfStart = performance.now();
+    try {
+      const res = await fetch("https://caldav-proxy.post-cd8.workers.dev/", { method: "OPTIONS" });
+      const lat = Math.round(performance.now() - cfStart);
+      updateService("CalDAV Proxy", { status: res.ok || res.status === 405 || res.status === 200 ? "online" : "degraded", latency: lat, detail: `HTTP ${res.status}`, lastCheck: new Date() });
+    } catch (e: any) {
+      updateService("CalDAV Proxy", { status: "offline", latency: Math.round(performance.now() - cfStart), detail: e.message, lastCheck: new Date() });
+    }
+
+    // 6. CalDAV Server — check via token
+    const caldavStart = performance.now();
+    try {
+      const { data: token } = await supabase
+        .from("calendar_feed_tokens")
+        .select("token")
+        .eq("read_write", true)
+        .limit(1)
+        .maybeSingle();
+
+      if (token?.token) {
+        const res = await fetch(`/api/caldav/${token.token}/`, {
+          method: "OPTIONS",
+        });
+        const lat = Math.round(performance.now() - caldavStart);
+        const allow = res.headers.get("allow") || "";
+        updateService("CalDAV Server", { status: res.ok ? "online" : "degraded", latency: lat, detail: allow ? `Methoden: ${allow}` : `HTTP ${res.status}`, lastCheck: new Date() });
+      } else {
+        updateService("CalDAV Server", { status: "unknown", latency: null, detail: "Kein CalDAV-Token vorhanden", lastCheck: new Date() });
+      }
+    } catch (e: any) {
+      updateService("CalDAV Server", { status: "offline", latency: Math.round(performance.now() - caldavStart), detail: e.message, lastCheck: new Date() });
+    }
+
+    // 7. iCal Feed
+    const feedStart = performance.now();
+    try {
+      const { data: token } = await supabase
+        .from("calendar_feed_tokens")
+        .select("token")
+        .eq("read_write", false)
+        .limit(1)
+        .maybeSingle();
+
+      if (token?.token) {
+        const res = await fetch(`/api/calendar/feed?token=${token.token}`, { method: "HEAD" });
+        const lat = Math.round(performance.now() - feedStart);
+        updateService("iCal Feed", { status: res.ok ? "online" : "degraded", latency: lat, detail: `HTTP ${res.status}`, lastCheck: new Date() });
+      } else {
+        updateService("iCal Feed", { status: "unknown", latency: null, detail: "Kein Feed-Token", lastCheck: new Date() });
+      }
+    } catch (e: any) {
+      updateService("iCal Feed", { status: "offline", latency: Math.round(performance.now() - feedStart), detail: e.message, lastCheck: new Date() });
+    }
+
+    // DB Stats
+    if (orgId) {
+      const tables = ["calendar_events", "calendar_groups", "calendar_feed_tokens", "projects", "inventory_items", "bookings", "cost_items", "org_memberships"];
+      const stats: { table: string; count: number }[] = [];
+      for (const table of tables) {
+        const { count } = await supabase.from(table).select("*", { count: "exact", head: true });
+        stats.push({ table, count: count ?? 0 });
+      }
+      setDbStats(stats);
+
+      // Calendar debug info
+      const [groupsRes, eventsRes, tokensRes] = await Promise.all([
+        supabase.from("calendar_groups").select("name, ctag").eq("org_id", orgId),
+        supabase.from("calendar_events").select("*", { count: "exact", head: true }).eq("org_id", orgId),
+        supabase.from("calendar_feed_tokens").select("*", { count: "exact", head: true }),
+      ]);
+      setCalendarDebug({
+        groups: groupsRes.data?.length ?? 0,
+        events: eventsRes.count ?? 0,
+        tokens: tokensRes.count ?? 0,
+        ctags: (groupsRes.data || []).map(g => ({ name: g.name, ctag: g.ctag })),
+      });
+    }
+
+    setChecking(false);
+  }, [supabase, orgId, updateService]);
+
+  useEffect(() => {
+    runChecks();
+  }, [runChecks]);
+
+  const statusColors: Record<ServiceStatus, { bg: string; text: string; dot: string }> = {
+    checking: { bg: "var(--color-muted)", text: "var(--color-muted-foreground)", dot: "var(--color-muted-foreground)" },
+    online: { bg: "var(--color-success-light, #dcfce7)", text: "var(--color-success, #16a34a)", dot: "#22c55e" },
+    degraded: { bg: "var(--color-warning-light, #fef9c3)", text: "var(--color-warning, #ca8a04)", dot: "#eab308" },
+    offline: { bg: "var(--color-destructive-light, #fef2f2)", text: "var(--color-destructive, #dc2626)", dot: "#ef4444" },
+    unknown: { bg: "var(--color-muted)", text: "var(--color-muted-foreground)", dot: "var(--color-muted-foreground)" },
+  };
+
+  const statusLabels: Record<ServiceStatus, string> = {
+    checking: "Pruefe...",
+    online: "Online",
+    degraded: "Eingeschraenkt",
+    offline: "Offline",
+    unknown: "Unbekannt",
+  };
+
+  const sectionStyle: React.CSSProperties = {
+    background: "var(--color-surface)",
+    border: "1px solid var(--color-border)",
+  };
+
+  const allOnline = services.every(s => s.status === "online");
+  const anyOffline = services.some(s => s.status === "offline");
+
+  return (
+    <div className="space-y-6">
+      {/* Overall Status */}
+      <div className="rounded-xl p-6" style={sectionStyle}>
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg"
+              style={{ background: allOnline ? "#dcfce7" : anyOffline ? "#fef2f2" : "#fef9c3" }}>
+              {checking ? "\u23F3" : allOnline ? "\u2705" : anyOffline ? "\u{1F6A8}" : "\u26A0\uFE0F"}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold">
+                {checking ? "Services werden geprueft..." : allOnline ? "Alle Services online" : anyOffline ? "Service-Stoerung erkannt" : "Einschraenkungen erkannt"}
+              </h2>
+              <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                {services.filter(s => s.status === "online").length}/{services.length} Services erreichbar
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={runChecks}
+            disabled={checking}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+            style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+          >
+            {checking ? "\u23F3" : "\u{1F504}"} Neu pruefen
+          </button>
+        </div>
+
+        {/* Service List */}
+        <div className="space-y-2">
+          {services.map((s) => {
+            const colors = statusColors[s.status];
+            return (
+              <div key={s.name} className="flex items-center gap-3 px-4 py-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                {/* Status Dot */}
+                <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{
+                  background: colors.dot,
+                  animation: s.status === "checking" ? "pulse 1.5s infinite" : undefined,
+                }} />
+                {/* Name */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">{s.name}</p>
+                  {s.detail && (
+                    <p className="text-[11px] truncate" style={{ color: "var(--color-muted-foreground)" }}>{s.detail}</p>
+                  )}
+                </div>
+                {/* Latency */}
+                {s.latency !== null && (
+                  <span className="text-[11px] font-mono flex-shrink-0 px-2 py-0.5 rounded" style={{
+                    background: s.latency < 200 ? "#dcfce7" : s.latency < 500 ? "#fef9c3" : "#fef2f2",
+                    color: s.latency < 200 ? "#16a34a" : s.latency < 500 ? "#ca8a04" : "#dc2626",
+                  }}>
+                    {s.latency}ms
+                  </span>
+                )}
+                {/* Status Badge */}
+                <span className="text-[11px] font-medium flex-shrink-0 px-2 py-0.5 rounded" style={{
+                  background: colors.bg,
+                  color: colors.text,
+                }}>
+                  {statusLabels[s.status]}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Calendar Debug */}
+      <div className="rounded-xl p-6" style={sectionStyle}>
+        <h3 className="text-base font-bold mb-4">Kalender Debug</h3>
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[
+            { label: "Gruppen", value: calendarDebug.groups },
+            { label: "Events", value: calendarDebug.events },
+            { label: "Tokens", value: calendarDebug.tokens },
+          ].map((item) => (
+            <div key={item.label} className="text-center p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
+              <p className="text-2xl font-bold" style={{ color: "var(--color-primary)" }}>{item.value}</p>
+              <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>{item.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* CTags */}
+        {calendarDebug.ctags.length > 0 && (
+          <div>
+            <p className="text-xs font-bold mb-2" style={{ color: "var(--color-muted-foreground)" }}>CTags (Sync-Zaehler)</p>
+            <div className="space-y-1">
+              {calendarDebug.ctags.map((g) => (
+                <div key={g.name} className="flex items-center justify-between px-3 py-2 rounded-lg text-xs" style={{ background: "var(--color-muted)" }}>
+                  <span className="font-medium">{g.name}</span>
+                  <span className="font-mono px-2 py-0.5 rounded" style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}>
+                    CTag: {g.ctag}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-[11px] mt-2" style={{ color: "var(--color-muted-foreground)" }}>
+              CTag erhoet sich bei jeder Aenderung. Apple Calendar vergleicht den CTag und synct nur bei Aenderung.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* DB Stats */}
+      {dbStats.length > 0 && (
+        <div className="rounded-xl p-6" style={sectionStyle}>
+          <h3 className="text-base font-bold mb-4">Datenbank-Statistiken</h3>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {dbStats.map((s) => (
+              <div key={s.table} className="p-3 rounded-lg" style={{ background: "var(--color-muted)" }}>
+                <p className="text-lg font-bold" style={{ color: "var(--color-primary)" }}>{s.count}</p>
+                <p className="text-[11px] truncate" style={{ color: "var(--color-muted-foreground)" }}>
+                  {s.table.replace(/_/g, " ").replace("calendar ", "cal. ")}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Env & Config */}
+      <div className="rounded-xl p-6" style={sectionStyle}>
+        <h3 className="text-base font-bold mb-4">Konfiguration</h3>
+        <div className="space-y-1">
+          {[
+            { key: "SUPABASE_URL", value: process.env.NEXT_PUBLIC_SUPABASE_URL || "–", masked: false },
+            { key: "SUPABASE_ANON_KEY", value: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "***" + process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.slice(-8) : "–", masked: true },
+            { key: "Org-ID", value: orgId || "–", masked: false },
+            { key: "Umgebung", value: typeof window !== "undefined" && window.location.hostname === "localhost" ? "Development" : "Production", masked: false },
+            { key: "Host", value: typeof window !== "undefined" ? window.location.host : "–", masked: false },
+          ].map((item) => (
+            <div key={item.key} className="flex items-center gap-3 px-3 py-2 rounded-lg text-xs" style={{ background: "var(--color-muted)" }}>
+              <span className="font-bold w-36 flex-shrink-0">{item.key}</span>
+              <code className="font-mono text-[11px] truncate" style={{ color: "var(--color-muted-foreground)" }}>{item.value}</code>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.3; }
+        }
+      `}</style>
+    </div>
+  );
+}
 
 function SystemTab() {
   const techStack = [
