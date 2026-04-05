@@ -687,7 +687,6 @@ export default function CalendarPage() {
           orgName={orgName}
           profileId={currentUser?.id || ""}
           groups={groups}
-          isAdmin={currentUser?.roleName === "admin"}
           onClose={() => setShowSubscribeInfo(false)}
         />
       )}
@@ -1356,22 +1355,18 @@ function SubscribeInfoModal({
   orgName,
   profileId,
   groups,
-  isAdmin,
   onClose,
 }: {
   orgId: string;
   orgName: string;
   profileId: string;
   groups: CalendarGroup[];
-  isAdmin: boolean;
   onClose: () => void;
 }) {
   const supabase = createClient();
   const [feedToken, setFeedToken] = useState<string | null>(null);
   const [caldavToken, setCaldavToken] = useState<string | null>(null);
   const [loadingToken, setLoadingToken] = useState(true);
-  const [importing, setImporting] = useState(false);
-  const [importResult, setImportResult] = useState<string | null>(null);
   const [tab, setTab] = useState<"feed" | "caldav">("caldav");
 
   const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
@@ -1430,26 +1425,6 @@ function SubscribeInfoModal({
   const webcalUrl = feedUrl.replace(/^https?:/, "webcal:");
   // CalDAV läuft über Cloudflare Worker Proxy (Vercel blockt PROPFIND/REPORT)
   const caldavUrl = caldavToken ? `https://caldav-proxy.post-cd8.workers.dev/api/caldav/${caldavToken}/` : "";
-
-  async function handleImport() {
-    setImporting(true);
-    setImportResult(null);
-    try {
-      const res = await fetch(`/api/calendar/import?org_id=${orgId}`, { method: "POST" });
-      const data = await res.json();
-      if (res.ok) {
-        setImportResult(`Import erfolgreich: ${data.groupsCreated} Gruppen und ${data.eventsCreated} Termine importiert.`);
-        showToast("Import abgeschlossen", "success");
-      } else {
-        setImportResult(`Fehler: ${data.error}`);
-        showToast("Import fehlgeschlagen", "error");
-      }
-    } catch {
-      setImportResult("Verbindungsfehler");
-      showToast("Import fehlgeschlagen", "error");
-    }
-    setImporting(false);
-  }
 
   function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
@@ -1768,31 +1743,6 @@ function SubscribeInfoModal({
             )
           )}
 
-          {/* Nextcloud Import (nur Admin) */}
-          {isAdmin && (
-            <div className="pt-3" style={{ borderTop: "1px solid var(--color-border-light)" }}>
-              <h3 className="text-sm font-semibold mb-2">Nextcloud Import</h3>
-              <p className="text-xs mb-3" style={{ color: "var(--color-muted-foreground)" }}>
-                Alle Termine und Gruppen aus dem verbundenen Nextcloud-Kalender importieren.
-              </p>
-              <button
-                onClick={handleImport}
-                disabled={importing}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 transition-colors"
-                style={{ background: "var(--color-primary)" }}
-              >
-                {importing ? "Importiere..." : "Aus Nextcloud importieren"}
-              </button>
-              {importResult && (
-                <p className="text-xs mt-2 p-2 rounded-lg" style={{
-                  background: importResult.startsWith("Import erfolgreich") ? "var(--color-success-light)" : "var(--color-destructive-light)",
-                  color: importResult.startsWith("Import erfolgreich") ? "var(--color-success)" : "var(--color-destructive)",
-                }}>
-                  {importResult}
-                </p>
-              )}
-            </div>
-          )}
         </div>
 
         <div className="px-6 py-3 flex justify-end sticky bottom-0" style={{ borderTop: "1px solid var(--color-border-light)", background: "var(--color-surface)" }}>
