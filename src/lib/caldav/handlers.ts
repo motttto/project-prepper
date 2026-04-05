@@ -181,14 +181,14 @@ export async function handleReport(
 
   // sync-collection nicht unterstützt — Apple Calendar soll CTag-basiert synchen
   if (isSyncCollection(body)) {
-    return davResponse(
-      multistatus(
-        response(calHref,
-          propstatOk(`<d:supported-report-set/>`)
-        )
-      ),
-      403
-    );
+    const errorXml = `<?xml version="1.0" encoding="utf-8"?>\n<d:error xmlns:d="DAV:"><d:valid-sync-token>DAV:valid-sync-token</d:valid-sync-token></d:error>`;
+    return new Response(errorXml, {
+      status: 403,
+      headers: {
+        "Content-Type": "application/xml; charset=utf-8",
+        DAV: "1, calendar-access",
+      },
+    });
   }
 
   if (isCalendarMultiget(body)) {
