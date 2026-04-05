@@ -78,9 +78,11 @@ export function generateVCalendar(event: {
 
   if (event.all_day) {
     lines.push(`DTSTART;VALUE=DATE:${formatICalDateOnly(event.start_at)}`);
-    if (event.end_at) {
-      lines.push(`DTEND;VALUE=DATE:${formatICalDateOnly(event.end_at)}`);
-    }
+    // iCal DTEND bei VALUE=DATE ist exklusiv → nächster Tag
+    const endStr = event.end_at || event.start_at;
+    const endDate = new Date(endStr);
+    endDate.setUTCDate(endDate.getUTCDate() + 1);
+    lines.push(`DTEND;VALUE=DATE:${formatICalDateOnlyUTC(endDate)}`);
   } else {
     lines.push(`DTSTART:${formatICalDate(event.start_at)}`);
     if (event.end_at) {
@@ -114,9 +116,13 @@ export function formatICalDate(isoDate: string): string {
 
 export function formatICalDateOnly(isoDate: string): string {
   const d = new Date(isoDate);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
+  return formatICalDateOnlyUTC(d);
+}
+
+function formatICalDateOnlyUTC(d: Date): string {
+  const y = d.getUTCFullYear();
+  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(d.getUTCDate()).padStart(2, "0");
   return `${y}${m}${day}`;
 }
 
