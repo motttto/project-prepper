@@ -237,7 +237,7 @@ export default function CalendarPage() {
     const channel = supabase
       .channel("calendar-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "calendar_events", filter: `org_id=eq.${orgId}` }, () => fetchEvents())
-      .on("postgres_changes", { event: "*", schema: "public", table: "calendar_groups", filter: `org_id=eq.${orgId}` }, () => fetchGroups())
+      .on("postgres_changes", { event: "*", schema: "public", table: "calendar_groups", filter: `org_id=eq.${orgId}` }, () => { fetchGroups(); fetchEvents(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [supabase, orgId, fetchEvents, fetchGroups]);
