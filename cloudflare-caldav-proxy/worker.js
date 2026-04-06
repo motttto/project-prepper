@@ -156,8 +156,14 @@ export default {
       bodySnippet = new TextDecoder().decode(bodyBuf.slice(0, 200));
     }
 
-    // Headers kopieren
-    const headers = new Headers(request.headers);
+    // Headers für Vercel vorbereiten
+    const headers = new Headers();
+    // Nur relevante Headers kopieren (NICHT Host, der muss zu Vercel passen)
+    const copyHeaders = ["content-type", "authorization", "depth", "if-match", "if-none-match", "prefer"];
+    for (const h of copyHeaders) {
+      const val = request.headers.get(h);
+      if (val) headers.set(h, val);
+    }
     if (needsTunnel) {
       headers.set("X-HTTP-Method", method);
     }
@@ -166,6 +172,8 @@ export default {
     if (origDepth) {
       headers.set("X-Depth", origDepth);
     }
+    // Host muss zum Ziel passen
+    headers.set("Host", "project-prepper.vercel.app");
 
     // An Vercel weiterleiten — Trailing Slash entfernen (Vercel 308-Redirect vermeiden)
     let targetPath = url.pathname;
@@ -178,7 +186,7 @@ export default {
       method: targetMethod,
       headers,
       body: bodyBuf,
-      redirect: "follow",
+      redirect: "manual",
     });
 
     // Kurzen Pfad für Log (Token maskieren)
