@@ -46,14 +46,18 @@ function propstatOk(props) {
 function principalProps(baseHref, displayName) {
   return propstatOk([
     `<d:current-user-principal><d:href>${escapeXml(baseHref)}</d:href></d:current-user-principal>`,
+    `<d:principal-URL><d:href>${escapeXml(baseHref)}</d:href></d:principal-URL>`,
     `<cal:calendar-home-set><d:href>${escapeXml(baseHref)}calendars/</d:href></cal:calendar-home-set>`,
     `<d:displayname>${escapeXml(displayName)}</d:displayname>`,
     `<d:resourcetype><d:collection/><d:principal/></d:resourcetype>`,
   ].join("\n"));
 }
 
-function calendarHomeProps() {
-  return propstatOk(`<d:resourcetype><d:collection/></d:resourcetype>`);
+function calendarHomeProps(baseHref) {
+  return propstatOk([
+    `<d:resourcetype><d:collection/></d:resourcetype>`,
+    `<d:current-user-principal><d:href>${escapeXml(baseHref)}</d:href></d:current-user-principal>`,
+  ].join("\n"));
 }
 
 function calendarProps(name, color, ctag) {
@@ -228,9 +232,10 @@ function parseVEvent(icalString) {
 
 function parseMultigetHrefs(xml) {
   const hrefs = [];
-  const regex = /<(?:\w+:)?href>([^<]+)<\/(?:\w+:)?href>/gi;
+  // Apple Calendar sendet <A:href xmlns:A="DAV:"> statt <d:href>
+  const regex = /<(?:\w+:)?href[^>]*>([^<]+)<\/(?:\w+:)?href>/gi;
   let m;
-  while ((m = regex.exec(xml)) !== null) hrefs.push(m[1]);
+  while ((m = regex.exec(xml)) !== null) hrefs.push(m[1].trim());
   return hrefs;
 }
 
@@ -352,7 +357,7 @@ async function handlePropfindPrincipal(env, auth, baseHref) {
 }
 
 async function handlePropfindCalendarHome(env, auth, baseHref, depth) {
-  let inner = xmlResponse(baseHref + "calendars/", calendarHomeProps());
+  let inner = xmlResponse(baseHref + "calendars/", calendarHomeProps(baseHref));
   if (depth === "1") {
     const { data: groups } = await supabaseQuery(env,
       `calendar_groups?org_id=eq.${auth.orgId}&select=id,name,color,ctag&order=sort_order`
@@ -379,6 +384,7 @@ async function handlePropfindCalendar(env, auth, groupId, baseHref, depth) {
     const { data: events } = await supabaseQuery(env,
       `calendar_events?org_id=eq.${auth.orgId}&group_id=eq.${groupId}&select=id,etag,caldav_uid`
     );
+    console.log(`[CalDAV] PROPFIND calendar Depth:1 → ${events?.length ?? 0} events for group ${groupId}`);
     if (events) {
       for (const e of events) {
         inner += xmlResponse(`${calHref}${e.caldav_uid}.ics`, eventPropsXml(e.etag));
@@ -401,13 +407,16 @@ async function handleReport(env, auth, groupId, baseHref, body) {
 
   // calendar-multiget
   if (body.includes("calendar-multiget")) {
+    console.log(`[CalDAV] REPORT body (first 500): ${body.slice(0, 500)}`);
     const hrefs = parseMultigetHrefs(body);
-    const uids = hrefs.map(h => { const m = h.match(/\/([^/]+)\.ics$/); return m ? m[1] : null; }).filter(Boolean);
+    const uids = hrefs.map(h => { const m = h.match(/\/([^/]+)\.ics$/); return m ? decodeURIComponent(m[1]) : null; }).filter(Boolean);
+    console.log(`[CalDAV] REPORT multiget: ${hrefs.length} hrefs, ${uids.length} UIDs: ${uids.slice(0,3).join(", ")}${uids.length > 3 ? "..." : ""}`);
     if (uids.length === 0) return davResponse(multistatus(""));
 
     const { data: events } = await supabaseQuery(env,
       `calendar_events?org_id=eq.${auth.orgId}&group_id=eq.${groupId}&caldav_uid=in.(${uids.join(",")})&select=id,org_id,group_id,summary,description,location,all_day,start_at,end_at,created_at,updated_at,etag,caldav_uid`
     );
+    console.log(`[CalDAV] REPORT multiget: ${events?.length ?? 0} events found in DB`);
     let inner = "";
     if (events) {
       for (const e of events) {
@@ -425,10 +434,12 @@ async function handleReport(env, auth, groupId, baseHref, body) {
   let filter = `org_id=eq.${auth.orgId}&group_id=eq.${groupId}`;
   if (timeRange?.start) filter += `&start_at=gte.${timeRange.start}`;
   if (timeRange?.end) filter += `&start_at=lte.${timeRange.end}`;
+  console.log(`[CalDAV] REPORT calendar-query: timeRange=${JSON.stringify(timeRange)} wantData=${wantData} filter=${filter}`);
 
   const { data: events } = await supabaseQuery(env,
     `calendar_events?${filter}&select=id,org_id,group_id,summary,description,location,all_day,start_at,end_at,created_at,updated_at,etag,caldav_uid`
   );
+  console.log(`[CalDAV] REPORT calendar-query: ${events?.length ?? 0} events found`);
 
   let inner = "";
   if (events) {
@@ -441,7 +452,7 @@ async function handleReport(env, auth, groupId, baseHref, body) {
 }
 
 async function handleGetEvent(env, auth, groupId, eventFile) {
-  const uid = eventFile.replace(/\.ics$/i, "");
+  const uid = decodeURIComponent(eventFile.replace(/\.ics$/i, ""));
   const { data: event } = await supabaseQuery(env,
     `calendar_events?org_id=eq.${auth.orgId}&group_id=eq.${groupId}&caldav_uid=eq.${uid}&select=*`,
     { single: true }
@@ -454,7 +465,7 @@ async function handleGetEvent(env, auth, groupId, eventFile) {
 }
 
 async function handlePutEvent(env, auth, groupId, eventFile, icalBody, ifMatch, baseHref) {
-  const uid = eventFile.replace(/\.ics$/i, "");
+  const uid = decodeURIComponent(eventFile.replace(/\.ics$/i, ""));
   const parsed = parseVEvent(icalBody);
   if (!parsed) return new Response("Bad Request — invalid iCalendar data", { status: 400 });
 
@@ -505,7 +516,7 @@ async function handlePutEvent(env, auth, groupId, eventFile, icalBody, ifMatch, 
 }
 
 async function handleDeleteEvent(env, auth, groupId, eventFile) {
-  const uid = eventFile.replace(/\.ics$/i, "");
+  const uid = decodeURIComponent(eventFile.replace(/\.ics$/i, ""));
   const { data, error } = await supabaseQuery(env,
     `calendar_events?org_id=eq.${auth.orgId}&group_id=eq.${groupId}&caldav_uid=eq.${uid}`, {
       method: "DELETE", prefer: "return=representation",
@@ -532,7 +543,7 @@ export default {
       return new Response(null, {
         status: 200,
         headers: {
-          Allow: "OPTIONS, GET, PUT, DELETE, PROPFIND, REPORT",
+          Allow: "OPTIONS, GET, PUT, DELETE, PROPFIND, PROPPATCH, REPORT",
           DAV: "1, calendar-access",
           "Content-Length": "0",
         },
@@ -540,12 +551,17 @@ export default {
     }
 
     // .well-known/caldav Discovery
+    // Apple Calendar erwartet 301 Redirect → folgt dem Redirect zum Principal
     if (pathname === "/.well-known/caldav" || pathname === "/.well-known/caldav/") {
       const token = extractTokenFromBasicAuth(request);
       if (!token) return unauthorized();
+      const auth = await validateToken(env, token);
+      if (!auth) return unauthorized();
+      const location = `/api/caldav/${token}/`;
+      console.log(`[CalDAV] ${method} well-known → 301 ${location}`);
       return new Response(null, {
         status: 301,
-        headers: { Location: `/api/caldav/${token}/`, DAV: "1, calendar-access" },
+        headers: { Location: location, DAV: "1, calendar-access" },
       });
     }
 
@@ -553,9 +569,13 @@ export default {
     if ((pathname === "/" || pathname === "") && (method === "PROPFIND" || method === "REPORT")) {
       const token = extractTokenFromBasicAuth(request);
       if (!token) return unauthorized();
+      const auth = await validateToken(env, token);
+      if (!auth) return unauthorized();
+      const location = `/api/caldav/${token}/`;
+      console.log(`[CalDAV] ${method} root → 301 ${location}`);
       return new Response(null, {
         status: 301,
-        headers: { Location: `/api/caldav/${token}/`, DAV: "1, calendar-access" },
+        headers: { Location: location, DAV: "1, calendar-access" },
       });
     }
 
@@ -607,6 +627,13 @@ export default {
         if (!auth.readWrite) return new Response("Forbidden", { status: 403 });
         if (parsed.type !== "event") return new Response("Bad Request", { status: 400 });
         return handleDeleteEvent(env, auth, parsed.groupId, parsed.eventFile);
+
+      case "PROPPATCH": {
+        // Apple Calendar sendet PROPPATCH um Kalender-Farben etc zu setzen
+        // Wir ignorieren die Änderungen, antworten aber mit 207 OK
+        const href = `/api/caldav/${token}/${parsed.type === "calendar" ? `calendars/${parsed.groupId}/` : ""}`;
+        return davResponse(`<?xml version="1.0" encoding="utf-8"?>\n<d:multistatus xmlns:d="DAV:">\n<d:response>\n<d:href>${href}</d:href>\n<d:propstat>\n<d:prop/>\n<d:status>HTTP/1.1 200 OK</d:status>\n</d:propstat>\n</d:response>\n</d:multistatus>`);
+      }
 
       default:
         return new Response(`Method ${method} not supported`, { status: 405, headers: { DAV: "1, calendar-access" } });
