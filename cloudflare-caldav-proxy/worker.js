@@ -193,13 +193,17 @@ export default {
     const shortPath = pathname.replace(/\/api\/caldav\/[^/]+/, "/api/caldav/***");
     logRequest(method, shortPath, depth, response.status, bodySnippet.includes("sync-collection") ? "sync-collection" : bodySnippet.includes("calendar-multiget") ? "multiget" : bodySnippet.includes("calendar-query") ? "cal-query" : "");
 
-    // Response durchreichen mit DAV Headers
-    const respHeaders = new Headers(response.headers);
+    // Response mit sauberen Headers (keine Vercel-Header leaken)
+    const respHeaders = new Headers();
+    respHeaders.set("Content-Type", response.headers.get("Content-Type") || "application/xml; charset=utf-8");
     respHeaders.set("DAV", "1, calendar-access");
+    const etag = response.headers.get("ETag");
+    if (etag) respHeaders.set("ETag", etag);
+    const loc = response.headers.get("Location");
+    if (loc) respHeaders.set("Location", loc);
 
     return new Response(response.body, {
       status: response.status,
-      statusText: response.statusText,
       headers: respHeaders,
     });
   },
