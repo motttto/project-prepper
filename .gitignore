@@ -26,3 +26,4 @@ project-prepper_cred.rtf
 next-env.d.ts
 supabase/.temp/
 .vercel
+cloudflare-caldav-proxy/.next/

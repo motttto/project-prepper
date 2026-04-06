@@ -32,8 +32,8 @@ export async function middleware(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
 
-  // CalDAV + Calendar-Feed haben eigene Token-Auth — Middleware skippen
-  if (pathname.startsWith("/api/caldav/") || pathname.startsWith("/api/calendar/feed")) {
+  // Calendar-Feed hat eigene Token-Auth — Middleware skippen
+  if (pathname.startsWith("/api/calendar/feed")) {
     return supabaseResponse;
   }
 
