@@ -111,18 +111,31 @@ npx wrangler tail --format pretty   # Live Request-Logs
 
 ---
 
-## Sync-Verhalten
+## Sync-Verhalten & Geschwindigkeiten
 
-### Apple Calendar → Prepper
+| Richtung | Geschwindigkeit | Mechanismus |
+|----------|----------------|-------------|
+| Apple → Prepper | **~3 Sekunden** | Worker schreibt in DB → CTag-Trigger → Realtime → fetchEvents() |
+| Prepper → Apple | **~15 Min** oder Cmd+Shift+R | CalDAV-Polling (Standard, nicht änderbar) |
+
+### Apple Calendar → Prepper (sofort)
 - Events kommen sofort in Supabase an (PUT/DELETE via Worker)
 - CTag-Trigger bumpt `calendar_groups.ctag`
 - Prepper-Web aktualisiert automatisch via Realtime-Subscription auf `calendar_groups`
+- Realtime-Callback ruft sowohl `fetchGroups()` als auch `fetchEvents()` auf
 
-### Prepper → Apple Calendar
+### Prepper → Apple Calendar (~15 Min Polling)
 - Events werden in Supabase gespeichert, CTag bumpt automatisch
-- Apple Calendar pollt alle ~15 Minuten
+- Apple Calendar pollt alle ~15 Minuten (CalDAV-Standard, nicht konfigurierbar)
 - **Cmd+Shift+R** in Apple Calendar erzwingt sofortigen Sync
-- Kein Push-Mechanismus möglich (CalDAV ist Polling-basiert)
+- Kein Push-Mechanismus möglich — nur Apples eigener iCloud-Server nutzt APNS-Push,
+  das erfordert Apple Developer Certificate und ist extrem komplex
+- **Das ist bei ALLEN CalDAV-Servern so** (Nextcloud, Radicale, Baikal etc.)
+
+### Prepper-Web Delete
+- **Optimistisches Delete:** Event verschwindet sofort aus UI, DB-Delete im Hintergrund
+- Geht direkt über Supabase-Client (kein API-Route-Roundtrip)
+- RLS erlaubt Delete für alle Org-Mitglieder (Migration 054)
 
 ### CTag-basierter Sync
 ```

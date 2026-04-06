@@ -79,6 +79,7 @@ export default function TeamPage() {
   const [orgInvitations, setOrgInvitations] = useState<OrgInvitation[]>([]);
   // expandedPermissions entfernt — jetzt in /admin
   const [exitMember, setExitMember] = useState<{ id: string; name: string } | null>(null);
+  const [lastSignInMap, setLastSignInMap] = useState<Record<string, string | null>>({});
 
   // Gäste
   const [orgGuests, setOrgGuests] = useState<OrgGuest[]>([]);
@@ -120,6 +121,17 @@ export default function TeamPage() {
     if (votesRes.data) setVotes(votesRes.data as TeamVote[]);
     if (rolesRes.data) setRoles(rolesRes.data as RoleOption[]);
     if (inventoryRes.data) setInventoryItems(inventoryRes.data as InventoryItem[]);
+
+    // Last sign-in aus auth.users holen (via RPC)
+    const { data: signInData } = await supabase.rpc("get_member_last_sign_in", { p_org_id: orgId });
+    if (signInData) {
+      const map: Record<string, string | null> = {};
+      for (const row of signInData) {
+        map[row.user_id] = row.last_sign_in_at;
+      }
+      setLastSignInMap(map);
+    }
+
     setLoading(false);
   }, [supabase, orgId]);
 
@@ -216,6 +228,23 @@ export default function TeamPage() {
 
   function getPatenItems(profileName: string): InventoryItem[] {
     return inventoryItems.filter((i) => i.purchased_by === profileName);
+  }
+
+  function formatLastSeen(iso: string | null | undefined): string {
+    if (!iso) return "Nie";
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return "Gerade eben";
+    if (mins < 60) return `Vor ${mins} Min.`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `Vor ${hours} Std.`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `Vor ${days} Tag${days > 1 ? "en" : ""}`;
+    if (days < 30) {
+      const weeks = Math.floor(days / 7);
+      return `Vor ${weeks} Woche${weeks > 1 ? "n" : ""}`;
+    }
+    return new Date(iso).toLocaleDateString("de-DE", { day: "numeric", month: "short" });
   }
 
   function getVotesForCandidate(profileId: string): number {
@@ -877,19 +906,29 @@ export default function TeamPage() {
                   </p>
                 </div>
 
-                {/* Patenschaften Badge */}
+                {/* Zuletzt gesehen */}
+                <span
+                  className="text-xs flex-shrink-0 hidden md:block"
+                  style={{ color: "var(--color-muted-foreground)" }}
+                  title={lastSignInMap[member.profile_id] ? `Letzter Login: ${new Date(lastSignInMap[member.profile_id]!).toLocaleString("de-DE")}` : "Nie eingeloggt"}
+                >
+                  {formatLastSeen(lastSignInMap[member.profile_id])}
+                </span>
+
+                {/* Patenschaften Badge — klickbar → Inventar gefiltert */}
                 {patenCount > 0 && (
-                  <span
-                    className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium flex-shrink-0"
+                  <button
+                    onClick={() => router.push(`/inventory?pate=${encodeURIComponent(profile?.name || "")}`)}
+                    className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium flex-shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
                     style={{
                       background: "var(--color-info-light)",
                       color: "var(--color-info)",
                     }}
-                    title={`Pate für ${patenCount} Inventar-Artikel`}
+                    title={`Pate für ${patenCount} Inventar-Artikel — Klicken zum Anzeigen`}
                   >
                     <IconInventory size={11} />
                     {patenCount}
-                  </span>
+                  </button>
                 )}
 
                 {/* Rolle Badge */}

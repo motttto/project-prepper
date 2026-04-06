@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
 import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import type { InventoryItem, InventoryCategory, Booking } from "@/types/database";
-import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity, IconEdit, IconSave, IconHandshake } from "@/components/ui/icons";
+import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity, IconEdit, IconSave, IconHandshake, IconInventory } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
 import { logActivity } from "@/lib/activity-log";
 import { ExcelImport } from "@/components/inventory/excel-import";
@@ -61,10 +62,20 @@ const defaultCategories: { name: string; icon: string; prefix: string }[] = [
   { name: "Zubehör", icon: "🧰", prefix: "ZUB" },
 ];
 
-export default function InventoryPage() {
+export default function InventoryPageWrapper() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center" style={{ color: "var(--color-muted-foreground)" }}>Laden...</div>}>
+      <InventoryPage />
+    </Suspense>
+  );
+}
+
+function InventoryPage() {
   const supabase = createClient();
   const { orgId } = useOrg();
   const currentUser = useCurrentUser();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const canEdit = hasPermission(currentUser, "inventory_edit");
   const canExport = hasPermission(currentUser, "excel_export");
   const canImport = hasPermission(currentUser, "excel_import");
@@ -74,6 +85,7 @@ export default function InventoryPage() {
   const [filter, setFilter] = useState("");
   const [loanFilter, setLoanFilter] = useState(false);
   const [search, setSearch] = useState("");
+  const [pateFilter, setPateFilter] = useState(searchParams.get("pate") || "");
   const [showCreate, setShowCreate] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -336,6 +348,7 @@ export default function InventoryPage() {
 
   const filtered = useMemo(() => {
     let result = items;
+    if (pateFilter) result = result.filter((i) => i.purchased_by === pateFilter);
     if (loanFilter) result = result.filter((i) => bookingMap.has(i.id));
     if (filter) result = result.filter((i) => i.category === filter);
     if (search.trim()) {
@@ -357,7 +370,7 @@ export default function InventoryPage() {
       );
     }
     return result;
-  }, [items, filter, loanFilter, search, bookingMap]);
+  }, [items, pateFilter, filter, loanFilter, search, bookingMap]);
 
   const totalQuantity = filtered.reduce((sum, i) => sum + i.quantity, 0);
   const totalValue = filtered.reduce((sum, i) => sum + Number(i.cost_per_day) * i.quantity, 0);
@@ -743,6 +756,33 @@ export default function InventoryPage() {
           )}
         </div>
       </div>
+
+      {/* Pate-Filter Banner */}
+      {pateFilter && (
+        <div
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl mb-4"
+          style={{
+            background: "var(--color-info-light)",
+            border: "1px solid var(--color-info)",
+          }}
+        >
+          <IconInventory size={14} style={{ color: "var(--color-info)" }} />
+          <span className="text-sm font-medium" style={{ color: "var(--color-info)" }}>
+            Pate: {pateFilter}
+          </span>
+          <button
+            onClick={() => {
+              setPateFilter("");
+              router.replace("/inventory", { scroll: false });
+            }}
+            className="ml-auto p-0.5 rounded hover:opacity-70 transition-opacity"
+            style={{ color: "var(--color-info)" }}
+            title="Filter entfernen"
+          >
+            <IconX size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Status-Filter + Category Pills */}
       <div className="flex gap-2 mb-5 flex-wrap items-center">
