@@ -60,10 +60,12 @@ export function calendarProps(name: string, color: string, ctag: number): string
   ].join("\n"));
 }
 
-export function eventProps(etag: string, contentType?: string): string {
-  const props = [`<d:getetag>"${escapeXml(etag)}"</d:getetag>`];
-  if (contentType) props.push(`<d:getcontenttype>${escapeXml(contentType)}</d:getcontenttype>`);
-  return propstatOk(props.join("\n"));
+export function eventProps(etag: string): string {
+  return propstatOk([
+    `<d:getetag>"${escapeXml(etag)}"</d:getetag>`,
+    `<d:getcontenttype>text/calendar; charset=utf-8; component=VEVENT</d:getcontenttype>`,
+    `<d:resourcetype/>`,
+  ].join("\n"));
 }
 
 export function eventWithData(etag: string, calendarData: string): string {
