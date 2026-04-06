@@ -295,18 +295,19 @@ export default function CalendarPage() {
     if (!skipConfirm) {
       if (!(await appConfirm(`"${event.summary}" wirklich löschen?`, { variant: "danger", confirmLabel: "Löschen" }))) return;
     }
-    // Service-Route nutzen für zuverlässiges Löschen (RLS-Bypass)
-    const res = await fetch(`/api/calendar/delete?id=${event.id}&org_id=${orgId}`, { method: "DELETE" });
-    if (!res.ok) {
-      const msg = await res.text().catch(() => "Unbekannter Fehler");
-      console.error("[Calendar] Delete error:", msg);
+    // Optimistisch: sofort aus UI entfernen
+    setEvents(prev => prev.filter(e => e.id !== event.id));
+    setSelectedEvent(null);
+    setEditEvent(null);
+    setShowCreateModal(false);
+    // Dann in DB löschen (RLS erlaubt Delete für Org-Mitglieder)
+    const { error } = await supabase.from("calendar_events").delete().eq("id", event.id);
+    if (error) {
+      console.error("[Calendar] Delete error:", error);
       showToast("Termin konnte nicht gelöscht werden.", "error");
+      fetchEvents(); // UI wiederherstellen
     } else {
       showToast("Termin gelöscht", "success");
-      setEvents(prev => prev.filter(e => e.id !== event.id));
-      setSelectedEvent(null);
-      setEditEvent(null);
-      setShowCreateModal(false);
     }
   }
 
