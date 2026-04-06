@@ -715,6 +715,7 @@ export default function CalendarPage() {
           orgId={orgId!}
           groups={groups}
           inputStyle={inputStyle}
+          isAdmin={currentUser?.roleName === "admin"}
           onClose={() => setShowGroupManager(false)}
         />
       )}
@@ -1272,12 +1273,14 @@ function GroupManager({
   orgId,
   groups,
   inputStyle,
+  isAdmin,
   onClose,
 }: {
   supabase: any;
   orgId: string;
   groups: CalendarGroup[];
   inputStyle: React.CSSProperties;
+  isAdmin: boolean;
   onClose: () => void;
 }) {
   const [newName, setNewName] = useState("");
@@ -1337,45 +1340,49 @@ function GroupManager({
                 title="Farbe ändern"
               />
               <span className="flex-1 text-sm font-medium">{group.name}</span>
-              <button
-                onClick={() => deleteGroup(group.id, group.name)}
-                className="p-1.5 rounded transition-colors hover:opacity-70"
-                style={{ color: "var(--color-destructive)" }}
-              >
-                <IconTrash size={14} />
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => deleteGroup(group.id, group.name)}
+                  className="p-1.5 rounded transition-colors hover:opacity-70"
+                  style={{ color: "var(--color-destructive)" }}
+                >
+                  <IconTrash size={14} />
+                </button>
+              )}
             </div>
           ))}
 
-          {/* Neue Gruppe */}
-          <div className="pt-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>
-            <p className="text-xs font-medium mb-2" style={{ color: "var(--color-muted-foreground)" }}>Neue Gruppe</p>
-            <div className="flex items-center gap-2">
-              <input
-                type="color"
-                value={newColor}
-                onChange={(e) => setNewColor(e.target.value)}
-                className="w-8 h-8 rounded cursor-pointer border-0"
-              />
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Gruppenname..."
-                className="flex-1 px-3 py-1.5 rounded-lg text-sm"
-                style={inputStyle}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGroup(); } }}
-              />
-              <button
-                onClick={addGroup}
-                disabled={saving || !newName.trim()}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
-                style={{ background: "var(--color-primary)" }}
-              >
-                {saving ? "..." : "Erstellen"}
-              </button>
+          {/* Neue Gruppe — nur für Admins */}
+          {isAdmin && (
+            <div className="pt-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+              <p className="text-xs font-medium mb-2" style={{ color: "var(--color-muted-foreground)" }}>Neue Gruppe</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={newColor}
+                  onChange={(e) => setNewColor(e.target.value)}
+                  className="w-8 h-8 rounded cursor-pointer border-0"
+                />
+                <input
+                  type="text"
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder="Gruppenname..."
+                  className="flex-1 px-3 py-1.5 rounded-lg text-sm"
+                  style={inputStyle}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addGroup(); } }}
+                />
+                <button
+                  onClick={addGroup}
+                  disabled={saving || !newName.trim()}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                  style={{ background: "var(--color-primary)" }}
+                >
+                  {saving ? "..." : "Erstellen"}
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         <div className="px-6 py-3 flex justify-end" style={{ borderTop: "1px solid var(--color-border-light)" }}>
