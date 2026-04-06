@@ -128,8 +128,12 @@ export default {
       headers.set("X-Depth", depth);
     }
 
-    // An Vercel weiterleiten
-    const targetUrl = VERCEL_ORIGIN + url.pathname + url.search;
+    // An Vercel weiterleiten — Trailing Slash entfernen (Vercel 308-Redirect vermeiden)
+    let targetPath = url.pathname;
+    if (targetPath.length > 1 && targetPath.endsWith("/")) {
+      targetPath = targetPath.slice(0, -1);
+    }
+    const targetUrl = VERCEL_ORIGIN + targetPath + url.search;
 
     const response = await fetch(targetUrl, {
       method: targetMethod,
