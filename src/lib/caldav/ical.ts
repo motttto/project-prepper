@@ -32,9 +32,9 @@ export function parseVEvent(icalString: string): ParsedVEvent | null {
   const dtend = extractDateTime(vevent, "DTEND");
   if (!dtstart) return null;
 
-  const allDay = !dtstart.includes("T");
-  const startISO = parseICalDateToISO(dtstart);
-  const endISO = dtend ? parseICalDateToISO(dtend) : null;
+  const allDay = !dtstart.value.includes("T");
+  const startISO = parseICalDateToISO(dtstart.value);
+  const endISO = dtend ? parseICalDateToISO(dtend.value) : null;
 
   let startAt: string;
   let endAt: string | null;
@@ -43,8 +43,8 @@ export function parseVEvent(icalString: string): ParsedVEvent | null {
     startAt = startISO + "T00:00:00Z";
     endAt = endISO ? endISO + "T00:00:00Z" : startAt;
   } else {
-    startAt = startISO.endsWith("Z") ? startISO : startISO + "Z";
-    endAt = endISO ? (endISO.endsWith("Z") ? endISO : endISO + "Z") : null;
+    startAt = toUTCString(startISO, dtstart.tzid);
+    endAt = endISO ? toUTCString(endISO, dtend?.tzid) : null;
   }
 
   return { uid, summary, description, location, allDay, startAt, endAt };
@@ -143,10 +143,49 @@ function extractProp(vevent: string, prop: string): string | null {
   return value.trim() || null;
 }
 
-function extractDateTime(vevent: string, prop: string): string | null {
-  const regex = new RegExp(`${prop}[^:]*:([^\\r\\n]+)`, "mi");
+function extractDateTime(vevent: string, prop: string): { value: string; tzid?: string } | null {
+  const regex = new RegExp(`${prop}([^:]*):([^\\r\\n]+)`, "mi");
   const match = vevent.match(regex);
-  return match ? match[1].trim() : null;
+  if (!match) return null;
+
+  const params = match[1]; // e.g. ";TZID=Europe/Berlin;VALUE=DATE"
+  const value = match[2].trim();
+
+  const tzidMatch = params.match(/TZID=([^;:]+)/i);
+  const tzid = tzidMatch ? tzidMatch[1] : undefined;
+
+  return { value, tzid };
+}
+
+/**
+ * Konvertiert ein iCal-Datum mit optionalem TZID nach UTC ISO-String.
+ * Ohne TZID und ohne Z → wird als UTC behandelt (Fallback).
+ */
+function toUTCString(isoStr: string, tzid?: string): string {
+  if (isoStr.endsWith("Z")) return isoStr;
+  if (!tzid) return isoStr + "Z";
+
+  try {
+    // Trick: isoStr als UTC interpretieren, dann Offset zur Timezone berechnen
+    const fakeUtc = new Date(isoStr + "Z");
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: tzid,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+      hour12: false,
+    }).formatToParts(fakeUtc);
+
+    const get = (type: string) => parts.find(p => p.type === type)?.value || "0";
+    const h = get("hour") === "24" ? "00" : get("hour"); // midnight edge case
+    const tzLocal = new Date(`${get("year")}-${get("month")}-${get("day")}T${h}:${get("minute")}:${get("second")}Z`);
+
+    const offsetMs = tzLocal.getTime() - fakeUtc.getTime();
+    const actualUtc = new Date(fakeUtc.getTime() - offsetMs);
+    return actualUtc.toISOString();
+  } catch {
+    // Unbekannte Timezone → als UTC behandeln
+    return isoStr + "Z";
+  }
 }
 
 function parseICalDateToISO(dateStr: string): string {

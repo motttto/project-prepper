@@ -11,6 +11,24 @@
 
 const VERCEL_ORIGIN = "https://project-prepper.vercel.app";
 
+// In-Memory Request-Log (letzte 50 Requests)
+const requestLog = [];
+const MAX_LOG = 50;
+
+function logRequest(method, path, depth, status, extra = "") {
+  const entry = {
+    ts: new Date().toISOString(),
+    method,
+    path,
+    depth: depth || "-",
+    status,
+    extra,
+  };
+  requestLog.push(entry);
+  if (requestLog.length > MAX_LOG) requestLog.shift();
+  console.log(`[CalDAV] ${method} ${path} Depth:${entry.depth} → ${status} ${extra}`);
+}
+
 /**
  * Extrahiert den Token aus dem Basic Auth Header.
  * Apple Calendar sendet: Authorization: Basic base64(username:password)
@@ -41,9 +59,19 @@ export default {
     const url = new URL(request.url);
     const method = request.method.toUpperCase();
     const pathname = url.pathname;
+    const depth = request.headers.get("Depth") || "-";
+
+    // === Debug Log Endpoint ===
+    if (pathname === "/debug/log" && method === "GET") {
+      return new Response(JSON.stringify(requestLog, null, 2), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
 
     // === OPTIONS: direkt beantworten ===
     if (method === "OPTIONS") {
+      logRequest(method, pathname, depth, 200);
       return new Response(null, {
         status: 200,
         headers: {
@@ -62,11 +90,13 @@ export default {
     if (pathname === "/.well-known/caldav" || pathname === "/.well-known/caldav/") {
       const token = extractTokenFromBasicAuth(request);
       if (!token) {
+        logRequest(method, pathname, depth, 401, "no-auth");
         return new Response("Unauthorized", {
           status: 401,
           headers: { "WWW-Authenticate": 'Basic realm="Project Prepper CalDAV"' },
         });
       }
+      logRequest(method, pathname, depth, 301, "→ principal");
       // 301 Redirect zum Principal
       return new Response(null, {
         status: 301,
@@ -81,11 +111,13 @@ export default {
     if ((pathname === "/" || pathname === "") && (method === "PROPFIND" || method === "REPORT")) {
       const token = extractTokenFromBasicAuth(request);
       if (!token) {
+        logRequest(method, pathname, depth, 401, "no-auth");
         return new Response("Unauthorized", {
           status: 401,
           headers: { "WWW-Authenticate": 'Basic realm="Project Prepper CalDAV"' },
         });
       }
+      logRequest(method, pathname, depth, 301, "→ principal");
       // Redirect zum Principal
       return new Response(null, {
         status: 301,
@@ -103,6 +135,7 @@ export default {
     if (!token) {
       token = extractTokenFromBasicAuth(request);
       if (!token) {
+        logRequest(method, pathname, depth, 401, "no-token");
         return new Response("Unauthorized", {
           status: 401,
           headers: { "WWW-Authenticate": 'Basic realm="Project Prepper CalDAV"' },
@@ -115,7 +148,13 @@ export default {
     const targetMethod = needsTunnel ? "POST" : method;
 
     // Request-Body lesen
-    const body = ["GET", "HEAD"].includes(method) ? null : await request.arrayBuffer();
+    const bodyBuf = ["GET", "HEAD"].includes(method) ? null : await request.arrayBuffer();
+
+    // Body-Snippet für Debug
+    let bodySnippet = "";
+    if (bodyBuf && bodyBuf.byteLength > 0) {
+      bodySnippet = new TextDecoder().decode(bodyBuf.slice(0, 200));
+    }
 
     // Headers kopieren
     const headers = new Headers(request.headers);
@@ -123,9 +162,9 @@ export default {
       headers.set("X-HTTP-Method", method);
     }
     // Depth als Backup-Header (falls Vercel es strippt)
-    const depth = request.headers.get("Depth");
-    if (depth) {
-      headers.set("X-Depth", depth);
+    const origDepth = request.headers.get("Depth");
+    if (origDepth) {
+      headers.set("X-Depth", origDepth);
     }
 
     // An Vercel weiterleiten — Trailing Slash entfernen (Vercel 308-Redirect vermeiden)
@@ -138,9 +177,13 @@ export default {
     const response = await fetch(targetUrl, {
       method: targetMethod,
       headers,
-      body,
+      body: bodyBuf,
       redirect: "follow",
     });
+
+    // Kurzen Pfad für Log (Token maskieren)
+    const shortPath = pathname.replace(/\/api\/caldav\/[^/]+/, "/api/caldav/***");
+    logRequest(method, shortPath, depth, response.status, bodySnippet.includes("sync-collection") ? "sync-collection" : bodySnippet.includes("calendar-multiget") ? "multiget" : bodySnippet.includes("calendar-query") ? "cal-query" : "");
 
     // Response durchreichen mit DAV Headers
     const respHeaders = new Headers(response.headers);
