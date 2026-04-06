@@ -101,70 +101,79 @@ async function dispatch(
 
   const parsed = parsePath(path);
   const baseHref = `/api/caldav/${token}/`;
+  const pathStr = path?.join("/") || "/";
+  const depthHeader = req.headers.get("depth") || req.headers.get("x-depth") || "-";
+
+  // Log-Wrapper
+  const log = (resp: Response, extra = "") => {
+    console.log(`[CalDAV] ${method} /${pathStr} Depth:${depthHeader} → ${resp.status}${extra ? " " + extra : ""}`);
+    return resp;
+  };
 
   switch (method) {
     case "OPTIONS":
-      return handleOptions();
+      return log(handleOptions());
 
     case "PROPFIND": {
       const body = await req.text();
       const depth = req.headers.get("depth") || req.headers.get("x-depth") || "0";
       switch (parsed.type) {
         case "principal":
-          return handlePropfindPrincipal(auth, baseHref, body, depth);
+          return log(await handlePropfindPrincipal(auth, baseHref, body, depth), `type=principal`);
         case "calendar-home":
-          return handlePropfindCalendarHome(auth, baseHref, body, depth);
+          return log(await handlePropfindCalendarHome(auth, baseHref, body, depth), `type=calendar-home`);
         case "calendar":
-          return handlePropfindCalendar(auth, parsed.groupId, baseHref, body, depth);
+          return log(await handlePropfindCalendar(auth, parsed.groupId, baseHref, body, depth), `type=calendar`);
         case "event":
-          return handleGetEvent(auth, parsed.groupId, parsed.eventFile, baseHref);
+          return log(await handleGetEvent(auth, parsed.groupId, parsed.eventFile, baseHref), `type=event`);
         default:
-          return new Response("Not Found", { status: 404 });
+          return log(new Response("Not Found", { status: 404 }));
       }
     }
 
     case "REPORT": {
       const body = await req.text();
+      const reportType = body.includes("sync-collection") ? "sync-collection" : body.includes("calendar-multiget") ? "multiget" : "calendar-query";
       if (parsed.type === "calendar") {
-        return handleReport(auth, parsed.groupId, baseHref, body);
+        return log(await handleReport(auth, parsed.groupId, baseHref, body), `report=${reportType}`);
       }
-      return new Response("Bad Request", { status: 400 });
+      return log(new Response("Bad Request", { status: 400 }), `report=${reportType}`);
     }
 
     case "GET": {
       if (parsed.type === "event") {
-        return handleGetEvent(auth, parsed.groupId, parsed.eventFile, baseHref);
+        return log(await handleGetEvent(auth, parsed.groupId, parsed.eventFile, baseHref));
       }
-      return new Response("CalDAV Server — Project Prepper", {
+      return log(new Response("CalDAV Server — Project Prepper", {
         status: 200,
         headers: { "Content-Type": "text/plain", DAV: "1, calendar-access" },
-      });
+      }));
     }
 
     case "PUT": {
       if (!auth.readWrite) {
-        return new Response("Forbidden — read-only token", { status: 403 });
+        return log(new Response("Forbidden — read-only token", { status: 403 }));
       }
       if (parsed.type !== "event") {
-        return new Response("Bad Request", { status: 400 });
+        return log(new Response("Bad Request", { status: 400 }));
       }
       const body = await req.text();
       const ifMatch = req.headers.get("if-match");
-      return handlePutEvent(auth, parsed.groupId, parsed.eventFile, body, ifMatch, baseHref);
+      return log(await handlePutEvent(auth, parsed.groupId, parsed.eventFile, body, ifMatch, baseHref));
     }
 
     case "DELETE": {
       if (!auth.readWrite) {
-        return new Response("Forbidden — read-only token", { status: 403 });
+        return log(new Response("Forbidden — read-only token", { status: 403 }));
       }
       if (parsed.type !== "event") {
-        return new Response("Bad Request", { status: 400 });
+        return log(new Response("Bad Request", { status: 400 }));
       }
-      return handleDeleteEvent(auth, parsed.groupId, parsed.eventFile);
+      return log(await handleDeleteEvent(auth, parsed.groupId, parsed.eventFile));
     }
 
     default:
-      return new Response(`Method ${method} not supported`, { status: 405 });
+      return log(new Response(`Method ${method} not supported`, { status: 405 }));
   }
 }
 
