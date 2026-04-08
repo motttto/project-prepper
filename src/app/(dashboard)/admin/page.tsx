@@ -1843,7 +1843,7 @@ function EmailConfigTab({ orgId, userEmail }: { orgId: string; userEmail: string
       .from("org_email_config")
       .select("*")
       .eq("org_id", orgId)
-      .single()
+      .maybeSingle()
       .then(({ data }) => {
         if (data) {
           const c = data as OrgEmailConfig;
