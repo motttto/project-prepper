@@ -224,6 +224,30 @@ export function ProjectMembersPanel({
     loadData();
   }
 
+  async function handleResendInvitation(inv: ProjectInvitation) {
+    // Send-Count erhöhen + Timestamp aktualisieren
+    await supabase
+      .from("project_invitations")
+      .update({
+        send_count: (inv.send_count || 1) + 1,
+        last_sent_at: new Date().toISOString(),
+      })
+      .eq("id", inv.id);
+
+    // Email erneut senden
+    supabase.functions.invoke("send-project-invite", {
+      body: { invitation_id: inv.id },
+    }).then(({ data }) => {
+      if (data?.method === "email") {
+        showToast("Einladung erneut per Email gesendet", "success");
+      } else {
+        showToast("Einladung erneut markiert (kein SMTP konfiguriert)", "info");
+      }
+    }).catch((e) => console.error("Resend error:", e));
+
+    loadData();
+  }
+
   if (!show) return null;
 
   return (
@@ -322,16 +346,31 @@ export function ProjectMembersPanel({
                           <p className="text-sm">{inv.profiles?.name || inv.profiles?.email}</p>
                           <p className="text-xs" style={{ color: "var(--color-warning)" }}>
                             Ausstehend — {roleLabels[inv.role]}
+                            {(inv.send_count || 1) > 1 && (
+                              <span style={{ color: "var(--color-muted-foreground)" }}>
+                                {" "}({inv.send_count}x gesendet)
+                              </span>
+                            )}
                           </p>
                         </div>
                         {isOwner && (
-                          <button
-                            onClick={() => handleCancelInvitation(inv.id)}
-                            className="text-xs px-2 py-1 rounded hover:opacity-70"
-                            style={{ color: "var(--color-destructive)" }}
-                          >
-                            Zurückziehen
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => handleResendInvitation(inv)}
+                              className="text-xs px-2 py-1 rounded hover:opacity-70"
+                              style={{ color: "var(--color-primary)" }}
+                              title="Einladung erneut senden"
+                            >
+                              Erneut senden
+                            </button>
+                            <button
+                              onClick={() => handleCancelInvitation(inv.id)}
+                              className="text-xs px-2 py-1 rounded hover:opacity-70"
+                              style={{ color: "var(--color-destructive)" }}
+                            >
+                              Zurückziehen
+                            </button>
+                          </div>
                         )}
                       </div>
                     ))}

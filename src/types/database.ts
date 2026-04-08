@@ -411,6 +411,8 @@ export type ProjectInvitation = {
   invited_profile_id: string;
   role: "editor" | "viewer";
   status: InvitationStatus;
+  send_count: number;
+  last_sent_at: string | null;
   created_at: string;
   responded_at: string | null;
   profiles?: {
