@@ -68,10 +68,10 @@ const PAGE_SIZE = 50;
 
 const actionLabels: Record<string, string> = {
   "member.registered": "hat sich registriert",
-  "member.approved": "wurde freigeschaltet",
-  "member.role_changed": "Rolle geaendert",
-  "member.deactivated": "wurde deaktiviert",
-  "member.reactivated": "wurde reaktiviert",
+  "member.approved": "hat freigeschaltet",
+  "member.role_changed": "hat Rolle geaendert von",
+  "member.deactivated": "hat deaktiviert",
+  "member.reactivated": "hat reaktiviert",
   "project.created": "Projekt erstellt",
   "project.updated": "Projekt aktualisiert",
   "project.status_changed": "Projektstatus geaendert",
@@ -307,7 +307,7 @@ export default function AdminPage() {
 
   // ── Toggle Active ──
   async function handleToggleActive(profileId: string, activate: boolean) {
-    if (!orgId) return;
+    if (!orgId || processing) return;
     setProcessing(profileId);
     await supabase
       .from("org_memberships")
