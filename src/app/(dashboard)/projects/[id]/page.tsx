@@ -16,6 +16,7 @@ import { TabChecklists } from "@/components/projects/tab-checklists";
 import { TabTasks } from "@/components/projects/tab-tasks";
 import { TabFiles } from "@/components/projects/tab-files";
 import { TabProfit } from "@/components/projects/tab-profit";
+import { TabPolls } from "@/components/projects/tab-polls";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { usePresence } from "@/hooks/use-presence";
@@ -82,6 +83,7 @@ export default function ProjectDetailPage() {
       { key: "materials", label: "Material & Transport" },
       { key: "checklists", label: "Checklisten" },
       { key: "tasks", label: "Aufgaben" },
+      { key: "polls", label: "Umfragen" },
       { key: "files", label: "Dateien" },
     ];
     if (canViewCosts) {
@@ -344,6 +346,9 @@ export default function ProjectDetailPage() {
       )}
       {activeTab === "tasks" && (
         <TabTasks projectId={projectId} />
+      )}
+      {activeTab === "polls" && (
+        <TabPolls projectId={projectId} />
       )}
       {activeTab === "files" && (
         <TabFiles projectId={projectId} />

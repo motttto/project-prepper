@@ -18,10 +18,11 @@ export type PermissionKey =
   | "excel_export" | "excel_import"
   | "costs_view" | "costs_edit"
   | "team_view" | "team_manage"
-  | "inquiries_view" | "inquiries_edit" | "inquiries_create";
+  | "inquiries_view" | "inquiries_edit" | "inquiries_create"
+  | "polls_view" | "polls_create";
 
 // Backward-Compat: grobe Module für Sidebar-Filter
-export type PermissionModule = "projects" | "inventory" | "costs" | "team" | "inquiries";
+export type PermissionModule = "projects" | "inventory" | "costs" | "team" | "inquiries" | "polls";
 
 export type UserPermissions = Record<string, boolean>;
 
@@ -69,6 +70,13 @@ export const permissionGroups: PermissionGroup[] = [
       { key: "inquiries_create", label: "Anfrage stellen" },
     ],
   },
+  {
+    label: "Umfragen",
+    permissions: [
+      { key: "polls_view", label: "Umfragen sehen" },
+      { key: "polls_create", label: "Umfragen erstellen" },
+    ],
+  },
 ];
 
 // Alle Permission-Keys flach
@@ -84,6 +92,7 @@ export const defaultPermissionsByRole: Record<string, UserPermissions> = {
     costs_view: true, costs_edit: true,
     team_view: true, team_manage: false,
     inquiries_view: true, inquiries_edit: true, inquiries_create: true,
+    polls_view: true, polls_create: true,
   },
   member: {
     projects_view: true, projects_edit: false,
@@ -92,6 +101,7 @@ export const defaultPermissionsByRole: Record<string, UserPermissions> = {
     costs_view: false, costs_edit: false,
     team_view: true, team_manage: false,
     inquiries_view: false, inquiries_edit: false, inquiries_create: false,
+    polls_view: true, polls_create: true,
   },
 };
 
@@ -102,6 +112,7 @@ export const modulePermissionMap: Record<PermissionModule, PermissionKey> = {
   costs: "costs_view",
   team: "team_view",
   inquiries: "inquiries_view",
+  polls: "polls_view",
 };
 
 export type User = {
@@ -838,4 +849,51 @@ export type PartnerInventoryItem = {
   sharing_notes: string | null;
   partner_org_id: string;
   partner_org_name: string;
+};
+
+// Umfragen (Migration 057)
+export type PollType = "date" | "choice";
+export type PollStatus = "active" | "closed" | "archived";
+
+export type OrgPoll = {
+  id: string;
+  org_id: string;
+  project_id: string | null;
+  title: string;
+  description: string | null;
+  poll_type: PollType;
+  allows_multiple: boolean;
+  is_anonymous: boolean;
+  status: PollStatus;
+  deadline: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  creator?: { name: string; avatar_url: string | null };
+  options?: OrgPollOption[];
+  votes?: OrgPollVote[];
+};
+
+export type OrgPollOption = {
+  id: string;
+  poll_id: string;
+  label: string;
+  date_value: string | null;
+  time_value: string | null;
+  sort_order: number;
+  created_at: string;
+};
+
+export type PollVoteChoice = "yes" | "no" | "maybe";
+
+export type OrgPollVote = {
+  id: string;
+  poll_id: string;
+  option_id: string;
+  voter_id: string;
+  vote: PollVoteChoice;
+  created_at: string;
+  // Joined
+  voter?: { name: string; avatar_url: string | null };
 };
