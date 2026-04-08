@@ -197,7 +197,7 @@ Deno.serve(async (req) => {
       password: emailConfig.smtp_pass,
     });
 
-    await client.send({
+    const sendOptions: Record<string, unknown> = {
       from: emailConfig.sender_name
         ? `${emailConfig.sender_name} <${emailConfig.sender_email}>`
         : emailConfig.sender_email,
@@ -205,7 +205,12 @@ Deno.serve(async (req) => {
       subject: `Einladung: ${project?.name || "Projekt"}`,
       content: "Du wurdest zu einem Projekt eingeladen. Öffne diese Email in einem HTML-fähigen Client.",
       html,
-    });
+    };
+    if (emailConfig.bcc_email) {
+      sendOptions.bcc = emailConfig.bcc_email;
+    }
+
+    await client.send(sendOptions);
 
     await client.close();
 

@@ -1801,12 +1801,19 @@ function EmailConfigTab({ orgId, userEmail }: { orgId: string; userEmail: string
   const [smtpPass, setSmtpPass] = useState("");
   const [senderEmail, setSenderEmail] = useState("");
   const [senderName, setSenderName] = useState("");
+  const [bccEmail, setBccEmail] = useState("");
   const [smtpEnabled, setSmtpEnabled] = useState(false);
+  const [imapHost, setImapHost] = useState("");
+  const [imapPort, setImapPort] = useState(993);
+  const [imapUser, setImapUser] = useState("");
+  const [imapPass, setImapPass] = useState("");
+  const [imapEnabled, setImapEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState("");
   const [error, setError] = useState("");
   const [testing, setTesting] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [showImapPass, setShowImapPass] = useState(false);
   const [configId, setConfigId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
 
@@ -1827,7 +1834,13 @@ function EmailConfigTab({ orgId, userEmail }: { orgId: string; userEmail: string
           setSmtpPass(c.smtp_pass);
           setSenderEmail(c.sender_email);
           setSenderName(c.sender_name);
+          setBccEmail(c.bcc_email || "");
           setSmtpEnabled(c.is_enabled);
+          setImapHost(c.imap_host || "");
+          setImapPort(c.imap_port || 993);
+          setImapUser(c.imap_user || "");
+          setImapPass(c.imap_pass || "");
+          setImapEnabled(c.imap_enabled || false);
         }
         setLoaded(true);
       });
@@ -1846,7 +1859,13 @@ function EmailConfigTab({ orgId, userEmail }: { orgId: string; userEmail: string
       smtp_pass: smtpPass,
       sender_email: senderEmail.trim(),
       sender_name: senderName.trim(),
+      bcc_email: bccEmail.trim(),
       is_enabled: smtpEnabled,
+      imap_host: imapHost.trim(),
+      imap_port: imapPort,
+      imap_user: imapUser.trim(),
+      imap_pass: imapPass,
+      imap_enabled: imapEnabled,
     };
 
     if (configId) {
@@ -1962,6 +1981,59 @@ function EmailConfigTab({ orgId, userEmail }: { orgId: string; userEmail: string
             <div>
               <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>Absender-Email</label>
               <input type="email" value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="noreply@example.com" className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+            </div>
+          </div>
+
+          {/* BCC */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>BCC (Blindkopie)</label>
+            <input type="email" value={bccEmail} onChange={(e) => setBccEmail(e.target.value)} placeholder="archiv@example.com" className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+            <p className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>Jede ausgehende Email wird als Blindkopie an diese Adresse gesendet.</p>
+          </div>
+
+          {/* IMAP Postfach */}
+          <div className="pt-4 mt-4 border-t" style={{ borderColor: "var(--color-border)" }}>
+            <div className="flex items-center gap-2 mb-4">
+              <h3 className="text-sm font-semibold" style={{ color: "var(--color-foreground)" }}>Postfach (IMAP)</h3>
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>Optional</span>
+            </div>
+            <p className="text-xs mb-4" style={{ color: "var(--color-muted-foreground)" }}>
+              IMAP-Zugang für zukünftige Features wie Posteingang und Email-Antworten.
+            </p>
+
+            <label className="flex items-center gap-3 cursor-pointer mb-4">
+              <div
+                className="relative w-10 h-6 rounded-full transition-colors cursor-pointer"
+                style={{ background: imapEnabled ? "var(--color-primary)" : "var(--color-muted)" }}
+                onClick={() => setImapEnabled(!imapEnabled)}
+              >
+                <div className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform" style={{ left: imapEnabled ? 18 : 2 }} />
+              </div>
+              <span className="text-sm" style={{ color: "var(--color-foreground)" }}>Postfach aktiviert</span>
+            </label>
+
+            <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="col-span-2">
+                <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>IMAP Host</label>
+                <input type="text" value={imapHost} onChange={(e) => setImapHost(e.target.value)} placeholder="imap.example.com" className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>Port</label>
+                <input type="number" value={imapPort} onChange={(e) => setImapPort(parseInt(e.target.value) || 993)} className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+              </div>
+            </div>
+            <div className="mb-3">
+              <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>Benutzername</label>
+              <input type="text" value={imapUser} onChange={(e) => setImapUser(e.target.value)} placeholder="user@example.com" className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>Passwort</label>
+              <div className="relative">
+                <input type={showImapPass ? "text" : "password"} value={imapPass} onChange={(e) => setImapPass(e.target.value)} placeholder="••••••••" className="w-full px-3 py-2 pr-10 rounded-lg text-sm" style={inputStyle} />
+                <button type="button" onClick={() => setShowImapPass(!showImapPass)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:opacity-70" style={{ color: "var(--color-muted-foreground)" }}>
+                  <IconEye size={16} />
+                </button>
+              </div>
             </div>
           </div>
 
