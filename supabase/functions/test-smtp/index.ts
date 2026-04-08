@@ -1,10 +1,10 @@
 // Supabase Edge Function: SMTP-Verbindungstest
 // Deno Runtime
 //
-// POST { org_id } → Lädt SMTP-Config → Sendet Test-Email an Admin
+// POST { org_id, test_email? } → Lädt SMTP-Config → Sendet Test-Email
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SmtpClient } from "https://deno.land/x/smtp@v0.7.0/mod.ts";
+import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -28,9 +28,7 @@ Deno.serve(async (req) => {
 
   try {
     const { org_id, test_email } = await req.json();
-    if (!org_id) {
-      return json({ error: "org_id required" }, 400);
-    }
+    if (!org_id) return json({ error: "org_id required" }, 400);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
@@ -44,33 +42,33 @@ Deno.serve(async (req) => {
     if (configError || !emailConfig) {
       return json({ error: "Keine SMTP-Konfiguration gefunden" }, 404);
     }
-
     if (!emailConfig.smtp_host || !emailConfig.smtp_user) {
       return json({ error: "SMTP-Konfiguration unvollständig" }, 400);
     }
 
-    // Empfänger bestimmen
     const recipientEmail = test_email || emailConfig.sender_email;
     if (!recipientEmail) {
       return json({ error: "Keine Test-Email-Adresse angegeben" }, 400);
     }
 
-    // Org-Name laden
-    const { data: org } = await supabase
-      .from("organizations")
-      .select("name")
-      .eq("id", org_id)
-      .single();
-
+    // Org-Name
+    const { data: org } = await supabase.from("organizations").select("name").eq("id", org_id).single();
     const orgName = org?.name || "Organisation";
 
-    // SMTP verbinden und senden
-    const client = new SmtpClient();
-    await client.connectTLS({
-      hostname: emailConfig.smtp_host,
-      port: emailConfig.smtp_port,
-      username: emailConfig.smtp_user,
-      password: emailConfig.smtp_pass,
+    // TLS-Modus bestimmen
+    const security = emailConfig.smtp_security || "starttls";
+    const tls = security === "ssl";  // Port 465 = implicit TLS
+
+    const client = new SMTPClient({
+      connection: {
+        hostname: emailConfig.smtp_host,
+        port: emailConfig.smtp_port,
+        tls,
+        auth: {
+          username: emailConfig.smtp_user,
+          password: emailConfig.smtp_pass,
+        },
+      },
     });
 
     await client.send({
@@ -99,7 +97,7 @@ Deno.serve(async (req) => {
     </td></tr>
   </table>
 </body>
-</html>`.trim(),
+</html>`,
     });
 
     await client.close();
@@ -109,12 +107,11 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error("SMTP test error:", err);
-    const message = (err as Error).message;
-    // Benutzerfreundliche Fehlermeldungen
-    if (message.includes("BadResource") || message.includes("connect")) {
-      return json({ error: "Verbindung zum SMTP-Server fehlgeschlagen. Prüfe Host und Port." }, 500);
+    const message = (err as Error).message || String(err);
+    if (message.includes("connect") || message.includes("EOF")) {
+      return json({ error: "Verbindung zum SMTP-Server fehlgeschlagen. Prüfe Host, Port und Sicherheitseinstellung." }, 500);
     }
-    if (message.includes("auth") || message.includes("535")) {
+    if (message.includes("auth") || message.includes("535") || message.includes("credential")) {
       return json({ error: "Anmeldung fehlgeschlagen. Prüfe Benutzername und Passwort." }, 500);
     }
     return json({ error: `SMTP-Fehler: ${message}` }, 500);
