@@ -1,10 +1,10 @@
 // Supabase Edge Function: SMTP-Verbindungstest
-// Deno Runtime
+// Deno Runtime — nutzt nodemailer via esm.sh (breiteste Kompatibilität)
 //
 // POST { org_id, test_email? } → Lädt SMTP-Config → Sendet Test-Email
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { SMTPClient } from "https://deno.land/x/denomailer@1.6.0/mod.ts";
+import nodemailer from "https://esm.sh/nodemailer@6.9.10";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -32,52 +32,43 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // SMTP-Config laden
     const { data: emailConfig, error: configError } = await supabase
       .from("org_email_config")
       .select("*")
       .eq("org_id", org_id)
       .single();
 
-    if (configError || !emailConfig) {
-      return json({ error: "Keine SMTP-Konfiguration gefunden" }, 404);
-    }
-    if (!emailConfig.smtp_host || !emailConfig.smtp_user) {
-      return json({ error: "SMTP-Konfiguration unvollständig" }, 400);
-    }
+    if (configError || !emailConfig) return json({ error: "Keine SMTP-Konfiguration gefunden" }, 404);
+    if (!emailConfig.smtp_host || !emailConfig.smtp_user) return json({ error: "SMTP-Konfiguration unvollständig" }, 400);
 
     const recipientEmail = test_email || emailConfig.sender_email;
-    if (!recipientEmail) {
-      return json({ error: "Keine Test-Email-Adresse angegeben" }, 400);
-    }
+    if (!recipientEmail) return json({ error: "Keine Test-Email-Adresse angegeben" }, 400);
 
-    // Org-Name
     const { data: org } = await supabase.from("organizations").select("name").eq("id", org_id).single();
     const orgName = org?.name || "Organisation";
 
-    // TLS-Modus bestimmen
+    // Nodemailer Transport erstellen
     const security = emailConfig.smtp_security || "starttls";
-    const tls = security === "ssl";  // Port 465 = implicit TLS
-
-    const client = new SMTPClient({
-      connection: {
-        hostname: emailConfig.smtp_host,
-        port: emailConfig.smtp_port,
-        tls,
-        auth: {
-          username: emailConfig.smtp_user,
-          password: emailConfig.smtp_pass,
-        },
+    const transport = nodemailer.createTransport({
+      host: emailConfig.smtp_host,
+      port: emailConfig.smtp_port,
+      secure: security === "ssl", // true = implicit TLS (465), false = STARTTLS (587)
+      auth: {
+        user: emailConfig.smtp_user,
+        pass: emailConfig.smtp_pass,
+      },
+      tls: {
+        rejectUnauthorized: false, // Selbstsignierte Zertifikate erlauben
       },
     });
 
-    await client.send({
+    await transport.sendMail({
       from: emailConfig.sender_name
-        ? `${emailConfig.sender_name} <${emailConfig.sender_email}>`
+        ? `"${emailConfig.sender_name}" <${emailConfig.sender_email}>`
         : emailConfig.sender_email,
       to: recipientEmail,
       subject: `[${orgName}] SMTP-Test erfolgreich`,
-      content: `Diese Test-Email bestätigt, dass die SMTP-Konfiguration für ${orgName} in Project Prepper korrekt eingerichtet ist.`,
+      text: `Diese Test-Email bestätigt, dass die SMTP-Konfiguration für ${orgName} in Project Prepper korrekt eingerichtet ist.`,
       html: `
 <!DOCTYPE html>
 <html lang="de">
@@ -100,18 +91,16 @@ Deno.serve(async (req) => {
 </html>`,
     });
 
-    await client.close();
-
     console.log(`Test email sent to ${recipientEmail} for org ${orgName}`);
     return json({ success: true, message: `Test-Email an ${recipientEmail} gesendet` });
 
   } catch (err) {
     console.error("SMTP test error:", err);
     const message = (err as Error).message || String(err);
-    if (message.includes("connect") || message.includes("EOF")) {
+    if (message.includes("ECONNREFUSED") || message.includes("ETIMEDOUT") || message.includes("connect")) {
       return json({ error: "Verbindung zum SMTP-Server fehlgeschlagen. Prüfe Host, Port und Sicherheitseinstellung." }, 500);
     }
-    if (message.includes("auth") || message.includes("535") || message.includes("credential")) {
+    if (message.includes("auth") || message.includes("535") || message.includes("Invalid login")) {
       return json({ error: "Anmeldung fehlgeschlagen. Prüfe Benutzername und Passwort." }, 500);
     }
     return json({ error: `SMTP-Fehler: ${message}` }, 500);
