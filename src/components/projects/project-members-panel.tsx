@@ -186,16 +186,26 @@ export function ProjectMembersPanel({
     } = await supabase.auth.getUser();
     if (!user) return;
 
-    const { error: err } = await supabase.from("project_invitations").insert({
+    const { data: invData, error: err } = await supabase.from("project_invitations").insert({
       project_id: projectId,
       invited_by: user.id,
       invited_profile_id: selectedProfileId,
       role: selectedRole,
-    });
+    }).select("id").single();
 
     if (err) {
       setError("Fehler beim Einladen: " + err.message);
     } else {
+      // Einladungs-Email senden (fire & forget)
+      if (invData?.id) {
+        supabase.functions.invoke("send-project-invite", {
+          body: { invitation_id: invData.id },
+        }).then(({ data }) => {
+          if (data?.method === "email") {
+            showToast("Einladung + Email gesendet", "success");
+          }
+        }).catch((e) => console.error("Email send error:", e));
+      }
       setSelectedProfileId("");
       setMode(null);
       loadData();

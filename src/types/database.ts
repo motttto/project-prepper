@@ -897,3 +897,18 @@ export type OrgPollVote = {
   // Joined
   voter?: { name: string; avatar_url: string | null };
 };
+
+// Email-Konfiguration pro Org (Migration 058)
+export type OrgEmailConfig = {
+  id: string;
+  org_id: string;
+  smtp_host: string;
+  smtp_port: number;
+  smtp_user: string;
+  smtp_pass: string;
+  sender_email: string;
+  sender_name: string;
+  is_enabled: boolean;
+  created_at: string;
+  updated_at: string;
+};
