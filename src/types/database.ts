@@ -899,21 +899,30 @@ export type OrgPollVote = {
 };
 
 // Email-Konfiguration pro Org (Migration 058)
+export type SmtpSecurity = "none" | "ssl" | "starttls";
+export type SmtpAuth = "auto" | "plain" | "login" | "cram-md5";
+
 export type OrgEmailConfig = {
   id: string;
   org_id: string;
+  // Postausgang (SMTP)
   smtp_host: string;
   smtp_port: number;
   smtp_user: string;
   smtp_pass: string;
+  smtp_security: SmtpSecurity;
+  smtp_auth: SmtpAuth;
   sender_email: string;
   sender_name: string;
   bcc_email: string;
   is_enabled: boolean;
+  // Posteingang (IMAP)
   imap_host: string;
   imap_port: number;
   imap_user: string;
   imap_pass: string;
+  imap_security: SmtpSecurity;
+  imap_auth: SmtpAuth;
   imap_enabled: boolean;
   created_at: string;
   updated_at: string;
