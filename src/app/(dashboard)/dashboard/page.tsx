@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import { useOrg } from "@/contexts/org-context";
-import type { Project, InventoryItem, CostItem, Booking, ProjectTask, Inquiry, EquipmentLoan, OrgPartnership, OrgDecision, EquipmentRequest } from "@/types/database";
+import type { Project, InventoryItem, CostItem, Booking, ProjectTask, Inquiry, EquipmentLoan, OrgPartnership, OrgDecision, EquipmentRequest, OrgPoll, OrgPollVote } from "@/types/database";
 import {
   IconProjects,
   IconCosts,
@@ -19,6 +19,7 @@ import {
   IconHandshake,
   IconUsers,
   IconShield,
+  IconClipboard,
 } from "@/components/ui/icons";
 import { DashboardCard } from "@/components/dashboard/dashboard-card";
 
@@ -54,6 +55,8 @@ export default function DashboardPage() {
   const [partnerships, setPartnerships] = useState<OrgPartnership[]>([]);
   const [decisions, setDecisions] = useState<OrgDecision[]>([]);
   const [equipRequests, setEquipRequests] = useState<EquipmentRequest[]>([]);
+  const [polls, setPolls] = useState<OrgPoll[]>([]);
+  const [myPollVotes, setMyPollVotes] = useState<OrgPollVote[]>([]);
   const [totalAssetValue, setTotalAssetValue] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
@@ -62,7 +65,7 @@ export default function DashboardPage() {
   const loadData = useCallback(async () => {
     if (!orgId) return;
     const [projectsRes, inventoryRes, costsRes, bookingsRes, membersRes, tasksRes, inquiriesRes,
-      loansRes, partnershipsRes, decisionsRes, equipRequestsRes] =
+      loansRes, partnershipsRes, decisionsRes, equipRequestsRes, pollsRes, myVotesRes] =
       await Promise.all([
         supabase
           .from("projects")
@@ -111,6 +114,18 @@ export default function DashboardPage() {
           .select("id, status, inventory_item_id, requesting_org_id, supplying_org_id")
           .eq("supplying_org_id", orgId)
           .eq("status", "pending"),
+        // Offene Umfragen
+        supabase
+          .from("org_polls")
+          .select("id, title, poll_type, status, deadline, created_by, created_at")
+          .eq("org_id", orgId)
+          .eq("status", "active")
+          .order("created_at", { ascending: false }),
+        // Meine Stimmen (um zu prüfen ob ich schon abgestimmt habe)
+        supabase
+          .from("org_poll_votes")
+          .select("id, poll_id, voter_id")
+          .eq("voter_id", currentUser?.id || ""),
       ]);
 
     if (projectsRes.data) setProjects(projectsRes.data as Project[]);
@@ -132,6 +147,8 @@ export default function DashboardPage() {
     if (partnershipsRes.data) setPartnerships(partnershipsRes.data as unknown as OrgPartnership[]);
     if (decisionsRes.data) setDecisions(decisionsRes.data as unknown as OrgDecision[]);
     if (equipRequestsRes.data) setEquipRequests(equipRequestsRes.data as unknown as EquipmentRequest[]);
+    if (pollsRes.data) setPolls(pollsRes.data as unknown as OrgPoll[]);
+    if (myVotesRes.data) setMyPollVotes(myVotesRes.data as unknown as OrgPollVote[]);
 
     // Überfällige Leihgaben markieren
     supabase.rpc("check_overdue_loans", { p_org_id: orgId });
@@ -196,6 +213,12 @@ export default function DashboardPage() {
   const activePartnerships = partnerships.filter((p) => p.status === "active").length;
   const openDecisions = decisions.length;
   const pendingEquipRequests = equipRequests.length;
+
+  // Umfragen: offene + noch nicht abgestimmt
+  const openPollCount = polls.length;
+  const myVotedPollIds = new Set(myPollVotes.map((v) => v.poll_id));
+  const pendingPolls = polls.filter((p) => !myVotedPollIds.has(p.id));
+  const pendingPollCount = pendingPolls.length;
 
   // Nächste anstehende Projekte (planning/active, sortiert nach Startdatum)
   const upcomingProjects = projects
@@ -391,6 +414,18 @@ export default function DashboardPage() {
           iconColor="var(--color-info)"
           href="/inventory"
         />
+
+        {/* Umfragen */}
+        <DashboardCard
+          label="Umfragen"
+          value={openPollCount}
+          subtext={pendingPollCount > 0 ? `${pendingPollCount} warten auf dich` : "aktive Umfragen"}
+          icon={<IconClipboard size={18} />}
+          iconBg={pendingPollCount > 0 ? "var(--color-warning-light)" : "var(--color-muted)"}
+          iconColor={pendingPollCount > 0 ? "var(--color-warning)" : "var(--color-muted-foreground)"}
+          href="/polls"
+          urgent={pendingPollCount > 0}
+        />
       </div>
 
       {/* Budget-Warnung — nur bei Kosten-Zugriff */}
@@ -468,6 +503,36 @@ export default function DashboardPage() {
             </div>
           </div>
           <IconChevronRight size={16} style={{ color: "var(--color-warning)" }} />
+        </div>
+      )}
+
+      {/* Offene Umfragen Hinweis */}
+      {pendingPollCount > 0 && (
+        <div
+          className="p-4 rounded-xl mb-8 flex items-center gap-3 cursor-pointer"
+          style={{
+            background: "var(--color-info-light)",
+            border: "1px solid var(--color-info)",
+          }}
+          onClick={() => router.push("/polls")}
+        >
+          <IconClipboard size={20} style={{ color: "var(--color-info)" }} />
+          <div className="flex-1">
+            <div className="font-medium text-sm" style={{ color: "var(--color-info)" }}>
+              {pendingPollCount} Umfrage{pendingPollCount !== 1 ? "n" : ""} warte{pendingPollCount === 1 ? "t" : "n"} auf deine Stimme
+            </div>
+            <div className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+              {pendingPolls.slice(0, 3).map((p) => (
+                <span key={p.id}>
+                  {p.title}
+                  {p.poll_type === "date" ? " (Terminumfrage)" : ""}
+                  {" · "}
+                </span>
+              ))}
+              {pendingPollCount > 3 && `und ${pendingPollCount - 3} weitere`}
+            </div>
+          </div>
+          <IconChevronRight size={16} style={{ color: "var(--color-info)" }} />
         </div>
       )}
 
