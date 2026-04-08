@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/icons";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { useOrg } from "@/contexts/org-context";
-import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
+import { useCurrentUser, hasPermission, isOrgAdmin } from "@/hooks/use-current-user";
 import { useImpersonate } from "@/contexts/impersonate-context";
 import type { PermissionModule } from "@/types/database";
 import { modulePermissionMap } from "@/types/database";
@@ -166,7 +166,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           // Admin-only Items: nur für Admins sichtbar
           if (item.adminOnly) {
             if (impersonating) return false;
-            return currentUser?.roleName === "admin" || currentUser?.isSystem;
+            return isOrgAdmin(currentUser);
           }
           if (!item.permission) return true;
           // Bei Impersonation: Permissions des impersonierten Users nutzen

@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, isOrgAdmin } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import type { OrgPartnership, PartnershipStatus, EquipmentRequest, PartnerInventoryItem } from "@/types/database";
 import { IconPlus, IconCheck, IconX, IconHandshake, IconSearch, IconPackage } from "@/components/ui/icons";
@@ -34,7 +34,7 @@ export function OrgPartnerships() {
   const supabase = createClient();
   const { orgId } = useOrg();
   const currentUser = useCurrentUser();
-  const isAdmin = currentUser?.roleName === "admin" || currentUser?.isSystem;
+  const isAdmin = isOrgAdmin(currentUser);
 
   const [partnerships, setPartnerships] = useState<OrgPartnership[]>([]);
   const [allOrgs, setAllOrgs] = useState<{ id: string; name: string; slug: string }[]>([]);

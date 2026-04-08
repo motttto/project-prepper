@@ -131,12 +131,13 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
                 className="text-xs leading-tight hidden sm:block"
                 style={{ color: "var(--color-muted-foreground)" }}
               >
-                {isSystemUser ? "System · " : ""}
-                {roleName === "admin"
-                  ? "Admin"
-                  : roleName === "manager"
-                    ? "Manager"
-                    : "Mitglied"}
+                {isSystemUser
+                  ? "Superadmin"
+                  : roleName === "admin"
+                    ? "Admin"
+                    : roleName === "manager"
+                      ? "Manager"
+                      : "Mitglied"}
               </div>
             )}
           </div>

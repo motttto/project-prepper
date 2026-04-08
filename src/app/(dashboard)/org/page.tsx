@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, isOrgAdmin } from "@/hooks/use-current-user";
 import { IconBuilding, IconMail, IconEye, IconCheck } from "@/components/ui/icons";
 import { OrgPartnerships } from "@/components/org/org-partnerships";
 import type { OrgEmailConfig } from "@/types/database";
@@ -20,7 +20,7 @@ export default function OrgSettingsPage() {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
 
-  const isAdmin = currentUser?.roleName === "admin" || currentUser?.isSystem;
+  const isAdmin = isOrgAdmin(currentUser);
 
   // SMTP State
   const [smtpHost, setSmtpHost] = useState("");

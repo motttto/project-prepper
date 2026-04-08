@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
-import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
+import { useCurrentUser, hasPermission, isOrgAdmin } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import type { OrgPoll } from "@/types/database";
 import { PollCard } from "@/components/polls/poll-card";
@@ -23,7 +23,7 @@ export default function PollsPage() {
   const [filter, setFilter] = useState<FilterType>("active");
 
   const canCreate = hasPermission(currentUser, "polls_create");
-  const isAdmin = currentUser?.roleName === "admin";
+  const isAdmin = isOrgAdmin(currentUser);
 
   const loadPolls = useCallback(async () => {
     if (!orgId) return;

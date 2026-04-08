@@ -13,15 +13,23 @@ export interface CurrentUser {
   avatarUrl: string | null;
   roleName: string; // 'admin' | 'manager' | 'member' (in aktueller Org)
   isActive: boolean; // aktiv in aktueller Org
-  isSystem: boolean; // globales System-Flag
+  isSuperadmin: boolean; // App-weiter Superadmin (alle Orgs, alle Rechte)
+  /** @deprecated Nutze isSuperadmin */
+  isSystem: boolean;
   orgId: string | null;
   permissions: UserPermissions; // aufgelöste Berechtigungen
+}
+
+// Prüft ob User Org-Admin oder Superadmin ist
+export function isOrgAdmin(user: CurrentUser | null): boolean {
+  if (!user) return false;
+  return user.roleName === "admin" || user.isSuperadmin;
 }
 
 // Prüft eine feingranulare Permission (z.B. "costs_view") oder ein grobes Modul (z.B. "costs")
 export function hasPermission(user: CurrentUser | null, key: string): boolean {
   if (!user) return false;
-  if (user.isSystem || user.roleName === "admin") return true;
+  if (user.isSuperadmin || user.roleName === "admin") return true;
   // Grobes Modul → auf _view Key mappen
   const permKey = (modulePermissionMap as Record<string, string>)[key] || key;
   return user.permissions[permKey] ?? false;
@@ -105,8 +113,9 @@ export function useCurrentUser(): CurrentUser | null {
           "User",
         avatarUrl: profile?.avatar_url || null,
         roleName,
-        isActive: isSystem || isActive, // System-User immer aktiv
-        isSystem,
+        isActive: isSystem || isActive, // Superadmin immer aktiv
+        isSuperadmin: isSystem,
+        isSystem, // Backward-Compat
         orgId,
         permissions: resolvedPermissions,
       });

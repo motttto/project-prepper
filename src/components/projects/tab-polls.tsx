@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
-import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
+import { useCurrentUser, hasPermission, isOrgAdmin } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import type { OrgPoll } from "@/types/database";
 import { PollCard } from "@/components/polls/poll-card";
@@ -24,7 +24,7 @@ export function TabPolls({ projectId }: TabPollsProps) {
   const [showCreate, setShowCreate] = useState(false);
 
   const canCreate = hasPermission(currentUser, "polls_create");
-  const isAdmin = currentUser?.roleName === "admin";
+  const isAdmin = isOrgAdmin(currentUser);
 
   const loadPolls = useCallback(async () => {
     const { data } = await supabase

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, isOrgAdmin } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { useInvitations } from "@/hooks/use-invitations";
 import { useOrg } from "@/contexts/org-context";
@@ -93,7 +93,7 @@ export default function TeamPage() {
   const [savingGuest, setSavingGuest] = useState(false);
   const [editingGuest, setEditingGuest] = useState<string | null>(null);
 
-  const isAdmin = currentUser?.roleName === "admin" || currentUser?.isSystem;
+  const isAdmin = isOrgAdmin(currentUser);
 
   // Daten laden — org_memberships statt profiles
   const loadData = useCallback(async () => {

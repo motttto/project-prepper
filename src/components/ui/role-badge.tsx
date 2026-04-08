@@ -5,16 +5,21 @@ import { IconShield, IconEye } from "./icons";
 // ── Org-Level Rollen (profiles.role_id → roles) ──
 
 export const orgRoleLabels: Record<string, string> = {
-  system: "System",
+  superadmin: "Superadmin",
+  system: "Superadmin",
   admin: "Admin",
   manager: "Manager",
   member: "Mitglied",
 };
 
 export const orgBadgeStyles: Record<string, { bg: string; color: string }> = {
+  superadmin: {
+    bg: "#faf5ff",
+    color: "#7c3aed",
+  },
   system: {
-    bg: "var(--color-primary-light)",
-    color: "var(--color-primary)",
+    bg: "#faf5ff",
+    color: "#7c3aed",
   },
   admin: {
     bg: "var(--color-destructive-light)",
@@ -61,7 +66,7 @@ export function RoleBadge({ role, type = "org", showIcon = true }: RoleBadgeProp
   const style = styles[role] || styles[isOrg ? "member" : "viewer"];
   const label = labels[role] || role;
 
-  const hasShieldIcon = showIcon && (role === "admin" || role === "system" || role === "owner");
+  const hasShieldIcon = showIcon && (role === "admin" || role === "system" || role === "superadmin" || role === "owner");
   const hasEyeIcon = showIcon && role === "viewer";
 
   return (

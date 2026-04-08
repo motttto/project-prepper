@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, isOrgAdmin } from "@/hooks/use-current-user";
 import { useOrg } from "@/contexts/org-context";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import type { ActivityLogEntry, ActivityAction } from "@/types/database";
@@ -94,7 +94,7 @@ export default function ActivityLogPage() {
   const [hasMore, setHasMore] = useState(false);
   const [filterAction, setFilterAction] = useState<string>("all");
 
-  const isAdmin = currentUser?.roleName === "admin" || currentUser?.isSystem;
+  const isAdmin = isOrgAdmin(currentUser);
 
   const loadEntries = useCallback(async (append = false) => {
     if (!orgId) return;

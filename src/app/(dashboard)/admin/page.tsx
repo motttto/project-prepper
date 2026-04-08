@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, isOrgAdmin } from "@/hooks/use-current-user";
 import { useOrg } from "@/contexts/org-context";
 import { useImpersonate } from "@/contexts/impersonate-context";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
@@ -163,7 +163,7 @@ export default function AdminPage() {
   const [logHasMore, setLogHasMore] = useState(false);
   const [filterAction, setFilterAction] = useState<string>("all");
 
-  const isAdmin = currentUser?.roleName === "admin" || currentUser?.isSystem;
+  const isAdmin = isOrgAdmin(currentUser);
 
   // ── Redirect non-admins ──
   useEffect(() => {
@@ -661,10 +661,7 @@ function RolesTab({
                   </select>
                 </div>
               ) : isSystemUser ? (
-                <RoleBadgeGroup badges={[
-                  { role: "system", type: "org" },
-                  { role: orgRoleName, type: "org" },
-                ]} />
+                <RoleBadge role="superadmin" type="org" />
               ) : (
                 <RoleBadge role={orgRoleName} type="org" />
               )}

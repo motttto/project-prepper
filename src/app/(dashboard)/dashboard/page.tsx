@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
+import { useCurrentUser, hasPermission, isOrgAdmin } from "@/hooks/use-current-user";
 import { useOrg } from "@/contexts/org-context";
 import type { Project, InventoryItem, CostItem, Booking, ProjectTask, Inquiry, EquipmentLoan, OrgPartnership, OrgDecision, EquipmentRequest, OrgPoll, OrgPollVote } from "@/types/database";
 import {
@@ -60,7 +60,7 @@ export default function DashboardPage() {
   const [totalAssetValue, setTotalAssetValue] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
-  const isAdmin = currentUser?.roleName === "admin";
+  const isAdmin = isOrgAdmin(currentUser);
 
   const loadData = useCallback(async () => {
     if (!orgId) return;
