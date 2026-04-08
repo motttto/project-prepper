@@ -7,7 +7,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 import { useOrg } from "@/contexts/org-context";
 import { useImpersonate } from "@/contexts/impersonate-context";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
-import type { UserPermissions, PermissionKey, ActivityLogEntry, ActivityAction } from "@/types/database";
+import type { UserPermissions, PermissionKey, ActivityLogEntry, ActivityAction, OrgEmailConfig } from "@/types/database";
 import { permissionGroups, defaultPermissionsByRole, allPermissionKeys } from "@/types/database";
 import {
   IconUsers,
@@ -20,6 +20,7 @@ import {
   IconX,
   IconCheck,
   IconZap,
+  IconMail,
 } from "@/components/ui/icons";
 import {
   RoleBadge,
@@ -146,7 +147,7 @@ export default function AdminPage() {
   const { orgId } = useOrg();
   const { startImpersonating } = useImpersonate();
 
-  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system" | "services">("roles");
+  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system" | "services" | "email">("roles");
 
   // ── Rollen & Berechtigungen State ──
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -401,10 +402,11 @@ export default function AdminPage() {
   }
 
   // ── Tab Config ──
-  const tabs: { key: "roles" | "log" | "system" | "services"; label: string }[] = [
+  const tabs: { key: "roles" | "log" | "system" | "services" | "email"; label: string }[] = [
     { key: "roles", label: "Rollen & Berechtigungen" },
     { key: "log", label: "Protokoll" },
     { key: "services", label: "Services" },
+    { key: "email", label: "E-Mail" },
     { key: "system", label: "System" },
   ];
 
@@ -492,6 +494,8 @@ export default function AdminPage() {
         />
       ) : activeTab === "services" ? (
         <ServicesTab orgId={orgId || ""} />
+      ) : activeTab === "email" ? (
+        <EmailConfigTab orgId={orgId || ""} userEmail={currentUser?.email || ""} />
       ) : (
         <SystemTab />
       )}
@@ -1780,6 +1784,207 @@ cloudflare-caldav-proxy/ # PROPFIND/REPORT → POST Proxy`}
                 <p className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>{item.value}</p>
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── E-Mail Konfiguration Tab ──
+
+function EmailConfigTab({ orgId, userEmail }: { orgId: string; userEmail: string }) {
+  const supabase = createClient();
+  const [smtpHost, setSmtpHost] = useState("");
+  const [smtpPort, setSmtpPort] = useState(587);
+  const [smtpUser, setSmtpUser] = useState("");
+  const [smtpPass, setSmtpPass] = useState("");
+  const [senderEmail, setSenderEmail] = useState("");
+  const [senderName, setSenderName] = useState("");
+  const [smtpEnabled, setSmtpEnabled] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+  const [testing, setTesting] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const [configId, setConfigId] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!orgId) return;
+    supabase
+      .from("org_email_config")
+      .select("*")
+      .eq("org_id", orgId)
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          const c = data as OrgEmailConfig;
+          setConfigId(c.id);
+          setSmtpHost(c.smtp_host);
+          setSmtpPort(c.smtp_port);
+          setSmtpUser(c.smtp_user);
+          setSmtpPass(c.smtp_pass);
+          setSenderEmail(c.sender_email);
+          setSenderName(c.sender_name);
+          setSmtpEnabled(c.is_enabled);
+        }
+        setLoaded(true);
+      });
+  }, [orgId, supabase]);
+
+  async function handleSave() {
+    setSaving(true);
+    setError("");
+    setSuccess("");
+
+    const payload = {
+      org_id: orgId,
+      smtp_host: smtpHost.trim(),
+      smtp_port: smtpPort,
+      smtp_user: smtpUser.trim(),
+      smtp_pass: smtpPass,
+      sender_email: senderEmail.trim(),
+      sender_name: senderName.trim(),
+      is_enabled: smtpEnabled,
+    };
+
+    if (configId) {
+      const { error: err } = await supabase.from("org_email_config").update(payload).eq("id", configId);
+      if (err) setError(err.message);
+      else { setSuccess("Gespeichert"); setTimeout(() => setSuccess(""), 3000); }
+    } else {
+      const { data, error: err } = await supabase.from("org_email_config").insert(payload).select("id").single();
+      if (err) setError(err.message);
+      else { setConfigId(data?.id || null); setSuccess("Gespeichert"); setTimeout(() => setSuccess(""), 3000); }
+    }
+    setSaving(false);
+  }
+
+  async function handleTest() {
+    setTesting(true);
+    setError("");
+    setSuccess("");
+    await handleSave();
+
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("test-smtp", {
+        body: { org_id: orgId, test_email: userEmail },
+      });
+      if (fnError) setError(`Test fehlgeschlagen: ${fnError.message}`);
+      else if (data?.error) setError(data.error);
+      else { setSuccess(data?.message || "Test-Email gesendet!"); setTimeout(() => setSuccess(""), 5000); }
+    } catch (err) {
+      setError(`Fehler: ${(err as Error).message}`);
+    }
+    setTesting(false);
+  }
+
+  const inputStyle = {
+    background: "var(--color-muted)",
+    color: "var(--color-foreground)",
+    border: "1px solid var(--color-border)",
+  };
+
+  if (!loaded) {
+    return <div className="py-12 text-center text-sm" style={{ color: "var(--color-muted-foreground)" }}>Laden...</div>;
+  }
+
+  return (
+    <div className="max-w-xl">
+      <div
+        className="rounded-xl p-6"
+        style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <IconMail size={20} style={{ color: "var(--color-primary)" }} />
+          <h2 className="text-lg font-semibold" style={{ color: "var(--color-foreground)" }}>
+            SMTP-Konfiguration
+          </h2>
+        </div>
+        <p className="text-sm mb-6" style={{ color: "var(--color-muted-foreground)" }}>
+          Eigenen Mailserver hinterlegen für Projekt-Einladungen per E-Mail. Ohne Konfiguration werden Einladungen nur in der App angezeigt.
+        </p>
+
+        <div className="space-y-4">
+          {/* Toggle */}
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div
+              className="relative w-10 h-6 rounded-full transition-colors cursor-pointer"
+              style={{ background: smtpEnabled ? "var(--color-primary)" : "var(--color-muted)" }}
+              onClick={() => setSmtpEnabled(!smtpEnabled)}
+            >
+              <div
+                className="absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform"
+                style={{ left: smtpEnabled ? 18 : 2 }}
+              />
+            </div>
+            <span className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
+              E-Mail-Versand aktiviert
+            </span>
+          </label>
+
+          {/* SMTP Host + Port */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>SMTP Host</label>
+              <input type="text" value={smtpHost} onChange={(e) => setSmtpHost(e.target.value)} placeholder="smtp.example.com" className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>Port</label>
+              <input type="number" value={smtpPort} onChange={(e) => setSmtpPort(parseInt(e.target.value) || 587)} className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+            </div>
+          </div>
+
+          {/* User */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>Benutzername</label>
+            <input type="text" value={smtpUser} onChange={(e) => setSmtpUser(e.target.value)} placeholder="user@example.com" className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+          </div>
+
+          {/* Pass */}
+          <div>
+            <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>Passwort</label>
+            <div className="relative">
+              <input type={showPass ? "text" : "password"} value={smtpPass} onChange={(e) => setSmtpPass(e.target.value)} placeholder="••••••••" className="w-full px-3 py-2 pr-10 rounded-lg text-sm" style={inputStyle} />
+              <button type="button" onClick={() => setShowPass(!showPass)} className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:opacity-70" style={{ color: "var(--color-muted-foreground)" }}>
+                <IconEye size={16} />
+              </button>
+            </div>
+          </div>
+
+          {/* Absender */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>Absender-Name</label>
+              <input type="text" value={senderName} onChange={(e) => setSenderName(e.target.value)} placeholder="Project Prepper" className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-muted-foreground)" }}>Absender-Email</label>
+              <input type="email" value={senderEmail} onChange={(e) => setSenderEmail(e.target.value)} placeholder="noreply@example.com" className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+            </div>
+          </div>
+
+          {/* Messages */}
+          {error && (
+            <div className="text-sm px-3 py-2 rounded-lg" style={{ background: "var(--color-destructive-light)", color: "var(--color-destructive)" }}>
+              {error}
+            </div>
+          )}
+          {success && (
+            <div className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg" style={{ background: "var(--color-success-light)", color: "var(--color-success)" }}>
+              <IconCheck size={14} /> {success}
+            </div>
+          )}
+
+          {/* Buttons */}
+          <div className="flex gap-3 pt-2">
+            <button onClick={handleSave} disabled={saving} className="px-4 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-50" style={{ background: "var(--color-primary)" }}>
+              {saving ? "Speichern..." : "Speichern"}
+            </button>
+            <button onClick={handleTest} disabled={testing || !smtpHost || !smtpUser} className="px-4 py-2.5 rounded-lg text-sm font-medium disabled:opacity-50" style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}>
+              {testing ? "Teste..." : "Verbindung testen"}
+            </button>
           </div>
         </div>
       </div>
