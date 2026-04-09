@@ -110,7 +110,7 @@ interface InvitationData {
 
 function formatInquiryMessage(
   inquiry: InquiryData,
-  invitations: InvitationData[],
+  _invitations: InvitationData[],
 ): string {
   const lines: string[] = [];
 
@@ -135,31 +135,12 @@ function formatInquiryMessage(
     lines.push(`📝 ${escapeMarkdown(inquiry.description)}`);
   }
 
-  if (invitations.length > 0) {
-    lines.push("");
-    lines.push("*Team-Status:*");
-    for (const inv of invitations) {
-      const name = inv.profiles?.name || "Unbekannt";
-      const icon =
-        inv.status === "accepted"
-          ? "✅"
-          : inv.status === "declined"
-            ? "❌"
-            : "⏳";
-      lines.push(`${icon} ${escapeMarkdown(name)}`);
-    }
-  }
-
   return lines.join("\n");
 }
 
 function buildInlineKeyboard(inquiryId: string) {
   return {
     inline_keyboard: [
-      [
-        { text: "✅ Zusagen", callback_data: `accept:${inquiryId}` },
-        { text: "❌ Absagen", callback_data: `decline:${inquiryId}` },
-      ],
       [
         {
           text: "🔗 Anfrage öffnen",
@@ -367,10 +348,10 @@ async function handleHelpCommand(message: any): Promise<Response> {
     "/help — Diese Hilfe anzeigen",
     "",
     "📋 *Anfragen*",
-    "Anfragen werden aus der App in diese Gruppe gepostet. Du kannst direkt per Button zusagen oder absagen.",
+    "Anfragen werden aus der App in diese Gruppe gepostet. Klicke auf den Link, um die Anfrage im Browser zu öffnen und zuzusagen oder abzusagen.",
     "",
     "🔗 *Verknüpfung*",
-    "Damit deine Antworten zugeordnet werden, muss dein Telegram mit deinem App-Profil verknüpft sein. Nutze /start dafür.",
+    "Optional: Verknüpfe dein Telegram mit deinem App-Profil via /start.",
   ].join("\n");
 
   await telegramSendMessage(chatId, helpText);
@@ -563,9 +544,10 @@ Deno.serve(async (req: Request) => {
       return await handleInfoCommand(update.message);
     }
 
-    // Callback Query (Button-Klick)
+    // Callback Query (Button-Klick) — ignoriert, da Buttons entfernt wurden
     if (update.callback_query) {
-      return await handleCallbackQuery(update.callback_query);
+      await telegramAnswerCallback(update.callback_query.id, "");
+      return jsonResponse({ ok: true });
     }
 
     // Andere Updates ignorieren
