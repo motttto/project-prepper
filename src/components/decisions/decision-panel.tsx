@@ -35,6 +35,7 @@ export function DecisionPanel() {
   const [votes, setVotes] = useState<Record<string, OrgDecisionVote[]>>({});
   const [activeMembers, setActiveMembers] = useState<{ id: string; name: string }[]>([]);
   const [allMembers, setAllMembers] = useState<{ id: string; name: string; active: boolean }[]>([]);
+  const [projectMembers, setProjectMembers] = useState<Record<string, string[]>>({}); // projectId → profileIds
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -100,8 +101,27 @@ export function DecisionPanel() {
     }
   }, [supabase, orgId]);
 
+  // Projekt-Mitglieder laden für projekt-bezogene Beschlüsse
+  const loadProjectMembers = useCallback(async () => {
+    const projectDecisions = decisions.filter((d) => d.related_project_id);
+    if (projectDecisions.length === 0) return;
+    const projectIds = [...new Set(projectDecisions.map((d) => d.related_project_id!))];
+    const { data } = await supabase
+      .from("project_members")
+      .select("project_id, profile_id")
+      .in("project_id", projectIds);
+    if (data) {
+      const grouped: Record<string, string[]> = {};
+      data.forEach((pm: { project_id: string; profile_id: string }) => {
+        if (!grouped[pm.project_id]) grouped[pm.project_id] = [];
+        grouped[pm.project_id].push(pm.profile_id);
+      });
+      setProjectMembers(grouped);
+    }
+  }, [supabase, decisions]);
+
   useEffect(() => { loadDecisions(); loadMembers(); }, [loadDecisions, loadMembers]);
-  useEffect(() => { loadVotes(); }, [loadVotes]);
+  useEffect(() => { loadVotes(); loadProjectMembers(); }, [loadVotes, loadProjectMembers]);
 
   // Realtime
   useRealtimeTable({ table: "org_decisions", onDataChange: loadDecisions });
@@ -148,6 +168,15 @@ export function DecisionPanel() {
     setVotingId(null);
     setVoteComment("");
     setVoteAsUserId("");
+  }
+
+  // Berechtigte Abstimmer: bei Projekt-Beschlüssen nur Projekt-Mitglieder, sonst alle
+  function getEligibleMembers(decision: OrgDecision) {
+    if (decision.related_project_id && projectMembers[decision.related_project_id]) {
+      const pmIds = new Set(projectMembers[decision.related_project_id]);
+      return allMembers.filter((m) => pmIds.has(m.id));
+    }
+    return activeMembers.map((m) => ({ ...m, active: true }));
   }
 
   function getMyVote(decisionId: string): OrgDecisionVote | undefined {
@@ -268,9 +297,10 @@ export function DecisionPanel() {
       {openDecisions.map((decision) => {
         const decVotes = votes[decision.id] || [];
         const myVote = getMyVote(decision.id);
+        const eligible = getEligibleMembers(decision);
         const approvals = decVotes.filter((v) => v.vote === "approve").length;
         const rejections = decVotes.filter((v) => v.vote === "reject").length;
-        const total = activeMembers.length;
+        const total = eligible.filter((m) => m.active).length;
 
         return (
           <div
@@ -334,7 +364,7 @@ export function DecisionPanel() {
               </div>
               {/* Wer hat abgestimmt */}
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {allMembers.map((member) => {
+                {eligible.map((member) => {
                   const memberVote = decVotes.find((v) => v.voter_id === member.id);
                   // Inaktive nur zeigen wenn sie abgestimmt haben
                   if (!member.active && !memberVote) return null;
@@ -368,8 +398,8 @@ export function DecisionPanel() {
               </div>
             </div>
 
-            {/* Abstimmen */}
-            {decision.status === "open" && (
+            {/* Abstimmen — nur wenn berechtigt (Projekt-Mitglied oder allgemeiner Beschluss) */}
+            {decision.status === "open" && (isAdmin || eligible.some((m) => m.id === user?.id)) && (
               <div>
                 {votingId === decision.id ? (
                   <div className="space-y-2">
@@ -384,7 +414,7 @@ export function DecisionPanel() {
                           style={inputStyle}
                         >
                           <option value="">Ich selbst</option>
-                          {allMembers.filter((m) => m.id !== user?.id).map((m) => (
+                          {eligible.filter((m) => m.id !== user?.id).map((m) => (
                             <option key={m.id} value={m.id}>
                               {m.name}{!m.active ? " (ehem.)" : ""}
                             </option>
