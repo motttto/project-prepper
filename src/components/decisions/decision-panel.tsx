@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useOrg } from "@/contexts/org-context";
-import { useCurrentUser } from "@/hooks/use-current-user";
+import { useCurrentUser, isOrgAdmin } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import type { OrgDecision, OrgDecisionVote, DecisionType, VoteChoice } from "@/types/database";
 import { IconPlus, IconCheck, IconX, IconChevronRight } from "@/components/ui/icons";
@@ -34,6 +34,7 @@ export function DecisionPanel() {
   const [decisions, setDecisions] = useState<OrgDecision[]>([]);
   const [votes, setVotes] = useState<Record<string, OrgDecisionVote[]>>({});
   const [activeMembers, setActiveMembers] = useState<{ id: string; name: string }[]>([]);
+  const [allMembers, setAllMembers] = useState<{ id: string; name: string; active: boolean }[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -43,6 +44,8 @@ export function DecisionPanel() {
   const [creating, setCreating] = useState(false);
   const [votingId, setVotingId] = useState<string | null>(null);
   const [voteComment, setVoteComment] = useState("");
+  const [voteAsUserId, setVoteAsUserId] = useState<string>("");
+  const isAdmin = isOrgAdmin(user);
 
   const loadDecisions = useCallback(async () => {
     if (!orgId) return;
@@ -74,14 +77,25 @@ export function DecisionPanel() {
 
   const loadMembers = useCallback(async () => {
     if (!orgId) return;
-    const { data } = await supabase
-      .from("org_memberships")
-      .select("profile_id, profiles(name)")
-      .eq("org_id", orgId)
-      .eq("is_active", true);
-    if (data) {
+    const [activeRes, allRes] = await Promise.all([
+      supabase
+        .from("org_memberships")
+        .select("profile_id, profiles(name)")
+        .eq("org_id", orgId)
+        .eq("is_active", true),
+      supabase
+        .from("org_memberships")
+        .select("profile_id, is_active, profiles(name)")
+        .eq("org_id", orgId),
+    ]);
+    if (activeRes.data) {
       setActiveMembers(
-        data.map((m: any) => ({ id: m.profile_id, name: m.profiles?.name || "" }))
+        activeRes.data.map((m: any) => ({ id: m.profile_id, name: m.profiles?.name || "" }))
+      );
+    }
+    if (allRes.data) {
+      setAllMembers(
+        allRes.data.map((m: any) => ({ id: m.profile_id, name: m.profiles?.name || "", active: m.is_active }))
       );
     }
   }, [supabase, orgId]);
@@ -111,16 +125,29 @@ export function DecisionPanel() {
     setCreating(false);
   }
 
-  async function handleVote(decisionId: string, vote: VoteChoice) {
+  async function handleVote(decisionId: string, vote: VoteChoice, asUserId?: string) {
     if (!user) return;
-    await supabase.from("org_decision_votes").upsert({
-      decision_id: decisionId,
-      voter_id: user.id,
-      vote,
-      comment: voteComment.trim() || null,
-    }, { onConflict: "decision_id,voter_id" });
+    const voterId = asUserId || user.id;
+
+    if (asUserId && asUserId !== user.id) {
+      // Admin stimmt im Namen eines anderen Users ab (via RPC)
+      await supabase.rpc("vote_as_user", {
+        p_decision_id: decisionId,
+        p_voter_id: voterId,
+        p_vote: vote,
+        p_comment: voteComment.trim() || null,
+      });
+    } else {
+      await supabase.from("org_decision_votes").upsert({
+        decision_id: decisionId,
+        voter_id: voterId,
+        vote,
+        comment: voteComment.trim() || null,
+      }, { onConflict: "decision_id,voter_id" });
+    }
     setVotingId(null);
     setVoteComment("");
+    setVoteAsUserId("");
   }
 
   function getMyVote(decisionId: string): OrgDecisionVote | undefined {
@@ -307,8 +334,10 @@ export function DecisionPanel() {
               </div>
               {/* Wer hat abgestimmt */}
               <div className="flex flex-wrap gap-1.5 mt-2">
-                {activeMembers.map((member) => {
+                {allMembers.map((member) => {
                   const memberVote = decVotes.find((v) => v.voter_id === member.id);
+                  // Inaktive nur zeigen wenn sie abgestimmt haben
+                  if (!member.active && !memberVote) return null;
                   return (
                     <span
                       key={member.id}
@@ -340,41 +369,62 @@ export function DecisionPanel() {
             </div>
 
             {/* Abstimmen */}
-            {!myVote && decision.status === "open" && (
+            {decision.status === "open" && (
               <div>
                 {votingId === decision.id ? (
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={voteComment}
-                      onChange={(e) => setVoteComment(e.target.value)}
-                      placeholder="Kommentar (optional)"
-                      className="flex-1 px-3 py-1.5 rounded-lg text-xs"
-                      style={inputStyle}
-                    />
-                    <button
-                      onClick={() => handleVote(decision.id, "approve")}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-                      style={{ background: "var(--color-success)" }}
-                    >
-                      <IconCheck size={12} /> Ja
-                    </button>
-                    <button
-                      onClick={() => handleVote(decision.id, "reject")}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-                      style={{ background: "var(--color-error)" }}
-                    >
-                      <IconX size={12} /> Nein
-                    </button>
-                    <button
-                      onClick={() => { setVotingId(null); setVoteComment(""); }}
-                      className="px-2 py-1.5 rounded-lg text-xs"
-                      style={{ color: "var(--color-muted-foreground)" }}
-                    >
-                      Abbrechen
-                    </button>
+                  <div className="space-y-2">
+                    {/* Im Namen von (nur Admin) */}
+                    {isAdmin && (
+                      <div className="flex items-center gap-2">
+                        <label className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>Im Namen von:</label>
+                        <select
+                          value={voteAsUserId}
+                          onChange={(e) => setVoteAsUserId(e.target.value)}
+                          className="px-2 py-1 rounded-lg text-xs flex-1"
+                          style={inputStyle}
+                        >
+                          <option value="">Ich selbst</option>
+                          {allMembers.filter((m) => m.id !== user?.id).map((m) => (
+                            <option key={m.id} value={m.id}>
+                              {m.name}{!m.active ? " (ehem.)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={voteComment}
+                        onChange={(e) => setVoteComment(e.target.value)}
+                        placeholder="Kommentar (optional)"
+                        className="flex-1 px-3 py-1.5 rounded-lg text-xs"
+                        style={inputStyle}
+                      />
+                      <button
+                        onClick={() => handleVote(decision.id, "approve", voteAsUserId || undefined)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+                        style={{ background: "var(--color-success)" }}
+                      >
+                        <IconCheck size={12} /> Ja
+                      </button>
+                      <button
+                        onClick={() => handleVote(decision.id, "reject", voteAsUserId || undefined)}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+                        style={{ background: "var(--color-error)" }}
+                      >
+                        <IconX size={12} /> Nein
+                      </button>
+                      <button
+                        onClick={() => { setVotingId(null); setVoteComment(""); setVoteAsUserId(""); }}
+                        className="px-2 py-1.5 rounded-lg text-xs"
+                        style={{ color: "var(--color-muted-foreground)" }}
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
                   </div>
-                ) : (
+                ) : !myVote ? (
                   <button
                     onClick={() => setVotingId(decision.id)}
                     className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
@@ -382,7 +432,15 @@ export function DecisionPanel() {
                   >
                     Abstimmen
                   </button>
-                )}
+                ) : isAdmin ? (
+                  <button
+                    onClick={() => setVotingId(decision.id)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                    style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
+                  >
+                    Im Namen von...
+                  </button>
+                ) : null}
               </div>
             )}
 
