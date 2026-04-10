@@ -380,8 +380,6 @@ export default function AdminPage() {
   }
 
   // ── Computed ──
-  const activeMembers = members.filter((m) => m.is_active);
-
   const roleLabels = orgRoleLabels;
   const roleBadgeStyles = orgBadgeStyles;
 
@@ -467,7 +465,7 @@ export default function AdminPage() {
       {/* Tab Content */}
       {activeTab === "roles" ? (
         <RolesTab
-          members={activeMembers}
+          members={members}
           roles={roles}
           currentUser={currentUser}
           processing={processing}
@@ -551,26 +549,21 @@ function RolesTab({
   roleLabels: Record<string, string>;
   roleBadgeStyles: Record<string, { bg: string; color: string }>;
 }) {
+  const activeMembers = members.filter((m) => m.is_active);
+  const inactiveMembers = members.filter((m) => !m.is_active);
+
   if (members.length === 0) {
     return (
       <div
         className="py-12 text-center rounded-xl"
         style={{ border: "2px dashed var(--color-border)", color: "var(--color-muted-foreground)" }}
       >
-        <p className="text-lg mb-1">Keine aktiven Mitglieder</p>
+        <p className="text-lg mb-1">Keine Mitglieder</p>
       </div>
     );
   }
 
-  return (
-    <div
-      className="rounded-xl overflow-hidden"
-      style={{
-        background: "var(--color-surface)",
-        border: "1px solid var(--color-border-light)",
-      }}
-    >
-      {members.map((member, idx) => {
+  const renderMemberRow = (member: OrgMember, idx: number, listLength: number) => {
         const profile = member.profiles;
         const orgRoleName = getRoleName(member);
         const badgeStyle = roleBadgeStyles[orgRoleName] || roleBadgeStyles.member;
@@ -578,7 +571,7 @@ function RolesTab({
         const isSystemUser = profile?.is_system;
         const isLastAdmin =
           orgRoleName === "admin" &&
-          members.filter((m) => getRoleName(m) === "admin").length <= 1;
+          activeMembers.filter((m) => getRoleName(m) === "admin").length <= 1;
         const isExpanded = expandedPermissions === member.profile_id;
         const memberPerms = getMemberPermissions(member);
         const canEditPerms = !isSelf && orgRoleName !== "admin" && !isSystemUser;
@@ -768,7 +761,42 @@ function RolesTab({
             )}
           </div>
         );
-      })}
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Aktive Mitglieder */}
+      <div
+        className="rounded-xl overflow-hidden"
+        style={{
+          background: "var(--color-surface)",
+          border: "1px solid var(--color-border-light)",
+        }}
+      >
+        {activeMembers.map((member, idx) => renderMemberRow(member, idx, activeMembers.length))}
+      </div>
+
+      {/* Ehemalige Mitglieder */}
+      {inactiveMembers.length > 0 && (
+        <div>
+          <h3
+            className="text-sm font-semibold mb-2 px-1"
+            style={{ color: "var(--color-muted-foreground)" }}
+          >
+            Ehemalige Mitglieder ({inactiveMembers.length})
+          </h3>
+          <div
+            className="rounded-xl overflow-hidden"
+            style={{
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border-light)",
+              opacity: 0.7,
+            }}
+          >
+            {inactiveMembers.map((member, idx) => renderMemberRow(member, idx, inactiveMembers.length))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
