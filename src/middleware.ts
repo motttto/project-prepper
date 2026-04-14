@@ -43,6 +43,7 @@ export async function middleware(request: NextRequest) {
   const isAuthCallback = pathname.startsWith("/auth/callback");
   const isOrgPage = pathname.startsWith("/org/");
   const isMfaPage = pathname.startsWith("/mfa/");
+  const isPartnerInvitePage = pathname === "/partner-invite";
 
   // Nicht eingeloggt? → Weiterleitung zum Login
   // (außer man ist bereits auf /login, Startseite, Auth-Callback oder MFA-Seite)
@@ -120,8 +121,8 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Keine Orgs → /org/new (außer man ist schon dort)
-    if (!hasAnyOrg && !isOrgPage && !isPendingPage && !isHomePage && !isAuthCallback) {
+    // Keine Orgs → /org/new (außer man ist schon dort oder auf /partner-invite)
+    if (!hasAnyOrg && !isOrgPage && !isPendingPage && !isHomePage && !isAuthCallback && !isPartnerInvitePage) {
       const url = request.nextUrl.clone();
       url.pathname = "/org/new";
       return NextResponse.redirect(url);
@@ -138,8 +139,8 @@ export async function middleware(request: NextRequest) {
       const isActiveInAnyOrg = memberships.some((m) => m.is_active);
       const isActive = isActiveInCurrentOrg || isActiveInAnyOrg;
 
-      // Inaktiv → /pending
-      if (!isActive && !isPendingPage && !isHomePage && !isAuthCallback) {
+      // Inaktiv → /pending (aber /partner-invite darf aufgerufen werden um Einladung anzunehmen)
+      if (!isActive && !isPendingPage && !isHomePage && !isAuthCallback && !isPartnerInvitePage) {
         const url = request.nextUrl.clone();
         url.pathname = "/pending";
         return NextResponse.redirect(url);

@@ -42,10 +42,13 @@ export function OrgPartnerships() {
   const [partnerInventory, setPartnerInventory] = useState<PartnerInventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
-  const [inviteOrgId, setInviteOrgId] = useState("");
+  const [inviteEmail, setInviteEmail] = useState("");
   const [inviteNotes, setInviteNotes] = useState("");
   const [shareInventory, setShareInventory] = useState(true);
   const [shareContacts, setShareContacts] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [tab, setTab] = useState<"partners" | "requests" | "catalog">("partners");
 
   // Equipment-Request Form
@@ -126,21 +129,52 @@ export function OrgPartnerships() {
     return p.org_id === orgId ? p.partner_org_id : p.org_id;
   }
 
-  // Einladung senden
+  // Partnerschafts-Einladung per E-Mail versenden
   async function handleInvite() {
-    if (!orgId || !inviteOrgId) return;
-    await supabase.from("org_partnerships").insert({
-      org_id: orgId,
-      partner_org_id: inviteOrgId,
-      status: "pending",
-      share_inventory: shareInventory,
-      share_team_contacts: shareContacts,
-      invited_by: currentUser?.id,
+    if (!orgId || !inviteEmail.trim() || !currentUser?.id) return;
+    setInviting(true);
+    setInviteError(null);
+    setInviteSuccess(null);
+
+    // 1. Einladung in DB anlegen
+    const { data: inv, error: insertError } = await supabase
+      .from("partnership_invitations")
+      .insert({
+        org_id: orgId,
+        invited_by: currentUser.id,
+        email: inviteEmail.trim().toLowerCase(),
+        share_inventory: shareInventory,
+        share_team_contacts: shareContacts,
+        notes: inviteNotes.trim() || null,
+      })
+      .select("id")
+      .single();
+
+    if (insertError || !inv) {
+      setInviteError(insertError?.message || "Konnte Einladung nicht anlegen");
+      setInviting(false);
+      return;
+    }
+
+    // 2. Edge Function triggern (verschickt E-Mail via org_email_config)
+    const { error: fnError } = await supabase.functions.invoke("send-partnership-invite", {
+      body: { invitation_id: inv.id },
     });
-    setShowInvite(false);
-    setInviteOrgId("");
+
+    if (fnError) {
+      setInviteError(`Einladung angelegt, aber E-Mail-Versand fehlgeschlagen: ${fnError.message}`);
+      setInviting(false);
+      return;
+    }
+
+    setInviteSuccess(`Einladung an ${inviteEmail} verschickt`);
+    setInviteEmail("");
     setInviteNotes("");
-    await loadPartnerships();
+    setInviting(false);
+    setTimeout(() => {
+      setShowInvite(false);
+      setInviteSuccess(null);
+    }, 2500);
   }
 
   // Partnerschaft akzeptieren
@@ -241,8 +275,6 @@ export function OrgPartnerships() {
 
   const activePartners = partnerships.filter((p) => p.status === "active");
   const pendingPartners = partnerships.filter((p) => p.status === "pending");
-  const existingPartnerIds = partnerships.map((p) => getPartnerId(p));
-  const availableOrgs = allOrgs.filter((o) => o.id !== orgId && !existingPartnerIds.includes(o.id));
 
   const incomingRequests = requests.filter((r) => r.supplying_org_id === orgId && r.status === "pending");
   const outgoingRequests = requests.filter((r) => r.requesting_org_id === orgId);
@@ -311,18 +343,27 @@ export function OrgPartnerships() {
           className="rounded-lg p-4 space-y-3"
           style={{ background: "var(--color-muted)", border: "1px solid var(--color-border)" }}
         >
-          <h3 className="text-sm font-semibold">Organisation einladen</h3>
-          <select
-            value={inviteOrgId}
-            onChange={(e) => setInviteOrgId(e.target.value)}
+          <h3 className="text-sm font-semibold">Partner-Organisation einladen</h3>
+          <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+            E-Mail des Org-Admins eingeben. Die Partnerschaft wird erst aktiv, nachdem der Empfänger sie
+            im Browser per Klick bestätigt hat.
+          </p>
+          <input
+            type="email"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            placeholder="partner@beispiel.de"
             className="w-full px-3 py-2 rounded-lg text-sm"
             style={inputStyle}
-          >
-            <option value="">Organisation wählen...</option>
-            {availableOrgs.map((o) => (
-              <option key={o.id} value={o.id}>{o.name}</option>
-            ))}
-          </select>
+          />
+          <textarea
+            value={inviteNotes}
+            onChange={(e) => setInviteNotes(e.target.value)}
+            placeholder="Notiz (optional, erscheint in der Einladungsmail)"
+            rows={2}
+            className="w-full px-3 py-2 rounded-lg text-sm resize-none"
+            style={inputStyle}
+          />
           <div className="flex flex-wrap gap-4">
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -341,14 +382,24 @@ export function OrgPartnerships() {
               Kontakte teilen
             </label>
           </div>
+          {inviteError && (
+            <div className="text-xs p-2 rounded" style={{ background: "var(--color-destructive-light)", color: "var(--color-destructive)" }}>
+              {inviteError}
+            </div>
+          )}
+          {inviteSuccess && (
+            <div className="text-xs p-2 rounded" style={{ background: "var(--color-success-light)", color: "var(--color-success)" }}>
+              {inviteSuccess}
+            </div>
+          )}
           <div className="flex gap-2">
             <button
               onClick={handleInvite}
-              disabled={!inviteOrgId}
+              disabled={!inviteEmail.trim() || inviting}
               className="px-3 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
               style={{ background: "var(--color-primary)" }}
             >
-              Einladen
+              {inviting ? "Wird gesendet..." : "Einladung senden"}
             </button>
             <button
               onClick={() => setShowInvite(false)}
