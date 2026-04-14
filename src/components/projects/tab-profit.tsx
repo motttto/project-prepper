@@ -336,6 +336,115 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     await loadShares();
   }
 
+  // Gewinn-Shares aus Kooperationsvereinbarung berechnen
+  async function calculateFromAgreement() {
+    if (!agreement || agreement.status !== "active") {
+      showToast("Vereinbarung ist noch nicht aktiv", "error");
+      return;
+    }
+    if (!profit) {
+      showToast("Revenue und Kosten müssen eingetragen sein", "error");
+      return;
+    }
+
+    // Module dynamisch laden (um Bundle klein zu halten)
+    const { calculateProfitShares, calculateNetProfit } = await import("@/lib/agreement-calc");
+
+    // Rollen + Contributions laden
+    const [rolesRes, contribRes] = await Promise.all([
+      supabase
+        .from("agreement_roles")
+        .select("*, profiles(name, avatar_url)")
+        .eq("agreement_id", agreement.id),
+      supabase
+        .from("agreement_inventory_contributions")
+        .select("*")
+        .eq("agreement_id", agreement.id),
+    ]);
+
+    const roles = rolesRes.data || [];
+    const contributions = contribRes.data || [];
+
+    // Projekt-Tage berechnen
+    let projectDays = 1;
+    if (project.date_start && project.date_end) {
+      const diff = (new Date(project.date_end).getTime() - new Date(project.date_start).getTime()) / (86400 * 1000);
+      projectDays = Math.max(1, Math.ceil(diff) + 1);
+    }
+
+    const netProfit = calculateNetProfit(profit.revenue, profit.total_costs, agreement.profit_formula);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const results = calculateProfitShares(netProfit, roles as any, contributions as any, agreement.profit_formula, projectDays);
+
+    // Bestehende Shares loeschen
+    await supabase.from("project_profit_shares").delete().eq("project_id", project.id);
+
+    // Neue Shares aus Berechnung
+    const rows = results.map((r) => ({
+      project_id: project.id,
+      profile_id: r.profile_id,
+      share_type: "fixed" as ShareType,
+      share_value: r.calculated_amount,
+      calculated_amount: r.calculated_amount,
+      hours_worked: null,
+      notes: `Aus Vereinbarung: ${r.percentage.toFixed(1)}% (${agreement.profit_formula.method})`,
+    }));
+
+    if (rows.length > 0) {
+      await supabase.from("project_profit_shares").insert(rows);
+    }
+
+    await loadShares();
+    showToast(`Anteile aus Vereinbarung berechnet (Netto-Gewinn: ${netProfit.toFixed(2)}€)`, "success");
+  }
+
+  // Ausschuettungs-Decision zur Abstimmung erstellen
+  async function createPayoutDecision() {
+    if (!orgId || !currentUser || shares.length === 0) return;
+    if (!agreement || agreement.status !== "active") {
+      showToast("Vereinbarung ist noch nicht aktiv", "error");
+      return;
+    }
+
+    const totalPayout = shares.reduce((s, sh) => s + (sh.calculated_amount || 0), 0);
+
+    // Check ob bereits eine offene Ausschuettungs-Decision existiert
+    const { data: existing } = await supabase
+      .from("org_decisions")
+      .select("id, status")
+      .eq("related_project_id", project.id)
+      .eq("decision_type", "profit_distribution")
+      .eq("status", "open")
+      .maybeSingle();
+
+    if (existing) {
+      showToast("Es gibt bereits eine offene Abstimmung zur Ausschuettung", "info");
+      return;
+    }
+
+    const breakdown = shares.map((s) => {
+      const m = members.find((x) => x.id === s.profile_id);
+      return `${m?.name || "?"}: ${(s.calculated_amount || 0).toFixed(2)}€`;
+    }).join(" · ");
+
+    const { error } = await supabase.from("org_decisions").insert({
+      org_id: orgId,
+      title: `Gewinn-Ausschuettung: ${project.name}`,
+      description: `Gesamt: ${totalPayout.toFixed(2)}€\n\n${breakdown}`,
+      decision_type: "profit_distribution",
+      requires_unanimous: true,
+      related_project_id: project.id,
+      created_by: currentUser.id,
+      metadata: { total_payout: totalPayout, shares: shares.map((s) => ({ profile_id: s.profile_id, amount: s.calculated_amount })) },
+    });
+
+    if (error) {
+      showToast("Fehler: " + error.message, "error");
+    } else {
+      showToast("Ausschuettung zur Abstimmung eingestellt", "success");
+    }
+  }
+
   async function updateShare(shareId: string, field: string, value: any) {
     await supabase
       .from("project_profit_shares")
@@ -1090,7 +1199,27 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold">Gewinnverteilung</h3>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {agreementActive && canEdit && (
+              <button
+                onClick={calculateFromAgreement}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+                style={{ background: "var(--color-success)" }}
+                title="Berechnet Anteile nach der Formel der Kooperationsvereinbarung"
+              >
+                <IconShield size={12} /> Aus Vereinbarung
+              </button>
+            )}
+            {agreementActive && shares.length > 0 && canEdit && (
+              <button
+                onClick={createPayoutDecision}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ border: "1px solid var(--color-primary)", color: "var(--color-primary)" }}
+                title="Erstellt einen Beschluss, den alle Beteiligten abstimmen muessen"
+              >
+                Zur Abstimmung
+              </button>
+            )}
             {shares.length > 0 && canEdit && (
               <>
                 <button
