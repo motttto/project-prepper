@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { IconBuilding, IconZap } from "@/components/ui/icons";
+import { IconBuilding, IconZap, IconUsers, IconHandshake, IconProjects } from "@/components/ui/icons";
 
 function slugify(text: string): string {
   return text
@@ -88,15 +88,117 @@ export default function NewOrgPage() {
   }
 
   return (
-    <div
-      className="w-full max-w-md rounded-xl p-8"
-      style={{
-        background: "var(--color-surface)",
-        boxShadow: "var(--shadow-lg)",
-      }}
-    >
-      {/* Header */}
-      <div className="text-center mb-8">
+    <div className="w-full max-w-xl space-y-6">
+      {/* Info-Box: Wie funktioniert Project Prepper */}
+      <div
+        className="rounded-xl p-6"
+        style={{
+          background: "var(--color-surface)",
+          boxShadow: "var(--shadow-lg)",
+        }}
+      >
+        <h2
+          className="text-base font-semibold mb-4"
+          style={{ color: "var(--color-foreground)" }}
+        >
+          Willkommen bei Project Prepper
+        </h2>
+        <p
+          className="text-sm mb-5"
+          style={{ color: "var(--color-muted-foreground)" }}
+        >
+          Jeder User startet mit einer eigenen Organisation. Zusammenarbeit mit
+          anderen Organisationen oder Usern läuft auf drei Wegen:
+        </p>
+
+        <div className="space-y-3">
+          {/* 1. Team */}
+          <div className="flex gap-3">
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: "var(--color-primary-light)" }}
+            >
+              <IconUsers size={18} style={{ color: "var(--color-primary)" }} />
+            </div>
+            <div>
+              <div
+                className="text-sm font-medium"
+                style={{ color: "var(--color-foreground)" }}
+              >
+                Team-Einladung
+              </div>
+              <div
+                className="text-xs"
+                style={{ color: "var(--color-muted-foreground)" }}
+              >
+                Admin lädt Mitglieder per E-Mail in die Organisation ein. Diese
+                werden Teil des Teams mit vollem Zugriff.
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Partnerschaft */}
+          <div className="flex gap-3">
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: "var(--color-info-light)" }}
+            >
+              <IconHandshake size={18} style={{ color: "var(--color-info)" }} />
+            </div>
+            <div>
+              <div
+                className="text-sm font-medium"
+                style={{ color: "var(--color-foreground)" }}
+              >
+                Partnerschaft (Cross-Org)
+              </div>
+              <div
+                className="text-xs"
+                style={{ color: "var(--color-muted-foreground)" }}
+              >
+                Zwei Organisationen teilen Inventar und Kontakte. Jeder bleibt
+                in seiner eigenen Org, kann aber Equipment anfragen.
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Projekt-Einladung */}
+          <div className="flex gap-3">
+            <div
+              className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+              style={{ background: "var(--color-success-light)" }}
+            >
+              <IconProjects size={18} style={{ color: "var(--color-success)" }} />
+            </div>
+            <div>
+              <div
+                className="text-sm font-medium"
+                style={{ color: "var(--color-foreground)" }}
+              >
+                Projekt-Einladung
+              </div>
+              <div
+                className="text-xs"
+                style={{ color: "var(--color-muted-foreground)" }}
+              >
+                Für externe Helfer/Freelancer: Zugriff nur auf ein bestimmtes
+                Projekt, nicht die ganze Organisation.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Formular */}
+      <div
+        className="rounded-xl p-8"
+        style={{
+          background: "var(--color-surface)",
+          boxShadow: "var(--shadow-lg)",
+        }}
+      >
+        {/* Header */}
+        <div className="text-center mb-8">
         <div
           className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-4"
           style={{ background: "var(--color-primary-light)" }}
@@ -107,14 +209,13 @@ export default function NewOrgPage() {
           className="text-2xl font-bold"
           style={{ color: "var(--color-foreground)" }}
         >
-          Neue Organisation
+          Deine Organisation anlegen
         </h1>
         <p
           className="text-sm mt-2"
           style={{ color: "var(--color-muted-foreground)" }}
         >
-          Erstelle eine Organisation, um Projekte, Inventar und Team zu
-          verwalten.
+          Du wirst automatisch Admin dieser Organisation.
         </p>
       </div>
 
@@ -219,6 +320,7 @@ export default function NewOrgPage() {
           {saving ? "Wird erstellt..." : "Organisation erstellen"}
         </button>
       </form>
+      </div>
     </div>
   );
 }
