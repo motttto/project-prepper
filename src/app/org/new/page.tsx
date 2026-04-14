@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { IconBuilding, IconZap, IconUsers, IconHandshake, IconProjects } from "@/components/ui/icons";
+import { IconBuilding, IconZap, IconUsers, IconHandshake, IconProjects, IconPackage } from "@/components/ui/icons";
 
 function slugify(text: string): string {
   return text
@@ -98,17 +98,94 @@ export default function NewOrgPage() {
         }}
       >
         <h2
-          className="text-base font-semibold mb-4"
+          className="text-lg font-semibold mb-2"
           style={{ color: "var(--color-foreground)" }}
         >
           Willkommen bei Project Prepper
         </h2>
         <p
-          className="text-sm mb-5"
+          className="text-sm mb-4"
           style={{ color: "var(--color-muted-foreground)" }}
         >
-          Jeder User startet mit einer eigenen Organisation. Zusammenarbeit mit
-          anderen Organisationen oder Usern läuft auf drei Wegen:
+          Project Prepper ist die kollaborative Planungs-App für Event- und
+          Veranstaltungs-Crews:
+        </p>
+
+        {/* Kern-Features */}
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div
+            className="rounded-lg p-3 text-center"
+            style={{ background: "var(--color-muted)" }}
+          >
+            <IconProjects
+              size={20}
+              className="mx-auto mb-1.5"
+              style={{ color: "var(--color-primary)" }}
+            />
+            <div
+              className="text-xs font-semibold"
+              style={{ color: "var(--color-foreground)" }}
+            >
+              Projekte & Teams
+            </div>
+            <div
+              className="text-[11px] mt-0.5"
+              style={{ color: "var(--color-muted-foreground)" }}
+            >
+              Crews zusammenstellen, Aufgaben verteilen, Zeitpläne
+            </div>
+          </div>
+          <div
+            className="rounded-lg p-3 text-center"
+            style={{ background: "var(--color-muted)" }}
+          >
+            <IconPackage
+              size={20}
+              className="mx-auto mb-1.5"
+              style={{ color: "var(--color-warning)" }}
+            />
+            <div
+              className="text-xs font-semibold"
+              style={{ color: "var(--color-foreground)" }}
+            >
+              Inventar Sharing
+            </div>
+            <div
+              className="text-[11px] mt-0.5"
+              style={{ color: "var(--color-muted-foreground)" }}
+            >
+              Equipment verwalten, teilen, verleihen
+            </div>
+          </div>
+          <div
+            className="rounded-lg p-3 text-center"
+            style={{ background: "var(--color-muted)" }}
+          >
+            <IconUsers
+              size={20}
+              className="mx-auto mb-1.5"
+              style={{ color: "var(--color-success)" }}
+            />
+            <div
+              className="text-xs font-semibold"
+              style={{ color: "var(--color-foreground)" }}
+            >
+              Kollaboration
+            </div>
+            <div
+              className="text-[11px] mt-0.5"
+              style={{ color: "var(--color-muted-foreground)" }}
+            >
+              Org-übergreifend mit Partnern & Freelancern
+            </div>
+          </div>
+        </div>
+
+        <p
+          className="text-sm font-medium mb-3"
+          style={{ color: "var(--color-foreground)" }}
+        >
+          So bekommen andere Zugang zu deinen Projekten:
         </p>
 
         <div className="space-y-3">
