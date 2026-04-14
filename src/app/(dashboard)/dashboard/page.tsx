@@ -22,6 +22,7 @@ import {
   IconClipboard,
 } from "@/components/ui/icons";
 import { DashboardCard } from "@/components/dashboard/dashboard-card";
+import { HowItWorksBanner } from "@/components/dashboard/how-it-works-banner";
 
 const statusLabels: Record<Project["status"], string> = {
   draft: "Entwurf",
@@ -258,12 +259,14 @@ export default function DashboardPage() {
   return (
     <div className="animate-fadeIn">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
           Willkommen bei Project Prepper
         </p>
       </div>
+
+      <HowItWorksBanner />
 
       {/* KPI Cards — 7 klickbare Kacheln */}
       <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4 sm:gap-5 mb-8">
