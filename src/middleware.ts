@@ -44,6 +44,7 @@ export async function middleware(request: NextRequest) {
   const isOrgPage = pathname.startsWith("/org/");
   const isMfaPage = pathname.startsWith("/mfa/");
   const isPartnerInvitePage = pathname === "/partner-invite";
+  const isOnboardingPage = pathname === "/onboarding";
 
   // Nicht eingeloggt? → Weiterleitung zum Login
   // (außer man ist bereits auf /login, Startseite, Auth-Callback oder MFA-Seite)
@@ -58,11 +59,12 @@ export async function middleware(request: NextRequest) {
     // Profil laden (wird auch für MFA-Check gebraucht, System-User skippen MFA)
     const { data: profile } = await supabase
       .from("profiles")
-      .select("is_system")
+      .select("is_system, collaboration_accepted_at")
       .eq("id", user.id)
       .single();
 
     const isSystem = profile?.is_system ?? false;
+    const hasAcceptedCollab = !!profile?.collaboration_accepted_at;
 
     // System-User hat immer Zugang (kein MFA-Zwang)
     if (isSystem) {
@@ -108,6 +110,21 @@ export async function middleware(request: NextRequest) {
       .eq("profile_id", user.id);
 
     const hasAnyOrg = memberships && memberships.length > 0;
+
+    // Kollaborationsbasis-Zustimmung erforderlich (wenn Org vorhanden)
+    // System-User sind ausgenommen — sie haben Plattform-Zugang
+    if (hasAnyOrg && !hasAcceptedCollab && !isSystem && !isOnboardingPage && !isAuthCallback && !isHomePage) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/onboarding";
+      return NextResponse.redirect(url);
+    }
+
+    // Zustimmung bereits erteilt aber User auf Onboarding -> Dashboard
+    if (hasAcceptedCollab && isOnboardingPage) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/dashboard";
+      return NextResponse.redirect(url);
+    }
 
     // Eingeloggt auf Login-Seite → weiterleiten
     if (isAuthPage) {
