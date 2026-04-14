@@ -17,8 +17,9 @@ import type {
   OrgDecisionVote,
   VoteChoice,
   CostItem,
+  CooperationAgreement,
 } from "@/types/database";
-import { IconPlus, IconTrash, IconCheck, IconX, IconPackage } from "@/components/ui/icons";
+import { IconPlus, IconTrash, IconCheck, IconX, IconPackage, IconShield } from "@/components/ui/icons";
 
 const shareTypeLabels: Record<ShareType, string> = {
   fixed: "Fixbetrag",
@@ -42,6 +43,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
 
   // Shares
   const [shares, setShares] = useState<ProjectProfitShare[]>([]);
+  const [agreement, setAgreement] = useState<CooperationAgreement | null>(null);
   const [members, setMembers] = useState<{ id: string; name: string }[]>([]);
   const [revenue, setRevenue] = useState(project.revenue_actual ?? "");
   const [profit, setProfit] = useState<{ revenue: number; total_costs: number; profit: number } | null>(null);
@@ -225,6 +227,23 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   }, [loadShares, loadProfit, loadMembers, autoCreateShares, loadPurchases, loadCategories, loadCostItems]);
 
   useEffect(() => { loadPurchaseVotes(); }, [loadPurchaseVotes]);
+
+  // Kooperationsvereinbarung laden
+  const loadAgreement = useCallback(async () => {
+    const { data } = await supabase
+      .from("cooperation_agreements")
+      .select("*")
+      .eq("project_id", project.id)
+      .maybeSingle();
+    setAgreement(data as CooperationAgreement | null);
+  }, [supabase, project.id]);
+
+  useEffect(() => { loadAgreement(); }, [loadAgreement]);
+  useRealtimeTable({
+    table: "cooperation_agreements",
+    filter: { column: "project_id", value: project.id },
+    onDataChange: loadAgreement,
+  });
 
   // Realtime
   useRealtimeTable({ table: "project_profit_shares", onDataChange: loadShares });
@@ -558,8 +577,45 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     return <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>Lade...</p>;
   }
 
+  const agreementActive = agreement?.status === "active";
+  const agreementExists = !!agreement;
+
   return (
     <div className="space-y-6">
+      {/* Kooperationsvereinbarungs-Status */}
+      {!agreementExists && (
+        <div
+          className="p-4 rounded-xl flex items-center gap-3"
+          style={{ background: "var(--color-warning-light)", border: "1px solid var(--color-warning)" }}
+        >
+          <IconShield size={20} style={{ color: "var(--color-warning)" }} />
+          <div className="flex-1">
+            <div className="text-sm font-medium" style={{ color: "var(--color-warning)" }}>
+              Keine Kooperationsvereinbarung vorhanden
+            </div>
+            <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+              Lege im Tab &quot;Vereinbarung&quot; fest, wer was einbringt und wie der Gewinn verteilt wird — bevor das Projekt startet.
+            </div>
+          </div>
+        </div>
+      )}
+      {agreementExists && !agreementActive && (
+        <div
+          className="p-4 rounded-xl flex items-center gap-3"
+          style={{ background: "var(--color-info-light)", border: "1px solid var(--color-info)" }}
+        >
+          <IconShield size={20} style={{ color: "var(--color-info)" }} />
+          <div className="flex-1">
+            <div className="text-sm font-medium" style={{ color: "var(--color-info)" }}>
+              Vereinbarung noch nicht aktiv
+            </div>
+            <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+              Status: {agreement?.status === "draft" ? "Entwurf" : agreement?.status === "signing" ? "Unterschriften ausstehend" : agreement?.status}. Gewinnverteilung erst nach vollständiger Unterschrift verbindlich.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Finanzen-Übersicht */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="rounded-lg p-4" style={{ background: "var(--color-muted)" }}>

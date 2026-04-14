@@ -17,6 +17,7 @@ import { TabTasks } from "@/components/projects/tab-tasks";
 import { TabFiles } from "@/components/projects/tab-files";
 import { TabProfit } from "@/components/projects/tab-profit";
 import { TabPolls } from "@/components/projects/tab-polls";
+import { TabAgreement } from "@/components/projects/tab-agreement";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { usePresence } from "@/hooks/use-presence";
@@ -84,6 +85,7 @@ export default function ProjectDetailPage() {
       { key: "checklists", label: "Checklisten" },
       { key: "tasks", label: "Aufgaben" },
       { key: "polls", label: "Umfragen" },
+      { key: "agreement", label: "Vereinbarung" },
       { key: "files", label: "Dateien" },
     ];
     if (canViewCosts) {
@@ -349,6 +351,9 @@ export default function ProjectDetailPage() {
       )}
       {activeTab === "polls" && (
         <TabPolls projectId={projectId} />
+      )}
+      {activeTab === "agreement" && (
+        <TabAgreement projectId={projectId} />
       )}
       {activeTab === "files" && (
         <TabFiles projectId={projectId} />

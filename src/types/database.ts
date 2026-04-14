@@ -929,3 +929,95 @@ export type OrgEmailConfig = {
   created_at: string;
   updated_at: string;
 };
+
+// ── Kooperationsvereinbarung (Migration 066) ──
+
+export type AgreementStatus = "draft" | "signing" | "active" | "amended" | "terminated";
+
+export type ProfitFormulaMethod = "hours" | "inventory" | "capital" | "fixed" | "mixed";
+
+export type ProfitFormula = {
+  method: ProfitFormulaMethod;
+  weights?: {
+    hours?: number;
+    inventory?: number;
+    capital?: number;
+    fixed?: number;
+  };
+  pre_deductions?: { label: string; amount: number }[];
+};
+
+export type ExitRules = {
+  forfeit_if_exit_before_event?: boolean;
+  inventory_return_window_days?: number;
+  notes?: string;
+};
+
+export type CooperationAgreement = {
+  id: string;
+  project_id: string;
+  org_id: string;
+  status: AgreementStatus;
+  version: number;
+  profit_formula: ProfitFormula;
+  exit_rules: ExitRules;
+  additional_terms: string | null;
+  created_by: string;
+  activated_at: string | null;
+  terminated_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AgreementInventoryContribution = {
+  id: string;
+  agreement_id: string;
+  inventory_item_id: string;
+  contributor_id: string;
+  daily_rate: number;
+  quantity: number;
+  notes: string | null;
+  created_at: string;
+  // Joined
+  inventory_items?: { name: string; inventory_number: string };
+  contributor?: { name: string };
+};
+
+export type AgreementRole = {
+  id: string;
+  agreement_id: string;
+  profile_id: string;
+  role_title: string;
+  responsibilities: string | null;
+  hourly_rate: number;
+  hours_estimate: number;
+  capital_contribution: number;
+  fixed_amount: number;
+  created_at: string;
+  // Joined
+  profiles?: { name: string; avatar_url: string | null };
+};
+
+export type AgreementSignature = {
+  id: string;
+  agreement_id: string;
+  profile_id: string;
+  signed_at: string | null;
+  declined_at: string | null;
+  comment: string | null;
+  created_at: string;
+  // Joined
+  profiles?: { name: string; avatar_url: string | null };
+};
+
+export type AgreementAmendment = {
+  id: string;
+  agreement_id: string;
+  decision_id: string | null;
+  summary: string;
+  changes_json: Record<string, unknown>;
+  status: "pending" | "approved" | "rejected";
+  created_by: string | null;
+  created_at: string;
+  resolved_at: string | null;
+};

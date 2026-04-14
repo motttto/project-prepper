@@ -47,6 +47,7 @@ export function ProjectMembersPanel({
   const [selectedRole, setSelectedRole] = useState<"editor" | "viewer">("editor");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasActiveAgreement, setHasActiveAgreement] = useState(false);
 
   // Guest state
   const [projectGuests, setProjectGuests] = useState<(ProjectGuest & { org_guests?: OrgGuest })[]>([]);
@@ -88,6 +89,15 @@ export function ProjectMembersPanel({
     if (profilesRes.data) setAllProfiles(profilesRes.data as User[]);
     if (guestsRes.data) setProjectGuests(guestsRes.data as any);
     if (orgGuestsRes.data) setOrgGuests(orgGuestsRes.data as OrgGuest[]);
+
+    // Aktive Kooperationsvereinbarung?
+    const { data: ag } = await supabase
+      .from("cooperation_agreements")
+      .select("status")
+      .eq("project_id", projectId)
+      .maybeSingle();
+    setHasActiveAgreement(ag?.status === "active");
+
     setLoading(false);
   }, [supabase, projectId, orgId]);
 
@@ -486,24 +496,34 @@ export function ProjectMembersPanel({
 
               {/* Aktionen (nur für Owner) */}
               {isOwner && !mode && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setMode("add")}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-                    style={{ background: "var(--color-primary)", color: "white" }}
-                  >
-                    <IconUserPlus size={16} /> Direkt hinzufügen
-                  </button>
-                  <button
-                    onClick={() => setMode("invite")}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
-                    style={{
-                      background: "var(--color-surface)",
-                      border: "1px solid var(--color-border)",
-                    }}
-                  >
-                    <IconSend size={14} /> Einladen
-                  </button>
+                <div>
+                  {hasActiveAgreement && (
+                    <div
+                      className="p-3 rounded-lg mb-3 text-xs"
+                      style={{ background: "var(--color-warning-light)", color: "var(--color-warning)" }}
+                    >
+                      ⚠️ Kooperationsvereinbarung ist aktiv. Neue Mitglieder erfordern eine Amendment-Abstimmung aller bestehenden Beteiligten.
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setMode("add")}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
+                      style={{ background: "var(--color-primary)", color: "white" }}
+                    >
+                      <IconUserPlus size={16} /> Direkt hinzufügen
+                    </button>
+                    <button
+                      onClick={() => setMode("invite")}
+                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium"
+                      style={{
+                        background: "var(--color-surface)",
+                        border: "1px solid var(--color-border)",
+                      }}
+                    >
+                      <IconSend size={14} /> Einladen
+                    </button>
+                  </div>
                 </div>
               )}
 
