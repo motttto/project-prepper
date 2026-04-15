@@ -66,19 +66,8 @@ export async function middleware(request: NextRequest) {
     const isSystem = profile?.is_system ?? false;
     const hasAcceptedCollab = !!profile?.collaboration_accepted_at;
 
-    // System-User hat immer Zugang (kein MFA-Zwang)
-    if (isSystem) {
-      if (isAuthPage) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/dashboard";
-        return NextResponse.redirect(url);
-      }
-      return supabaseResponse;
-    }
-
-    // MFA-Enforcement für alle normalen User
-    // (überspringe für MFA-Seiten selbst, Auth-Callback und Login)
-    if (!isMfaPage && !isAuthCallback && !isAuthPage) {
+    // MFA-Enforcement für alle normalen User (System-User skippen MFA)
+    if (!isSystem && !isMfaPage && !isAuthCallback && !isAuthPage) {
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
       if (aal) {
@@ -103,6 +92,37 @@ export async function middleware(request: NextRequest) {
       }
     }
 
+    // PFLICHT: Kollaborationsbasis-Zustimmung — VOR Org-Flow
+    // Gilt fuer alle User (auch Superadmins). Ohne Zustimmung kein Zugang.
+    if (!hasAcceptedCollab && !isOnboardingPage && !isAuthCallback && !isHomePage && !isAuthPage && !isMfaPage) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/onboarding";
+      return NextResponse.redirect(url);
+    }
+
+    // Zustimmung bereits erteilt aber User auf Onboarding -> weiterleiten
+    if (hasAcceptedCollab && isOnboardingPage) {
+      // Hat Org? -> Dashboard. Sonst -> /org/new
+      const { data: orgCheck } = await supabase
+        .from("org_memberships")
+        .select("org_id")
+        .eq("profile_id", user.id)
+        .limit(1);
+      const url = request.nextUrl.clone();
+      url.pathname = orgCheck && orgCheck.length > 0 ? "/dashboard" : "/org/new";
+      return NextResponse.redirect(url);
+    }
+
+    // System-User hat ab hier immer Zugang
+    if (isSystem) {
+      if (isAuthPage) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/dashboard";
+        return NextResponse.redirect(url);
+      }
+      return supabaseResponse;
+    }
+
     // Org-Mitgliedschaften prüfen
     const { data: memberships } = await supabase
       .from("org_memberships")
@@ -110,21 +130,6 @@ export async function middleware(request: NextRequest) {
       .eq("profile_id", user.id);
 
     const hasAnyOrg = memberships && memberships.length > 0;
-
-    // Kollaborationsbasis-Zustimmung erforderlich (wenn Org vorhanden)
-    // System-User sind ausgenommen — sie haben Plattform-Zugang
-    if (hasAnyOrg && !hasAcceptedCollab && !isSystem && !isOnboardingPage && !isAuthCallback && !isHomePage) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/onboarding";
-      return NextResponse.redirect(url);
-    }
-
-    // Zustimmung bereits erteilt aber User auf Onboarding -> Dashboard
-    if (hasAcceptedCollab && isOnboardingPage) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
-      return NextResponse.redirect(url);
-    }
 
     // Eingeloggt auf Login-Seite → weiterleiten
     if (isAuthPage) {

@@ -1,0 +1,4 @@
+# Backup-Exporte sind lokale Schnappschüsse, nicht ins Repo
+2026-*
+*.json
+!README.md
