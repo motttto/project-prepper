@@ -109,7 +109,7 @@ export async function middleware(request: NextRequest) {
         .eq("profile_id", user.id)
         .limit(1);
       const url = request.nextUrl.clone();
-      url.pathname = orgCheck && orgCheck.length > 0 ? "/dashboard" : "/org/new";
+      url.pathname = orgCheck && orgCheck.length > 0 ? "/dashboard" : "/org/choose";
       return NextResponse.redirect(url);
     }
 
@@ -135,7 +135,7 @@ export async function middleware(request: NextRequest) {
     if (isAuthPage) {
       const url = request.nextUrl.clone();
       if (!hasAnyOrg) {
-        url.pathname = "/org/new";
+        url.pathname = "/org/choose";
       } else {
         const hasActiveOrg = memberships.some((m) => m.is_active);
         url.pathname = hasActiveOrg ? "/dashboard" : "/pending";
@@ -143,10 +143,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Keine Orgs → /org/new (außer man ist schon dort oder auf /partner-invite)
+    // Keine Orgs → /org/choose (Wahl zwischen eigener Org / Einladung)
     if (!hasAnyOrg && !isOrgPage && !isPendingPage && !isHomePage && !isAuthCallback && !isPartnerInvitePage) {
       const url = request.nextUrl.clone();
-      url.pathname = "/org/new";
+      url.pathname = "/org/choose";
       return NextResponse.redirect(url);
     }
 

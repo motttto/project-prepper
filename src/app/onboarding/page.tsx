@@ -225,7 +225,7 @@ export default function OnboardingPage() {
       .eq("profile_id", user.id)
       .limit(1);
 
-    router.push(memberships && memberships.length > 0 ? "/dashboard" : "/org/new");
+    router.push(memberships && memberships.length > 0 ? "/dashboard" : "/org/choose");
     router.refresh();
   }
 
