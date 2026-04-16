@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase";
-import { useOrg } from "@/contexts/org-context";
+import { useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser, hasPermission, isOrgAdmin } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import type { OrgPoll } from "@/types/database";
@@ -14,7 +14,7 @@ type FilterType = "all" | "active" | "closed" | "mine";
 
 export default function PollsPage() {
   const supabase = createClient();
-  const { orgId } = useOrg();
+  const { groupId, isSolo } = useWorkspace();
   const currentUser = useCurrentUser();
   const [polls, setPolls] = useState<OrgPoll[]>([]);
   const [members, setMembers] = useState<{ id: string; name: string; avatar_url: string | null }[]>([]);
@@ -26,23 +26,23 @@ export default function PollsPage() {
   const isAdmin = isOrgAdmin(currentUser);
 
   const loadPolls = useCallback(async () => {
-    if (!orgId) return;
+    if (!groupId) return;
     const { data } = await supabase
       .from("org_polls")
       .select("*")
-      .eq("org_id", orgId)
-      .is("project_id", null) // Nur org-weite Umfragen
+      .eq("group_id", groupId)
+      .is("project_id", null)
       .order("created_at", { ascending: false });
     if (data) setPolls(data as OrgPoll[]);
     setLoading(false);
-  }, [supabase, orgId]);
+  }, [supabase, groupId]);
 
   const loadMembers = useCallback(async () => {
-    if (!orgId) return;
+    if (!groupId) return;
     const { data } = await supabase
-      .from("org_memberships")
+      .from("group_memberships")
       .select("profile_id, profiles(name, avatar_url)")
-      .eq("org_id", orgId)
+      .eq("group_id", groupId)
       .eq("is_active", true);
     if (data) {
       setMembers(
@@ -53,7 +53,7 @@ export default function PollsPage() {
         }))
       );
     }
-  }, [supabase, orgId]);
+  }, [supabase, groupId]);
 
   useEffect(() => {
     loadPolls();
@@ -62,7 +62,6 @@ export default function PollsPage() {
 
   useRealtimeTable({
     table: "org_polls",
-    orgFilter: orgId || undefined,
     onDataChange: loadPolls,
   });
 
@@ -86,7 +85,21 @@ export default function PollsPage() {
     { key: "mine", label: "Meine" },
   ];
 
-  if (!orgId) return null;
+  if (isSolo) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12 text-center">
+        <IconClipboard size={40} className="mx-auto mb-3" style={{ color: "var(--color-muted-foreground)", opacity: 0.5 }} />
+        <h1 className="text-xl font-semibold mb-2" style={{ color: "var(--color-foreground)" }}>
+          Umfragen sind nur in Gruppen verfuegbar
+        </h1>
+        <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+          Wechsel oben links zu einer Gruppe oder gruende eine neue, um Terminumfragen oder Abstimmungen zu erstellen.
+        </p>
+      </div>
+    );
+  }
+
+  if (!groupId) return null;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
@@ -172,7 +185,7 @@ export default function PollsPage() {
       {/* Create Modal */}
       {showCreate && (
         <PollCreateModal
-          orgId={orgId}
+          orgId={groupId}
           onClose={() => setShowCreate(false)}
           onCreated={() => {
             setShowCreate(false);

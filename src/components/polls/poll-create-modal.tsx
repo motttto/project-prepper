@@ -67,7 +67,7 @@ export function PollCreateModal({ orgId, projectId, onClose, onCreated }: PollCr
     const { data: poll, error } = await supabase
       .from("org_polls")
       .insert({
-        org_id: orgId,
+        group_id: orgId, // prop heisst noch orgId, ist aber group_id
         project_id: projectId || null,
         title: title.trim(),
         description: description.trim() || null,

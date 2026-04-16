@@ -5,7 +5,7 @@ import { IconCalendar, IconPlus, IconTrash, IconX } from "@/components/ui/icons"
 import { showToast } from "@/hooks/use-toast";
 import { appConfirm } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase";
-import { useOrg } from "@/contexts/org-context";
+import { useOrg, useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
 type CalendarGroup = {
@@ -165,7 +165,10 @@ function toDateTimeInputValue(d: Date): string {
 
 export default function CalendarPage() {
   const supabase = createClient();
-  const { orgId, orgName } = useOrg();
+  // groupId aus useWorkspace; orgId Alias fuer Backward-Compat im restlichen Code
+  const { groupId, isSolo, groupName } = useWorkspace();
+  const orgId = groupId;
+  const orgName = groupName;
   const currentUser = useCurrentUser();
 
   const [groups, setGroups] = useState<CalendarGroup[]>([]);
@@ -405,6 +408,20 @@ export default function CalendarPage() {
   // "Ohne Gruppe" als filter
   const ungroupedEvents = events.filter((e) => !e.group_id);
   const hasUngrouped = ungroupedEvents.length > 0;
+
+  if (isSolo) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-12 text-center">
+        <IconCalendar size={40} className="mx-auto mb-3" style={{ color: "var(--color-muted-foreground)", opacity: 0.5 }} />
+        <h1 className="text-xl font-semibold mb-2" style={{ color: "var(--color-foreground)" }}>
+          Kalender ist nur in Gruppen verfuegbar
+        </h1>
+        <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
+          Wechsel oben links zu einer Gruppe oder gruende eine neue, um einen gemeinsamen Kalender zu nutzen.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>
