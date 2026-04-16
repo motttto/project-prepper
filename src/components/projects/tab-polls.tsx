@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
-import { useOrg } from "@/contexts/org-context";
+import { useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser, hasPermission, isOrgAdmin } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import type { OrgPoll } from "@/types/database";
@@ -16,7 +16,7 @@ interface TabPollsProps {
 
 export function TabPolls({ projectId }: TabPollsProps) {
   const supabase = createClient();
-  const { orgId } = useOrg();
+  const { groupId } = useWorkspace();
   const currentUser = useCurrentUser();
   const [polls, setPolls] = useState<OrgPoll[]>([]);
   const [members, setMembers] = useState<{ id: string; name: string; avatar_url: string | null }[]>([]);
@@ -37,11 +37,15 @@ export function TabPolls({ projectId }: TabPollsProps) {
   }, [supabase, projectId]);
 
   const loadMembers = useCallback(async () => {
-    if (!orgId) return;
+    if (!groupId) {
+      // Solo: nur ich selbst
+      if (currentUser) setMembers([{ id: currentUser.id, name: currentUser.name, avatar_url: currentUser.avatarUrl }]);
+      return;
+    }
     const { data } = await supabase
-      .from("org_memberships")
+      .from("group_memberships")
       .select("profile_id, profiles(name, avatar_url)")
-      .eq("org_id", orgId)
+      .eq("group_id", groupId)
       .eq("is_active", true);
     if (data) {
       setMembers(
@@ -52,7 +56,7 @@ export function TabPolls({ projectId }: TabPollsProps) {
         }))
       );
     }
-  }, [supabase, orgId]);
+  }, [supabase, groupId, currentUser]);
 
   useEffect(() => {
     loadPolls();
@@ -65,7 +69,7 @@ export function TabPolls({ projectId }: TabPollsProps) {
     onDataChange: loadPolls,
   });
 
-  if (!orgId) return null;
+  // groupId optional: Polls sind Projekt-gebunden, koennen auch ohne Group existieren
 
   return (
     <div>
@@ -124,7 +128,7 @@ export function TabPolls({ projectId }: TabPollsProps) {
       {/* Create Modal */}
       {showCreate && (
         <PollCreateModal
-          orgId={orgId}
+          orgId={groupId || ""}
           projectId={projectId}
           onClose={() => setShowCreate(false)}
           onCreated={() => {

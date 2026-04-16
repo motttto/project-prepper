@@ -7,7 +7,8 @@ import { IconPlus, IconTrash } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
 import { appConfirm } from "@/components/ui/confirm-dialog";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
-import { useOrg } from "@/contexts/org-context";
+// org_guests waren orgweit — Phase 6.5: durch group_guests ersetzen.
+// Vorerst leere Liste, kein Org-Filter noetig.
 
 interface TabTeamProps {
   projectId: string;
@@ -27,7 +28,6 @@ const defaultDepartments = [
 
 export function TabTeam({ projectId }: TabTeamProps) {
   const supabase = createClient();
-  const { orgId } = useOrg();
   const [projectMembers, setProjectMembers] = useState<(ProjectMember & { profiles?: { name: string; email: string } })[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [contacts, setContacts] = useState<ProjectContact[]>([]);
@@ -66,7 +66,8 @@ export function TabTeam({ projectId }: TabTeamProps) {
       supabase.from("project_team").select("*").eq("project_id", projectId).order("department").order("created_at"),
       supabase.from("project_guests").select("*, org_guests(*)").eq("project_id", projectId).order("created_at"),
       supabase.from("project_contacts").select("*").eq("project_id", projectId).order("created_at"),
-      orgId ? supabase.from("org_guests").select("*").eq("org_id", orgId).order("name") : Promise.resolve({ data: [] }),
+      // org_guests entfaellt im neuen Modell
+      Promise.resolve({ data: [] as OrgGuest[] }),
     ]);
     if (membersRes.data) setProjectMembers(membersRes.data as any);
     if (teamRes.data) setMembers(teamRes.data as TeamMember[]);
@@ -74,7 +75,7 @@ export function TabTeam({ projectId }: TabTeamProps) {
     if (contactsRes.data) setContacts(contactsRes.data as ProjectContact[]);
     if (orgGuestsRes.data) setOrgGuests(orgGuestsRes.data as OrgGuest[]);
     setLoading(false);
-  }, [supabase, projectId, orgId]);
+  }, [supabase, projectId]);
 
   useEffect(() => {
     loadData();

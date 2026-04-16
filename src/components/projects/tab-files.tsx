@@ -5,7 +5,7 @@ import imageCompression from "browser-image-compression";
 import { createClient } from "@/lib/supabase";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { useCurrentUser } from "@/hooks/use-current-user";
-import { useOrg } from "@/contexts/org-context";
+import { useWorkspace } from "@/contexts/org-context";
 import type { ProjectFile } from "@/types/database";
 import {
   IconUpload,
@@ -40,7 +40,8 @@ function isImage(fileType: string): boolean {
 export function TabFiles({ projectId }: TabFilesProps) {
   const supabase = createClient();
   const currentUser = useCurrentUser();
-  const { orgId } = useOrg();
+  const { groupId } = useWorkspace();
+  const orgId = groupId ?? currentUser?.id ?? null; // Solo: User-ID als Storage-Bucket-Pfad
 
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,7 +133,6 @@ export function TabFiles({ projectId }: TabFilesProps) {
         // DB-Eintrag
         const { error: dbError } = await supabase.from("project_files").insert({
           project_id: projectId,
-          org_id: orgId,
           file_name: file.name,
           file_path: filePath,
           file_url: publicUrl,
