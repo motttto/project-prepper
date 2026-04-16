@@ -3,15 +3,16 @@
 import { useState, useEffect, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { useOrg } from "@/contexts/org-context";
+import { useOrg, useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import type { InventoryItem, InventoryCategory, Booking } from "@/types/database";
-import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity, IconEdit, IconSave, IconHandshake, IconInventory } from "@/components/ui/icons";
+import { IconPlus, IconSearch, IconX, IconTrash, IconDownload, IconUpload, IconImage, IconActivity, IconEdit, IconSave, IconHandshake, IconInventory, IconShield } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
 import { logActivity } from "@/lib/activity-log";
 import { ExcelImport } from "@/components/inventory/excel-import";
 import { appConfirm } from "@/components/ui/confirm-dialog";
 import { InventoryDetailModal } from "@/components/inventory/inventory-detail-modal";
+import { ShareWithGroupModal } from "@/components/inventory/share-with-group-modal";
 import { EquipmentLoansPanel } from "@/components/inventory/equipment-loans-panel";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import * as XLSX from "xlsx";
@@ -76,6 +77,8 @@ function InventoryPage() {
   const ownerId = currentUser?.id ?? null;
   // Backward-Compat: Aliase damit alter Code minimal angepasst werden muss
   const orgId = ownerId;
+  // groupId fuer Group-Modus
+  const { groupId } = useWorkspace();
   const searchParams = useSearchParams();
   const router = useRouter();
   const canEdit = hasPermission(currentUser, "inventory_edit");
@@ -91,6 +94,7 @@ function InventoryPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [shareItem, setShareItem] = useState<InventoryItem | null>(null);
   const [saving, setSaving] = useState(false);
 
   // Formular-State
@@ -147,14 +151,35 @@ function InventoryPage() {
 
   const loadItems = useCallback(async () => {
     if (!ownerId) return;
+
+    // Im Group-Modus: zusaetzlich Items aller Mitglieder laden die fuer die Gruppe freigegeben sind
+    let itemIds: string[] = [];
+    if (groupId) {
+      const { data: shareRows } = await supabase
+        .from("inventory_group_shares")
+        .select("inventory_item_id")
+        .eq("group_id", groupId)
+        .is("revoked_at", null);
+      itemIds = (shareRows || []).map((r) => r.inventory_item_id);
+    }
+
     const [itemsRes, bookingsRes] = await Promise.all([
-      supabase
-        .from("inventory_items")
-        .select("*")
-        .eq("owner_profile_id", ownerId)
-        .order("category")
-        .order("name"),
-      // Aktive Buchungen laden (reserved oder checked_out)
+      groupId
+        ? supabase
+            .from("inventory_items")
+            .select("*")
+            .or(
+              `owner_profile_id.eq.${ownerId}${itemIds.length > 0 ? `,id.in.(${itemIds.join(",")})` : ""}`
+            )
+            .order("category")
+            .order("name")
+        : supabase
+            .from("inventory_items")
+            .select("*")
+            .eq("owner_profile_id", ownerId)
+            .order("category")
+            .order("name"),
+      // Aktive Buchungen
       supabase
         .from("bookings")
         .select("id, inventory_item_id, quantity, status, date_from, date_to, projects(name)")
@@ -193,7 +218,7 @@ function InventoryPage() {
     }
 
     setLoading(false);
-  }, [supabase, orgId]);
+  }, [supabase, ownerId, groupId]);
 
   useEffect(() => {
     loadItems();
@@ -1044,16 +1069,28 @@ function InventoryPage() {
                     {item.location || "–"}
                   </td>
                   <td className="px-2 sm:px-4 py-3.5">
-                    {canEdit && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
-                        className="opacity-0 group-hover:opacity-100 p-1.5 rounded transition-opacity"
-                        style={{ color: "var(--color-destructive)" }}
-                        title="Löschen"
-                      >
-                        <IconTrash size={15} />
-                      </button>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {canEdit && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setShareItem(item); }}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded transition-opacity"
+                          style={{ color: "var(--color-success)" }}
+                          title="Fuer Gruppe freigeben"
+                        >
+                          <IconShield size={15} />
+                        </button>
+                      )}
+                      {canEdit && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDelete(item); }}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded transition-opacity"
+                          style={{ color: "var(--color-destructive)" }}
+                          title="Löschen"
+                        >
+                          <IconTrash size={15} />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1082,6 +1119,14 @@ function InventoryPage() {
             loadItems();
             setSelectedItem(null);
           }}
+        />
+      )}
+
+      {/* Share-with-Group Modal */}
+      {shareItem && (
+        <ShareWithGroupModal
+          item={shareItem}
+          onClose={() => setShareItem(null)}
         />
       )}
 
