@@ -1,11 +1,17 @@
 "use client";
 
+// Workspace-Switcher (frueher OrgSwitcher).
+// Optionen:
+// - "Solo Workspace" (kein Group-Modus)
+// - jede Group in der User Mitglied ist
+// - "+ Neue Gruppe" -> /groups/new
+
 import { useRouter } from "next/navigation";
-import { useOrg } from "@/contexts/org-context";
-import { IconChevronDown, IconPlus } from "@/components/ui/icons";
+import { useWorkspace } from "@/contexts/org-context";
+import { IconChevronDown, IconUser, IconShield } from "@/components/ui/icons";
 
 export function OrgSwitcher() {
-  const { orgId, orgName, orgs, switchOrg, loading } = useOrg();
+  const { groupId, groups, switchWorkspace, loading } = useWorkspace();
   const router = useRouter();
 
   if (loading) {
@@ -19,42 +25,20 @@ export function OrgSwitcher() {
     );
   }
 
-  // Nur eine Org → kompakte Anzeige ohne Dropdown
-  if (orgs.length <= 1) {
-    return (
-      <div
-        className="mx-3 mb-2 px-3 py-2.5 rounded-lg flex items-center justify-between"
-        style={{ background: "rgba(255,255,255,0.05)" }}
-      >
-        <span
-          className="text-sm font-medium truncate"
-          style={{ color: "var(--color-sidebar-text)" }}
-        >
-          {orgName || "Organisation"}
-        </span>
-        <button
-          onClick={() => router.push("/org/new")}
-          className="p-1 rounded transition-colors flex-shrink-0"
-          style={{ color: "var(--color-sidebar-text-muted)" }}
-          title="Neue Organisation erstellen"
-        >
-          <IconPlus size={14} />
-        </button>
-      </div>
-    );
-  }
+  const activeGroups = groups.filter((g) => g.isActive);
 
-  // Mehrere Orgs → Dropdown
   return (
     <div className="mx-3 mb-2 relative">
       <select
-        value={orgId || ""}
+        value={groupId || "__solo__"}
         onChange={(e) => {
-          const value = e.target.value;
-          if (value === "__new__") {
-            router.push("/org/new");
+          const v = e.target.value;
+          if (v === "__new__") {
+            router.push("/groups/new");
+          } else if (v === "__solo__") {
+            switchWorkspace(null);
           } else {
-            switchOrg(value);
+            switchWorkspace(v);
           }
         }}
         className="w-full appearance-none cursor-pointer px-3 py-2.5 pr-8 rounded-lg text-sm font-medium border-0 focus:outline-none"
@@ -63,22 +47,34 @@ export function OrgSwitcher() {
           color: "var(--color-sidebar-text)",
         }}
       >
-        {orgs
-          .filter((o) => o.isActive)
-          .map((org) => (
-            <option
-              key={org.id}
-              value={org.id}
-              style={{ background: "var(--color-sidebar)", color: "var(--color-sidebar-text)" }}
-            >
-              {org.name}
-            </option>
-          ))}
+        <option
+          value="__solo__"
+          style={{ background: "var(--color-sidebar)", color: "var(--color-sidebar-text)" }}
+        >
+          {groupId === null ? "👤 Solo-Workspace" : "Solo-Workspace"}
+        </option>
+        {activeGroups.length > 0 && (
+          <option disabled style={{ background: "var(--color-sidebar)" }}>
+            ─── Gruppen ───
+          </option>
+        )}
+        {activeGroups.map((g) => (
+          <option
+            key={g.id}
+            value={g.id}
+            style={{ background: "var(--color-sidebar)", color: "var(--color-sidebar-text)" }}
+          >
+            🛡️ {g.name}
+          </option>
+        ))}
+        <option disabled style={{ background: "var(--color-sidebar)" }}>
+          ─────────────
+        </option>
         <option
           value="__new__"
           style={{ background: "var(--color-sidebar)", color: "var(--color-sidebar-text-muted)" }}
         >
-          + Neue Organisation
+          + Neue Gruppe gruenden
         </option>
       </select>
       <div

@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useWorkspace } from "@/contexts/org-context";
+import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import {
   IconProjects,
   IconPackage,
@@ -13,15 +15,29 @@ import {
   IconShield,
   IconChevronRight,
   IconPlus,
+  IconCheck,
+  IconX,
 } from "@/components/ui/icons";
 import { HowItWorksBanner } from "@/components/dashboard/how-it-works-banner";
+import { showToast } from "@/hooks/use-toast";
+
+interface PendingInvitation {
+  id: string;
+  group_id: string;
+  invited_message: string | null;
+  created_at: string;
+  status: string;
+  group?: { id: string; name: string; description: string | null };
+  inviter?: { name: string };
+}
 
 export default function DashboardPage() {
   const supabase = createClient();
+  const router = useRouter();
   const currentUser = useCurrentUser();
-  const { isSolo, groupName, groups } = useWorkspace();
+  const { isSolo, groupName, groups, reload, switchWorkspace } = useWorkspace();
   const [counts, setCounts] = useState({ inventory: 0, inquiries: 0, projects: 0 });
-  const [pendingInvites, setPendingInvites] = useState(0);
+  const [pendingInvites, setPendingInvites] = useState<PendingInvitation[]>([]);
 
   const loadCounts = useCallback(async () => {
     if (!currentUser) return;
@@ -40,21 +56,51 @@ export default function DashboardPage() {
         .eq("owner_profile_id", currentUser.id),
       supabase
         .from("group_invitations")
-        .select("id", { count: "exact", head: true })
+        .select("id, group_id, invited_message, created_at, status, group:groups(id, name, description), inviter:profiles!invited_by(name)")
         .eq("invited_profile_id", currentUser.id)
-        .eq("status", "pending"),
+        .in("status", ["pending"]),
     ]);
     setCounts({
       inventory: invRes.count ?? 0,
       inquiries: inqRes.count ?? 0,
       projects: projRes.count ?? 0,
     });
-    setPendingInvites(pendRes.count ?? 0);
+    if (pendRes.data) setPendingInvites(pendRes.data as unknown as PendingInvitation[]);
   }, [supabase, currentUser]);
 
   useEffect(() => {
     loadCounts();
   }, [loadCounts]);
+
+  useRealtimeTable({ table: "group_invitations", onDataChange: loadCounts });
+  useRealtimeTable({ table: "group_memberships", onDataChange: loadCounts });
+
+  async function handleAcceptInvite(inv: PendingInvitation) {
+    if (!currentUser) return;
+    // Status auf accepted_by_user setzen (Trigger startet Voting oder aktiviert direkt)
+    const { error } = await supabase
+      .from("group_invitations")
+      .update({ status: "accepted_by_user", accepted_by_user_at: new Date().toISOString() })
+      .eq("id", inv.id);
+    if (error) {
+      showToast("Fehler: " + error.message, "error");
+    } else {
+      showToast(`Einladung zu "${inv.group?.name}" akzeptiert`, "success");
+      await reload();
+    }
+  }
+
+  async function handleDeclineInvite(inv: PendingInvitation) {
+    const { error } = await supabase
+      .from("group_invitations")
+      .update({ status: "declined_by_user", resolved_at: new Date().toISOString() })
+      .eq("id", inv.id);
+    if (error) {
+      showToast("Fehler: " + error.message, "error");
+    } else {
+      showToast(`Einladung zu "${inv.group?.name}" abgelehnt`, "info");
+    }
+  }
 
   if (!currentUser) {
     return <div className="py-12 text-center text-sm" style={{ color: "var(--color-muted-foreground)" }}>Lade...</div>;
@@ -74,24 +120,71 @@ export default function DashboardPage() {
 
       <HowItWorksBanner />
 
-      {/* Pending Group-Invitations Banner */}
-      {pendingInvites > 0 && (
-        <div
-          className="rounded-xl p-4 mb-6 flex items-center gap-3"
-          style={{
-            background: "var(--color-info-light)",
-            border: "1px solid var(--color-info)",
-          }}
-        >
-          <IconUsers size={20} style={{ color: "var(--color-info)" }} />
-          <div className="flex-1">
-            <div className="text-sm font-medium" style={{ color: "var(--color-info)" }}>
-              Du hast {pendingInvites} offene Gruppen-Einladung{pendingInvites !== 1 ? "en" : ""}
+      {/* Pending Group-Invitations */}
+      {pendingInvites.length > 0 && (
+        <div className="space-y-3 mb-6">
+          {pendingInvites.map((inv) => (
+            <div
+              key={inv.id}
+              className="rounded-xl p-4"
+              style={{
+                background: "var(--color-info-light)",
+                border: "1px solid var(--color-info)",
+              }}
+            >
+              <div className="flex items-start gap-3 mb-3">
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.5)" }}
+                >
+                  <IconUsers size={18} style={{ color: "var(--color-info)" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold" style={{ color: "var(--color-foreground)" }}>
+                    Einladung zu Gruppe &quot;{inv.group?.name}&quot;
+                  </div>
+                  <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                    von {inv.inviter?.name} ·{" "}
+                    {new Date(inv.created_at).toLocaleDateString("de-DE")}
+                  </div>
+                  {inv.invited_message && (
+                    <p
+                      className="text-xs italic mt-2"
+                      style={{ color: "var(--color-muted-foreground)" }}
+                    >
+                      &quot;{inv.invited_message}&quot;
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div
+                className="text-xs mb-3 p-2 rounded"
+                style={{ background: "rgba(255,255,255,0.4)", color: "var(--color-muted-foreground)" }}
+              >
+                💡 Hinweis: Wenn du akzeptierst, muessen alle bestehenden Mitglieder
+                einstimmig zustimmen, bevor du Mitglied wirst.
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleAcceptInvite(inv)}
+                  className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium text-white"
+                  style={{ background: "var(--color-success)" }}
+                >
+                  <IconCheck size={14} /> Akzeptieren
+                </button>
+                <button
+                  onClick={() => handleDeclineInvite(inv)}
+                  className="flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium"
+                  style={{
+                    border: "1px solid var(--color-destructive)",
+                    color: "var(--color-destructive)",
+                  }}
+                >
+                  <IconX size={14} /> Ablehnen
+                </button>
+              </div>
             </div>
-            <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-              Pruefe deine Einladungen und entscheide ob du beitreten moechtest.
-            </div>
-          </div>
+          ))}
         </div>
       )}
 
@@ -193,20 +286,27 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-2 mb-4">
             {groups.map((g) => (
-              <div
+              <Link
                 key={g.id}
-                className="flex items-center justify-between p-3 rounded-lg"
+                href={`/groups/${g.id}`}
+                className="flex items-center justify-between p-3 rounded-lg transition-colors hover:opacity-80"
                 style={{ background: "var(--color-muted)" }}
               >
                 <div>
                   <div className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
-                    {g.name} {g.isFounder && <span className="text-xs" style={{ color: "var(--color-primary)" }}>(Founder)</span>}
+                    {g.name}{" "}
+                    {g.isFounder && (
+                      <span className="text-xs" style={{ color: "var(--color-primary)" }}>
+                        (Founder)
+                      </span>
+                    )}
                   </div>
                   <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
                     {g.isActive ? "Aktiv" : "Wartet auf Bestaetigung"}
                   </div>
                 </div>
-              </div>
+                <IconChevronRight size={16} style={{ color: "var(--color-muted-foreground)" }} />
+              </Link>
             ))}
           </div>
         )}
