@@ -102,80 +102,29 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Zustimmung bereits erteilt aber User auf Onboarding -> weiterleiten
+    // Zustimmung bereits erteilt aber User auf Onboarding -> direkt zum Dashboard
     if (hasAcceptedCollab && isOnboardingPage) {
-      // Hat Org? -> Dashboard. Sonst -> /org/new
-      const { data: orgCheck } = await supabase
-        .from("org_memberships")
-        .select("org_id")
-        .eq("profile_id", user.id)
-        .limit(1);
       const url = request.nextUrl.clone();
-      url.pathname = orgCheck && orgCheck.length > 0 ? "/dashboard" : "/org/choose";
+      url.pathname = "/dashboard";
       return NextResponse.redirect(url);
     }
 
-    // System-User hat ab hier immer Zugang
-    if (isSystem) {
-      if (isAuthPage) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/dashboard";
-        return NextResponse.redirect(url);
-      }
-      return supabaseResponse;
-    }
-
-    // Org-Mitgliedschaften prüfen
-    const { data: memberships } = await supabase
-      .from("org_memberships")
-      .select("org_id, is_active")
-      .eq("profile_id", user.id);
-
-    const hasAnyOrg = memberships && memberships.length > 0;
-
-    // Eingeloggt auf Login-Seite → weiterleiten
+    // Eingeloggt auf Login-Seite → Dashboard (Solo-Modus default)
     if (isAuthPage) {
       const url = request.nextUrl.clone();
-      if (!hasAnyOrg) {
-        url.pathname = "/org/choose";
-      } else {
-        const hasActiveOrg = memberships.some((m) => m.is_active);
-        url.pathname = hasActiveOrg ? "/dashboard" : "/pending";
-      }
+      url.pathname = "/dashboard";
       return NextResponse.redirect(url);
     }
 
-    // Keine Orgs → /org/choose (Wahl zwischen eigener Org / Einladung)
-    if (!hasAnyOrg && !isOrgPage && !isPendingPage && !isHomePage && !isAuthCallback && !isPartnerInvitePage) {
+    // Im neuen User-First-Modell: kein Org-Check mehr.
+    // User kann immer auf Solo-Bereich (Inventar, Anfragen, Projekte).
+    // Group-spezifische Pages (Polls, Kalender, Beschluesse) blocken sich selbst.
+
+    // Pending-Seite ist obsolet — User auf /pending soll zu Dashboard
+    if (isPendingPage) {
       const url = request.nextUrl.clone();
-      url.pathname = "/org/choose";
+      url.pathname = "/dashboard";
       return NextResponse.redirect(url);
-    }
-
-    // Hat Orgs → Prüfe ob aktiv in aktueller Org
-    if (hasAnyOrg && !isOrgPage) {
-      const orgIdCookie = request.cookies.get("pp_org_id")?.value;
-      const currentOrgMembership = orgIdCookie
-        ? memberships.find((m) => m.org_id === orgIdCookie)
-        : null;
-
-      const isActiveInCurrentOrg = currentOrgMembership?.is_active;
-      const isActiveInAnyOrg = memberships.some((m) => m.is_active);
-      const isActive = isActiveInCurrentOrg || isActiveInAnyOrg;
-
-      // Inaktiv → /pending (aber /partner-invite darf aufgerufen werden um Einladung anzunehmen)
-      if (!isActive && !isPendingPage && !isHomePage && !isAuthCallback && !isPartnerInvitePage) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/pending";
-        return NextResponse.redirect(url);
-      }
-
-      // Aktiv auf /pending → /dashboard
-      if (isActive && isPendingPage) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/dashboard";
-        return NextResponse.redirect(url);
-      }
     }
   }
 

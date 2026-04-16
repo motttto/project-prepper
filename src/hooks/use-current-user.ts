@@ -1,8 +1,14 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+// Aktueller User + Workspace-Kontext (Solo oder Group)
+// =====================================================
+// Nach Refactor: keine Org-Rolle mehr. Im Solo-Modus hat User volle Permissions
+// auf eigenen Daten. In einer Gruppe gibt's noch keine differenzierten Rollen
+// (alle Mitglieder gleichberechtigt — Beitritt war ja einstimmig).
+
+import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase";
-import { useOrg } from "@/contexts/org-context";
+import { useWorkspace } from "@/contexts/org-context";
 import type { UserPermissions, PermissionModule } from "@/types/database";
 import { defaultPermissionsByRole, modulePermissionMap } from "@/types/database";
 
@@ -11,33 +17,60 @@ export interface CurrentUser {
   email: string;
   name: string;
   avatarUrl: string | null;
-  roleName: string; // 'admin' | 'manager' | 'member' (in aktueller Org)
-  isActive: boolean; // aktiv in aktueller Org
-  isSuperadmin: boolean; // App-weiter Superadmin (alle Orgs, alle Rechte)
+  /** Aktive Group-ID. null = Solo-Modus */
+  groupId: string | null;
+  /** "founder" | "member" — nur wenn in Group, sonst "" */
+  groupRole: string;
+  isSuperadmin: boolean;
   /** @deprecated Nutze isSuperadmin */
   isSystem: boolean;
+  /** Im Solo-Modus immer true. In Gruppe: aktive Mitgliedschaft */
+  isActive: boolean;
+  permissions: UserPermissions;
+  // ── Backward-Compat ──
+  /** @deprecated Nutze groupId */
   orgId: string | null;
-  permissions: UserPermissions; // aufgelöste Berechtigungen
+  /** @deprecated Im neuen Modell entfaellt — alle Member sind gleichberechtigt */
+  roleName: string;
 }
 
-// Prüft ob User Org-Admin oder Superadmin ist
-export function isOrgAdmin(user: CurrentUser | null): boolean {
-  if (!user) return false;
-  return user.roleName === "admin" || user.isSuperadmin;
-}
+// Solo-User hat alle Permissions auf eigenen Daten
+const SOLO_PERMISSIONS: UserPermissions = {
+  projects_view: true,
+  projects_edit: true,
+  inventory_view: true,
+  inventory_edit: true,
+  excel_export: true,
+  excel_import: true,
+  costs_view: true,
+  costs_edit: true,
+  team_view: true,
+  team_manage: true,
+  inquiries_view: true,
+  inquiries_edit: true,
+  inquiries_create: true,
+  polls_view: true,
+  polls_create: true,
+};
 
-// Prüft eine feingranulare Permission (z.B. "costs_view") oder ein grobes Modul (z.B. "costs")
+/** Permission-Check (Solo: immer erlaubt; Group: immer erlaubt — vorerst keine Differenzierung) */
 export function hasPermission(user: CurrentUser | null, key: string): boolean {
   if (!user) return false;
-  if (user.isSuperadmin || user.roleName === "admin") return true;
-  // Grobes Modul → auf _view Key mappen
-  const permKey = (modulePermissionMap as Record<string, string>)[key] || key;
-  return user.permissions[permKey] ?? false;
+  // Im neuen Modell: alle authentifizierten User haben alle Permissions
+  // Differenzierung kommt zurueck wenn Group-Rollen-Konzept implementiert wird
+  return true;
+}
+
+/** Im neuen Modell entfaellt das Konzept Org-Admin. Alle Group-Member sind gleich. */
+export function isOrgAdmin(user: CurrentUser | null): boolean {
+  if (!user) return false;
+  // Founder einer Gruppe oder Superadmin
+  return user.groupRole === "founder" || user.isSuperadmin;
 }
 
 export function useCurrentUser(): CurrentUser | null {
   const [user, setUser] = useState<CurrentUser | null>(null);
-  const { orgId } = useOrg();
+  const { groupId } = useWorkspace();
 
   useEffect(() => {
     const supabase = createClient();
@@ -48,60 +81,30 @@ export function useCurrentUser(): CurrentUser | null {
       } = await supabase.auth.getUser();
       if (!authUser) return;
 
-      // Profil-Basisdaten (name, email, is_system, avatar)
+      // Profil laden
       const { data: profile } = await supabase
         .from("profiles")
         .select("name, email, is_system, avatar_url")
         .eq("id", authUser.id)
         .single();
 
-      // Rolle + Status + Permissions aus org_memberships (wenn orgId vorhanden)
-      let roleName = "member";
-      let isActive = false;
-      let userPermissions: UserPermissions | null = null;
+      const isSystem = !!(profile as { is_system?: boolean } | null)?.is_system;
 
-      if (orgId) {
+      // Group-Membership wenn Group aktiv
+      let groupRole = "";
+      let isActive = true;
+      if (groupId) {
         const { data: membership } = await supabase
-          .from("org_memberships")
-          .select("is_active, permissions, roles(name)")
+          .from("group_memberships")
+          .select("is_active, is_founder")
           .eq("profile_id", authUser.id)
-          .eq("org_id", orgId)
-          .single();
-
+          .eq("group_id", groupId)
+          .maybeSingle();
         if (membership) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const rolesRaw = membership.roles as any;
-          const role: { name: string } | null = Array.isArray(rolesRaw)
-            ? rolesRaw[0] ?? null
-            : rolesRaw ?? null;
-          roleName = role?.name || "member";
-          isActive = membership.is_active ?? false;
-          userPermissions = membership.permissions as UserPermissions | null;
-        }
-      } else {
-        // Fallback: Lese aus profiles.role_id (Backward-Compat, vor Org-Migration)
-        const { data: profileWithRole } = await supabase
-          .from("profiles")
-          .select("is_active, roles(name)")
-          .eq("id", authUser.id)
-          .single();
-        if (profileWithRole) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const rolesRaw = profileWithRole.roles as any;
-          const role: { name: string } | null = Array.isArray(rolesRaw)
-            ? rolesRaw[0] ?? null
-            : rolesRaw ?? null;
-          roleName = role?.name || "member";
-          isActive = profileWithRole.is_active ?? false;
+          groupRole = membership.is_founder ? "founder" : "member";
+          isActive = membership.is_active;
         }
       }
-
-      const isSystem = !!(profile as any)?.is_system;
-
-      // Permissions auflösen: individuell > Rollen-Default > alles aus
-      const resolvedPermissions: UserPermissions = userPermissions
-        || defaultPermissionsByRole[roleName]
-        || { projects: true, inventory: true, costs: false, team: false, inquiries: false };
 
       setUser({
         id: authUser.id,
@@ -112,17 +115,20 @@ export function useCurrentUser(): CurrentUser | null {
           authUser.email?.split("@")[0] ||
           "User",
         avatarUrl: profile?.avatar_url || null,
-        roleName,
-        isActive: isSystem || isActive, // Superadmin immer aktiv
+        groupId,
+        groupRole,
         isSuperadmin: isSystem,
-        isSystem, // Backward-Compat
-        orgId,
-        permissions: resolvedPermissions,
+        isSystem,
+        isActive: isSystem || isActive,
+        permissions: SOLO_PERMISSIONS,
+        // Backward-Compat
+        orgId: groupId,
+        roleName: groupRole,
       });
     }
 
     fetchUser();
-  }, [orgId]);
+  }, [groupId]);
 
   return user;
 }
