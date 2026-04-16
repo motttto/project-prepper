@@ -130,7 +130,11 @@ export type User = {
 
 export type Project = {
   id: string;
-  org_id: string;
+  /** @deprecated Im neuen Modell entfaellt org_id, owner_profile_id + group_id ersetzen */
+  org_id: string | null;
+  owner_profile_id: string | null;
+  /** Optional: zur Gruppe zugeordnet */
+  group_id: string | null;
   name: string;
   description: string | null;
   status: "draft" | "planning" | "active" | "completed" | "cancelled";

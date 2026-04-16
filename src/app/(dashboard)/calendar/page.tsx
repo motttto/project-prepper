@@ -199,13 +199,16 @@ export default function CalendarPage() {
     const { data } = await supabase
       .from("calendar_groups")
       .select("*")
-      .eq("org_id", orgId)
+      .eq("group_id", groupId)
       .order("sort_order");
     if (data) setGroups(data);
   }, [supabase, orgId]);
 
   const fetchEvents = useCallback(async () => {
-    if (!orgId) return;
+    if (!groupId || groups.length === 0) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
 
     let start: Date;
@@ -219,28 +222,30 @@ export default function CalendarPage() {
       end = new Date(monday); end.setDate(end.getDate() + 8);
     }
 
+    // calendar_events ueber calendar_groups Ids filtern (keine direkte org/group_id Spalte)
+    const groupIds = groups.map((g) => g.id);
     const { data } = await supabase
       .from("calendar_events")
       .select("*")
-      .eq("org_id", orgId)
+      .in("group_id", groupIds)
       .gte("start_at", start.toISOString())
       .lte("start_at", end.toISOString())
       .order("start_at");
 
     if (data) setEvents(data);
     setLoading(false);
-  }, [supabase, orgId, currentDate, viewMode]);
+  }, [supabase, groupId, groups, currentDate, viewMode]);
 
   useEffect(() => { fetchGroups(); }, [fetchGroups]);
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
 
   // Realtime
   useEffect(() => {
-    if (!orgId) return;
+    if (!groupId) return;
     const channel = supabase
       .channel("calendar-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "calendar_events", filter: `org_id=eq.${orgId}` }, () => fetchEvents())
-      .on("postgres_changes", { event: "*", schema: "public", table: "calendar_groups", filter: `org_id=eq.${orgId}` }, () => { fetchGroups(); fetchEvents(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "calendar_events" }, () => fetchEvents())
+      .on("postgres_changes", { event: "*", schema: "public", table: "calendar_groups", filter: `group_id=eq.${groupId}` }, () => { fetchGroups(); fetchEvents(); })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [supabase, orgId, fetchEvents, fetchGroups]);
@@ -325,7 +330,7 @@ export default function CalendarPage() {
     description?: string;
   }) {
     const payload = {
-      org_id: orgId,
+      // group_id auf calendar_events ist FK auf calendar_groups (nicht User-Group)
       group_id: data.group_id || null,
       summary: data.summary,
       start_at: data.start_at,
@@ -1308,7 +1313,7 @@ function GroupManager({
     if (!newName.trim()) return;
     setSaving(true);
     const { error } = await supabase.from("calendar_groups").insert({
-      org_id: orgId,
+      group_id: orgId, // Sub-Komponenten-Prop heisst noch orgId, ist aber group_id
       name: newName.trim(),
       color: newColor,
       sort_order: groups.length,
