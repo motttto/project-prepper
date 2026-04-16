@@ -67,7 +67,9 @@ export async function middleware(request: NextRequest) {
     const hasAcceptedCollab = !!profile?.collaboration_accepted_at;
 
     // MFA-Enforcement für alle normalen User (System-User skippen MFA)
-    if (!isSystem && !isMfaPage && !isAuthCallback && !isAuthPage) {
+    // MFA ist waehrend Refactoring DEAKTIVIERT — muss via NEXT_PUBLIC_ENABLE_MFA=true aktiviert werden
+    const mfaEnabled = process.env.NEXT_PUBLIC_ENABLE_MFA === "true";
+    if (mfaEnabled && !isSystem && !isMfaPage && !isAuthCallback && !isAuthPage) {
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
       if (aal) {
