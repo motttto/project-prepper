@@ -218,14 +218,9 @@ export default function OnboardingPage() {
     // historyInsert Error ist nicht kritisch, aber loggen
     if (historyInsert.error) console.warn("History insert failed:", historyInsert.error);
 
-    // Prüfen: hat User schon eine Org? Wenn nein → /org/new
-    const { data: memberships } = await supabase
-      .from("org_memberships")
-      .select("org_id")
-      .eq("profile_id", user.id)
-      .limit(1);
-
-    router.push(memberships && memberships.length > 0 ? "/dashboard" : "/org/choose");
+    // Im neuen Modell: User landet direkt im Solo-Dashboard.
+    // Gruppen-Beitritt / -Gruendung erfolgt spaeter aus dem Dashboard.
+    router.push("/dashboard");
     router.refresh();
   }
 

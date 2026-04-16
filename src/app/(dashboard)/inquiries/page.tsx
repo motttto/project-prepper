@@ -57,17 +57,11 @@ const filterLabels: Record<StatusFilter, string> = {
 export default function InquiriesPage() {
   const supabase = createClient();
   const router = useRouter();
-  const { orgId } = useOrg();
   const currentUser = useCurrentUser();
-  const canCreate = hasPermission(currentUser, "inquiries_create");
-  const canEditInquiry = hasPermission(currentUser, "inquiries_edit");
-
-  // Permission guard: redirect if user lacks inquiries_view
-  useEffect(() => {
-    if (currentUser && !hasPermission(currentUser, "inquiries_view")) {
-      router.push("/dashboard");
-    }
-  }, [currentUser, router]);
+  const ownerId = currentUser?.id ?? null;
+  const orgId = ownerId; // backward-compat alias
+  const canCreate = true;
+  const canEditInquiry = true;
 
   const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,15 +88,15 @@ export default function InquiriesPage() {
   const [formNotes, setFormNotes] = useState("");
 
   const loadInquiries = useCallback(async () => {
-    if (!orgId) return;
+    if (!ownerId) return;
     const { data } = await supabase
       .from("inquiries")
       .select("*")
-      .eq("org_id", orgId)
+      .eq("owner_profile_id", ownerId)
       .order("created_at", { ascending: false });
     if (data) setInquiries(data as Inquiry[]);
     setLoading(false);
-  }, [supabase, orgId]);
+  }, [supabase, ownerId]);
 
   // Team-Zusagen-Zähler für alle Anfragen laden
   const loadTeamCounts = useCallback(async () => {
@@ -136,7 +130,6 @@ export default function InquiriesPage() {
 
   useRealtimeTable({
     table: "inquiries",
-    orgFilter: orgId || undefined,
     onDataChange: loadInquiries,
   });
 
@@ -191,7 +184,7 @@ export default function InquiriesPage() {
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("inquiries").insert({
-      org_id: orgId,
+      owner_profile_id: ownerId,
       title: formTitle,
       client_name: formClientName,
       client_contact_person: formClientContact || null,

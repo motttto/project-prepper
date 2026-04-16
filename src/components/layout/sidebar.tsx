@@ -18,21 +18,23 @@ import {
 } from "@/components/ui/icons";
 import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { useOrg } from "@/contexts/org-context";
-import { useCurrentUser, hasPermission, isOrgAdmin } from "@/hooks/use-current-user";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { useImpersonate } from "@/contexts/impersonate-context";
-import type { PermissionModule } from "@/types/database";
-import { modulePermissionMap } from "@/types/database";
 
-const navItems: { href: string; label: string; icon: typeof IconDashboard; permission?: PermissionModule; adminOnly?: boolean }[] = [
-  { href: "/team", label: "Team", icon: IconUsers, permission: "team" },
-  { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
-  { href: "/inquiries", label: "Anfragen", icon: IconInbox, permission: "inquiries" },
-  { href: "/projects", label: "Projekte", icon: IconProjects, permission: "projects" },
-  { href: "/inventory", label: "Inventar", icon: IconInventory, permission: "inventory" },
-  { href: "/costs", label: "Kosten", icon: IconCosts, permission: "costs" },
-  { href: "/calendar", label: "Kalender", icon: IconCalendar },
-  { href: "/polls", label: "Umfragen", icon: IconClipboard, permission: "polls" },
-  { href: "/admin", label: "Admin", icon: IconZap, adminOnly: true },
+// Nav-Items: solo = immer sichtbar, group = nur wenn Group-Modus aktiv
+const navItems: { href: string; label: string; icon: typeof IconDashboard; scope: "solo" | "group" | "always"; adminOnly?: boolean }[] = [
+  // Solo-Bereich (immer sichtbar)
+  { href: "/dashboard", label: "Dashboard", icon: IconDashboard, scope: "always" },
+  { href: "/inventory", label: "Mein Inventar", icon: IconInventory, scope: "always" },
+  { href: "/inquiries", label: "Meine Anfragen", icon: IconInbox, scope: "always" },
+  { href: "/projects", label: "Meine Projekte", icon: IconProjects, scope: "always" },
+  // Group-Bereich (nur in Gruppe sichtbar)
+  { href: "/team", label: "Team", icon: IconUsers, scope: "group" },
+  { href: "/costs", label: "Kosten", icon: IconCosts, scope: "group" },
+  { href: "/calendar", label: "Kalender", icon: IconCalendar, scope: "group" },
+  { href: "/polls", label: "Umfragen", icon: IconClipboard, scope: "group" },
+  // Admin
+  { href: "/admin", label: "Admin", icon: IconZap, scope: "always", adminOnly: true },
 ];
 
 interface SidebarProps {
@@ -163,18 +165,15 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
         {navItems.filter((item) => {
-          // Admin-only Items: nur für Admins sichtbar
+          // Admin-only Items: nur fuer Superadmin sichtbar
           if (item.adminOnly) {
             if (impersonating) return false;
-            return isOrgAdmin(currentUser);
+            return currentUser?.isSuperadmin ?? false;
           }
-          if (!item.permission) return true;
-          // Bei Impersonation: Permissions des impersonierten Users nutzen
-          if (impersonating) {
-            const permKey = modulePermissionMap[item.permission] || item.permission;
-            return impersonating.permissions[permKey] ?? false;
-          }
-          return hasPermission(currentUser, item.permission);
+          // Group-Items nur sichtbar wenn Group-Modus aktiv
+          if (item.scope === "group" && !orgId) return false;
+          // Solo-Items immer sichtbar (in beiden Modi)
+          return true;
         }).map((item) => {
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");

@@ -44,9 +44,10 @@ type ViewFilter = "mine" | "team" | "all";
 export default function ProjectsPage() {
   const supabase = createClient();
   const router = useRouter();
-  const { orgId } = useOrg();
   const currentUser = useCurrentUser();
-  const canEdit = hasPermission(currentUser, "projects_edit");
+  const ownerId = currentUser?.id ?? null;
+  const orgId = ownerId; // alias backward-compat
+  const canEdit = true;
   const [projects, setProjects] = useState<(Project & { isPartner?: boolean })[]>([]);
   const [myProjectIds, setMyProjectIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -65,54 +66,28 @@ export default function ProjectsPage() {
   const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
 
   const loadProjects = useCallback(async () => {
-    if (!orgId || !currentUser) return;
+    if (!ownerId || !currentUser) return;
 
-    // 1. Eigene Projekte laden
+    // 1. Eigene Projekte (Solo)
     const { data: ownData } = await supabase
       .from("projects")
       .select("*")
-      .eq("org_id", orgId)
+      .eq("owner_profile_id", ownerId)
       .order("date_start", { ascending: false });
 
     const ownProjects = (ownData || []).map((p) => ({ ...p, isPartner: false }));
-    const ownIds = new Set(ownProjects.map((p) => p.id));
 
-    // 2. Partner-Projekte laden (wo unsere Org eingeladen und accepted ist)
-    const { data: partnerOrgs } = await supabase
-      .from("project_orgs")
-      .select("project_id")
-      .eq("org_id", orgId)
-      .eq("status", "accepted")
-      .neq("role", "creator");
-
-    const partnerIds = (partnerOrgs || [])
-      .map((po) => po.project_id)
-      .filter((id) => !ownIds.has(id));
-
-    let partnerProjects: (Project & { isPartner: boolean })[] = [];
-    if (partnerIds.length > 0) {
-      const { data: partnerData } = await supabase
-        .from("projects")
-        .select("*")
-        .in("id", partnerIds)
-        .order("date_start", { ascending: false });
-      partnerProjects = (partnerData || []).map((p) => ({
-        ...(p as Project),
-        isPartner: true,
-      }));
-    }
-
-    // 3. Mitgliedschaften des Users laden
+    // 2. Mitgliedschaften des Users (project_members) — Projekte wo User mitwirkt
     const { data: memberships } = await supabase
       .from("project_members")
       .select("project_id")
       .eq("profile_id", currentUser.id);
     setMyProjectIds(new Set((memberships || []).map((m) => m.project_id)));
 
-    // 4. Merge
-    setProjects([...ownProjects, ...partnerProjects] as (Project & { isPartner?: boolean })[]);
+    // Partner-Projekte entfallen im neuen Modell (kein project_orgs mehr)
+    setProjects(ownProjects as (Project & { isPartner?: boolean })[]);
     setLoading(false);
-  }, [supabase, orgId, currentUser]);
+  }, [supabase, ownerId, currentUser]);
 
   useEffect(() => {
     loadProjects();
@@ -191,7 +166,7 @@ export default function ProjectsPage() {
       date_end: formDateEnd || null,
       status: formStatus,
       created_by: user?.id,
-      org_id: orgId,
+      owner_profile_id: ownerId,
     });
 
     if (error) {
@@ -205,7 +180,7 @@ export default function ProjectsPage() {
       setShowCreate(false);
       loadProjects();
       showToast("Projekt erstellt", "success");
-      if (orgId) logActivity({ orgId, action: "project.created", entityType: "project", entityLabel: formName });
+      // logActivity entfaellt waehrend Refactor
     }
     setSaving(false);
   }
@@ -224,7 +199,7 @@ export default function ProjectsPage() {
         prev.map((p) => (p.id === projectId ? { ...p, status: newStatus } : p))
       );
       const proj = projects.find(p => p.id === projectId);
-      if (orgId) logActivity({ orgId, action: "project.status_changed", entityType: "project", entityId: projectId, entityLabel: proj?.name, metadata: { status: newStatus } });
+      // logActivity entfaellt waehrend Refactor
     }
   }
 

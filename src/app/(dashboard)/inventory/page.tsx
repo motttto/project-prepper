@@ -72,8 +72,10 @@ export default function InventoryPageWrapper() {
 
 function InventoryPage() {
   const supabase = createClient();
-  const { orgId } = useOrg();
   const currentUser = useCurrentUser();
+  const ownerId = currentUser?.id ?? null;
+  // Backward-Compat: Aliase damit alter Code minimal angepasst werden muss
+  const orgId = ownerId;
   const searchParams = useSearchParams();
   const router = useRouter();
   const canEdit = hasPermission(currentUser, "inventory_edit");
@@ -144,12 +146,12 @@ function InventoryPage() {
   }
 
   const loadItems = useCallback(async () => {
-    if (!orgId) return;
+    if (!ownerId) return;
     const [itemsRes, bookingsRes] = await Promise.all([
       supabase
         .from("inventory_items")
         .select("*")
-        .eq("org_id", orgId)
+        .eq("owner_profile_id", ownerId)
         .order("category")
         .order("name"),
       // Aktive Buchungen laden (reserved oder checked_out)
@@ -199,11 +201,11 @@ function InventoryPage() {
 
   // Kategorien laden (+ Auto-Seed falls leer)
   const loadCategories = useCallback(async () => {
-    if (!orgId) return;
+    if (!ownerId) return;
     const { data } = await supabase
       .from("inventory_categories")
       .select("*")
-      .eq("org_id", orgId)
+      .eq("owner_profile_id", ownerId)
       .order("sort_order")
       .order("name");
     if (data && data.length > 0) {
@@ -211,7 +213,7 @@ function InventoryPage() {
     } else if (data && data.length === 0) {
       // Auto-Seed: Default-Kategorien erstellen
       const seeds = defaultCategories.map((c, i) => ({
-        org_id: orgId,
+        owner_profile_id: ownerId,
         name: c.name,
         icon: c.icon,
         prefix: c.prefix,
@@ -223,42 +225,29 @@ function InventoryPage() {
         .select();
       if (inserted) setDbCategories(inserted);
     }
-  }, [supabase, orgId]);
+  }, [supabase, ownerId]);
 
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
 
-  // Profile für Eigentumsanteile laden
+  // Profile-Map: Im Solo-Modus nur eigener User. (Group-Member kommen in Phase 4)
   useEffect(() => {
-    async function loadProfiles() {
-      if (!orgId) return;
-      const { data } = await supabase
-        .from("org_memberships")
-        .select("profile_id, profiles(id, name)")
-        .eq("org_id", orgId);
-      if (data) {
-        const map = new Map<string, string>();
-        for (const m of data as any[]) {
-          map.set(m.profiles?.id || m.profile_id, m.profiles?.name || "");
-        }
-        setProfileMap(map);
-      }
-    }
-    loadProfiles();
-  }, [supabase, orgId]);
+    if (!currentUser) return;
+    const map = new Map<string, string>();
+    map.set(currentUser.id, currentUser.name);
+    setProfileMap(map);
+  }, [currentUser]);
 
-  // Realtime: Kategorien
+  // Realtime: Kategorien (einfach alle, RLS schraenkt ein)
   useRealtimeTable({
     table: "inventory_categories",
-    orgFilter: orgId || undefined,
     onDataChange: loadCategories,
   });
 
   // Realtime: Live-Synchronisation
   useRealtimeTable({
     table: "inventory_items",
-    orgFilter: orgId || undefined,
     onDataChange: loadItems,
   });
 
@@ -281,7 +270,7 @@ function InventoryPage() {
       condition: formCondition,
       cost_per_day: formCostPerDay,
       location: formLocation || null,
-      org_id: orgId,
+      owner_profile_id: ownerId,
       device_name: formDeviceName || null,
       serial_number: formSerialNumber || null,
       purchase_price: formPurchasePrice !== "" ? Number(formPurchasePrice) : null,
@@ -304,7 +293,7 @@ function InventoryPage() {
       setShowCreate(false);
       loadItems();
       showToast("Artikel erstellt", "success");
-      if (orgId) logActivity({ orgId, action: "inventory.created", entityType: "inventory_item", entityLabel: formName });
+      // logActivity entfaellt waehrend Refactor (org_activity_log noch nicht migriert)
     }
     setSaving(false);
   }
@@ -324,7 +313,7 @@ function InventoryPage() {
     } else {
       loadItems();
       showToast("Artikel gelöscht", "success");
-      if (orgId) logActivity({ orgId, action: "inventory.deleted", entityType: "inventory_item", entityId: item.id, entityLabel: item.name });
+      // logActivity entfaellt waehrend Refactor
     }
   }
 
@@ -1100,7 +1089,7 @@ function InventoryPage() {
       {showCategoryManager && (
         <CategoryManagerModal
           categories={dbCategories}
-          orgId={orgId || ""}
+          orgId={ownerId || ""}
           onClose={() => setShowCategoryManager(false)}
           onUpdated={loadCategories}
         />
@@ -1148,7 +1137,7 @@ function CategoryManagerModal({
     const { data } = await supabase
       .from("inventory_categories")
       .insert({
-        org_id: orgId,
+        owner_profile_id: orgId, // Prop heisst noch orgId, enthaelt aber ownerId
         name: newName.trim(),
         icon: newIcon,
         prefix,
