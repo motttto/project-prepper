@@ -27,25 +27,37 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { org_id, test_email } = await req.json();
-    if (!org_id) return json({ error: "org_id required" }, 400);
+    const body = await req.json();
+    const ownerId = body.owner_id || body.org_id; // backward-compat
+    const test_email = body.test_email;
+    if (!ownerId) return json({ error: "owner_id required" }, 400);
 
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    const { data: emailConfig, error: configError } = await supabase
+    // Versuch zuerst owner_profile_id, fallback auf org_id
+    let { data: emailConfig } = await supabase
       .from("org_email_config")
       .select("*")
-      .eq("org_id", org_id)
-      .single();
+      .eq("owner_profile_id", ownerId)
+      .maybeSingle();
 
-    if (configError || !emailConfig) return json({ error: "Keine SMTP-Konfiguration gefunden" }, 404);
+    if (!emailConfig) {
+      const fallback = await supabase
+        .from("org_email_config")
+        .select("*")
+        .eq("org_id", ownerId)
+        .maybeSingle();
+      emailConfig = fallback.data;
+    }
+
+    if (!emailConfig) return json({ error: "Keine SMTP-Konfiguration gefunden" }, 404);
     if (!emailConfig.smtp_host || !emailConfig.smtp_user) return json({ error: "SMTP-Konfiguration unvollständig" }, 400);
 
     const recipientEmail = test_email || emailConfig.sender_email;
     if (!recipientEmail) return json({ error: "Keine Test-Email-Adresse angegeben" }, 400);
 
-    const { data: org } = await supabase.from("organizations").select("name").eq("id", org_id).single();
-    const orgName = org?.name || "Organisation";
+    const { data: profile } = await supabase.from("profiles").select("name").eq("id", ownerId).maybeSingle();
+    const orgName = profile?.name || "User";
 
     // Nodemailer Transport erstellen
     const security = emailConfig.smtp_security || "starttls";

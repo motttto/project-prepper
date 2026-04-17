@@ -493,7 +493,7 @@ export default function AdminPage() {
       ) : activeTab === "services" ? (
         <ServicesTab orgId={orgId || ""} />
       ) : activeTab === "email" ? (
-        <EmailConfigTab orgId={orgId || ""} userEmail={currentUser?.email || ""} />
+        <EmailConfigTab ownerId={currentUser?.id || ""} userEmail={currentUser?.email || ""} />
       ) : (
         <SystemTab />
       )}
@@ -1831,7 +1831,7 @@ const authOptions = [
   { value: "cram-md5", label: "CRAM-MD5" },
 ];
 
-function EmailConfigTab({ orgId, userEmail }: { orgId: string; userEmail: string }) {
+function EmailConfigTab({ ownerId, userEmail }: { ownerId: string; userEmail: string }) {
   const supabase = createClient();
   // SMTP (Postausgang)
   const [smtpHost, setSmtpHost] = useState("");
@@ -1863,11 +1863,11 @@ function EmailConfigTab({ orgId, userEmail }: { orgId: string; userEmail: string
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    if (!orgId) return;
+    if (!ownerId) return;
     supabase
       .from("org_email_config")
       .select("*")
-      .eq("org_id", orgId)
+      .eq("owner_profile_id", ownerId)
       .maybeSingle()
       .then(({ data }) => {
         if (data) {
@@ -1888,12 +1888,12 @@ function EmailConfigTab({ orgId, userEmail }: { orgId: string; userEmail: string
         }
         setLoaded(true);
       });
-  }, [orgId, supabase]);
+  }, [ownerId, supabase]);
 
   async function handleSave() {
     setSaving(true); setError(""); setSuccess("");
     const payload = {
-      org_id: orgId,
+      owner_profile_id: ownerId,
       smtp_host: smtpHost.trim(), smtp_port: smtpPort,
       smtp_user: smtpUser.trim(), smtp_pass: smtpPass,
       smtp_security: smtpSecurity, smtp_auth: smtpAuth,
@@ -1921,7 +1921,7 @@ function EmailConfigTab({ orgId, userEmail }: { orgId: string; userEmail: string
     await handleSave();
     try {
       const { data, error: fnError } = await supabase.functions.invoke("test-smtp", {
-        body: { org_id: orgId, test_email: userEmail },
+        body: { owner_id: ownerId, test_email: userEmail },
       });
       if (fnError) setError(`Test fehlgeschlagen: ${fnError.message}`);
       else if (data?.error) setError(data.error);
