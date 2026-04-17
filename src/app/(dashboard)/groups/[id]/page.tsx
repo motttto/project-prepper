@@ -224,29 +224,51 @@ export default function GroupDetailPage() {
       .eq("email", email)
       .maybeSingle();
 
-    const { error } = await supabase.from("group_invitations").insert({
-      group_id: groupId,
-      invited_by: currentUser.id,
-      invited_email: email,
-      invited_profile_id: existing?.id ?? null,
-      invited_message: inviteMessage.trim() || null,
-      status: "pending",
-    });
+    const { data: insertData, error } = await supabase
+      .from("group_invitations")
+      .insert({
+        group_id: groupId,
+        invited_by: currentUser.id,
+        invited_email: email,
+        invited_profile_id: existing?.id ?? null,
+        invited_message: inviteMessage.trim() || null,
+        status: "pending",
+      })
+      .select("id")
+      .single();
 
     if (error) {
       setInviteError(error.message);
-    } else {
-      setInviteEmail("");
-      setInviteMessage("");
-      setShowInvite(false);
-      showToast(
-        existing
-          ? `Einladung an ${existing.name} verschickt`
-          : `Einladung an ${email} verschickt (User muss sich erst registrieren)`,
-        "success"
-      );
-      loadAll();
+      setInviting(false);
+      return;
     }
+
+    setInviteEmail("");
+    setInviteMessage("");
+    setShowInvite(false);
+
+    // Email-Versand (fire & forget) — funktioniert nur wenn Inviter SMTP konfiguriert hat
+    let emailSent = false;
+    if (insertData?.id) {
+      try {
+        const { data: fnData } = await supabase.functions.invoke("send-group-invite", {
+          body: { invitation_id: insertData.id },
+        });
+        emailSent = fnData?.method === "email";
+      } catch (e) {
+        console.error("Email send error:", e);
+      }
+    }
+
+    showToast(
+      emailSent
+        ? `Einladung an ${email} per Email verschickt`
+        : existing
+          ? `Einladung fuer ${existing.name} angelegt — User sieht sie im Dashboard`
+          : `Einladung angelegt. Email konnte nicht gesendet werden (SMTP-Config in Admin?). User muss sich registrieren um Einladung zu sehen.`,
+      emailSent ? "success" : "info"
+    );
+    loadAll();
     setInviting(false);
   }
 
