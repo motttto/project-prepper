@@ -1757,20 +1757,23 @@ function SystemTab() {
       desc: "Migrationen manuell ausfuehren",
       steps: [
         "SQL-Datei in supabase/migrations/ erstellen",
-        "Im Supabase Dashboard → SQL Editor ausfuehren",
+        "Via Management API ausfuehren oder Supabase Dashboard → SQL Editor",
         "Oder: supabase db push (wenn CLI eingerichtet)",
-        "Aktuell: 53 Migrationen",
+        "Aktuell: 79 Migrationen",
       ],
     },
   ];
 
   const features = [
-    { name: "Projekte", desc: "Verwaltung mit Status-Workflow, 8 Tabs, Budget, Dateien" },
-    { name: "Kalender", desc: "Monats-/Wochenansicht, CalDAV Zwei-Wege-Sync, iCal-Feed" },
-    { name: "Inventar", desc: "Equipment mit Kategorien, Einzelstuecke, Fotos, Excel-Import" },
+    { name: "Solo-Workspace", desc: "Jeder User hat eigenes Inventar, Anfragen, Projekte (User-First Model)" },
+    { name: "Gruppen", desc: "Optionales Kollektiv-Overlay mit einstimmigem Voting beim Beitritt" },
+    { name: "Projekte", desc: "11 Tabs: Uebersicht, Zeitplan, Kosten, Equipment, Team, Material, Checklisten, Aufgaben, Dateien, Polls, Profit" },
+    { name: "Inventar", desc: "Equipment mit Kategorien, Einzelstuecken, Fotos, Excel-Import + Group-Sharing" },
     { name: "Anfragen", desc: "Pipeline von Erstanfrage bis Angebot, Team-Verfuegbarkeit" },
-    { name: "Kosten", desc: "Pro Projekt + globale Uebersicht, USt-Saetze, Budget vs. Ist" },
-    { name: "Team", desc: "Multi-Tenant, Rollen, Permissions, Einladungen, Impersonation" },
+    { name: "Kalender", desc: "Monats-/Wochenansicht, CalDAV Zwei-Wege-Sync, iCal-Feed (pro Gruppe)" },
+    { name: "Polls", desc: "Doodle-Style Terminumfragen + Checkbox-Polls (org/gruppe + projekt)" },
+    { name: "Beschluesse", desc: "Cooperation Agreements mit Profit-Verteilung + Voting" },
+    { name: "Email", desc: "Pro-User SMTP/IMAP Konfig, gestylte Auth-Templates, Edge-Function Versand" },
   ];
 
   const sectionStyle: React.CSSProperties = {
