@@ -918,6 +918,7 @@ function InventoryPage() {
                 <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Zustand</th>
                 <th className="text-right px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden sm:table-cell" style={{ color: "var(--color-muted-foreground)" }}>&euro;/Tag</th>
                 <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Eigentum</th>
+                <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Geteilt</th>
                 <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Pate</th>
                 <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Ort</th>
                 <th className="w-10 px-2 sm:px-4 py-3"></th>
@@ -963,25 +964,6 @@ function InventoryPage() {
                       <span className="text-xs md:hidden" style={{ color: "var(--color-muted-foreground)" }}>
                         {categoryIcons[item.category] || "📁"} {item.category}
                       </span>
-                      {/* Share-Badges */}
-                      {(shareMap.get(item.id) || []).map((s) => (
-                        <span
-                          key={s.groupId}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
-                          style={{
-                            background: "var(--color-primary-light)",
-                            color: "var(--color-primary)",
-                          }}
-                          title={
-                            s.requires_approval
-                              ? `Geteilt mit ${s.groupName} (Zusage erforderlich)`
-                              : `Geteilt mit ${s.groupName} (frei verfügbar)`
-                          }
-                        >
-                          🛡️ {s.groupName}
-                          {s.requires_approval && <span>🔒</span>}
-                        </span>
-                      ))}
                     </div>
                     {item.description && (
                       <div className="text-xs mt-0.5 hidden sm:block" style={{ color: "var(--color-muted-foreground)" }}>
@@ -1104,11 +1086,54 @@ function InventoryPage() {
                           );
                         })}
                       </div>
+                    ) : item.owner_profile_id ? (
+                      <span
+                        className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full"
+                        style={{ background: "var(--color-muted)", color: "var(--color-foreground)" }}
+                        title="Eigentümer"
+                      >
+                        👤 {profileMap.get(item.owner_profile_id) || "—"}
+                      </span>
                     ) : (
-                      <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
-                        Org
+                      <span className="text-xs italic" style={{ color: "var(--color-muted-foreground)" }}>
+                        —
                       </span>
                     )}
+                  </td>
+                  {/* Geteilt — hidden on mobile/tablet */}
+                  <td className="px-3 sm:px-4 py-3.5 hidden lg:table-cell">
+                    {(() => {
+                      const sh = shareMap.get(item.id) || [];
+                      if (sh.length === 0) {
+                        return (
+                          <span className="text-xs italic" style={{ color: "var(--color-muted-foreground)" }}>
+                            nicht geteilt
+                          </span>
+                        );
+                      }
+                      return (
+                        <div className="flex flex-wrap gap-1">
+                          {sh.map((s) => (
+                            <span
+                              key={s.groupId}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                              style={{
+                                background: "var(--color-primary-light)",
+                                color: "var(--color-primary)",
+                              }}
+                              title={
+                                s.requires_approval
+                                  ? `Geteilt mit ${s.groupName} · Zusage erforderlich`
+                                  : `Geteilt mit ${s.groupName} · frei verfügbar`
+                              }
+                            >
+                              🛡️ {s.groupName}
+                              {s.requires_approval && <span>🔒</span>}
+                            </span>
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </td>
                   {/* Pate — hidden until xl */}
                   <td className="px-3 sm:px-4 py-3.5 text-sm hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>
