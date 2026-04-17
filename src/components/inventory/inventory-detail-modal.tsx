@@ -530,6 +530,7 @@ export function InventoryDetailModal({
                 style={inputStyle}
               />
             </div>
+            {(isEditable || description) && (
             <div className="col-span-2">
               <label className="block text-xs font-medium mb-1.5"
                 style={{ color: "var(--color-muted-foreground)" }}>
@@ -544,6 +545,7 @@ export function InventoryDetailModal({
                 placeholder="Kurze Beschreibung"
               />
             </div>
+            )}
             <div>
               <label className="block text-xs font-medium mb-1.5"
                 style={{ color: "var(--color-muted-foreground)" }}>
@@ -593,6 +595,7 @@ export function InventoryDetailModal({
                 style={inputStyle}
               />
             </div>
+            {(isEditable || location) && (
             <div>
               <label className="block text-xs font-medium mb-1.5"
                 style={{ color: "var(--color-muted-foreground)" }}>
@@ -607,6 +610,8 @@ export function InventoryDetailModal({
                 placeholder="z.B. Lager A"
               />
             </div>
+            )}
+            {(isEditable || purchasedBy) && (
             <div>
               <label className="block text-xs font-medium mb-1.5"
                 style={{ color: "var(--color-muted-foreground)" }}>
@@ -647,6 +652,8 @@ export function InventoryDetailModal({
                   )}
               </select>
             </div>
+            )}
+            {(isEditable || purchasedAt) && (
             <div>
               <label className="block text-xs font-medium mb-1.5"
                 style={{ color: "var(--color-muted-foreground)" }}>
@@ -657,9 +664,11 @@ export function InventoryDetailModal({
                 onChange={setPurchasedAt}
               />
             </div>
+            )}
           </div>
 
-          {/* Erweiterte Details */}
+          {/* Erweiterte Details — nur anzeigen wenn editierbar oder mind. 1 Feld gefüllt */}
+          {(isEditable || deviceName || serialNumber || purchasePrice || dimensions || powerWatts || customField || manufacturerUrl || manualUrl || (accessories && accessories.length > 0)) && (
           <div
             className="pt-2"
             style={{ borderTop: "1px solid var(--color-border-light)" }}
@@ -668,6 +677,7 @@ export function InventoryDetailModal({
               Gerätedetails
             </h3>
             <div className="grid grid-cols-2 gap-4">
+              {(isEditable || deviceName) && (
               <div>
                 <label className="block text-xs font-medium mb-1.5"
                   style={{ color: "var(--color-muted-foreground)" }}>
@@ -682,6 +692,8 @@ export function InventoryDetailModal({
                   placeholder="z.B. EB-U50"
                 />
               </div>
+              )}
+              {(isEditable || serialNumber) && (
               <div>
                 <label className="block text-xs font-medium mb-1.5"
                   style={{ color: "var(--color-muted-foreground)" }}>
@@ -696,6 +708,8 @@ export function InventoryDetailModal({
                   placeholder="z.B. SN-12345678"
                 />
               </div>
+              )}
+              {(isEditable || purchasePrice) && (
               <div>
                 <label className="block text-xs font-medium mb-1.5"
                   style={{ color: "var(--color-muted-foreground)" }}>
@@ -712,6 +726,8 @@ export function InventoryDetailModal({
                   placeholder="0.00"
                 />
               </div>
+              )}
+              {(isEditable || dimensions) && (
               <div>
                 <label className="block text-xs font-medium mb-1.5"
                   style={{ color: "var(--color-muted-foreground)" }}>
@@ -726,6 +742,8 @@ export function InventoryDetailModal({
                   placeholder="z.B. 60x40x30 cm"
                 />
               </div>
+              )}
+              {(isEditable || powerWatts) && (
               <div>
                 <label className="block text-xs font-medium mb-1.5"
                   style={{ color: "var(--color-muted-foreground)" }}>
@@ -741,6 +759,8 @@ export function InventoryDetailModal({
                   placeholder="z.B. 500"
                 />
               </div>
+              )}
+              {(isEditable || customField) && (
               <div>
                 <label className="block text-xs font-medium mb-1.5"
                   style={{ color: "var(--color-muted-foreground)" }}>
@@ -755,6 +775,8 @@ export function InventoryDetailModal({
                   placeholder="Sonstige Infos"
                 />
               </div>
+              )}
+              {(isEditable || manufacturerUrl) && (
               <div>
                 <label className="block text-xs font-medium mb-1.5"
                   style={{ color: "var(--color-muted-foreground)" }}>
@@ -782,6 +804,8 @@ export function InventoryDetailModal({
                   )}
                 </div>
               </div>
+              )}
+              {(isEditable || manualUrl) && (
               <div>
                 <label className="block text-xs font-medium mb-1.5"
                   style={{ color: "var(--color-muted-foreground)" }}>
@@ -809,9 +833,11 @@ export function InventoryDetailModal({
                   )}
                 </div>
               </div>
+              )}
             </div>
 
-            {/* Zubehör */}
+            {/* Zubehör — nur wenn editierbar oder gefüllt */}
+            {(isEditable || (accessories && accessories.length > 0)) && (
             <div className="mt-4">
               <label className="block text-xs font-medium mb-2"
                 style={{ color: "var(--color-muted-foreground)" }}>
@@ -862,7 +888,8 @@ export function InventoryDetailModal({
                     </span>
                   ))}
               </div>
-              {/* Freifeld-Input für eigenes Zubehör */}
+              {/* Freifeld-Input für eigenes Zubehör — nur Edit */}
+              {isEditable && (
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -895,10 +922,14 @@ export function InventoryDetailModal({
                   +
                 </button>
               </div>
+              )}
             </div>
+            )}
           </div>
+          )}
 
-          {/* Eigentum & Wert (immer sichtbar) */}
+          {/* Eigentum & Wert — nur im Edit-Modus sichtbar */}
+          {isEditable && (
           <div
             className="pt-3"
             style={{ borderTop: "1px solid var(--color-border-light)" }}
@@ -1096,6 +1127,77 @@ export function InventoryDetailModal({
 
               </div>
           </div>
+          )}
+
+          {/* Ausleihbedingungen — nur im Read-only Modus + Group-Kontext */}
+          {!isEditable && groupId && sharesLoaded && shares[groupId]?.enabled && (
+            <div
+              className="pt-3"
+              style={{ borderTop: "1px solid var(--color-border-light)" }}
+            >
+              <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--color-muted-foreground)" }}>
+                Ausleihbedingungen
+              </h3>
+              <div
+                className="rounded-lg p-3 space-y-2"
+                style={{ background: "var(--color-muted)" }}
+              >
+                {/* Tagessatz + Approval */}
+                <div className="flex items-center justify-between text-sm">
+                  <span style={{ color: "var(--color-muted-foreground)" }}>Tagessatz</span>
+                  <span className="font-medium tabular-nums">
+                    {Number(shares[groupId].daily_rate).toLocaleString("de-DE", {
+                      style: "currency",
+                      currency: "EUR",
+                    })}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span style={{ color: "var(--color-muted-foreground)" }}>Buchung</span>
+                  <span className="font-medium">
+                    {shares[groupId].requires_approval
+                      ? "🔒 Zusage durch Eigentümer erforderlich"
+                      : "✓ Frei verfügbar"}
+                  </span>
+                </div>
+                {/* Bedingungs-Tags */}
+                {shares[groupId].conditions_tags.length > 0 && (
+                  <div className="pt-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+                    <div className="text-xs mb-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+                      Bedingungen
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {shares[groupId].conditions_tags.map((tag) => {
+                        const preset = CONDITION_PRESETS.find((c) => c.value === tag);
+                        return (
+                          <span
+                            key={tag}
+                            className="text-xs px-2 py-1 rounded-full"
+                            style={{
+                              background: "var(--color-primary)",
+                              color: "#fff",
+                            }}
+                            title={preset?.description}
+                          >
+                            {preset?.label || tag}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                {/* Freier Text */}
+                {shares[groupId].conditions && (
+                  <div className="pt-2 text-sm italic" style={{
+                    color: "var(--color-foreground)",
+                    borderTop: "1px solid var(--color-border-light)",
+                  }}>
+                    „{shares[groupId].conditions}"
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Teilen mit Gruppen (nur im Solo-Modus, wenn Eigentümer & Gruppen vorhanden) */}
           {isEditable && myGroups.length > 0 && sharesLoaded && (
