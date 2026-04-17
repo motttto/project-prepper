@@ -231,11 +231,16 @@ async function handleSendInquiry(req: Request): Promise<Response> {
       keyboard,
     );
     // "message is not modified" ist kein Fehler — Inhalt war identisch
-    if (!editResult.ok && !editResult.description?.includes("not modified")) {
-      console.error("Telegram edit error:", editResult);
-      return jsonResponse({ error: "Telegram-Nachricht konnte nicht aktualisiert werden", details: editResult }, 500);
+    if (editResult.ok || editResult.description?.includes("not modified")) {
+      return jsonResponse({ ok: true, action: "updated" });
     }
-    return jsonResponse({ ok: true, action: "updated" });
+    // Edit fehlgeschlagen (z.B. Message in anderem Chat, geloescht, zu alt):
+    // → Message-ID zuruecksetzen, neu posten
+    console.warn("Telegram edit failed, falling back to new post:", editResult.description);
+    await supabase.from("inquiries")
+      .update({ telegram_message_id: null })
+      .eq("id", inquiry_id);
+    // Weiter unten: sendMessage statt return
   }
 
   // Neue Nachricht senden
