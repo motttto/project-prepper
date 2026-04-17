@@ -20,22 +20,34 @@ import { useOrg, useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useImpersonate } from "@/contexts/impersonate-context";
 
-// Nav-Items: solo = immer sichtbar, group = nur wenn Group-Modus aktiv
-const navItems: { href: string; label: string; icon: typeof IconDashboard; scope: "solo" | "group" | "always"; adminOnly?: boolean }[] = [
-  // Solo-Bereich (immer sichtbar)
-  { href: "/dashboard", label: "Dashboard", icon: IconDashboard, scope: "always" },
-  { href: "/inventory", label: "Mein Inventar", icon: IconInventory, scope: "always" },
-  { href: "/inquiries", label: "Meine Anfragen", icon: IconInbox, scope: "always" },
-  { href: "/projects", label: "Meine Projekte", icon: IconProjects, scope: "always" },
-  { href: "/groups", label: "Meine Gruppen", icon: IconUsers, scope: "always" },
-  // Group-Bereich (nur in Gruppe sichtbar)
-  { href: "/team", label: "Team", icon: IconUsers, scope: "group" },
-  { href: "/costs", label: "Kosten", icon: IconCosts, scope: "group" },
-  { href: "/calendar", label: "Kalender", icon: IconCalendar, scope: "group" },
-  { href: "/polls", label: "Umfragen", icon: IconClipboard, scope: "group" },
-  // Admin
-  { href: "/admin", label: "Admin", icon: IconZap, scope: "always", adminOnly: true },
-];
+// Nav-Items werden jetzt dynamisch (kontextsensitiv) generiert in buildNavItems().
+type NavItem = { href: string; label: string; icon: typeof IconDashboard; adminOnly?: boolean };
+
+function buildNavItems(activeGroupId: string | null): NavItem[] {
+  if (activeGroupId) {
+    // Gruppen-Kontext
+    return [
+      { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
+      { href: `/groups/${activeGroupId}`, label: "Gruppen-Uebersicht", icon: IconUsers },
+      { href: "/inventory", label: "Gruppen-Inventar", icon: IconInventory },
+      { href: "/inquiries", label: "Gruppen-Anfragen", icon: IconInbox },
+      { href: "/projects", label: "Gruppen-Projekte", icon: IconProjects },
+      { href: "/calendar", label: "Gruppen-Kalender", icon: IconCalendar },
+      { href: "/polls", label: "Gruppen-Umfragen", icon: IconClipboard },
+      { href: "/groups", label: "Alle Gruppen", icon: IconUsers },
+      { href: "/admin", label: "Admin", icon: IconZap, adminOnly: true },
+    ];
+  }
+  // Solo-Kontext
+  return [
+    { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
+    { href: "/inventory", label: "Mein Inventar", icon: IconInventory },
+    { href: "/inquiries", label: "Meine Anfragen", icon: IconInbox },
+    { href: "/projects", label: "Meine Projekte", icon: IconProjects },
+    { href: "/groups", label: "Meine Gruppen", icon: IconUsers },
+    { href: "/admin", label: "Admin", icon: IconZap, adminOnly: true },
+  ];
+}
 
 interface SidebarProps {
   isOpen?: boolean;
@@ -184,19 +196,18 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
 
       {/* Navigation */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.filter((item) => {
-          // Admin-only Items: nur fuer Superadmin sichtbar
+        {buildNavItems(activeGroupId).filter((item) => {
           if (item.adminOnly) {
             if (impersonating) return false;
             return currentUser?.isSuperadmin ?? false;
           }
-          // Group-Items nur sichtbar wenn Group-Modus aktiv
-          if (item.scope === "group" && !orgId) return false;
-          // Solo-Items immer sichtbar (in beiden Modi)
           return true;
         }).map((item) => {
+          // /groups exakt matchen, sonst markiert es sich auf /groups/[id] als aktiv
           const isActive =
-            pathname === item.href || pathname.startsWith(item.href + "/");
+            item.href === "/groups"
+              ? pathname === "/groups"
+              : pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
           const badgeCount = badgeCounts[item.href] || 0;
           const showBadge = badgeCount > 0;
