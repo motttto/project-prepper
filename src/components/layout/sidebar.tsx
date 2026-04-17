@@ -16,7 +16,7 @@ import {
   IconCalendar,
   IconClipboard,
 } from "@/components/ui/icons";
-import { useOrg } from "@/contexts/org-context";
+import { useOrg, useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useImpersonate } from "@/contexts/impersonate-context";
 
@@ -48,7 +48,15 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   // Notification-Counts pro Menüpunkt
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
   const { orgId } = useOrg();
+  const { groups } = useWorkspace();
   const currentUser = useCurrentUser();
+
+  // Aktive Gruppe aus URL ableiten: /groups/[id]/...
+  const groupRouteMatch = pathname.match(/^\/groups\/([0-9a-f-]{36})/i);
+  const activeGroupId = groupRouteMatch?.[1] || null;
+  const activeGroup = activeGroupId
+    ? groups.find((g) => g.id === activeGroupId)
+    : null;
   const { impersonating } = useImpersonate();
   const userId = currentUser?.id;
 
@@ -162,12 +170,15 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         <div
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
           style={{
-            background: "rgba(255,255,255,0.05)",
-            color: "var(--color-sidebar-text-muted)",
+            background: activeGroup ? "var(--color-sidebar-active)" : "rgba(255,255,255,0.05)",
+            color: activeGroup ? "#fff" : "var(--color-sidebar-text-muted)",
           }}
+          title={activeGroup ? `Gruppe: ${activeGroup.name}` : `Solo-Workspace · ${currentUser?.name || ""}`}
         >
-          <span style={{ fontSize: 14 }}>👤</span>
-          <span className="truncate">{currentUser?.name || "Workspace"}</span>
+          <span style={{ fontSize: 14 }}>{activeGroup ? "🛡️" : "👤"}</span>
+          <span className="truncate font-medium">
+            {activeGroup ? activeGroup.name : currentUser?.name || "Workspace"}
+          </span>
         </div>
       </div>
 
