@@ -165,7 +165,7 @@ function toDateTimeInputValue(d: Date): string {
 
 export default function CalendarPage() {
   const supabase = createClient();
-  // groupId aus useWorkspace; orgId Alias fuer Backward-Compat im restlichen Code
+  // groupId aus useWorkspace; orgId Alias für Backward-Compat im restlichen Code
   const { groupId, isSolo, groupName } = useWorkspace();
   const orgId = groupId;
   const orgName = groupName;
@@ -222,7 +222,7 @@ export default function CalendarPage() {
       end = new Date(monday); end.setDate(end.getDate() + 8);
     }
 
-    // calendar_events ueber calendar_groups Ids filtern (keine direkte org/group_id Spalte)
+    // calendar_events über calendar_groups Ids filtern (keine direkte org/group_id Spalte)
     const groupIds = groups.map((g) => g.id);
     const { data } = await supabase
       .from("calendar_events")
@@ -419,10 +419,10 @@ export default function CalendarPage() {
       <div className="max-w-2xl mx-auto px-4 py-12 text-center">
         <IconCalendar size={40} className="mx-auto mb-3" style={{ color: "var(--color-muted-foreground)", opacity: 0.5 }} />
         <h1 className="text-xl font-semibold mb-2" style={{ color: "var(--color-foreground)" }}>
-          Kalender ist nur in Gruppen verfuegbar
+          Kalender ist nur in Gruppen verfügbar
         </h1>
         <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-          Wechsel oben links zu einer Gruppe oder gruende eine neue, um einen gemeinsamen Kalender zu nutzen.
+          Wechsel oben links zu einer Gruppe oder gründe eine neue, um einen gemeinsamen Kalender zu nutzen.
         </p>
       </div>
     );

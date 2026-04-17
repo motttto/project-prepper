@@ -102,7 +102,7 @@ export default function MyGroupsPage() {
         >
           <IconUsers size={32} className="mx-auto mb-2" style={{ color: "var(--color-muted-foreground)" }} />
           <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-            Du bist noch in keiner Gruppe. Gruende eine eigene oder warte auf eine Einladung.
+            Du bist noch in keiner Gruppe. Gründe eine eigene oder warte auf eine Einladung.
           </p>
         </div>
       ) : (
@@ -131,7 +131,7 @@ export default function MyGroupsPage() {
                         className="px-1.5 py-0.5 rounded text-[10px] font-semibold"
                         style={{ background: "var(--color-primary)", color: "#fff" }}
                       >
-                        GRUENDER
+                        GRÜNDER
                       </span>
                     )}
                     {!g.is_active && (

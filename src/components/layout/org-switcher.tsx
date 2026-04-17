@@ -1,6 +1,6 @@
 "use client";
 
-// Workspace-Switcher (frueher OrgSwitcher).
+// Workspace-Switcher (früher OrgSwitcher).
 // Optionen:
 // - "Solo Workspace" (kein Group-Modus)
 // - jede Group in der User Mitglied ist
@@ -74,7 +74,7 @@ export function OrgSwitcher() {
           value="__new__"
           style={{ background: "var(--color-sidebar)", color: "var(--color-sidebar-text-muted)" }}
         >
-          + Neue Gruppe gruenden
+          + Neue Gruppe gründen
         </option>
       </select>
       <div

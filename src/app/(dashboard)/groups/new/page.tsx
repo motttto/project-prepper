@@ -68,7 +68,7 @@ export default function NewGroupPage() {
         className="inline-flex items-center gap-1 text-sm mb-4"
         style={{ color: "var(--color-muted-foreground)" }}
       >
-        <IconChevronLeft size={14} /> Zurueck
+        <IconChevronLeft size={14} /> Zurück
       </Link>
 
       <div
@@ -84,7 +84,7 @@ export default function NewGroupPage() {
           </div>
           <div>
             <h1 className="text-xl font-bold" style={{ color: "var(--color-foreground)" }}>
-              Neue Gruppe gruenden
+              Neue Gruppe gründen
             </h1>
             <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
               Du wirst Founder. Mitglieder kannst du danach einladen — Beitritt erfordert Einstimmigkeit aller Bestehenden.
@@ -145,7 +145,7 @@ export default function NewGroupPage() {
             className="px-5 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
             style={{ background: "var(--color-success)" }}
           >
-            {saving ? "Wird erstellt..." : "Gruppe gruenden"}
+            {saving ? "Wird erstellt..." : "Gruppe gründen"}
           </button>
         </form>
       </div>

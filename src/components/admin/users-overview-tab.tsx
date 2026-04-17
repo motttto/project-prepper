@@ -70,10 +70,10 @@ export function UsersOverviewTab({ currentUserId }: Props) {
 
   const handleDelete = async (user: UserRow) => {
     const confirmed = await appConfirm(
-      `Willst du ${user.name || user.email} wirklich vollstaendig loeschen? Alle Daten (Inventar, Anfragen, Projekte, Gruppen-Mitgliedschaften) werden via CASCADE entfernt. Diese Aktion ist nicht rueckgaengig zu machen.`,
+      `Willst du ${user.name || user.email} wirklich vollständig löschen? Alle Daten (Inventar, Anfragen, Projekte, Gruppen-Mitgliedschaften) werden via CASCADE entfernt. Diese Aktion ist nicht rückgängig zu machen.`,
       {
-        title: "User loeschen?",
-        confirmLabel: "Endgueltig loeschen",
+        title: "User löschen?",
+        confirmLabel: "Endgültig löschen",
         variant: "danger",
       }
     );
@@ -89,7 +89,7 @@ export function UsersOverviewTab({ currentUserId }: Props) {
     }
 
     const result = data as { success?: boolean; deleted_email?: string } | null;
-    showToast(`User ${result?.deleted_email || user.email} geloescht`, "success");
+    showToast(`User ${result?.deleted_email || user.email} gelöscht`, "success");
     setDeleting(null);
     loadUsers();
   };
@@ -221,7 +221,7 @@ export function UsersOverviewTab({ currentUserId }: Props) {
                           >
                             {m.groups?.name || "?"}
                             {m.is_founder && (
-                              <span style={{ color: "var(--color-primary)" }} title="Gruender">★</span>
+                              <span style={{ color: "var(--color-primary)" }} title="Gründer">★</span>
                             )}
                           </span>
                         ))}
@@ -252,14 +252,14 @@ export function UsersOverviewTab({ currentUserId }: Props) {
                       }}
                       title={
                         isSelf
-                          ? "Du kannst dich nicht selbst loeschen"
+                          ? "Du kannst dich nicht selbst löschen"
                           : u.is_system
-                          ? "Superadmins koennen nicht ueber dieses Panel geloescht werden"
-                          : "User loeschen"
+                          ? "Superadmins können nicht über dieses Panel gelöscht werden"
+                          : "User löschen"
                       }
                     >
                       <IconTrash size={12} />
-                      {deleting === u.id ? "Loesche..." : "Loeschen"}
+                      {deleting === u.id ? "Lösche..." : "Löschen"}
                     </button>
                   </td>
                 </tr>
@@ -270,7 +270,7 @@ export function UsersOverviewTab({ currentUserId }: Props) {
       </div>
 
       <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-        ★ Gruender · Loeschen entfernt User aus auth.users + alle abhaengigen Daten via CASCADE
+        ★ Gründer · Löschen entfernt User aus auth.users + alle abhängigen Daten via CASCADE
       </p>
     </div>
   );

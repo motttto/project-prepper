@@ -33,7 +33,7 @@ interface TabEquipmentProps {
 const statusLabels: Record<string, string> = {
   reserved: "Reserviert",
   checked_out: "Ausgecheckt",
-  returned: "Zurueckgegeben",
+  returned: "Zurückgegeben",
 };
 
 const statusColors: Record<string, { bg: string; color: string }> = {
@@ -53,7 +53,7 @@ export function TabEquipment({ projectId, project }: TabEquipmentProps) {
   const loadAll = useCallback(async () => {
     if (!currentUser) return;
 
-    // 1. Buchungen fuer dieses Projekt
+    // 1. Buchungen für dieses Projekt
     const { data: bookingsData } = await supabase
       .from("bookings")
       .select("*, inventory_items(*)")
@@ -62,7 +62,7 @@ export function TabEquipment({ projectId, project }: TabEquipmentProps) {
 
     if (bookingsData) setBookings(bookingsData as BookingWithItem[]);
 
-    // 2. Verfuegbare Items: eigenes Inventar
+    // 2. Verfügbare Items: eigenes Inventar
     const { data: ownItems } = await supabase
       .from("inventory_items")
       .select("*")
@@ -72,7 +72,7 @@ export function TabEquipment({ projectId, project }: TabEquipmentProps) {
       (i) => ({ ...(i as InventoryItem), ownerName: "Du", daily_rate: i.cost_per_day })
     );
 
-    // 3. Falls Projekt zu einer Gruppe gehoert: zusaetzlich Items, die fuer diese Gruppe freigegeben sind
+    // 3. Falls Projekt zu einer Gruppe gehört: zusaetzlich Items, die für diese Gruppe freigegeben sind
     if (project.group_id) {
       const { data: shares } = await supabase
         .from("inventory_group_shares")
@@ -125,7 +125,7 @@ export function TabEquipment({ projectId, project }: TabEquipmentProps) {
   }
 
   async function handleDeleteBooking(id: string) {
-    if (!confirm("Buchung wirklich loeschen?")) return;
+    if (!confirm("Buchung wirklich löschen?")) return;
     await supabase.from("bookings").delete().eq("id", id);
     loadAll();
   }
@@ -182,7 +182,7 @@ export function TabEquipment({ projectId, project }: TabEquipmentProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
-                    {b.inventory_items?.name || "Item geloescht"}
+                    {b.inventory_items?.name || "Item gelöscht"}
                   </span>
                   <span
                     className="text-xs px-2 py-0.5 rounded-full font-medium"
@@ -214,14 +214,14 @@ export function TabEquipment({ projectId, project }: TabEquipmentProps) {
                     className="text-xs px-2 py-1 rounded"
                     style={{ color: "var(--color-success)", border: "1px solid var(--color-success)" }}
                   >
-                    Zurueckgegeben
+                    Zurückgegeben
                   </button>
                 )}
                 <button
                   onClick={() => handleDeleteBooking(b.id)}
                   className="p-1.5 rounded"
                   style={{ color: "var(--color-destructive)" }}
-                  title="Loeschen"
+                  title="Löschen"
                 >
                   <IconTrash size={14} />
                 </button>
@@ -305,7 +305,7 @@ function ItemPickerModal({
 
           {filtered.length === 0 ? (
             <div className="text-sm py-6 text-center" style={{ color: "var(--color-muted-foreground)" }}>
-              Keine Items verfuegbar. Lege im Inventar Items an oder lass dir welche von deiner Gruppe freigeben.
+              Keine Items verfügbar. Lege im Inventar Items an oder lass dir welche von deiner Gruppe freigeben.
             </div>
           ) : (
             <div className="max-h-64 overflow-y-auto space-y-1">
@@ -329,7 +329,7 @@ function ItemPickerModal({
                       {item.name}
                     </div>
                     <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                      Owner: {item.ownerName} · {item.quantity} verfuegbar
+                      Owner: {item.ownerName} · {item.quantity} verfügbar
                       {item.daily_rate ? ` · ${Number(item.daily_rate).toFixed(2)}€/Tag` : ""}
                     </div>
                   </div>

@@ -77,7 +77,7 @@ export default function DashboardPage() {
     });
     if (pendRes.data) setPendingInvites(pendRes.data as unknown as PendingInvitation[]);
 
-    // Vote-Anfragen: Einladungen in Voting-Status fuer Gruppen, in denen ich aktives Mitglied bin
+    // Vote-Anfragen: Einladungen in Voting-Status für Gruppen, in denen ich aktives Mitglied bin
     const { data: myGroups } = await supabase
       .from("group_memberships")
       .select("group_id")
@@ -93,7 +93,7 @@ export default function DashboardPage() {
         .in("status", ["accepted_by_user", "voting_in_progress"])
         .neq("invited_profile_id", currentUser.id);
 
-      // Filter weiter: nur die, fuer die ich noch nicht abgestimmt habe
+      // Filter weiter: nur die, für die ich noch nicht abgestimmt habe
       const invIds = (invs || []).map((i) => i.id);
       let votedIds: string[] = [];
       if (invIds.length > 0) {
@@ -213,7 +213,7 @@ export default function DashboardPage() {
                 className="text-xs mb-3 p-2 rounded"
                 style={{ background: "rgba(255,255,255,0.4)", color: "var(--color-muted-foreground)" }}
               >
-                💡 Hinweis: Wenn du akzeptierst, muessen alle bestehenden Mitglieder
+                💡 Hinweis: Wenn du akzeptierst, müssen alle bestehenden Mitglieder
                 einstimmig zustimmen, bevor du Mitglied wirst.
               </div>
               <div className="flex gap-2">
@@ -240,7 +240,7 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Vote-Anfragen: Du musst ueber neue Mitglieder abstimmen */}
+      {/* Vote-Anfragen: Du musst über neue Mitglieder abstimmen */}
       {voteRequests.length > 0 && (
         <div className="space-y-3 mb-6">
           {voteRequests.map((vr) => (
@@ -362,14 +362,14 @@ export default function DashboardPage() {
               Gruppen
             </h2>
             <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-              Kollektive fuer gemeinsame Projekte mit transparentem Gewinn
+              Kollektive für gemeinsame Projekte mit transparentem Gewinn
             </p>
           </div>
         </div>
 
         {groups.length === 0 ? (
           <p className="text-sm mb-4" style={{ color: "var(--color-muted-foreground)" }}>
-            Du bist noch in keiner Gruppe. Gruende eine eigene oder warte auf eine Einladung.
+            Du bist noch in keiner Gruppe. Gründe eine eigene oder warte auf eine Einladung.
           </p>
         ) : (
           <div className="space-y-2 mb-4">
@@ -390,7 +390,7 @@ export default function DashboardPage() {
                     )}
                   </div>
                   <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                    {g.isActive ? "Aktiv" : "Wartet auf Bestaetigung"}
+                    {g.isActive ? "Aktiv" : "Wartet auf Bestätigung"}
                   </div>
                 </div>
                 <IconChevronRight size={16} style={{ color: "var(--color-muted-foreground)" }} />
@@ -404,7 +404,7 @@ export default function DashboardPage() {
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
           style={{ background: "var(--color-success)" }}
         >
-          <IconPlus size={14} /> Gruppe gruenden
+          <IconPlus size={14} /> Gruppe gründen
         </Link>
       </div>
     </div>

@@ -70,24 +70,24 @@ const PAGE_SIZE = 50;
 const actionLabels: Record<string, string> = {
   "member.registered": "hat sich registriert",
   "member.approved": "hat freigeschaltet",
-  "member.role_changed": "hat Rolle geaendert von",
+  "member.role_changed": "hat Rolle geändert von",
   "member.deactivated": "hat deaktiviert",
   "member.reactivated": "hat reaktiviert",
   "project.created": "Projekt erstellt",
   "project.updated": "Projekt aktualisiert",
-  "project.status_changed": "Projektstatus geaendert",
-  "inventory.created": "Inventar hinzugefuegt",
+  "project.status_changed": "Projektstatus geändert",
+  "inventory.created": "Inventar hinzugefügt",
   "inventory.updated": "Inventar aktualisiert",
-  "inventory.deleted": "Inventar geloescht",
+  "inventory.deleted": "Inventar gelöscht",
   "decision.created": "Beschluss erstellt",
   "decision.voted": "hat abgestimmt",
   "decision.resolved": "Beschluss abgeschlossen",
-  "guest.added": "Gast hinzugefuegt",
+  "guest.added": "Gast hinzugefügt",
   "guest.removed": "Gast entfernt",
   "invitation.sent": "Einladung gesendet",
   "invitation.accepted": "Einladung angenommen",
   "booking.created": "Buchung erstellt",
-  "booking.deleted": "Buchung geloescht",
+  "booking.deleted": "Buchung gelöscht",
 };
 
 const actionIcons: Record<string, string> = {
@@ -117,8 +117,8 @@ const actionGroups: { label: string; actions: string[] }[] = [
   { label: "Mitglieder", actions: ["member.registered", "member.approved", "member.role_changed", "member.deactivated", "member.reactivated"] },
   { label: "Projekte", actions: ["project.created", "project.updated", "project.status_changed"] },
   { label: "Inventar", actions: ["inventory.created", "inventory.updated", "inventory.deleted"] },
-  { label: "Beschluesse", actions: ["decision.created", "decision.voted", "decision.resolved"] },
-  { label: "Gaeste", actions: ["guest.added", "guest.removed"] },
+  { label: "Beschlüsse", actions: ["decision.created", "decision.voted", "decision.resolved"] },
+  { label: "Gäste", actions: ["guest.added", "guest.removed"] },
   { label: "Einladungen", actions: ["invitation.sent", "invitation.accepted"] },
   { label: "Buchungen", actions: ["booking.created", "booking.deleted"] },
 ];
@@ -283,7 +283,7 @@ export default function AdminPage() {
       });
     }
 
-    showToast("Rolle geaendert", "success");
+    showToast("Rolle geändert", "success");
     await loadMembers();
   }
 
@@ -365,7 +365,7 @@ export default function AdminPage() {
     if (!orgId) return;
     const isTestUser = profileName?.includes("(Test)");
     const confirmMsg = isTestUser
-      ? `Testuser "${profileName}" komplett loeschen?`
+      ? `Testuser "${profileName}" komplett löschen?`
       : `"${profileName}" aus der Organisation entfernen?`;
     if (!(await appConfirm(confirmMsg, { variant: "danger", confirmLabel: "Entfernen" }))) return;
 
@@ -375,7 +375,7 @@ export default function AdminPage() {
       p_profile_id: profileId,
       p_delete_user: isTestUser,
     });
-    showToast(isTestUser ? "Testuser geloescht" : "Mitglied entfernt", "success");
+    showToast(isTestUser ? "Testuser gelöscht" : "Mitglied entfernt", "success");
     await loadMembers();
     setProcessing(null);
   }
@@ -416,7 +416,7 @@ export default function AdminPage() {
         <div>
           <h1 className="text-2xl font-bold">Admin</h1>
           <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-            User, Gruppen, Aktivitaetsprotokoll und System-Einstellungen
+            User, Gruppen, Aktivitätsprotokoll und System-Einstellungen
           </p>
         </div>
         {activeTab === "roles" && (
@@ -719,7 +719,7 @@ function RolesTab({
                   disabled={processing === member.profile_id}
                   className="p-1.5 rounded transition-colors flex-shrink-0 disabled:opacity-50"
                   style={{ color: "var(--color-destructive)" }}
-                  title={profile?.name?.includes("(Test)") ? "Testuser komplett loeschen" : "Aus Organisation entfernen"}
+                  title={profile?.name?.includes("(Test)") ? "Testuser komplett löschen" : "Aus Organisation entfernen"}
                 >
                   <IconTrash size={14} />
                 </button>
@@ -860,7 +860,7 @@ function LogTab({
       ) : entries.length === 0 ? (
         <div className="py-12 text-center rounded-xl"
           style={{ border: "2px dashed var(--color-border)", color: "var(--color-muted-foreground)" }}>
-          <p className="text-lg mb-1">Noch keine Aktivitaeten</p>
+          <p className="text-lg mb-1">Noch keine Aktivitäten</p>
           <p className="text-sm">Aktionen werden automatisch protokolliert.</p>
         </div>
       ) : (
@@ -1342,9 +1342,9 @@ function ServicesTab({ orgId }: { orgId: string }) {
   };
 
   const statusLabels: Record<ServiceStatus, string> = {
-    checking: "Pruefe...",
+    checking: "Prüfe...",
     online: "Online",
-    degraded: "Eingeschraenkt",
+    degraded: "Eingeschränkt",
     offline: "Offline",
     unknown: "Unbekannt",
   };
@@ -1369,7 +1369,7 @@ function ServicesTab({ orgId }: { orgId: string }) {
             </div>
             <div>
               <h2 className="text-lg font-bold">
-                {checking ? "Services werden geprueft..." : allOnline ? "Alle Services online" : anyOffline ? "Service-Stoerung erkannt" : "Einschraenkungen erkannt"}
+                {checking ? "Services werden geprüft..." : allOnline ? "Alle Services online" : anyOffline ? "Service-Störung erkannt" : "Einschränkungen erkannt"}
               </h2>
               <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
                 {services.filter(s => s.status === "online").length}/{services.length} Services erreichbar
@@ -1382,7 +1382,7 @@ function ServicesTab({ orgId }: { orgId: string }) {
             className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
             style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
           >
-            {checking ? "\u23F3" : "\u{1F504}"} Neu pruefen
+            {checking ? "\u23F3" : "\u{1F504}"} Neu prüfen
           </button>
         </div>
 
@@ -1445,7 +1445,7 @@ function ServicesTab({ orgId }: { orgId: string }) {
         {/* CTags */}
         {calendarDebug.ctags.length > 0 && (
           <div>
-            <p className="text-xs font-bold mb-2" style={{ color: "var(--color-muted-foreground)" }}>CTags (Sync-Zaehler)</p>
+            <p className="text-xs font-bold mb-2" style={{ color: "var(--color-muted-foreground)" }}>CTags (Sync-Zähler)</p>
             <div className="space-y-1">
               {calendarDebug.ctags.map((g) => (
                 <div key={g.name} className="flex items-center justify-between px-3 py-2 rounded-lg text-xs" style={{ background: "var(--color-muted)" }}>
@@ -1457,7 +1457,7 @@ function ServicesTab({ orgId }: { orgId: string }) {
               ))}
             </div>
             <p className="text-[11px] mt-2" style={{ color: "var(--color-muted-foreground)" }}>
-              CTag erhoet sich bei jeder Aenderung. Apple Calendar vergleicht den CTag und synct nur bei Aenderung.
+              CTag erhoet sich bei jeder Änderung. Apple Calendar vergleicht den CTag und synct nur bei Änderung.
             </p>
           </div>
         )}
@@ -1544,7 +1544,7 @@ function ServicesTab({ orgId }: { orgId: string }) {
                       <div key={e.id} className="px-3 py-2 rounded-lg text-[11px] font-mono" style={{ background: "var(--color-muted)" }}>
                         <span className="font-bold">{e.summary}</span>
                         <span className="mx-2" style={{ color: "var(--color-muted-foreground)" }}>|</span>
-                        <span>{e.all_day ? "Ganztaegig" : ""} {e.start_at?.split("T")[0]}</span>
+                        <span>{e.all_day ? "Ganztägig" : ""} {e.start_at?.split("T")[0]}</span>
                         <span className="mx-2" style={{ color: "var(--color-muted-foreground)" }}>|</span>
                         <span style={{ color: "var(--color-muted-foreground)" }}>UID: {e.caldav_uid?.substring(0, 12)}...</span>
                       </div>
@@ -1660,7 +1660,7 @@ function SecurityToggleSection() {
     const next = !mfaEnabled;
     if (next) {
       const ok = await appConfirm(
-        "2FA fuer alle nicht-Superadmin User aktivieren? Sie werden beim naechsten Login zur Einrichtung gezwungen.",
+        "2FA für alle nicht-Superadmin User aktivieren? Sie werden beim nächsten Login zur Einrichtung gezwungen.",
         { title: "2FA global aktivieren?", confirmLabel: "Aktivieren" }
       );
       if (!ok) return;
@@ -1694,7 +1694,7 @@ function SecurityToggleSection() {
           </div>
           <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
             {mfaEnabled
-              ? "Aktiv: Alle nicht-Superadmin User muessen TOTP einrichten und beim Login bestaetigen."
+              ? "Aktiv: Alle nicht-Superadmin User müssen TOTP einrichten und beim Login bestätigen."
               : "Deaktiviert (Entwicklungsmodus): Login funktioniert ohne zweiten Faktor. Superadmins sind generell ausgenommen."}
           </p>
         </div>
@@ -1742,21 +1742,21 @@ function SystemTab() {
     {
       title: "CalDAV-Proxy (Cloudflare Worker)",
       icon: "\u2601\uFE0F",
-      desc: "Manuell deployen wenn Worker-Code geaendert wird",
+      desc: "Manuell deployen wenn Worker-Code geändert wird",
       steps: [
         "cd cloudflare-caldav-proxy",
         "npx wrangler deploy",
         "Worker URL: caldav-proxy.post-cd8.workers.dev",
-        "Wird benoetigt weil Vercel PROPFIND/REPORT blockt",
+        "Wird benötigt weil Vercel PROPFIND/REPORT blockt",
       ],
     },
     {
       title: "Datenbank (Supabase)",
       icon: "\u{1F5C4}\uFE0F",
-      desc: "Migrationen manuell ausfuehren",
+      desc: "Migrationen manuell ausführen",
       steps: [
         "SQL-Datei in supabase/migrations/ erstellen",
-        "Via Management API ausfuehren oder Supabase Dashboard → SQL Editor",
+        "Via Management API ausführen oder Supabase Dashboard → SQL Editor",
         "Oder: supabase db push (wenn CLI eingerichtet)",
         "Aktuell: 79 Migrationen",
       ],
@@ -1766,12 +1766,12 @@ function SystemTab() {
   const features = [
     { name: "Solo-Workspace", desc: "Jeder User hat eigenes Inventar, Anfragen, Projekte (User-First Model)" },
     { name: "Gruppen", desc: "Optionales Kollektiv-Overlay mit einstimmigem Voting beim Beitritt" },
-    { name: "Projekte", desc: "11 Tabs: Uebersicht, Zeitplan, Kosten, Equipment, Team, Material, Checklisten, Aufgaben, Dateien, Polls, Profit" },
-    { name: "Inventar", desc: "Equipment mit Kategorien, Einzelstuecken, Fotos, Excel-Import + Group-Sharing" },
-    { name: "Anfragen", desc: "Pipeline von Erstanfrage bis Angebot, Team-Verfuegbarkeit" },
+    { name: "Projekte", desc: "11 Tabs: Übersicht, Zeitplan, Kosten, Equipment, Team, Material, Checklisten, Aufgaben, Dateien, Polls, Profit" },
+    { name: "Inventar", desc: "Equipment mit Kategorien, Einzelstücken, Fotos, Excel-Import + Group-Sharing" },
+    { name: "Anfragen", desc: "Pipeline von Erstanfrage bis Angebot, Team-Verfügbarkeit" },
     { name: "Kalender", desc: "Monats-/Wochenansicht, CalDAV Zwei-Wege-Sync, iCal-Feed (pro Gruppe)" },
     { name: "Polls", desc: "Doodle-Style Terminumfragen + Checkbox-Polls (org/gruppe + projekt)" },
-    { name: "Beschluesse", desc: "Cooperation Agreements mit Profit-Verteilung + Voting" },
+    { name: "Beschlüsse", desc: "Cooperation Agreements mit Profit-Verteilung + Voting" },
     { name: "Email", desc: "Pro-User SMTP/IMAP Konfig, gestylte Auth-Templates, Edge-Function Versand" },
   ];
 
@@ -1795,7 +1795,7 @@ function SystemTab() {
           <div>
             <h2 className="text-lg font-bold">Project Prepper</h2>
             <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-              Projektmanagement fuer Veranstaltungstechnik
+              Projektmanagement für Veranstaltungstechnik
             </p>
           </div>
         </div>
@@ -1857,8 +1857,8 @@ function SystemTab() {
         {/* Zusammenfassung */}
         <div className="mt-4 p-3 rounded-lg text-xs" style={{ background: "var(--color-primary-light)", border: "1px solid var(--color-primary)", color: "var(--color-primary)" }}>
           <strong>Kurzfassung:</strong> git push origin main deployed die App automatisch auf Vercel.
-          CalDAV-Proxy nur bei Aenderungen am Worker manuell deployen (npx wrangler deploy).
-          Datenbank-Migrationen im Supabase SQL Editor ausfuehren.
+          CalDAV-Proxy nur bei Änderungen am Worker manuell deployen (npx wrangler deploy).
+          Datenbank-Migrationen im Supabase SQL Editor ausführen.
         </div>
       </div>
 
@@ -1895,7 +1895,7 @@ cloudflare-caldav-proxy/ # PROPFIND/REPORT → POST Proxy`}
               { label: "Sync", value: "ETag (Event) + CTag (Collection)" },
               { label: "Proxy", value: "Cloudflare Worker (Vercel blockt non-standard Methoden)" },
               { label: "Clients", value: "Apple Calendar, Thunderbird, DAVx5, Outlook (Plugin)" },
-              { label: "Feed", value: "iCal-Abo (Nur-Lesen) fuer Google Calendar, Outlook Web" },
+              { label: "Feed", value: "iCal-Abo (Nur-Lesen) für Google Calendar, Outlook Web" },
             ].map((item) => (
               <div key={item.label} className="p-2.5 rounded-lg" style={{ background: "var(--color-muted)" }}>
                 <p className="text-xs font-bold" style={{ color: "var(--color-primary)" }}>{item.label}</p>

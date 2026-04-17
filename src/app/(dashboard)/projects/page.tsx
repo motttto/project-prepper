@@ -180,7 +180,7 @@ export default function ProjectsPage() {
       setShowCreate(false);
       loadProjects();
       showToast("Projekt erstellt", "success");
-      // logActivity entfaellt waehrend Refactor
+      // logActivity entfaellt während Refactor
     }
     setSaving(false);
   }
@@ -199,7 +199,7 @@ export default function ProjectsPage() {
         prev.map((p) => (p.id === projectId ? { ...p, status: newStatus } : p))
       );
       const proj = projects.find(p => p.id === projectId);
-      // logActivity entfaellt waehrend Refactor
+      // logActivity entfaellt während Refactor
     }
   }
 

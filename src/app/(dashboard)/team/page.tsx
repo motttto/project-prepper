@@ -12,10 +12,10 @@ export default function TeamPage() {
       <div className="max-w-2xl mx-auto px-4 py-12 text-center">
         <IconUsers size={40} className="mx-auto mb-3" style={{ color: "var(--color-muted-foreground)", opacity: 0.5 }} />
         <h1 className="text-xl font-semibold mb-2" style={{ color: "var(--color-foreground)" }}>
-          Team-Verwaltung ist nur in Gruppen verfuegbar
+          Team-Verwaltung ist nur in Gruppen verfügbar
         </h1>
         <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-          Wechsel oben links zu einer Gruppe oder gruende eine neue, um Mitglieder zu verwalten.
+          Wechsel oben links zu einer Gruppe oder gründe eine neue, um Mitglieder zu verwalten.
         </p>
       </div>
     );

@@ -57,7 +57,7 @@ const SOLO_PERMISSIONS: UserPermissions = {
 export function hasPermission(user: CurrentUser | null, key: string): boolean {
   if (!user) return false;
   // Im neuen Modell: alle authentifizierten User haben alle Permissions
-  // Differenzierung kommt zurueck wenn Group-Rollen-Konzept implementiert wird
+  // Differenzierung kommt zurück wenn Group-Rollen-Konzept implementiert wird
   return true;
 }
 

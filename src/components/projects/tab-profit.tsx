@@ -49,7 +49,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
       supabase.from("cost_items").select("*").eq("project_id", project.id),
       supabase.from("cooperation_agreements").select("*").eq("project_id", project.id).maybeSingle(),
     ]);
-    // Pruefen: existiert bereits eine offene Decision fuer Auszahlung?
+    // Prüfen: existiert bereits eine offene Decision für Auszahlung?
     const { data: existingDecision } = await supabase
       .from("org_decisions")
       .select("id, status")
@@ -146,7 +146,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   );
   const grossProfit = revenueNum - totalCosts;
 
-  // Projekt-Tage fuer Inventar-Berechnung
+  // Projekt-Tage für Inventar-Berechnung
   let projectDays = 1;
   if (project.date_start && project.date_end) {
     const diff = (new Date(project.date_end).getTime() - new Date(project.date_start).getTime()) / 86400000;
@@ -214,7 +214,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
           }}
         >
           <div className="text-xs" style={{ color: netProfit >= 0 ? "var(--color-success)" : "var(--color-destructive)" }}>
-            Netto-Gewinn {agreement && agreement.profit_formula.pre_deductions?.length ? "(nach Vorab-Abzuegen)" : ""}
+            Netto-Gewinn {agreement && agreement.profit_formula.pre_deductions?.length ? "(nach Vorab-Abzügen)" : ""}
           </div>
           <div
             className="text-lg font-bold"
@@ -304,10 +304,10 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
             ))}
           </div>
 
-          {/* Vorab-Abzuege */}
+          {/* Vorab-Abzüge */}
           {agreement.profit_formula.pre_deductions && agreement.profit_formula.pre_deductions.length > 0 && (
             <div className="mt-4 pt-3 border-t text-xs" style={{ borderColor: "var(--color-border)", color: "var(--color-muted-foreground)" }}>
-              <div className="font-semibold mb-1">Vorab-Abzuege:</div>
+              <div className="font-semibold mb-1">Vorab-Abzüge:</div>
               {agreement.profit_formula.pre_deductions.map((d, i) => (
                 <div key={i}>· {d.label}: {d.amount.toFixed(2)}€</div>
               ))}
@@ -321,10 +321,10 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
                 <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: "var(--color-info-light)" }}>
                   <div>
                     <div className="text-sm font-medium" style={{ color: "var(--color-info)" }}>
-                      Abstimmung laeuft
+                      Abstimmung läuft
                     </div>
                     <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                      Mitglieder muessen zustimmen damit Auszahlung verbindlich wird.
+                      Mitglieder müssen zustimmen damit Auszahlung verbindlich wird.
                     </div>
                   </div>
                   <Link

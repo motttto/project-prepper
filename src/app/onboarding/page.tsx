@@ -219,7 +219,7 @@ export default function OnboardingPage() {
     if (historyInsert.error) console.warn("History insert failed:", historyInsert.error);
 
     // Im neuen Modell: User landet direkt im Solo-Dashboard.
-    // Gruppen-Beitritt / -Gruendung erfolgt spaeter aus dem Dashboard.
+    // Gruppen-Beitritt / -Gründung erfolgt später aus dem Dashboard.
     router.push("/dashboard");
     router.refresh();
   }

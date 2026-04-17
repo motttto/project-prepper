@@ -14,7 +14,7 @@ import {
 const STORAGE_KEY = "pp_how_it_works_dismissed_v2";
 
 export function HowItWorksBanner() {
-  const [dismissed, setDismissed] = useState(true); // default true bis useEffect prueft
+  const [dismissed, setDismissed] = useState(true); // default true bis useEffect prüft
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {

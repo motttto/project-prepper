@@ -69,7 +69,7 @@ export function TabPolls({ projectId }: TabPollsProps) {
     onDataChange: loadPolls,
   });
 
-  // groupId optional: Polls sind Projekt-gebunden, koennen auch ohne Group existieren
+  // groupId optional: Polls sind Projekt-gebunden, können auch ohne Group existieren
 
   return (
     <div>

@@ -121,7 +121,7 @@ export default function GroupDetailPage() {
         .select("*, invitee:profiles!invited_profile_id(name, email), inviter:profiles!invited_by(name)")
         .eq("group_id", groupId)
         .order("created_at", { ascending: false }),
-      // Votes fuer alle Invitations dieser Gruppe
+      // Votes für alle Invitations dieser Gruppe
       supabase
         .from("group_invitation_votes")
         .select("*, voter:profiles(name)")
@@ -185,7 +185,7 @@ export default function GroupDetailPage() {
         { onConflict: "decision_id,voter_id" }
       );
 
-    // Pruefen ob alle Members zugestimmt haben (Trigger fehlt -> manuell)
+    // Prüfen ob alle Members zugestimmt haben (Trigger fehlt -> manuell)
     const { data: allVotes } = await supabase
       .from("org_decision_votes")
       .select("vote")
@@ -217,7 +217,7 @@ export default function GroupDetailPage() {
 
     const email = inviteEmail.trim().toLowerCase();
 
-    // Pruefen ob User mit Email existiert
+    // Prüfen ob User mit Email existiert
     const { data: existing } = await supabase
       .from("profiles")
       .select("id, name")
@@ -264,7 +264,7 @@ export default function GroupDetailPage() {
       emailSent
         ? `Einladung an ${email} per Email verschickt`
         : existing
-          ? `Einladung fuer ${existing.name} angelegt — User sieht sie im Dashboard`
+          ? `Einladung für ${existing.name} angelegt — User sieht sie im Dashboard`
           : `Einladung angelegt. Email konnte nicht gesendet werden (SMTP-Config in Admin?). User muss sich registrieren um Einladung zu sehen.`,
       emailSent ? "success" : "info"
     );
@@ -290,7 +290,7 @@ export default function GroupDetailPage() {
 
   async function handleCancelInvitation(id: string) {
     await supabase.from("group_invitations").delete().eq("id", id);
-    showToast("Einladung zurueckgezogen", "info");
+    showToast("Einladung zurückgezogen", "info");
   }
 
   async function handleLeaveGroup() {
@@ -332,14 +332,6 @@ export default function GroupDetailPage() {
 
   return (
     <div className="max-w-3xl">
-      <button
-        onClick={() => router.push("/dashboard")}
-        className="inline-flex items-center gap-1 text-sm mb-4"
-        style={{ color: "var(--color-muted-foreground)" }}
-      >
-        <IconChevronLeft size={14} /> Zurueck
-      </button>
-
       {/* Header */}
       <div
         className="rounded-xl p-6 mb-5"
@@ -363,7 +355,7 @@ export default function GroupDetailPage() {
             )}
             <p className="text-xs mt-2" style={{ color: "var(--color-muted-foreground)" }}>
               {activeMembers.length} aktive Mitglied{activeMembers.length !== 1 ? "er" : ""} ·
-              gegruendet am {new Date(group.founded_at).toLocaleDateString("de-DE")}
+              gegründet am {new Date(group.founded_at).toLocaleDateString("de-DE")}
             </p>
           </div>
           {!isFounder && (
@@ -403,7 +395,7 @@ export default function GroupDetailPage() {
         {showInvite && (
           <form onSubmit={handleInvite} className="mb-4 p-4 rounded-lg" style={{ background: "var(--color-muted)" }}>
             <div className="text-xs font-medium mb-3" style={{ color: "var(--color-foreground)" }}>
-              Mitglied einladen — alle bestehenden Mitglieder muessen einstimmig zustimmen.
+              Mitglied einladen — alle bestehenden Mitglieder müssen einstimmig zustimmen.
             </div>
             <input
               type="email"
@@ -535,7 +527,7 @@ export default function GroupDetailPage() {
         </div>
       )}
 
-      {/* Beschluesse */}
+      {/* Beschlüsse */}
       {decisions.length > 0 && (
         <div
           className="rounded-xl p-6"
@@ -544,7 +536,7 @@ export default function GroupDetailPage() {
           <div className="flex items-center gap-2 mb-4">
             <IconShield size={18} style={{ color: "var(--color-warning)" }} />
             <h2 className="text-base font-semibold" style={{ color: "var(--color-foreground)" }}>
-              Beschluesse ({decisions.filter((d) => d.status === "open").length} offen)
+              Beschlüsse ({decisions.filter((d) => d.status === "open").length} offen)
             </h2>
           </div>
           <div className="space-y-3">
@@ -590,7 +582,7 @@ function DecisionCard({
   const canVote = decision.status === "open" && !myVote;
 
   const statusColors: Record<string, { bg: string; color: string; label: string }> = {
-    open: { bg: "var(--color-warning-light)", color: "var(--color-warning)", label: "Abstimmung laeuft" },
+    open: { bg: "var(--color-warning-light)", color: "var(--color-warning)", label: "Abstimmung läuft" },
     approved: { bg: "var(--color-success-light)", color: "var(--color-success)", label: "Beschlossen" },
     rejected: { bg: "var(--color-destructive-light)", color: "var(--color-destructive)", label: "Abgelehnt" },
     expired: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)", label: "Abgelaufen" },
@@ -600,7 +592,7 @@ function DecisionCard({
   const decisionTypeLabels: Record<string, string> = {
     profit_distribution: "Gewinnverteilung",
     asset_purchase: "Anschaffung",
-    asset_disposal: "Veraeusserung",
+    asset_disposal: "Veräußerung",
     exit_settlement: "Austritt",
     policy: "Richtlinie",
     general: "Allgemein",
@@ -667,7 +659,7 @@ function DecisionCard({
               type="text"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Begruendung (empfohlen)..."
+              placeholder="Begründung (empfohlen)..."
               className="w-full px-3 py-1.5 rounded text-xs"
               style={{
                 background: "var(--color-background)",
@@ -698,7 +690,7 @@ function DecisionCard({
                 className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white"
                 style={{ background: "var(--color-destructive)" }}
               >
-                <IconX size={12} /> Ablehnen bestaetigen
+                <IconX size={12} /> Ablehnen bestätigen
               </button>
             )}
           </div>
@@ -736,9 +728,9 @@ function InvitationCard({
   const [showRejectInput, setShowRejectInput] = useState(false);
 
   const myVote = votes.find((v) => v.voter_id === currentUserId);
-  // Voting laeuft wenn jemand bereits akzeptiert hat
+  // Voting läuft wenn jemand bereits akzeptiert hat
   const isVoting = ["accepted_by_user", "voting_in_progress"].includes(invitation.status);
-  // Andere Mitglieder die abstimmen muessen (ohne den Eingeladenen selbst)
+  // Andere Mitglieder die abstimmen müssen (ohne den Eingeladenen selbst)
   const eligibleVoters = activeMembers.filter(
     (m) => m.profile_id !== invitation.invited_profile_id
   );
@@ -749,12 +741,12 @@ function InvitationCard({
 
   const statusColors: Record<string, { bg: string; color: string; label: string }> = {
     pending: { bg: "var(--color-warning-light)", color: "var(--color-warning)", label: "Wartet auf Antwort" },
-    accepted_by_user: { bg: "var(--color-info-light)", color: "var(--color-info)", label: "Akzeptiert · Voting laeuft" },
-    voting_in_progress: { bg: "var(--color-info-light)", color: "var(--color-info)", label: "Voting laeuft" },
+    accepted_by_user: { bg: "var(--color-info-light)", color: "var(--color-info)", label: "Akzeptiert · Voting läuft" },
+    voting_in_progress: { bg: "var(--color-info-light)", color: "var(--color-info)", label: "Voting läuft" },
     approved: { bg: "var(--color-success-light)", color: "var(--color-success)", label: "Aufgenommen" },
     declined_by_user: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)", label: "Vom User abgelehnt" },
     rejected_by_member: { bg: "var(--color-destructive-light)", color: "var(--color-destructive)", label: "Von Mitglied abgelehnt" },
-    cancelled: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)", label: "Zurueckgezogen" },
+    cancelled: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)", label: "Zurückgezogen" },
     expired: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)", label: "Abgelaufen" },
   };
   const statusInfo = statusColors[invitation.status] || statusColors.pending;
@@ -819,7 +811,7 @@ function InvitationCard({
               type="text"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Begruendung (empfohlen)..."
+              placeholder="Begründung (empfohlen)..."
               className="w-full px-3 py-1.5 rounded text-xs"
               style={{
                 background: "var(--color-background)",
@@ -850,7 +842,7 @@ function InvitationCard({
                 className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white"
                 style={{ background: "var(--color-destructive)" }}
               >
-                <IconX size={12} /> Ablehnen bestaetigen
+                <IconX size={12} /> Ablehnen bestätigen
               </button>
             )}
           </div>
@@ -881,7 +873,7 @@ function InvitationCard({
               className="text-xs flex items-center gap-1"
               style={{ color: "var(--color-destructive)" }}
             >
-              <IconTrash size={12} /> Einladung zurueckziehen
+              <IconTrash size={12} /> Einladung zurückziehen
             </button>
           </div>
         )}

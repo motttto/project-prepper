@@ -92,7 +92,7 @@ export function ShareWithGroupModal({ item, onClose }: Props) {
     if (error) {
       showToast("Fehler: " + error.message, "error");
     } else {
-      showToast("Item fuer Gruppe freigegeben", "success");
+      showToast("Item für Gruppe freigegeben", "success");
       setConditions("");
       loadData();
     }
@@ -136,7 +136,7 @@ export function ShareWithGroupModal({ item, onClose }: Props) {
               className="text-lg font-semibold"
               style={{ color: "var(--color-foreground)" }}
             >
-              Fuer Gruppe freigeben
+              Für Gruppe freigeben
             </h2>
           </div>
           <button onClick={onClose} className="p-1 rounded hover:opacity-70">
@@ -159,7 +159,7 @@ export function ShareWithGroupModal({ item, onClose }: Props) {
               className="p-4 rounded-lg text-sm text-center"
               style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}
             >
-              Du bist in keiner Gruppe. Gruende eine Gruppe oder warte auf eine
+              Du bist in keiner Gruppe. Gründe eine Gruppe oder warte auf eine
               Einladung, um Equipment zu teilen.
             </div>
           ) : (
@@ -265,7 +265,7 @@ export function ShareWithGroupModal({ item, onClose }: Props) {
                       value={conditions}
                       onChange={(e) => setConditions(e.target.value)}
                       rows={2}
-                      placeholder="z.B. nur mit Bedienung, Haftung pruefen"
+                      placeholder="z.B. nur mit Bedienung, Haftung prüfen"
                       className="w-full px-3 py-2 rounded-lg text-sm resize-none"
                       style={{
                         background: "var(--color-muted)",
@@ -285,7 +285,7 @@ export function ShareWithGroupModal({ item, onClose }: Props) {
                 </form>
               ) : shares.length > 0 ? (
                 <div className="text-xs text-center pt-3" style={{ color: "var(--color-muted-foreground)" }}>
-                  Item ist fuer alle deine Gruppen freigegeben.
+                  Item ist für alle deine Gruppen freigegeben.
                 </div>
               ) : null}
             </>

@@ -90,10 +90,10 @@ export default function PollsPage() {
       <div className="max-w-2xl mx-auto px-4 py-12 text-center">
         <IconClipboard size={40} className="mx-auto mb-3" style={{ color: "var(--color-muted-foreground)", opacity: 0.5 }} />
         <h1 className="text-xl font-semibold mb-2" style={{ color: "var(--color-foreground)" }}>
-          Umfragen sind nur in Gruppen verfuegbar
+          Umfragen sind nur in Gruppen verfügbar
         </h1>
         <p className="text-sm" style={{ color: "var(--color-muted-foreground)" }}>
-          Wechsel oben links zu einer Gruppe oder gruende eine neue, um Terminumfragen oder Abstimmungen zu erstellen.
+          Wechsel oben links zu einer Gruppe oder gründe eine neue, um Terminumfragen oder Abstimmungen zu erstellen.
         </p>
       </div>
     );

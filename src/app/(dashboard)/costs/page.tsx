@@ -1,9 +1,9 @@
 "use client";
 
-// Group-Kostenuebersicht
+// Group-Kostenübersicht
 // =====================
 // Solo: Hinweis "Kosten findest du im Projekt"
-// Group: Aggregierte Sicht ueber alle Projekte der Gruppe + Cost-Items
+// Group: Aggregierte Sicht über alle Projekte der Gruppe + Cost-Items
 
 import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
@@ -115,7 +115,7 @@ export default function CostsPage() {
       <div className="max-w-2xl mx-auto px-4 py-12 text-center">
         <IconCosts size={40} className="mx-auto mb-3" style={{ color: "var(--color-muted-foreground)", opacity: 0.5 }} />
         <h1 className="text-xl font-semibold mb-2" style={{ color: "var(--color-foreground)" }}>
-          Solo-Kostenuebersicht
+          Solo-Kostenübersicht
         </h1>
         <p className="text-sm mb-4" style={{ color: "var(--color-muted-foreground)" }}>
           Im Solo-Modus siehst du Kosten direkt im jeweiligen Projekt.
@@ -140,7 +140,7 @@ export default function CostsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold" style={{ color: "var(--color-foreground)" }}>Kosten</h1>
         <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-          Aggregiert ueber alle Projekte von &quot;{groupName}&quot;
+          Aggregiert über alle Projekte von &quot;{groupName}&quot;
         </p>
       </div>
 

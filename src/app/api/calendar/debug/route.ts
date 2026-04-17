@@ -5,7 +5,7 @@ import { generateVCalendar } from "@/lib/caldav/ical";
 
 /**
  * GET /api/calendar/debug?org_id=xxx
- * Debug-Endpoint fuer CalDAV-Diagnose. Nur fuer Admins.
+ * Debug-Endpoint für CalDAV-Diagnose. Nur für Admins.
  *
  * POST /api/calendar/debug?org_id=xxx&action=bump_ctags
  * Force-Bump aller CTags (erzwingt Apple Calendar Re-Sync)

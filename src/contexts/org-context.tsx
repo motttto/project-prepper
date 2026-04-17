@@ -1,6 +1,6 @@
 "use client";
 
-// WORKSPACE-CONTEXT (frueher OrgContext)
+// WORKSPACE-CONTEXT (früher OrgContext)
 // =====================================
 // Nach Refactor (Phase 1): Org-Konzept entfaellt. Stattdessen:
 // - Solo-Modus: groupId === null, User arbeitet auf eigenen Daten
@@ -35,7 +35,7 @@ export interface WorkspaceContextValue {
   groupId: string | null;
   groupName: string;
   groupSlug: string;
-  /** Alle Gruppen des Users (auch inaktive, z.B. waehrend Voting) */
+  /** Alle Gruppen des Users (auch inaktive, z.B. während Voting) */
   groups: GroupSummary[];
   activeGroup: GroupSummary | null;
   /** Wechselt Workspace. null = Solo-Modus */

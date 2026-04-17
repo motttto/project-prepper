@@ -77,7 +77,7 @@ function InventoryPage() {
   const ownerId = currentUser?.id ?? null;
   // Backward-Compat: Aliase damit alter Code minimal angepasst werden muss
   const orgId = ownerId;
-  // groupId fuer Group-Modus
+  // groupId für Group-Modus
   const { groupId } = useWorkspace();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -152,7 +152,7 @@ function InventoryPage() {
   const loadItems = useCallback(async () => {
     if (!ownerId) return;
 
-    // Im Group-Modus: zusaetzlich Items aller Mitglieder laden die fuer die Gruppe freigegeben sind
+    // Im Group-Modus: zusaetzlich Items aller Mitglieder laden die für die Gruppe freigegeben sind
     let itemIds: string[] = [];
     if (groupId) {
       const { data: shareRows } = await supabase
@@ -318,7 +318,7 @@ function InventoryPage() {
       setShowCreate(false);
       loadItems();
       showToast("Artikel erstellt", "success");
-      // logActivity entfaellt waehrend Refactor (org_activity_log noch nicht migriert)
+      // logActivity entfaellt während Refactor (org_activity_log noch nicht migriert)
     }
     setSaving(false);
   }
@@ -338,7 +338,7 @@ function InventoryPage() {
     } else {
       loadItems();
       showToast("Artikel gelöscht", "success");
-      // logActivity entfaellt waehrend Refactor
+      // logActivity entfaellt während Refactor
     }
   }
 
@@ -1075,7 +1075,7 @@ function InventoryPage() {
                           onClick={(e) => { e.stopPropagation(); setShareItem(item); }}
                           className="opacity-0 group-hover:opacity-100 p-1.5 rounded transition-opacity"
                           style={{ color: "var(--color-success)" }}
-                          title="Fuer Gruppe freigeben"
+                          title="Für Gruppe freigeben"
                         >
                           <IconShield size={15} />
                         </button>

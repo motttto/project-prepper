@@ -28,7 +28,7 @@ function buildNavItems(activeGroupId: string | null): NavItem[] {
     // Gruppen-Kontext (Workspace-Badge zeigt Gruppenname → Prefix unnoetig)
     return [
       { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
-      { href: `/groups/${activeGroupId}`, label: "Uebersicht", icon: IconUsers },
+      { href: `/groups/${activeGroupId}`, label: "Übersicht", icon: IconUsers },
       { href: "/inventory", label: "Inventar", icon: IconInventory },
       { href: "/inquiries", label: "Anfragen", icon: IconInbox },
       { href: "/projects", label: "Projekte", icon: IconProjects },

@@ -100,7 +100,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // PFLICHT: Kollaborationsbasis-Zustimmung — VOR Org-Flow
-    // Gilt fuer alle User (auch Superadmins). Ohne Zustimmung kein Zugang.
+    // Gilt für alle User (auch Superadmins). Ohne Zustimmung kein Zugang.
     if (!hasAcceptedCollab && !isOnboardingPage && !isAuthCallback && !isHomePage && !isAuthPage && !isMfaPage) {
       const url = request.nextUrl.clone();
       url.pathname = "/onboarding";
@@ -123,7 +123,7 @@ export async function middleware(request: NextRequest) {
 
     // Im neuen User-First-Modell: kein Org-Check mehr.
     // User kann immer auf Solo-Bereich (Inventar, Anfragen, Projekte).
-    // Group-spezifische Pages (Polls, Kalender, Beschluesse) blocken sich selbst.
+    // Group-spezifische Pages (Polls, Kalender, Beschlüsse) blocken sich selbst.
 
     // Pending-Seite ist obsolet — User auf /pending soll zu Dashboard
     if (isPendingPage) {
