@@ -1,13 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
-import { useOrg } from "@/contexts/org-context";
+import { useOrg, useWorkspace } from "@/contexts/org-context";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import type { InventoryItem } from "@/types/database";
 import type { InventoryUnit } from "@/types/database";
 import { IconX, IconSave, IconExternalLink, IconHash, IconPlus, IconTrash } from "@/components/ui/icons";
 import { DateInput } from "@/components/ui/date-input";
 import { InventoryImageUpload } from "@/components/inventory/inventory-image-upload";
+
+// Preset-Bedingungen für Group-Sharing (Tags)
+const CONDITION_PRESETS: { value: string; label: string; description: string }[] = [
+  { value: "free_use", label: "Zur freien Verfügung", description: "Mitglieder buchen ohne Nachfrage" },
+  { value: "owner_pickup", label: "Nur vom Eigentümer entnehmbar", description: "Eigentümer übergibt physisch" },
+  { value: "group_projects_only", label: "Nur für Gruppen-Projekte", description: "Nicht für Solo-Projekte von Mitgliedern" },
+  { value: "rental_fee", label: "Gegen Leihgebühr", description: "Tagessatz wird abgerechnet" },
+  { value: "deposit_required", label: "Mit Kaution", description: "Hinterlegungspflicht" },
+  { value: "non_commercial", label: "Kein kommerzieller Einsatz", description: "Nur Non-Profit" },
+  { value: "instruction_required", label: "Vorherige Einweisung", description: "Einweisung vor erster Nutzung" },
+  { value: "expert_only", label: "Nur mit Fachkunde", description: "Qualifikation erforderlich" },
+];
 
 const conditionLabels: Record<InventoryItem["condition"], string> = {
   new: "Neu",
@@ -31,6 +44,9 @@ export function InventoryDetailModal({
 }: InventoryDetailModalProps) {
   const supabase = createClient();
   const { orgId } = useOrg();
+  const { groups } = useWorkspace();
+  const currentUser = useCurrentUser();
+  const isOwner = !!currentUser && item.owner_profile_id === currentUser.id;
 
   // Editierbare Felder
   const [name, setName] = useState(item.name);
@@ -76,6 +92,17 @@ export function InventoryDetailModal({
   const [units, setUnits] = useState<InventoryUnit[]>([]);
   const [unitsLoading, setUnitsLoading] = useState(false);
   const [unitsSaving, setUnitsSaving] = useState(false);
+
+  // Gruppen-Shares pro Gruppe (Map)
+  type ShareDraft = {
+    enabled: boolean;
+    daily_rate: number;
+    requires_approval: boolean;
+    conditions_tags: string[];
+    conditions: string;
+  };
+  const [shares, setShares] = useState<Record<string, ShareDraft>>({});
+  const [sharesLoaded, setSharesLoaded] = useState(false);
 
   // Track changes
   useEffect(() => {
@@ -156,6 +183,85 @@ export function InventoryDetailModal({
     loadProfiles();
   }, [supabase, orgId]);
 
+  // Existierende Group-Shares für dieses Item laden
+  useEffect(() => {
+    async function loadShares() {
+      const { data } = await supabase
+        .from("inventory_group_shares")
+        .select("group_id, daily_rate, requires_approval, conditions_tags, conditions")
+        .eq("inventory_item_id", item.id)
+        .is("revoked_at", null);
+      const map: Record<string, ShareDraft> = {};
+      for (const row of data || []) {
+        map[row.group_id] = {
+          enabled: true,
+          daily_rate: Number(row.daily_rate) || 0,
+          requires_approval: !!row.requires_approval,
+          conditions_tags: row.conditions_tags || [],
+          conditions: row.conditions || "",
+        };
+      }
+      setShares(map);
+      setSharesLoaded(true);
+    }
+    loadShares();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id, supabase]);
+
+  const myGroups = groups.filter((g) => g.isActive);
+
+  function toggleGroupShare(groupId: string) {
+    setShares((prev) => {
+      const existing = prev[groupId];
+      if (existing) {
+        return { ...prev, [groupId]: { ...existing, enabled: !existing.enabled } };
+      }
+      return {
+        ...prev,
+        [groupId]: {
+          enabled: true,
+          daily_rate: costPerDay,
+          requires_approval: false,
+          conditions_tags: [],
+          conditions: "",
+        },
+      };
+    });
+    setHasChanges(true);
+  }
+
+  function updateShare(groupId: string, patch: Partial<ShareDraft>) {
+    setShares((prev) => {
+      const existing = prev[groupId] || {
+        enabled: true,
+        daily_rate: costPerDay,
+        requires_approval: false,
+        conditions_tags: [],
+        conditions: "",
+      };
+      return { ...prev, [groupId]: { ...existing, ...patch } };
+    });
+    setHasChanges(true);
+  }
+
+  function shareWithAll() {
+    const next: Record<string, ShareDraft> = {};
+    for (const g of myGroups) {
+      const existing = shares[g.id];
+      next[g.id] = existing
+        ? { ...existing, enabled: true }
+        : {
+            enabled: true,
+            daily_rate: costPerDay,
+            requires_approval: false,
+            conditions_tags: [],
+            conditions: "",
+          };
+    }
+    setShares({ ...shares, ...next });
+    setHasChanges(true);
+  }
+
   async function handleSave() {
     setSaving(true);
     const { error } = await supabase
@@ -189,6 +295,38 @@ export function InventoryDetailModal({
         sharing_notes: sharingNotes || null,
       })
       .eq("id", item.id);
+
+    // Gruppen-Shares persistieren (nur wenn Eigentümer)
+    if (!error && isOwner && currentUser) {
+      const entries = Object.entries(shares);
+      // Upsert für enabled, revoke/delete für disabled
+      for (const [groupId, s] of entries) {
+        if (s.enabled) {
+          await supabase
+            .from("inventory_group_shares")
+            .upsert(
+              {
+                inventory_item_id: item.id,
+                group_id: groupId,
+                daily_rate: s.daily_rate,
+                requires_approval: s.requires_approval,
+                conditions_tags: s.conditions_tags,
+                conditions: s.conditions || null,
+                shared_by: currentUser.id,
+                shared_at: new Date().toISOString(),
+                revoked_at: null,
+              },
+              { onConflict: "inventory_item_id,group_id" }
+            );
+        } else {
+          await supabase
+            .from("inventory_group_shares")
+            .delete()
+            .eq("inventory_item_id", item.id)
+            .eq("group_id", groupId);
+        }
+      }
+    }
 
     if (!error) {
       onItemUpdated();
@@ -711,23 +849,15 @@ export function InventoryDetailModal({
             </div>
           </div>
 
-          {/* Eigentum & Wert (Akkordeon) */}
+          {/* Eigentum & Wert (immer sichtbar) */}
           <div
-            className="pt-2"
+            className="pt-3"
             style={{ borderTop: "1px solid var(--color-border-light)" }}
           >
-            <button
-              type="button"
-              onClick={() => setShowOwnership(!showOwnership)}
-              className="flex items-center justify-between w-full text-sm font-semibold mb-3"
-              style={{ color: "var(--color-muted-foreground)" }}
-            >
-              <span>Eigentum &amp; Wert {item.current_value != null ? `(${Number(item.current_value).toLocaleString("de-DE", { style: "currency", currency: "EUR" })})` : ""}</span>
-              <span className="text-xs">{showOwnership ? "▲" : "▼"}</span>
-            </button>
-
-            {showOwnership && (
-              <div className="space-y-4">
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--color-muted-foreground)" }}>
+              Eigentum &amp; Wert {item.current_value != null ? `(${Number(item.current_value).toLocaleString("de-DE", { style: "currency", currency: "EUR" })})` : ""}
+            </h3>
+            <div className="space-y-4">
                 {/* Wert-Anzeige */}
                 {item.purchase_price != null && item.current_value != null && (
                   <div
@@ -931,33 +1061,126 @@ export function InventoryDetailModal({
                   )}
                 </div>
 
-                {/* Partner-Sharing */}
-                <div
-                  className="rounded-lg p-3 mt-2"
-                  style={{ background: "var(--color-muted)" }}
-                >
-                  <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isSharable}
-                      onChange={(e) => setIsSharable(e.target.checked)}
-                    />
-                    Für Partner-Organisationen teilbar
-                  </label>
-                  {isSharable && (
-                    <input
-                      type="text"
-                      value={sharingNotes}
-                      onChange={(e) => setSharingNotes(e.target.value)}
-                      placeholder="Hinweise zum Verleih (optional)"
-                      className="w-full px-3 py-2 rounded-lg text-sm mt-2"
-                      style={inputStyle}
-                    />
-                  )}
-                </div>
               </div>
-            )}
           </div>
+
+          {/* Teilen mit Gruppen (nur wenn Eigentümer und Gruppen vorhanden) */}
+          {isOwner && myGroups.length > 0 && sharesLoaded && (
+            <div
+              className="pt-3"
+              style={{ borderTop: "1px solid var(--color-border-light)" }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold" style={{ color: "var(--color-muted-foreground)" }}>
+                  Teilen mit Gruppen
+                </h3>
+                <button
+                  type="button"
+                  onClick={shareWithAll}
+                  className="text-xs px-2 py-1 rounded-md"
+                  style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
+                >
+                  Für alle freigeben
+                </button>
+              </div>
+              <div className="space-y-3">
+                {myGroups.map((g) => {
+                  const s = shares[g.id];
+                  const enabled = !!s?.enabled;
+                  return (
+                    <div
+                      key={g.id}
+                      className="rounded-lg p-3"
+                      style={{
+                        background: enabled ? "var(--color-primary-light)" : "var(--color-muted)",
+                        border: enabled ? "1px solid var(--color-primary)" : "1px solid transparent",
+                      }}
+                    >
+                      <label className="flex items-center gap-2 text-sm font-medium cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={enabled}
+                          onChange={() => toggleGroupShare(g.id)}
+                        />
+                        🛡️ {g.name}
+                      </label>
+                      {enabled && s && (
+                        <div className="mt-3 space-y-2 pl-6">
+                          {/* Daily rate + Approval */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] mb-1" style={{ color: "var(--color-muted-foreground)" }}>
+                                Tagessatz (€)
+                              </label>
+                              <input
+                                type="number"
+                                value={s.daily_rate}
+                                step={0.01}
+                                onChange={(e) => updateShare(g.id, { daily_rate: Number(e.target.value) })}
+                                className="w-full px-2 py-1.5 rounded text-sm"
+                                style={inputStyle}
+                              />
+                            </div>
+                            <label className="flex items-center gap-2 text-xs mt-5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={s.requires_approval}
+                                onChange={(e) => updateShare(g.id, { requires_approval: e.target.checked })}
+                              />
+                              Zusage durch Eigentümer erforderlich
+                            </label>
+                          </div>
+
+                          {/* Bedingungen Presets */}
+                          <div>
+                            <label className="block text-[11px] mb-1" style={{ color: "var(--color-muted-foreground)" }}>
+                              Bedingungen
+                            </label>
+                            <div className="flex flex-wrap gap-1.5">
+                              {CONDITION_PRESETS.map((c) => {
+                                const on = s.conditions_tags.includes(c.value);
+                                return (
+                                  <button
+                                    key={c.value}
+                                    type="button"
+                                    onClick={() => {
+                                      const next = on
+                                        ? s.conditions_tags.filter((t) => t !== c.value)
+                                        : [...s.conditions_tags, c.value];
+                                      updateShare(g.id, { conditions_tags: next });
+                                    }}
+                                    className="text-xs px-2 py-1 rounded-full"
+                                    style={{
+                                      background: on ? "var(--color-primary)" : "var(--color-surface)",
+                                      color: on ? "#fff" : "var(--color-foreground)",
+                                      border: on ? "none" : "1px solid var(--color-border)",
+                                    }}
+                                    title={c.description}
+                                  >
+                                    {c.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Freier Text */}
+                          <input
+                            type="text"
+                            value={s.conditions}
+                            onChange={(e) => updateShare(g.id, { conditions: e.target.value })}
+                            placeholder="Zusätzliche Hinweise (optional)"
+                            className="w-full px-2 py-1.5 rounded text-sm"
+                            style={inputStyle}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Einzelstücke (bei Menge > 1) */}
           {quantity > 1 && (
