@@ -145,7 +145,17 @@ function buildInlineKeyboard(inquiryId: string) {
     inline_keyboard: [
       [
         {
-          text: "🔗 Anfrage öffnen",
+          text: "✅ Ich bin dabei",
+          url: `${APP_URL}/inquiries/${inquiryId}#rsvp`,
+        },
+        {
+          text: "❌ Kann nicht",
+          url: `${APP_URL}/inquiries/${inquiryId}#rsvp`,
+        },
+      ],
+      [
+        {
+          text: "🔗 Details anzeigen",
           url: `${APP_URL}/inquiries/${inquiryId}`,
         },
       ],

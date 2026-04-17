@@ -13,6 +13,7 @@ import { StaleDataBanner } from "@/components/ui/stale-data-banner";
 import { DateInput } from "@/components/ui/date-input";
 import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import { InquiryTeamSection } from "@/components/inquiries/inquiry-team-section";
+import { InquiryRsvpBanner } from "@/components/inquiries/inquiry-rsvp-banner";
 import type { Inquiry, InquiryStatus } from "@/types/database";
 import {
   IconChevronLeft,
@@ -532,6 +533,18 @@ function InquiryDetailContent({
           })}
         </div>
       </div>
+
+      {/* ================================================================== */}
+      {/* RSVP Self-Service — für jeden Gruppen-User (inkl. Ersteller) */}
+      {/* ================================================================== */}
+      {currentUser && (
+        <InquiryRsvpBanner
+          inquiryId={inquiry.id}
+          currentUserId={currentUser.id}
+          createdBy={inquiry.created_by}
+          groupId={inquiry.group_id}
+        />
+      )}
 
       {/* ================================================================== */}
       {/* Team-Verfügbarkeit */}
