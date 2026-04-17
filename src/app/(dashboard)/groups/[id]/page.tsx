@@ -62,6 +62,30 @@ interface InvitationVote {
   voter?: { name: string };
 }
 
+interface GroupDecision {
+  id: string;
+  title: string;
+  description: string | null;
+  decision_type: string;
+  status: string;
+  requires_unanimous: boolean;
+  related_project_id: string | null;
+  created_by: string;
+  created_at: string;
+  resolved_at: string | null;
+  metadata: Record<string, unknown> | null;
+  creator?: { name: string };
+}
+
+interface DecisionVote {
+  id: string;
+  decision_id: string;
+  voter_id: string;
+  vote: string;
+  comment: string | null;
+  voter?: { name: string };
+}
+
 export default function GroupDetailPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -74,6 +98,8 @@ export default function GroupDetailPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [votes, setVotes] = useState<InvitationVote[]>([]);
+  const [decisions, setDecisions] = useState<GroupDecision[]>([]);
+  const [decisionVotes, setDecisionVotes] = useState<DecisionVote[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showInvite, setShowInvite] = useState(false);
@@ -113,6 +139,25 @@ export default function GroupDetailPage() {
     if (memRes.data) setMembers(memRes.data as Member[]);
     if (invRes.data) setInvitations(invRes.data as Invitation[]);
     if (voteRes.data) setVotes(voteRes.data as InvitationVote[]);
+
+    // Group-Decisions laden
+    const { data: decisionData } = await supabase
+      .from("org_decisions")
+      .select("*, creator:profiles!created_by(name)")
+      .eq("group_id", groupId)
+      .order("created_at", { ascending: false });
+    if (decisionData) {
+      setDecisions(decisionData as GroupDecision[]);
+      const decIds = decisionData.map((d) => d.id);
+      if (decIds.length > 0) {
+        const { data: dvotes } = await supabase
+          .from("org_decision_votes")
+          .select("*, voter:profiles(name)")
+          .in("decision_id", decIds);
+        if (dvotes) setDecisionVotes(dvotes as DecisionVote[]);
+      }
+    }
+
     setLoading(false);
   }, [supabase, groupId]);
 
@@ -123,6 +168,41 @@ export default function GroupDetailPage() {
   useRealtimeTable({ table: "group_memberships", onDataChange: loadAll });
   useRealtimeTable({ table: "group_invitations", onDataChange: loadAll });
   useRealtimeTable({ table: "group_invitation_votes", onDataChange: loadAll });
+  useRealtimeTable({ table: "org_decisions", onDataChange: loadAll });
+  useRealtimeTable({ table: "org_decision_votes", onDataChange: loadAll });
+
+  async function handleDecisionVote(decisionId: string, vote: "approve" | "reject", comment?: string) {
+    if (!currentUser) return;
+    await supabase
+      .from("org_decision_votes")
+      .upsert(
+        {
+          decision_id: decisionId,
+          voter_id: currentUser.id,
+          vote,
+          comment: comment || null,
+        },
+        { onConflict: "decision_id,voter_id" }
+      );
+
+    // Pruefen ob alle Members zugestimmt haben (Trigger fehlt -> manuell)
+    const { data: allVotes } = await supabase
+      .from("org_decision_votes")
+      .select("vote")
+      .eq("decision_id", decisionId);
+    const approvals = (allVotes || []).filter((v) => v.vote === "approve").length;
+    const rejections = (allVotes || []).filter((v) => v.vote === "reject").length;
+    const totalActive = members.filter((m) => m.is_active).length;
+
+    if (rejections > 0) {
+      await supabase.from("org_decisions").update({ status: "rejected", resolved_at: new Date().toISOString() }).eq("id", decisionId);
+    } else if (approvals >= totalActive) {
+      await supabase.from("org_decisions").update({ status: "approved", resolved_at: new Date().toISOString() }).eq("id", decisionId);
+    }
+
+    showToast(vote === "approve" ? "Zugestimmt" : "Abgelehnt", "success");
+    loadAll();
+  }
 
   const activeMembers = members.filter((m) => m.is_active);
   const isMember = !!currentUser && activeMembers.some((m) => m.profile_id === currentUser.id);
@@ -411,7 +491,7 @@ export default function GroupDetailPage() {
       {/* Einladungen */}
       {invitations.length > 0 && (
         <div
-          className="rounded-xl p-6"
+          className="rounded-xl p-6 mb-5"
           style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
         >
           <h2 className="text-base font-semibold mb-4" style={{ color: "var(--color-foreground)" }}>
@@ -430,6 +510,183 @@ export default function GroupDetailPage() {
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Beschluesse */}
+      {decisions.length > 0 && (
+        <div
+          className="rounded-xl p-6"
+          style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <IconShield size={18} style={{ color: "var(--color-warning)" }} />
+            <h2 className="text-base font-semibold" style={{ color: "var(--color-foreground)" }}>
+              Beschluesse ({decisions.filter((d) => d.status === "open").length} offen)
+            </h2>
+          </div>
+          <div className="space-y-3">
+            {decisions.map((d) => (
+              <DecisionCard
+                key={d.id}
+                decision={d}
+                votes={decisionVotes.filter((v) => v.decision_id === d.id)}
+                activeMembers={activeMembers}
+                currentUserId={currentUser?.id || ""}
+                onVote={handleDecisionVote}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Decision-Karte mit Voting ──────────────────────────────────────────────
+
+function DecisionCard({
+  decision,
+  votes,
+  activeMembers,
+  currentUserId,
+  onVote,
+}: {
+  decision: GroupDecision;
+  votes: DecisionVote[];
+  activeMembers: Member[];
+  currentUserId: string;
+  onVote: (id: string, vote: "approve" | "reject", comment?: string) => void;
+}) {
+  const [comment, setComment] = useState("");
+  const [showRejectInput, setShowRejectInput] = useState(false);
+
+  const myVote = votes.find((v) => v.voter_id === currentUserId);
+  const approvalCount = votes.filter((v) => v.vote === "approve").length;
+  const rejectionCount = votes.filter((v) => v.vote === "reject").length;
+  const eligibleVoters = activeMembers.length;
+  const canVote = decision.status === "open" && !myVote;
+
+  const statusColors: Record<string, { bg: string; color: string; label: string }> = {
+    open: { bg: "var(--color-warning-light)", color: "var(--color-warning)", label: "Abstimmung laeuft" },
+    approved: { bg: "var(--color-success-light)", color: "var(--color-success)", label: "Beschlossen" },
+    rejected: { bg: "var(--color-destructive-light)", color: "var(--color-destructive)", label: "Abgelehnt" },
+    expired: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)", label: "Abgelaufen" },
+  };
+  const statusInfo = statusColors[decision.status] || statusColors.open;
+
+  const decisionTypeLabels: Record<string, string> = {
+    profit_distribution: "Gewinnverteilung",
+    asset_purchase: "Anschaffung",
+    asset_disposal: "Veraeusserung",
+    exit_settlement: "Austritt",
+    policy: "Richtlinie",
+    general: "Allgemein",
+  };
+
+  return (
+    <div className="p-4 rounded-lg" style={{ background: "var(--color-muted)" }}>
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}
+            >
+              {decisionTypeLabels[decision.decision_type] || decision.decision_type}
+            </span>
+            <h4 className="text-sm font-semibold" style={{ color: "var(--color-foreground)" }}>
+              {decision.title}
+            </h4>
+          </div>
+          <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+            von {decision.creator?.name || "?"} · {new Date(decision.created_at).toLocaleDateString("de-DE")}
+            {decision.requires_unanimous && <span> · Einstimmigkeit erforderlich</span>}
+          </div>
+        </div>
+        <span
+          className="text-xs px-2 py-0.5 rounded-full font-medium"
+          style={{ background: statusInfo.bg, color: statusInfo.color }}
+        >
+          {statusInfo.label}
+        </span>
+      </div>
+
+      {decision.description && (
+        <pre className="text-xs whitespace-pre-wrap mt-2 mb-2 font-sans" style={{ color: "var(--color-muted-foreground)" }}>
+          {decision.description}
+        </pre>
+      )}
+
+      {decision.status === "open" && (
+        <div className="my-3">
+          <div className="text-xs mb-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+            {approvalCount} von {eligibleVoters} haben zugestimmt
+            {rejectionCount > 0 && (
+              <span style={{ color: "var(--color-destructive)" }}> · {rejectionCount} abgelehnt</span>
+            )}
+          </div>
+          <div className="w-full h-1.5 rounded-full" style={{ background: "var(--color-border)" }}>
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${eligibleVoters > 0 ? (approvalCount / eligibleVoters) * 100 : 0}%`,
+                background: "var(--color-success)",
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {canVote && (
+        <div className="mt-3 space-y-2">
+          {showRejectInput && (
+            <input
+              type="text"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              placeholder="Begruendung (empfohlen)..."
+              className="w-full px-3 py-1.5 rounded text-xs"
+              style={{
+                background: "var(--color-background)",
+                border: "1px solid var(--color-border)",
+                color: "var(--color-foreground)",
+              }}
+            />
+          )}
+          <div className="flex gap-2">
+            <button
+              onClick={() => onVote(decision.id, "approve")}
+              className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white"
+              style={{ background: "var(--color-success)" }}
+            >
+              <IconCheck size={12} /> Zustimmen
+            </button>
+            {!showRejectInput ? (
+              <button
+                onClick={() => setShowRejectInput(true)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium"
+                style={{ border: "1px solid var(--color-destructive)", color: "var(--color-destructive)" }}
+              >
+                <IconX size={12} /> Ablehnen
+              </button>
+            ) : (
+              <button
+                onClick={() => onVote(decision.id, "reject", comment)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-medium text-white"
+                style={{ background: "var(--color-destructive)" }}
+              >
+                <IconX size={12} /> Ablehnen bestaetigen
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {myVote && (
+        <div className="mt-3 text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+          Deine Stimme: {myVote.vote === "approve" ? "✓ Zugestimmt" : "✗ Abgelehnt"}
+          {myVote.comment && <span> — &quot;{myVote.comment}&quot;</span>}
         </div>
       )}
     </div>

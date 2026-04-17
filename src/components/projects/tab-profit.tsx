@@ -9,6 +9,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
+import { useCurrentUser } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import type {
   Project,
@@ -32,6 +33,7 @@ interface TabProfitProps {
 
 export function TabProfit({ project, canEdit }: TabProfitProps) {
   const supabase = createClient();
+  const currentUser = useCurrentUser();
   const [revenue, setRevenue] = useState<string>(project.revenue_actual?.toString() || "");
   const [costs, setCosts] = useState<CostItem[]>([]);
   const [agreement, setAgreement] = useState<CooperationAgreement | null>(null);
@@ -39,12 +41,24 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   const [contributions, setContributions] = useState<AgreementInventoryContribution[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [openDecisionId, setOpenDecisionId] = useState<string | null>(null);
+  const [creatingDecision, setCreatingDecision] = useState(false);
 
   const loadAll = useCallback(async () => {
     const [costsRes, agreeRes] = await Promise.all([
       supabase.from("cost_items").select("*").eq("project_id", project.id),
       supabase.from("cooperation_agreements").select("*").eq("project_id", project.id).maybeSingle(),
     ]);
+    // Pruefen: existiert bereits eine offene Decision fuer Auszahlung?
+    const { data: existingDecision } = await supabase
+      .from("org_decisions")
+      .select("id, status")
+      .eq("related_project_id", project.id)
+      .eq("decision_type", "profit_distribution")
+      .eq("status", "open")
+      .maybeSingle();
+    setOpenDecisionId(existingDecision?.id || null);
+
     if (costsRes.data) setCosts(costsRes.data as CostItem[]);
     if (agreeRes.data) {
       const ag = agreeRes.data as CooperationAgreement;
@@ -77,6 +91,47 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     await supabase.from("projects").update({ revenue_actual: num }).eq("id", project.id);
     setSaving(false);
     showToast("Revenue gespeichert", "success");
+  }
+
+  async function createPayoutDecision() {
+    if (!currentUser || !agreement || shares.length === 0 || !project.group_id) return;
+    setCreatingDecision(true);
+
+    const totalPayout = shares.reduce((s, sh) => s + sh.calculated_amount, 0);
+    const breakdown = shares
+      .map((s) => `${s.name}: ${s.calculated_amount.toFixed(2)}€ (${s.percentage.toFixed(1)}%)`)
+      .join("\n");
+
+    const { data, error } = await supabase
+      .from("org_decisions")
+      .insert({
+        group_id: project.group_id,
+        title: `Gewinn-Auszahlung: ${project.name}`,
+        description: `Gesamt: ${totalPayout.toFixed(2)}€\n\nVerteilung:\n${breakdown}`,
+        decision_type: "profit_distribution",
+        requires_unanimous: true,
+        related_project_id: project.id,
+        created_by: currentUser.id,
+        metadata: {
+          total_payout: totalPayout,
+          shares: shares.map((s) => ({
+            profile_id: s.profile_id,
+            name: s.name,
+            amount: s.calculated_amount,
+            percentage: s.percentage,
+          })),
+        },
+      })
+      .select("id")
+      .single();
+
+    setCreatingDecision(false);
+    if (error) {
+      showToast("Fehler: " + error.message, "error");
+    } else {
+      setOpenDecisionId(data?.id || null);
+      showToast("Auszahlung zur Abstimmung gestellt", "success");
+    }
   }
 
   if (loading) {
@@ -256,6 +311,41 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
               {agreement.profit_formula.pre_deductions.map((d, i) => (
                 <div key={i}>· {d.label}: {d.amount.toFixed(2)}€</div>
               ))}
+            </div>
+          )}
+
+          {/* Auszahlungs-Voting */}
+          {agreement.status === "active" && netProfit > 0 && project.group_id && (
+            <div className="mt-4 pt-3 border-t" style={{ borderColor: "var(--color-border)" }}>
+              {openDecisionId ? (
+                <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: "var(--color-info-light)" }}>
+                  <div>
+                    <div className="text-sm font-medium" style={{ color: "var(--color-info)" }}>
+                      Abstimmung laeuft
+                    </div>
+                    <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                      Mitglieder muessen zustimmen damit Auszahlung verbindlich wird.
+                    </div>
+                  </div>
+                  <Link
+                    href={`/groups/${project.group_id}`}
+                    className="text-xs px-3 py-1.5 rounded-lg font-medium"
+                    style={{ background: "var(--color-info)", color: "white" }}
+                  >
+                    Zur Gruppe
+                  </Link>
+                </div>
+              ) : canEdit && (
+                <button
+                  onClick={createPayoutDecision}
+                  disabled={creatingDecision}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                  style={{ background: "var(--color-success)" }}
+                >
+                  <IconShield size={14} />
+                  {creatingDecision ? "Erstelle..." : "Auszahlung zur Abstimmung stellen"}
+                </button>
+              )}
             </div>
           )}
         </div>
