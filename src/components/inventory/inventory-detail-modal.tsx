@@ -165,23 +165,29 @@ export function InventoryDetailModal({
   // Profile laden für Technikpat:in Dropdown — via org_memberships
   useEffect(() => {
     async function loadProfiles() {
-      if (!orgId) return;
+      // User-First: nur den/die relevanten Profile laden
+      const ids = new Set<string>();
+      if (item.owner_profile_id) ids.add(item.owner_profile_id);
+      if (currentUser?.id) ids.add(currentUser.id);
+      // Ownership-Shares (Gewinn-Anteile) — Profile darin auch laden
+      if (Array.isArray(item.ownership_shares)) {
+        for (const s of item.ownership_shares as Array<{ profile_id?: string }>) {
+          if (s.profile_id) ids.add(s.profile_id);
+        }
+      }
+      if (ids.size === 0) return;
       const { data } = await supabase
-        .from("org_memberships")
-        .select("profile_id, is_active, profiles(id, name)")
-        .eq("org_id", orgId);
+        .from("profiles")
+        .select("id, name")
+        .in("id", Array.from(ids));
       if (data) {
         setAllProfiles(
-          data.map((m: any) => ({
-            id: m.profiles?.id || m.profile_id,
-            name: m.profiles?.name || "",
-            is_active: m.is_active,
-          }))
+          data.map((p) => ({ id: p.id, name: p.name || "", is_active: true }))
         );
       }
     }
     loadProfiles();
-  }, [supabase, orgId]);
+  }, [supabase, item.owner_profile_id, item.ownership_shares, currentUser?.id]);
 
   // Existierende Group-Shares für dieses Item laden
   useEffect(() => {
@@ -895,46 +901,30 @@ export function InventoryDetailModal({
                 )}
 
                 <div className="grid grid-cols-2 gap-4">
-                  {/* Eigentum */}
+                  {/* Eigentümer — zeigt den aktuellen Owner-Namen */}
                   <div>
                     <label className="block text-xs font-medium mb-1.5"
                       style={{ color: "var(--color-muted-foreground)" }}>
-                      Eigentum
+                      Eigentümer
                     </label>
-                    <select
-                      value={ownershipType}
-                      onChange={(e) => setOwnershipType(e.target.value as any)}
-                      className="w-full px-3 py-2 rounded-lg text-sm"
-                      style={inputStyle}
+                    <div
+                      className="w-full px-3 py-2 rounded-lg text-sm flex items-center gap-2"
+                      style={{
+                        background: "var(--color-muted)",
+                        border: "1px solid var(--color-border)",
+                        color: "var(--color-foreground)",
+                      }}
+                      title={ownerProfileId ? "Du bist Eigentümer" : "Kein Eigentümer gesetzt (Gruppen-Item)"}
                     >
-                      <option value="organization">Organisation</option>
-                      <option value="member">Mitglied (persönlich)</option>
-                      <option value="shared">Geteilt</option>
-                    </select>
-                  </div>
-
-                  {/* Eigentümer (nur bei member/shared) */}
-                  {ownershipType !== "organization" && (
-                    <div>
-                      <label className="block text-xs font-medium mb-1.5"
-                        style={{ color: "var(--color-muted-foreground)" }}>
-                        Eigentümer
-                      </label>
-                      <select
-                        value={ownerProfileId}
-                        onChange={(e) => setOwnerProfileId(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg text-sm"
-                        style={inputStyle}
-                      >
-                        <option value="">-- Auswählen --</option>
-                        {allProfiles
-                          .filter((p) => p.is_active)
-                          .map((p) => (
-                            <option key={p.id} value={p.id}>{p.name}</option>
-                          ))}
-                      </select>
+                      <span>👤</span>
+                      <span className="font-medium truncate">
+                        {ownerProfileId
+                          ? allProfiles.find((p) => p.id === ownerProfileId)?.name ||
+                            (ownerProfileId === currentUser?.id ? currentUser.name : "—")
+                          : "— (nicht zugewiesen)"}
+                      </span>
                     </div>
-                  )}
+                  </div>
 
                   {/* Finanzierung */}
                   <div>
