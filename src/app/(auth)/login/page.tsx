@@ -14,18 +14,22 @@ export default function LoginPageWrapper() {
 }
 
 function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
-  const [isRegister, setIsRegister] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
 
+  // Query-Parameter: mode=register | invite_email | redirect
+  const mode = searchParams.get("mode");
+  const inviteEmail = searchParams.get("email") || searchParams.get("invite_email");
   const redirectTo = searchParams.get("redirect");
+
+  const [email, setEmail] = useState(inviteEmail || "");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [isRegister, setIsRegister] = useState(mode === "register" || !!inviteEmail);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();

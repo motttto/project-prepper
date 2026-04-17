@@ -31,6 +31,7 @@ function buildHtml(p: {
   inviterName: string;
   message: string | null;
   appUrl: string;
+  ctaUrl: string;
   isExistingUser: boolean;
 }): string {
   return `<!DOCTYPE html>
@@ -68,8 +69,8 @@ function buildHtml(p: {
 
       <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
         <tr><td align="center">
-          <a href="${p.appUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">
-            Zu Project Prepper
+          <a href="${p.ctaUrl}" style="display:inline-block;background:#2563eb;color:#ffffff;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:14px;font-weight:600;">
+            ${p.isExistingUser ? "Zum Dashboard" : "Jetzt registrieren"}
           </a>
         </td></tr>
       </table>
@@ -133,11 +134,16 @@ Deno.serve(async (req) => {
     // Pruefen ob User existiert
     const isExistingUser = !!inv.invited_profile_id;
 
+    const ctaUrl = isExistingUser
+      ? `${APP_URL}/dashboard`
+      : `${APP_URL}/login?mode=register&email=${encodeURIComponent(inv.invited_email)}`;
+
     const html = buildHtml({
       groupName: group?.name || "Gruppe",
       inviterName: inviter?.name || "Jemand",
       message: inv.invited_message,
       appUrl: APP_URL,
+      ctaUrl,
       isExistingUser,
     });
 
