@@ -148,7 +148,7 @@ export default function AdminPage() {
   const { orgId } = useOrg();
   const { startImpersonating } = useImpersonate();
 
-  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system" | "services" | "email" | "users">("roles");
+  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system" | "services" | "email" | "users">("users");
 
   // ── Rollen & Berechtigungen State ──
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -402,11 +402,10 @@ export default function AdminPage() {
 
   // ── Tab Config ──
   const tabs: { key: "roles" | "log" | "system" | "services" | "email" | "users"; label: string }[] = [
-    { key: "roles", label: "Rollen & Berechtigungen" },
+    ...(currentUser?.isSuperadmin ? [{ key: "users" as const, label: "User & Gruppen" }] : []),
     { key: "log", label: "Protokoll" },
     { key: "services", label: "Services" },
     { key: "email", label: "E-Mail" },
-    ...(currentUser?.isSuperadmin ? [{ key: "users" as const, label: "User" }] : []),
     { key: "system", label: "System" },
   ];
 
@@ -417,7 +416,7 @@ export default function AdminPage() {
         <div>
           <h1 className="text-2xl font-bold">Admin</h1>
           <p className="text-sm mt-1" style={{ color: "var(--color-muted-foreground)" }}>
-            Rollen, Berechtigungen und Aktivitaetsprotokoll
+            User, Gruppen, Aktivitaetsprotokoll und System-Einstellungen
           </p>
         </div>
         {activeTab === "roles" && (
