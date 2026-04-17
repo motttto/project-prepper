@@ -16,7 +16,6 @@ import {
   IconCalendar,
   IconClipboard,
 } from "@/components/ui/icons";
-import { OrgSwitcher } from "@/components/layout/org-switcher";
 import { useOrg } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useImpersonate } from "@/contexts/impersonate-context";
@@ -28,6 +27,7 @@ const navItems: { href: string; label: string; icon: typeof IconDashboard; scope
   { href: "/inventory", label: "Mein Inventar", icon: IconInventory, scope: "always" },
   { href: "/inquiries", label: "Meine Anfragen", icon: IconInbox, scope: "always" },
   { href: "/projects", label: "Meine Projekte", icon: IconProjects, scope: "always" },
+  { href: "/groups", label: "Meine Gruppen", icon: IconUsers, scope: "always" },
   // Group-Bereich (nur in Gruppe sichtbar)
   { href: "/team", label: "Team", icon: IconUsers, scope: "group" },
   { href: "/costs", label: "Kosten", icon: IconCosts, scope: "group" },
@@ -157,9 +157,18 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         </button>
       </div>
 
-      {/* Org-Switcher */}
-      <div className="pt-3">
-        <OrgSwitcher />
+      {/* Workspace-Info (read-only) */}
+      <div className="px-3 pt-3 pb-2">
+        <div
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
+          style={{
+            background: "rgba(255,255,255,0.05)",
+            color: "var(--color-sidebar-text-muted)",
+          }}
+        >
+          <span style={{ fontSize: 14 }}>👤</span>
+          <span className="truncate">{currentUser?.name || "Workspace"}</span>
+        </div>
       </div>
 
       {/* Navigation */}
