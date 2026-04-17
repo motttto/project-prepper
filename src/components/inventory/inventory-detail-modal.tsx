@@ -44,9 +44,14 @@ export function InventoryDetailModal({
 }: InventoryDetailModalProps) {
   const supabase = createClient();
   const { orgId } = useOrg();
-  const { groups } = useWorkspace();
+  const { groups, groupId, groupName } = useWorkspace();
   const currentUser = useCurrentUser();
+  // "Edit-Modus" nur im Solo-Workspace UND wenn man Eigentümer ist.
+  // Im Group-Kontext immer read-only — Sharing wird im Solo verwaltet.
   const isOwner = !!currentUser && item.owner_profile_id === currentUser.id;
+  const isEditable = isOwner && !groupId;
+  // Anzeige-Name des Eigentümers (für Banner)
+  const [ownerName, setOwnerName] = useState<string>("");
 
   // Editierbare Felder
   const [name, setName] = useState(item.name);
@@ -184,6 +189,13 @@ export function InventoryDetailModal({
         setAllProfiles(
           data.map((p) => ({ id: p.id, name: p.name || "", is_active: true }))
         );
+        // Owner-Name fuer Banner
+        if (item.owner_profile_id) {
+          const owner = data.find((p) => p.id === item.owner_profile_id);
+          setOwnerName(owner?.name || "");
+        } else {
+          setOwnerName("");
+        }
       }
     }
     loadProfiles();
@@ -302,8 +314,8 @@ export function InventoryDetailModal({
       })
       .eq("id", item.id);
 
-    // Gruppen-Shares persistieren (nur wenn Eigentümer)
-    if (!error && isOwner && currentUser) {
+    // Gruppen-Shares persistieren (nur im Solo-Modus, Eigentümer)
+    if (!error && isEditable && currentUser) {
       const entries = Object.entries(shares);
       // Upsert für enabled, revoke/delete für disabled
       for (const [groupId, s] of entries) {
@@ -439,8 +451,8 @@ export function InventoryDetailModal({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-          {/* Read-Only Banner bei Nicht-Eigentümer */}
-          {!isOwner && (
+          {/* Read-Only Banner: im Group-Kontext oder wenn nicht Eigentümer */}
+          {!isEditable && (
             <div
               className="rounded-lg p-3 flex items-start gap-2"
               style={{
@@ -452,12 +464,24 @@ export function InventoryDetailModal({
               <span style={{ fontSize: 14 }}>🔒</span>
               <div className="text-xs">
                 <div className="font-semibold mb-0.5">Nur Ansicht</div>
-                Dieses Gerät wurde mit dir geteilt. Änderungen kann nur der Eigentümer vornehmen.
+                <div>
+                  Eigentümer:{" "}
+                  <strong>
+                    {ownerName ||
+                      (item.owner_profile_id === currentUser?.id ? currentUser?.name : "—")}
+                  </strong>
+                  {groupId && groupName && (
+                    <> · geteilt mit Gruppe <strong>{groupName}</strong></>
+                  )}
+                </div>
+                <div className="mt-1">
+                  Änderungen kann nur der Eigentümer in seinem persönlichen Inventar vornehmen.
+                </div>
               </div>
             </div>
           )}
 
-          <fieldset disabled={!isOwner} className="space-y-6 disabled:opacity-90">
+          <fieldset disabled={!isEditable} className="space-y-6 disabled:opacity-90">
           {/* Foto */}
           <div>
             <label
@@ -1073,8 +1097,8 @@ export function InventoryDetailModal({
               </div>
           </div>
 
-          {/* Teilen mit Gruppen (nur wenn Eigentümer und Gruppen vorhanden) */}
-          {isOwner && myGroups.length > 0 && sharesLoaded && (
+          {/* Teilen mit Gruppen (nur im Solo-Modus, wenn Eigentümer & Gruppen vorhanden) */}
+          {isEditable && myGroups.length > 0 && sharesLoaded && (
             <div
               className="pt-3"
               style={{ borderTop: "1px solid var(--color-border-light)" }}
@@ -1312,7 +1336,7 @@ export function InventoryDetailModal({
           >
             Schließen
           </button>
-          {hasChanges && isOwner && (
+          {hasChanges && isEditable && (
             <button
               onClick={handleSave}
               disabled={saving}
