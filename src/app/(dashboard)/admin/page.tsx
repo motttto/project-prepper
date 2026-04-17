@@ -1633,6 +1633,90 @@ function ServicesTab({ orgId }: { orgId: string }) {
   );
 }
 
+function SecurityToggleSection() {
+  const supabase = createClient();
+  const currentUser = useCurrentUser();
+  const [mfaEnabled, setMfaEnabled] = useState<boolean | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data } = await supabase
+        .from("app_settings")
+        .select("mfa_enabled")
+        .eq("id", true)
+        .maybeSingle();
+      if (active) setMfaEnabled(data?.mfa_enabled ?? false);
+    })();
+    return () => {
+      active = false;
+    };
+  }, [supabase]);
+
+  if (!currentUser?.isSuperadmin) return null;
+  if (mfaEnabled === null) return null;
+
+  const toggle = async () => {
+    const next = !mfaEnabled;
+    if (next) {
+      const ok = await appConfirm(
+        "2FA fuer alle nicht-Superadmin User aktivieren? Sie werden beim naechsten Login zur Einrichtung gezwungen.",
+        { title: "2FA global aktivieren?", confirmLabel: "Aktivieren" }
+      );
+      if (!ok) return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("app_settings")
+      .update({ mfa_enabled: next })
+      .eq("id", true);
+    setSaving(false);
+    if (error) {
+      showToast(`Fehler: ${error.message}`, "error");
+      return;
+    }
+    setMfaEnabled(next);
+    showToast(next ? "2FA aktiviert" : "2FA deaktiviert", "success");
+  };
+
+  const sectionStyle: React.CSSProperties = {
+    background: "var(--color-surface)",
+    border: "1px solid var(--color-border)",
+  };
+
+  return (
+    <div className="rounded-xl p-6" style={sectionStyle}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <IconShield size={18} />
+            <h3 className="text-base font-bold">2FA / Zwei-Faktor-Authentifizierung</h3>
+          </div>
+          <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+            {mfaEnabled
+              ? "Aktiv: Alle nicht-Superadmin User muessen TOTP einrichten und beim Login bestaetigen."
+              : "Deaktiviert (Entwicklungsmodus): Login funktioniert ohne zweiten Faktor. Superadmins sind generell ausgenommen."}
+          </p>
+        </div>
+        <button
+          onClick={toggle}
+          disabled={saving}
+          className="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none disabled:opacity-50"
+          style={{ background: mfaEnabled ? "var(--color-primary)" : "var(--color-muted)" }}
+          aria-pressed={mfaEnabled}
+          title={mfaEnabled ? "2FA deaktivieren" : "2FA aktivieren"}
+        >
+          <span
+            className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out"
+            style={{ transform: mfaEnabled ? "translateX(20px)" : "translateX(0)" }}
+          />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function SystemTab() {
   const techStack = [
     { name: "Next.js", version: "16.1", desc: "App Router + Turbopack" },
@@ -1696,6 +1780,9 @@ function SystemTab() {
 
   return (
     <div className="space-y-6">
+      {/* Security: 2FA Toggle (Superadmin only) */}
+      <SecurityToggleSection />
+
       {/* App Info */}
       <div className="rounded-xl p-6" style={sectionStyle}>
         <div className="flex items-center gap-3 mb-4">
