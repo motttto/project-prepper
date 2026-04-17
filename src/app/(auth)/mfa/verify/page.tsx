@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { IconShield, IconZap } from "@/components/ui/icons";
 
@@ -12,7 +12,13 @@ export default function MfaVerifyPage() {
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+  const redirectTo = searchParams.get("redirect");
+  const safeRedirect =
+    redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")
+      ? redirectTo
+      : "/dashboard";
 
   useEffect(() => {
     async function checkMfa() {
@@ -35,7 +41,7 @@ export default function MfaVerifyPage() {
       // Prüfe ob bereits AAL2 (MFA verifiziert in Session)
       const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
       if (aal?.currentLevel === "aal2") {
-        router.push("/dashboard");
+        router.push(safeRedirect);
         return;
       }
 
@@ -78,7 +84,7 @@ export default function MfaVerifyPage() {
       }
 
       // Erfolgreich → Dashboard
-      router.push("/dashboard");
+      router.push(safeRedirect);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verifizierung fehlgeschlagen");

@@ -46,11 +46,16 @@ export async function middleware(request: NextRequest) {
   const isPartnerInvitePage = pathname === "/partner-invite";
   const isOnboardingPage = pathname === "/onboarding";
 
-  // Nicht eingeloggt? → Weiterleitung zum Login
+  // Nicht eingeloggt? → Weiterleitung zum Login mit Ziel-URL
   // (außer man ist bereits auf /login, Startseite, Auth-Callback oder MFA-Seite)
   if (!user && !isAuthPage && !isHomePage && !isAuthCallback && !isMfaPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
+    // Original-URL als ?redirect= mitgeben, damit Login dorthin zurueckspringt
+    const target = pathname + (request.nextUrl.search || "");
+    if (pathname !== "/" && pathname !== "/login") {
+      url.searchParams.set("redirect", target);
+    }
     return NextResponse.redirect(url);
   }
 
@@ -114,10 +119,16 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Eingeloggt auf Login-Seite → Dashboard (Solo-Modus default)
+    // Eingeloggt auf Login-Seite → Ziel-URL (oder Dashboard)
     if (isAuthPage) {
+      const requested = request.nextUrl.searchParams.get("redirect");
+      const safe =
+        requested && requested.startsWith("/") && !requested.startsWith("//")
+          ? requested
+          : "/dashboard";
       const url = request.nextUrl.clone();
-      url.pathname = "/dashboard";
+      url.pathname = safe;
+      url.search = "";
       return NextResponse.redirect(url);
     }
 

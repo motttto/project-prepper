@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { IconShield, IconZap } from "@/components/ui/icons";
 
@@ -14,7 +14,13 @@ export default function MfaSetupPage() {
   const [verifying, setVerifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+  const redirectTo = searchParams.get("redirect");
+  const safeRedirect =
+    redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")
+      ? redirectTo
+      : "/dashboard";
 
   useEffect(() => {
     async function enrollMfa() {
@@ -30,7 +36,7 @@ export default function MfaSetupPage() {
       const verified = factors?.totp?.filter((f) => f.status === "verified") ?? [];
       if (verified.length > 0) {
         // Schon eingerichtet → weiter zum Dashboard
-        router.push("/dashboard");
+        router.push(safeRedirect);
         return;
       }
 
@@ -94,7 +100,7 @@ export default function MfaSetupPage() {
       }
 
       // Erfolgreich → Dashboard
-      router.push("/dashboard");
+      router.push(safeRedirect);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Verifizierung fehlgeschlagen");

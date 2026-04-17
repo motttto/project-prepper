@@ -47,16 +47,32 @@ function LoginPage() {
       return;
     }
 
-    // MFA-Status prüfen
-    const { data: factors } = await supabase.auth.mfa.listFactors();
-    const verifiedFactors = factors?.totp?.filter((f) => f.status === "verified") ?? [];
+    // Globalen MFA-Toggle aus app_settings lesen
+    const { data: settings } = await supabase
+      .from("app_settings")
+      .select("mfa_enabled")
+      .eq("id", true)
+      .maybeSingle();
+    const mfaEnabled = settings?.mfa_enabled === true;
 
-    if (verifiedFactors.length > 0) {
-      // MFA eingerichtet → Code-Eingabe
-      router.push("/mfa/verify");
+    const safeRedirect =
+      redirectTo && redirectTo.startsWith("/") && !redirectTo.startsWith("//")
+        ? redirectTo
+        : "/dashboard";
+
+    if (mfaEnabled) {
+      // MFA-Status prüfen
+      const { data: factors } = await supabase.auth.mfa.listFactors();
+      const verifiedFactors = factors?.totp?.filter((f) => f.status === "verified") ?? [];
+
+      if (verifiedFactors.length > 0) {
+        router.push(`/mfa/verify?redirect=${encodeURIComponent(safeRedirect)}`);
+      } else {
+        router.push(`/mfa/setup?redirect=${encodeURIComponent(safeRedirect)}`);
+      }
     } else {
-      // Kein MFA → Setup erzwingen
-      router.push("/mfa/setup");
+      // Kein MFA-Zwang → direkt zur Ziel-URL
+      router.push(safeRedirect);
     }
     router.refresh();
   }
