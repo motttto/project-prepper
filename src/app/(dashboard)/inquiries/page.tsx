@@ -95,14 +95,14 @@ export default function InquiriesPage() {
 
   const loadInquiries = useCallback(async () => {
     if (!ownerId) return;
-    const { data } = await supabase
-      .from("inquiries")
-      .select("*")
-      .eq("owner_profile_id", ownerId)
-      .order("created_at", { ascending: false });
+    // Group-Modus: Anfragen der Gruppe; sonst eigene Anfragen (Solo)
+    const query = ctxGroupId
+      ? supabase.from("inquiries").select("*").eq("group_id", ctxGroupId).order("created_at", { ascending: false })
+      : supabase.from("inquiries").select("*").eq("owner_profile_id", ownerId).order("created_at", { ascending: false });
+    const { data } = await query;
     if (data) setInquiries(data as Inquiry[]);
     setLoading(false);
-  }, [supabase, ownerId]);
+  }, [supabase, ownerId, ctxGroupId]);
 
   // Team-Zusagen-Zähler für alle Anfragen laden
   const loadTeamCounts = useCallback(async () => {

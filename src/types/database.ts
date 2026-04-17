@@ -567,6 +567,8 @@ export type Inquiry = {
   notes: string | null;
   project_id: string | null;
   telegram_message_id: number | null;
+  group_id: string | null;
+  owner_profile_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

@@ -163,17 +163,21 @@ function InquiryDetailContent({
   const currentUser = useCurrentUser();
   const canEditInquiry = hasPermission(currentUser, "inquiries_edit");
 
-  // Telegram-Chat-ID der Org laden
+  // Telegram-Chat-ID der zugeordneten Gruppe laden
   const [telegramChatId, setTelegramChatId] = useState<number | null>(null);
+  const inquiryGroupId = inquiry?.group_id ?? null;
   useEffect(() => {
-    if (!orgId) return;
+    if (!inquiryGroupId) {
+      setTelegramChatId(null);
+      return;
+    }
     supabase
-      .from("organizations")
+      .from("groups")
       .select("telegram_chat_id")
-      .eq("id", orgId)
-      .single()
-      .then(({ data }) => setTelegramChatId(data?.telegram_chat_id ?? null));
-  }, [supabase, orgId]);
+      .eq("id", inquiryGroupId)
+      .maybeSingle()
+      .then(({ data }) => setTelegramChatId((data?.telegram_chat_id as number | null) ?? null));
+  }, [supabase, inquiryGroupId]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // Field Tracking
