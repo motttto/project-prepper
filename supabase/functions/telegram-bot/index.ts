@@ -40,6 +40,7 @@ async function telegramSendMessage(
   chatId: number,
   text: string,
   replyMarkup?: Record<string, unknown>,
+  threadId?: number | null,
 ) {
   const body: Record<string, unknown> = {
     chat_id: chatId,
@@ -47,6 +48,7 @@ async function telegramSendMessage(
     parse_mode: "Markdown",
   };
   if (replyMarkup) body.reply_markup = replyMarkup;
+  if (threadId) body.message_thread_id = threadId;
 
   const res = await fetch(`${TELEGRAM_API}/sendMessage`, {
     method: "POST",
@@ -195,7 +197,7 @@ async function handleSendInquiry(req: Request): Promise<Response> {
   // Lade Anfrage mit Org-Daten
   const { data: inquiry, error: inquiryError } = await supabase
     .from("inquiries")
-    .select("id, title, client_name, description, venue_name, event_date_start, event_date_end, org_id, telegram_message_id, organizations(telegram_chat_id)")
+    .select("id, title, client_name, description, venue_name, event_date_start, event_date_end, group_id, telegram_message_id, groups(telegram_chat_id, telegram_thread_id)")
     .eq("id", inquiry_id)
     .single();
 
@@ -204,9 +206,11 @@ async function handleSendInquiry(req: Request): Promise<Response> {
   }
 
   // deno-lint-ignore no-explicit-any
-  const chatId = (inquiry as any).organizations?.telegram_chat_id;
+  const grp = (inquiry as any).groups;
+  const chatId = grp?.telegram_chat_id;
+  const threadId = grp?.telegram_thread_id;
   if (!chatId) {
-    return jsonResponse({ error: "No Telegram chat configured for this organization" }, 400);
+    return jsonResponse({ error: "Anfrage ist keiner Gruppe mit Telegram-Konfig zugeordnet" }, 400);
   }
 
   // Lade Einladungen
@@ -235,7 +239,7 @@ async function handleSendInquiry(req: Request): Promise<Response> {
   }
 
   // Neue Nachricht senden
-  const result = await telegramSendMessage(chatId, message, keyboard);
+  const result = await telegramSendMessage(chatId, message, keyboard, threadId);
 
   if (result.ok && result.result?.message_id) {
     // Message-ID speichern
@@ -470,7 +474,8 @@ async function updateGroupMessage(supabase: any, inquiryId: string) {
   if (!inquiry?.telegram_message_id) return;
 
   // deno-lint-ignore no-explicit-any
-  const chatId = (inquiry as any).organizations?.telegram_chat_id;
+  const grp = (inquiry as any).groups;
+  const chatId = grp?.telegram_chat_id;
   if (!chatId) return;
 
   const { data: invitations } = await supabase

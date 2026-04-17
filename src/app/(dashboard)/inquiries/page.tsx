@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { useOrg } from "@/contexts/org-context";
+import { useOrg, useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { DateInput } from "@/components/ui/date-input";
@@ -86,6 +86,12 @@ export default function InquiriesPage() {
   const [formBudget, setFormBudget] = useState("");
   const [formProbability, setFormProbability] = useState("");
   const [formNotes, setFormNotes] = useState("");
+  const [formGroupId, setFormGroupId] = useState<string>("");
+  const { groups, groupId: ctxGroupId } = useWorkspace();
+  // Default: aktuelle Gruppe vorwählen
+  useEffect(() => {
+    if (ctxGroupId) setFormGroupId(ctxGroupId);
+  }, [ctxGroupId]);
 
   const loadInquiries = useCallback(async () => {
     if (!ownerId) return;
@@ -183,7 +189,7 @@ export default function InquiriesPage() {
     e.preventDefault();
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
-    const { error } = await supabase.from("inquiries").insert({
+    const { data: inserted, error } = await supabase.from("inquiries").insert({
       owner_profile_id: ownerId,
       title: formTitle,
       client_name: formClientName,
@@ -196,11 +202,22 @@ export default function InquiriesPage() {
       estimated_budget: formBudget ? parseFloat(formBudget) : null,
       probability: formProbability ? parseInt(formProbability) : null,
       notes: formNotes || null,
+      group_id: formGroupId || null,
       created_by: user?.id,
-    });
+    }).select("id").single();
     if (error) {
       showToast("Fehler beim Erstellen: " + error.message, "error");
     } else {
+      // Telegram-Bot triggern, wenn Gruppe ausgewählt ist
+      if (formGroupId && inserted?.id) {
+        try {
+          await supabase.functions.invoke("telegram-bot", {
+            body: { inquiry_id: inserted.id },
+          });
+        } catch (e) {
+          console.warn("Telegram post failed:", e);
+        }
+      }
       setFormTitle(""); setFormClientName(""); setFormClientContact("");
       setFormClientPhone(""); setFormClientEmail(""); setFormDateStart("");
       setFormDateEnd(""); setFormVenue(""); setFormBudget("");
@@ -375,6 +392,24 @@ export default function InquiriesPage() {
                 style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
                 placeholder="Weitere Details zur Anfrage..." />
             </div>
+            {groups.filter((g) => g.isActive).length > 0 && (
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  Gruppe (optional)
+                </label>
+                <select value={formGroupId} onChange={(e) => setFormGroupId(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm"
+                  style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}>
+                  <option value="">— Solo (nur ich) —</option>
+                  {groups.filter((g) => g.isActive).map((g) => (
+                    <option key={g.id} value={g.id}>🛡️ {g.name}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                  Gruppen-Anfragen werden via Telegram-Bot gepostet, falls die Gruppe konfiguriert ist.
+                </p>
+              </div>
+            )}
             <div className="flex gap-2 pt-2">
               <button type="submit" disabled={saving}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
