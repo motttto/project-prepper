@@ -58,7 +58,15 @@ export function UsersOverviewTab({ currentUserId }: Props) {
 
   useEffect(() => {
     loadUsers();
-  }, [loadUsers]);
+    const channel = supabase
+      .channel("admin-users-overview")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => loadUsers())
+      .on("postgres_changes", { event: "*", schema: "public", table: "group_memberships" }, () => loadUsers())
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadUsers, supabase]);
 
   const handleDelete = async (user: UserRow) => {
     const confirmed = await appConfirm(
