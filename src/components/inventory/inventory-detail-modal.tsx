@@ -1408,7 +1408,7 @@ export function InventoryDetailModal({
               paddingTop: "12px",
             }}
           >
-            {item.owner && <span>Eigentümer: {item.owner}</span>}
+            {/* Legacy text-Owner (z.B. "Kollektiv") nicht mehr anzeigen — Owner kommt jetzt aus owner_profile_id */}
             <span>
               Erstellt:{" "}
               {new Date(item.created_at).toLocaleDateString("de-DE", {
