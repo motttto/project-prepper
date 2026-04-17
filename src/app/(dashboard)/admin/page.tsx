@@ -31,6 +31,7 @@ import {
 import { showToast } from "@/hooks/use-toast";
 import { logActivity } from "@/lib/activity-log";
 import { appConfirm, appAlert } from "@/components/ui/confirm-dialog";
+import { UsersOverviewTab } from "@/components/admin/users-overview-tab";
 
 // ── Types ──
 
@@ -147,7 +148,7 @@ export default function AdminPage() {
   const { orgId } = useOrg();
   const { startImpersonating } = useImpersonate();
 
-  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system" | "services" | "email">("roles");
+  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system" | "services" | "email" | "users">("roles");
 
   // ── Rollen & Berechtigungen State ──
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -400,11 +401,12 @@ export default function AdminPage() {
   }
 
   // ── Tab Config ──
-  const tabs: { key: "roles" | "log" | "system" | "services" | "email"; label: string }[] = [
+  const tabs: { key: "roles" | "log" | "system" | "services" | "email" | "users"; label: string }[] = [
     { key: "roles", label: "Rollen & Berechtigungen" },
     { key: "log", label: "Protokoll" },
     { key: "services", label: "Services" },
     { key: "email", label: "E-Mail" },
+    ...(currentUser?.isSuperadmin ? [{ key: "users" as const, label: "User" }] : []),
     { key: "system", label: "System" },
   ];
 
@@ -494,6 +496,8 @@ export default function AdminPage() {
         <ServicesTab orgId={orgId || ""} />
       ) : activeTab === "email" ? (
         <EmailConfigTab ownerId={currentUser?.id || ""} userEmail={currentUser?.email || ""} />
+      ) : activeTab === "users" ? (
+        <UsersOverviewTab currentUserId={currentUser?.id || ""} />
       ) : (
         <SystemTab />
       )}
