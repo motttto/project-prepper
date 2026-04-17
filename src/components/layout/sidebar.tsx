@@ -73,52 +73,34 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const userId = currentUser?.id;
 
   useEffect(() => {
-    if (!orgId || !userId) return;
+    if (!userId) return;
 
     async function loadCounts() {
       const counts: Record<string, number> = {};
 
-      // Team: Pending memberships + pending org invitations
-      const [{ count: pendingMembers }, { count: pendingInvites }] = await Promise.all([
+      // Pending project & inquiry invitations für diesen User (User-First)
+      const [projRes, inqRes] = await Promise.all([
         supabase
-          .from("org_memberships")
-          .select("*", { count: "exact", head: true })
-          .eq("org_id", orgId)
-          .eq("is_active", false)
-          .is("approved_at", null),
+          .from("project_invitations")
+          .select("id", { count: "exact", head: true })
+          .eq("invited_profile_id", userId)
+          .eq("status", "pending"),
         supabase
-          .from("org_invitations")
-          .select("*", { count: "exact", head: true })
-          .eq("org_id", orgId)
+          .from("inquiry_invitations")
+          .select("id", { count: "exact", head: true })
+          .eq("invited_profile_id", userId)
           .eq("status", "pending"),
       ]);
-      counts["/team"] = (pendingMembers || 0) + (pendingInvites || 0);
-
-      // Projekte: Pending project invitations für diesen User
-      const { count: projectInvites } = await supabase
-        .from("project_invitations")
-        .select("*", { count: "exact", head: true })
-        .eq("invited_profile_id", userId)
-        .eq("status", "pending");
-      counts["/projects"] = projectInvites || 0;
-
-      // Anfragen: Pending inquiry invitations für diesen User
-      const { count: inquiryInvites } = await supabase
-        .from("inquiry_invitations")
-        .select("*", { count: "exact", head: true })
-        .eq("invited_profile_id", userId)
-        .eq("status", "pending");
-      counts["/inquiries"] = inquiryInvites || 0;
+      counts["/projects"] = projRes.count || 0;
+      counts["/inquiries"] = inqRes.count || 0;
 
       setBadgeCounts(counts);
     }
     loadCounts();
 
-    // Realtime: Counts aktualisieren bei Änderungen
+    // Realtime: Counts aktualisieren bei Änderungen (nur user-relevante Tabellen)
     const channel = supabase
       .channel("sidebar-badges")
-      .on("postgres_changes", { event: "*", schema: "public", table: "org_memberships" }, loadCounts)
-      .on("postgres_changes", { event: "*", schema: "public", table: "org_invitations" }, loadCounts)
       .on("postgres_changes", { event: "*", schema: "public", table: "project_invitations" }, loadCounts)
       .on("postgres_changes", { event: "*", schema: "public", table: "inquiry_invitations" }, loadCounts)
       .on("postgres_changes", { event: "*", schema: "public", table: "task_notifications" }, loadCounts)
@@ -127,7 +109,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, orgId, userId]);
+  }, [supabase, userId]);
 
   // Sidebar auf Mobile schließen bei Navigation
   useEffect(() => {
