@@ -25,6 +25,8 @@ interface Group {
   description: string | null;
   founded_by: string;
   founded_at: string;
+  telegram_chat_id: number | null;
+  telegram_thread_id: number | null;
 }
 
 interface Member {
@@ -107,6 +109,9 @@ export default function GroupDetailPage() {
   const [inviteMessage, setInviteMessage] = useState("");
   const [inviting, setInviting] = useState(false);
   const [inviteError, setInviteError] = useState("");
+
+  // Tabs
+  const [activeTab, setActiveTab] = useState<"overview" | "settings">("overview");
 
   const loadAll = useCallback(async () => {
     if (!groupId) return;
@@ -376,6 +381,32 @@ export default function GroupDetailPage() {
         </div>
       </div>
 
+      {/* Tab Bar */}
+      <div className="flex gap-1 rounded-lg p-1 mb-5" style={{ background: "var(--color-muted)" }}>
+        {(["overview", "settings"] as const).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className="flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors"
+            style={{
+              background: activeTab === tab ? "var(--color-primary)" : "transparent",
+              color: activeTab === tab ? "#fff" : "var(--color-muted-foreground)",
+            }}
+          >
+            {tab === "overview" ? "Übersicht" : "Einstellungen"}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === "settings" ? (
+        <GroupSettings
+          group={group}
+          isFounder={isFounder}
+          onUpdated={loadAll}
+          supabase={supabase}
+        />
+      ) : (<>
+
       {/* Mitglieder */}
       <div
         className="rounded-xl p-6 mb-5"
@@ -559,6 +590,124 @@ export default function GroupDetailPage() {
           </div>
         </div>
       )}
+      </>)}
+    </div>
+  );
+}
+
+// ─── Group Settings ──────────────────────────────────────────────────────────
+
+function GroupSettings({
+  group,
+  isFounder,
+  onUpdated,
+  supabase,
+}: {
+  group: Group;
+  isFounder: boolean;
+  onUpdated: () => void;
+  supabase: ReturnType<typeof createClient>;
+}) {
+  const [chatId, setChatId] = useState(group.telegram_chat_id?.toString() || "");
+  const [threadId, setThreadId] = useState(group.telegram_thread_id?.toString() || "");
+  const [saving, setSaving] = useState(false);
+  const dirty =
+    (group.telegram_chat_id?.toString() || "") !== chatId ||
+    (group.telegram_thread_id?.toString() || "") !== threadId;
+
+  async function save() {
+    setSaving(true);
+    const { error } = await supabase
+      .from("groups")
+      .update({
+        telegram_chat_id: chatId.trim() ? Number(chatId.trim()) : null,
+        telegram_thread_id: threadId.trim() ? Number(threadId.trim()) : null,
+      })
+      .eq("id", group.id);
+    setSaving(false);
+    if (error) {
+      showToast(`Fehler: ${error.message}`, "error");
+      return;
+    }
+    showToast("Einstellungen gespeichert", "success");
+    onUpdated();
+  }
+
+  return (
+    <div
+      className="rounded-xl p-6"
+      style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+    >
+      <h2 className="text-lg font-semibold mb-1">Telegram-Bot</h2>
+      <p className="text-xs mb-5" style={{ color: "var(--color-muted-foreground)" }}>
+        Neue Anfragen, die dieser Gruppe zugeordnet werden, kann der Project-Prepper-Bot
+        automatisch in eine Telegram-Gruppe posten. Füge dort den Bot hinzu, schreibe
+        <code className="px-1 mx-1 rounded" style={{ background: "var(--color-muted)" }}>/start</code>
+        und kopiere die Chat-ID hierher.
+      </p>
+
+      <div className="space-y-4">
+        <div>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+            Telegram Chat-ID
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={chatId}
+            onChange={(e) => setChatId(e.target.value)}
+            disabled={!isFounder}
+            placeholder="z.B. -1001234567890"
+            className="w-full px-3 py-2 rounded-lg text-sm font-mono disabled:opacity-60"
+            style={{
+              background: "var(--color-background)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-foreground)",
+            }}
+          />
+          <p className="text-[11px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+            Bei Gruppen-Chats beginnt die ID typischerweise mit <code>-100…</code>
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+            Topic / Thread-ID (optional)
+          </label>
+          <input
+            type="text"
+            inputMode="numeric"
+            value={threadId}
+            onChange={(e) => setThreadId(e.target.value)}
+            disabled={!isFounder}
+            placeholder="leer = Hauptchat"
+            className="w-full px-3 py-2 rounded-lg text-sm font-mono disabled:opacity-60"
+            style={{
+              background: "var(--color-background)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-foreground)",
+            }}
+          />
+          <p className="text-[11px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+            Nur nötig, wenn ein bestimmtes Topic in einer Forum-Gruppe genutzt werden soll.
+          </p>
+        </div>
+
+        {!isFounder ? (
+          <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+            Nur Gründer:innen können diese Einstellungen ändern.
+          </p>
+        ) : (
+          <button
+            onClick={save}
+            disabled={!dirty || saving}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+            style={{ background: "var(--color-primary)" }}
+          >
+            {saving ? "Speichere..." : "Speichern"}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
