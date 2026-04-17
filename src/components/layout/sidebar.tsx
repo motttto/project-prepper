@@ -60,12 +60,12 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   // Notification-Counts pro Menüpunkt
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
   const { orgId } = useOrg();
-  const { groups } = useWorkspace();
+  const { groups, groupId: contextGroupId, switchWorkspace } = useWorkspace();
   const currentUser = useCurrentUser();
 
-  // Aktive Gruppe aus URL ableiten: /groups/[id]/...
+  // Aktive Gruppe: URL hat Vorrang (/groups/[id]/…), sonst Workspace-Cookie
   const groupRouteMatch = pathname.match(/^\/groups\/([0-9a-f-]{36})/i);
-  const activeGroupId = groupRouteMatch?.[1] || null;
+  const activeGroupId = groupRouteMatch?.[1] || contextGroupId || null;
   const activeGroup = activeGroupId
     ? groups.find((g) => g.id === activeGroupId)
     : null;
@@ -177,21 +177,36 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         </button>
       </div>
 
-      {/* Workspace-Info (read-only) */}
+      {/* Workspace-Info — klickbar im Group-Modus → zurück zu Solo */}
       <div className="px-3 pt-3 pb-2">
-        <div
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
-          style={{
-            background: activeGroup ? "var(--color-sidebar-active)" : "rgba(255,255,255,0.05)",
-            color: activeGroup ? "#fff" : "var(--color-sidebar-text-muted)",
-          }}
-          title={activeGroup ? `Gruppe: ${activeGroup.name}` : `Solo-Workspace · ${currentUser?.name || ""}`}
-        >
-          <span style={{ fontSize: 14 }}>{activeGroup ? "🛡️" : "👤"}</span>
-          <span className="truncate font-medium">
-            {activeGroup ? activeGroup.name : currentUser?.name || "Workspace"}
-          </span>
-        </div>
+        {activeGroup ? (
+          <button
+            type="button"
+            onClick={() => switchWorkspace(null)}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs cursor-pointer"
+            style={{
+              background: "var(--color-sidebar-active)",
+              color: "#fff",
+            }}
+            title={`Gruppe: ${activeGroup.name} · Klick → zurück zum Solo-Workspace`}
+          >
+            <span style={{ fontSize: 14 }}>🛡️</span>
+            <span className="truncate font-medium flex-1 text-left">{activeGroup.name}</span>
+            <IconX size={12} />
+          </button>
+        ) : (
+          <div
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs"
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              color: "var(--color-sidebar-text-muted)",
+            }}
+            title={`Solo-Workspace · ${currentUser?.name || ""}`}
+          >
+            <span style={{ fontSize: 14 }}>👤</span>
+            <span className="truncate font-medium">{currentUser?.name || "Workspace"}</span>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}

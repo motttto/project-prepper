@@ -92,7 +92,7 @@ export default function GroupDetailPage() {
   const params = useParams();
   const groupId = params.id as string;
   const currentUser = useCurrentUser();
-  const { reload, switchWorkspace } = useWorkspace();
+  const { reload, switchWorkspace, groupId: ctxGroupId } = useWorkspace();
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -164,6 +164,12 @@ export default function GroupDetailPage() {
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  // Workspace-Context auf diese Gruppe setzen, damit andere Pages
+  // (Inventar, Projekte, ...) die Gruppe als aktiv erkennen.
+  useEffect(() => {
+    if (groupId && groupId !== ctxGroupId) switchWorkspace(groupId);
+  }, [groupId, ctxGroupId, switchWorkspace]);
 
   useRealtimeTable({ table: "group_memberships", onDataChange: loadAll });
   useRealtimeTable({ table: "group_invitations", onDataChange: loadAll });

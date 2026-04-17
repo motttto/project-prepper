@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase";
-import { useOrg } from "@/contexts/org-context";
+import { useOrg, useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
 import type { Project } from "@/types/database";
 import { IconPlus, IconSearch, IconX, IconChevronRight, IconTrash, IconHandshake, IconUser } from "@/components/ui/icons";
@@ -47,6 +47,7 @@ export default function ProjectsPage() {
   const currentUser = useCurrentUser();
   const ownerId = currentUser?.id ?? null;
   const orgId = ownerId; // alias backward-compat
+  const { groupId } = useWorkspace();
   const canEdit = true;
   const [projects, setProjects] = useState<(Project & { isPartner?: boolean })[]>([]);
   const [myProjectIds, setMyProjectIds] = useState<Set<string>>(new Set());
@@ -68,26 +69,33 @@ export default function ProjectsPage() {
   const loadProjects = useCallback(async () => {
     if (!ownerId || !currentUser) return;
 
-    // 1. Eigene Projekte (Solo)
-    const { data: ownData } = await supabase
-      .from("projects")
-      .select("*")
-      .eq("owner_profile_id", ownerId)
-      .order("date_start", { ascending: false });
+    // Group-Modus: Projekte der Gruppe laden
+    // Solo-Modus: eigene Projekte (owner_profile_id)
+    const query = groupId
+      ? supabase
+          .from("projects")
+          .select("*")
+          .eq("group_id", groupId)
+          .order("date_start", { ascending: false })
+      : supabase
+          .from("projects")
+          .select("*")
+          .eq("owner_profile_id", ownerId)
+          .order("date_start", { ascending: false });
 
+    const { data: ownData } = await query;
     const ownProjects = (ownData || []).map((p) => ({ ...p, isPartner: false }));
 
-    // 2. Mitgliedschaften des Users (project_members) — Projekte wo User mitwirkt
+    // Mitgliedschaften des Users (project_members)
     const { data: memberships } = await supabase
       .from("project_members")
       .select("project_id")
       .eq("profile_id", currentUser.id);
     setMyProjectIds(new Set((memberships || []).map((m) => m.project_id)));
 
-    // Partner-Projekte entfallen im neuen Modell (kein project_orgs mehr)
     setProjects(ownProjects as (Project & { isPartner?: boolean })[]);
     setLoading(false);
-  }, [supabase, ownerId, currentUser]);
+  }, [supabase, ownerId, currentUser, groupId]);
 
   useEffect(() => {
     loadProjects();
