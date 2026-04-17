@@ -919,7 +919,9 @@ function InventoryPage() {
                 <th className="text-right px-2 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden sm:table-cell" style={{ color: "var(--color-muted-foreground)" }}>&euro;/Tag</th>
                 <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider" style={{ color: "var(--color-muted-foreground)" }}>Eigentum</th>
                 <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Geteilt</th>
-                <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Pate</th>
+                {groupId && (
+                  <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Pate</th>
+                )}
                 <th className="text-left px-3 sm:px-4 py-3 text-xs sm:text-sm font-semibold uppercase tracking-wider hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>Ort</th>
                 <th className="w-10 px-2 sm:px-4 py-3"></th>
               </tr>
@@ -1135,10 +1137,12 @@ function InventoryPage() {
                       );
                     })()}
                   </td>
-                  {/* Pate — hidden until xl */}
-                  <td className="px-3 sm:px-4 py-3.5 text-sm hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>
-                    {item.purchased_by || "–"}
-                  </td>
+                  {/* Pate — nur im Group-Modus sichtbar */}
+                  {groupId && (
+                    <td className="px-3 sm:px-4 py-3.5 text-sm hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>
+                      {item.purchased_by || "–"}
+                    </td>
+                  )}
                   {/* Ort — hidden until xl */}
                   <td className="px-3 sm:px-4 py-3.5 text-sm hidden xl:table-cell" style={{ color: "var(--color-muted-foreground)" }}>
                     {item.location || "–"}
