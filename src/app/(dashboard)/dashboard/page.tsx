@@ -77,6 +77,8 @@ export default function DashboardPage() {
 
   async function handleAcceptInvite(inv: PendingInvitation) {
     if (!currentUser) return;
+    // Optimistisch entfernen, damit die Kachel sofort weg ist
+    setPendingInvites((prev) => prev.filter((p) => p.id !== inv.id));
     // Status auf accepted_by_user setzen (Trigger startet Voting oder aktiviert direkt)
     const { error } = await supabase
       .from("group_invitations")
@@ -84,22 +86,27 @@ export default function DashboardPage() {
       .eq("id", inv.id);
     if (error) {
       showToast("Fehler: " + error.message, "error");
-    } else {
-      showToast(`Einladung zu "${inv.group?.name}" akzeptiert`, "success");
-      await reload();
+      await loadCounts(); // Rollback
+      return;
     }
+    showToast(`Einladung zu "${inv.group?.name}" akzeptiert`, "success");
+    await reload();
+    await loadCounts();
   }
 
   async function handleDeclineInvite(inv: PendingInvitation) {
+    setPendingInvites((prev) => prev.filter((p) => p.id !== inv.id));
     const { error } = await supabase
       .from("group_invitations")
       .update({ status: "declined_by_user", resolved_at: new Date().toISOString() })
       .eq("id", inv.id);
     if (error) {
       showToast("Fehler: " + error.message, "error");
-    } else {
-      showToast(`Einladung zu "${inv.group?.name}" abgelehnt`, "info");
+      await loadCounts(); // Rollback
+      return;
     }
+    showToast(`Einladung zu "${inv.group?.name}" abgelehnt`, "info");
+    await loadCounts();
   }
 
   if (!currentUser) {
