@@ -40,9 +40,9 @@ export default function MyGroupsPage() {
         .filter((m) => m.group)
         .map(async (m) => {
           const g = m.group as unknown as { id: string; name: string; description: string | null; founded_by: string };
-          const { count } = await supabase
+          const { data: memberRows } = await supabase
             .from("group_memberships")
-            .select("*", { count: "exact", head: true })
+            .select("id")
             .eq("group_id", g.id)
             .eq("is_active", true);
           return {
@@ -52,7 +52,7 @@ export default function MyGroupsPage() {
             founded_by: g.founded_by,
             is_founder: !!m.is_founder,
             is_active: !!m.is_active,
-            member_count: count ?? 0,
+            member_count: memberRows?.length ?? 0,
           };
         })
     );

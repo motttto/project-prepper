@@ -54,15 +54,15 @@ export default function DashboardPage() {
     const [invRes, inqRes, projRes, pendRes] = await Promise.all([
       supabase
         .from("inventory_items")
-        .select("id", { count: "exact", head: true })
+        .select("id")
         .eq("owner_profile_id", currentUser.id),
       supabase
         .from("inquiries")
-        .select("id", { count: "exact", head: true })
+        .select("id")
         .eq("owner_profile_id", currentUser.id),
       supabase
         .from("projects")
-        .select("id", { count: "exact", head: true })
+        .select("id")
         .eq("owner_profile_id", currentUser.id),
       supabase
         .from("group_invitations")
@@ -71,9 +71,9 @@ export default function DashboardPage() {
         .in("status", ["pending"]),
     ]);
     setCounts({
-      inventory: invRes.count ?? 0,
-      inquiries: inqRes.count ?? 0,
-      projects: projRes.count ?? 0,
+      inventory: invRes.data?.length ?? 0,
+      inquiries: inqRes.data?.length ?? 0,
+      projects: projRes.data?.length ?? 0,
     });
     if (pendRes.data) setPendingInvites(pendRes.data as unknown as PendingInvitation[]);
 

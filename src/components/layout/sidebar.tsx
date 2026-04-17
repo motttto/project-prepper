@@ -82,17 +82,17 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       const [projRes, inqRes] = await Promise.all([
         supabase
           .from("project_invitations")
-          .select("id", { count: "exact", head: true })
+          .select("id")
           .eq("invited_profile_id", userId)
           .eq("status", "pending"),
         supabase
           .from("inquiry_invitations")
-          .select("id", { count: "exact", head: true })
+          .select("id")
           .eq("invited_profile_id", userId)
           .eq("status", "pending"),
       ]);
-      counts["/projects"] = projRes.count || 0;
-      counts["/inquiries"] = inqRes.count || 0;
+      counts["/projects"] = projRes.data?.length || 0;
+      counts["/inquiries"] = inqRes.data?.length || 0;
 
       setBadgeCounts(counts);
     }
