@@ -31,6 +31,15 @@ interface PendingInvitation {
   inviter?: { name: string };
 }
 
+interface VoteRequired {
+  id: string;
+  group_id: string;
+  status: string;
+  invited_email: string;
+  group?: { id: string; name: string };
+  invited?: { name: string | null; email: string };
+}
+
 export default function DashboardPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -38,6 +47,7 @@ export default function DashboardPage() {
   const { isSolo, groupName, groups, reload, switchWorkspace } = useWorkspace();
   const [counts, setCounts] = useState({ inventory: 0, inquiries: 0, projects: 0 });
   const [pendingInvites, setPendingInvites] = useState<PendingInvitation[]>([]);
+  const [voteRequests, setVoteRequests] = useState<VoteRequired[]>([]);
 
   const loadCounts = useCallback(async () => {
     if (!currentUser) return;
@@ -66,6 +76,40 @@ export default function DashboardPage() {
       projects: projRes.count ?? 0,
     });
     if (pendRes.data) setPendingInvites(pendRes.data as unknown as PendingInvitation[]);
+
+    // Vote-Anfragen: Einladungen in Voting-Status fuer Gruppen, in denen ich aktives Mitglied bin
+    const { data: myGroups } = await supabase
+      .from("group_memberships")
+      .select("group_id")
+      .eq("profile_id", currentUser.id)
+      .eq("is_active", true);
+    const myGroupIds = (myGroups || []).map((m) => m.group_id);
+
+    if (myGroupIds.length > 0) {
+      const { data: invs } = await supabase
+        .from("group_invitations")
+        .select("id, group_id, status, invited_email, invited_profile_id, group:groups(id, name), invited:profiles!invited_profile_id(name, email)")
+        .in("group_id", myGroupIds)
+        .in("status", ["accepted_by_user", "voting_in_progress"])
+        .neq("invited_profile_id", currentUser.id);
+
+      // Filter weiter: nur die, fuer die ich noch nicht abgestimmt habe
+      const invIds = (invs || []).map((i) => i.id);
+      let votedIds: string[] = [];
+      if (invIds.length > 0) {
+        const { data: votes } = await supabase
+          .from("group_invitation_votes")
+          .select("invitation_id")
+          .in("invitation_id", invIds)
+          .eq("voter_id", currentUser.id);
+        votedIds = (votes || []).map((v) => v.invitation_id);
+      }
+
+      const open = (invs || []).filter((i) => !votedIds.includes(i.id));
+      setVoteRequests(open as unknown as VoteRequired[]);
+    } else {
+      setVoteRequests([]);
+    }
   }, [supabase, currentUser]);
 
   useEffect(() => {
@@ -74,6 +118,7 @@ export default function DashboardPage() {
 
   useRealtimeTable({ table: "group_invitations", onDataChange: loadCounts });
   useRealtimeTable({ table: "group_memberships", onDataChange: loadCounts });
+  useRealtimeTable({ table: "group_invitation_votes", onDataChange: loadCounts });
 
   async function handleAcceptInvite(inv: PendingInvitation) {
     if (!currentUser) return;
@@ -191,6 +236,42 @@ export default function DashboardPage() {
                 </button>
               </div>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* Vote-Anfragen: Du musst ueber neue Mitglieder abstimmen */}
+      {voteRequests.length > 0 && (
+        <div className="space-y-3 mb-6">
+          {voteRequests.map((vr) => (
+            <Link
+              key={vr.id}
+              href={`/groups/${vr.group_id}`}
+              className="block rounded-xl p-4 transition-all hover:shadow-md"
+              style={{
+                background: "var(--color-warning-light)",
+                border: "1px solid var(--color-warning)",
+              }}
+            >
+              <div className="flex items-start gap-3">
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(255,255,255,0.5)" }}
+                >
+                  <IconShield size={18} style={{ color: "var(--color-warning)" }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold" style={{ color: "var(--color-foreground)" }}>
+                    Abstimmung erforderlich: Beitritt zu &quot;{vr.group?.name}&quot;
+                  </div>
+                  <div className="text-xs mt-1" style={{ color: "var(--color-muted-foreground)" }}>
+                    {vr.invited?.name || vr.invited?.email || vr.invited_email} hat die Einladung
+                    angenommen und braucht deine Zustimmung
+                  </div>
+                </div>
+                <IconChevronRight size={16} style={{ color: "var(--color-muted-foreground)" }} />
+              </div>
+            </Link>
           ))}
         </div>
       )}
