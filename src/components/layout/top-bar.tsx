@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import { IconLogout, IconUser, IconMenu } from "@/components/ui/icons";
 import { useOrg } from "@/contexts/org-context";
+import { useCurrentUser } from "@/hooks/use-current-user";
 
 interface TopBarProps {
   onMenuToggle?: () => void;
@@ -14,11 +15,13 @@ interface TopBarProps {
 export function TopBar({ onMenuToggle }: TopBarProps) {
   const router = useRouter();
   const supabase = createClient();
-  const { orgId, orgName } = useOrg();
+  const { orgName } = useOrg();
+  const currentUser = useCurrentUser();
   const [userName, setUserName] = useState<string>("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [roleName, setRoleName] = useState<string>("");
   const [isSystemUser, setIsSystemUser] = useState(false);
+
+  const roleName = currentUser?.groupRole || "";
 
   useEffect(() => {
     async function load() {
@@ -40,22 +43,6 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
         setIsSystemUser(!!(profile as any).is_system);
       }
 
-      // Rolle aus org_memberships laden
-      if (orgId) {
-        const { data: membership } = await supabase
-          .from("org_memberships")
-          .select("roles(name)")
-          .eq("profile_id", user.id)
-          .eq("org_id", orgId)
-          .single();
-
-        if (membership) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const r = membership.roles as any;
-          const name = Array.isArray(r) ? r[0]?.name : r?.name;
-          setRoleName(name || "");
-        }
-      }
     }
     load();
 
@@ -85,7 +72,7 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, orgId]);
+  }, [supabase]);
 
   async function handleLogout() {
     await supabase.auth.signOut();

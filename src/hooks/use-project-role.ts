@@ -4,7 +4,6 @@ import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase";
 import type { EffectiveProjectRole } from "@/types/database";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
-import { useOrg } from "@/contexts/org-context";
 
 interface UseProjectRoleResult {
   role: EffectiveProjectRole;
@@ -18,8 +17,6 @@ interface UseProjectRoleResult {
 export function useProjectRole(projectId: string): UseProjectRoleResult {
   const [role, setRole] = useState<EffectiveProjectRole>("none");
   const [loading, setLoading] = useState(true);
-  const { orgId } = useOrg();
-
   const determine = useCallback(async () => {
     const supabase = createClient();
     const {
@@ -43,36 +40,17 @@ export function useProjectRole(projectId: string): UseProjectRoleResult {
       return;
     }
 
-    // Org-Level Admin Check via org_memberships
-    if (orgId) {
-      const { data: orgMembership } = await supabase
-        .from("org_memberships")
-        .select("roles(name)")
-        .eq("profile_id", user.id)
-        .eq("org_id", orgId)
-        .single();
+    // Projekt-Owner Check (user-first model)
+    const { data: project } = await supabase
+      .from("projects")
+      .select("owner_profile_id")
+      .eq("id", projectId)
+      .maybeSingle();
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const rolesRaw = orgMembership?.roles as any;
-      const orgRole: { name: string } | null = Array.isArray(rolesRaw)
-        ? rolesRaw[0] ?? null
-        : rolesRaw ?? null;
-      if (orgRole?.name === "admin") {
-        // Prüfe ob die Org direkt das Projekt besitzt ODER ein akzeptierter Partner ist
-        const { data: projectOrg } = await supabase
-          .from("project_orgs")
-          .select("id")
-          .eq("project_id", projectId)
-          .eq("org_id", orgId)
-          .eq("status", "accepted")
-          .maybeSingle();
-
-        if (projectOrg) {
-          setRole("admin");
-          setLoading(false);
-          return;
-        }
-      }
+    if (project?.owner_profile_id === user.id) {
+      setRole("admin");
+      setLoading(false);
+      return;
     }
 
     // Projekt-Mitgliedschaft prüfen
@@ -85,7 +63,7 @@ export function useProjectRole(projectId: string): UseProjectRoleResult {
 
     setRole((membership?.role as EffectiveProjectRole) ?? "none");
     setLoading(false);
-  }, [projectId, orgId]);
+  }, [projectId]);
 
   useEffect(() => {
     determine();

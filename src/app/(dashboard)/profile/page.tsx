@@ -79,21 +79,18 @@ export default function ProfilePage() {
       setEmail(p.email);
     }
 
-    // Org-Rolle laden
-    if (orgId) {
-      const { data: membership } = await supabase
-        .from("org_memberships")
-        .select("approved_at, roles(name)")
-        .eq("profile_id", user.id)
-        .eq("org_id", orgId)
-        .single();
+    // Rolle aus group_memberships (user-first model)
+    const { data: groupMembership } = await supabase
+      .from("group_memberships")
+      .select("is_founder, joined_at")
+      .eq("profile_id", user.id)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle();
 
-      if (membership) {
-        const r = membership.roles as { name: string } | { name: string }[] | null;
-        const rName = Array.isArray(r) ? r[0]?.name : r?.name;
-        setOrgRoleName(rName || "member");
-        setOrgApprovedAt(membership.approved_at);
-      }
+    if (groupMembership) {
+      setOrgRoleName(groupMembership.is_founder ? "founder" : "member");
+      setOrgApprovedAt(groupMembership.joined_at);
     }
 
     setLoading(false);
