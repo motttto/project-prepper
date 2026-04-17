@@ -169,14 +169,18 @@ function InventoryPage() {
 
     const [itemsRes, bookingsRes] = await Promise.all([
       groupId
-        ? supabase
-            .from("inventory_items")
-            .select("*")
-            .or(
-              `owner_profile_id.eq.${ownerId}${itemIds.length > 0 ? `,id.in.(${itemIds.join(",")})` : ""}`
-            )
-            .order("category")
-            .order("name")
+        ? // Group-Modus: AUSSCHLIESSLICH Items die explizit mit dieser
+          // Gruppe geteilt sind (inventory_group_shares). Eigene Items
+          // ohne Share tauchen hier NICHT auf.
+          itemIds.length > 0
+          ? supabase
+              .from("inventory_items")
+              .select("*")
+              .in("id", itemIds)
+              .order("category")
+              .order("name")
+          : // Keine Shares → leere Liste
+            Promise.resolve({ data: [], error: null })
         : supabase
             .from("inventory_items")
             .select("*")
