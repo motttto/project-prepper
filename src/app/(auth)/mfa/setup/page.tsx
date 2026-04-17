@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { IconShield, IconZap } from "@/components/ui/icons";
 
 export default function MfaSetupPage() {
+  return (
+    <Suspense>
+      <MfaSetupInner />
+    </Suspense>
+  );
+}
+
+function MfaSetupInner() {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
   const [factorId, setFactorId] = useState<string | null>(null);

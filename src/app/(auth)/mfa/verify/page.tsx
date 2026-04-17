@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { IconShield, IconZap } from "@/components/ui/icons";
 
 export default function MfaVerifyPage() {
+  return (
+    <Suspense>
+      <MfaVerifyInner />
+    </Suspense>
+  );
+}
+
+function MfaVerifyInner() {
   const [code, setCode] = useState("");
   const [factorId, setFactorId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
