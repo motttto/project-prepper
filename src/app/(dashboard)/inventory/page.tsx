@@ -78,7 +78,7 @@ function InventoryPage() {
   // Backward-Compat: Aliase damit alter Code minimal angepasst werden muss
   const orgId = ownerId;
   // groupId für Group-Modus
-  const { groupId } = useWorkspace();
+  const { groupId, groupName } = useWorkspace();
   const searchParams = useSearchParams();
   const router = useRouter();
   const canEdit = hasPermission(currentUser, "inventory_edit");
@@ -1100,6 +1100,14 @@ function InventoryPage() {
                       >
                         👤 {profileMap.get(item.owner_profile_id) || "—"}
                       </span>
+                    ) : groupId && groupName ? (
+                      <span
+                        className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full"
+                        style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}
+                        title="Gruppen-Eigentum"
+                      >
+                        🛡️ {groupName}
+                      </span>
                     ) : (
                       <span className="text-xs italic" style={{ color: "var(--color-muted-foreground)" }}>
                         —
@@ -1109,11 +1117,13 @@ function InventoryPage() {
                   {/* Geteilt — hidden on mobile/tablet */}
                   <td className="px-3 sm:px-4 py-3.5 hidden lg:table-cell">
                     {(() => {
-                      const sh = shareMap.get(item.id) || [];
+                      // Im Group-Kontext: eigene Gruppe rausfiltern (ist ja schon Kontext)
+                      const allShares = shareMap.get(item.id) || [];
+                      const sh = groupId ? allShares.filter((s) => s.groupId !== groupId) : allShares;
                       if (sh.length === 0) {
                         return (
                           <span className="text-xs italic" style={{ color: "var(--color-muted-foreground)" }}>
-                            nicht geteilt
+                            {groupId ? "—" : "nicht geteilt"}
                           </span>
                         );
                       }
