@@ -439,6 +439,25 @@ export function InventoryDetailModal({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
+          {/* Read-Only Banner bei Nicht-Eigentümer */}
+          {!isOwner && (
+            <div
+              className="rounded-lg p-3 flex items-start gap-2"
+              style={{
+                background: "var(--color-warning-light, #fef3c7)",
+                border: "1px solid var(--color-warning, #f59e0b)",
+                color: "var(--color-warning-foreground, #78350f)",
+              }}
+            >
+              <span style={{ fontSize: 14 }}>🔒</span>
+              <div className="text-xs">
+                <div className="font-semibold mb-0.5">Nur Ansicht</div>
+                Dieses Gerät wurde mit dir geteilt. Änderungen kann nur der Eigentümer vornehmen.
+              </div>
+            </div>
+          )}
+
+          <fieldset disabled={!isOwner} className="space-y-6 disabled:opacity-90">
           {/* Foto */}
           <div>
             <label
@@ -1252,6 +1271,8 @@ export function InventoryDetailModal({
             </div>
           )}
 
+          </fieldset>
+
           {/* Metadaten (readonly) */}
           <div
             className="flex items-center gap-6 text-xs pt-2"
@@ -1291,7 +1312,7 @@ export function InventoryDetailModal({
           >
             Schließen
           </button>
-          {hasChanges && (
+          {hasChanges && isOwner && (
             <button
               onClick={handleSave}
               disabled={saving}
