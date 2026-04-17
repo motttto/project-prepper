@@ -25,15 +25,15 @@ type NavItem = { href: string; label: string; icon: typeof IconDashboard; adminO
 
 function buildNavItems(activeGroupId: string | null): NavItem[] {
   if (activeGroupId) {
-    // Gruppen-Kontext
+    // Gruppen-Kontext (Workspace-Badge zeigt Gruppenname → Prefix unnoetig)
     return [
       { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
-      { href: `/groups/${activeGroupId}`, label: "Gruppen-Uebersicht", icon: IconUsers },
-      { href: "/inventory", label: "Gruppen-Inventar", icon: IconInventory },
-      { href: "/inquiries", label: "Gruppen-Anfragen", icon: IconInbox },
-      { href: "/projects", label: "Gruppen-Projekte", icon: IconProjects },
-      { href: "/calendar", label: "Gruppen-Kalender", icon: IconCalendar },
-      { href: "/polls", label: "Gruppen-Umfragen", icon: IconClipboard },
+      { href: `/groups/${activeGroupId}`, label: "Uebersicht", icon: IconUsers },
+      { href: "/inventory", label: "Inventar", icon: IconInventory },
+      { href: "/inquiries", label: "Anfragen", icon: IconInbox },
+      { href: "/projects", label: "Projekte", icon: IconProjects },
+      { href: "/calendar", label: "Kalender", icon: IconCalendar },
+      { href: "/polls", label: "Umfragen", icon: IconClipboard },
       { href: "/groups", label: "Alle Gruppen", icon: IconUsers },
       { href: "/admin", label: "Admin", icon: IconZap, adminOnly: true },
     ];
