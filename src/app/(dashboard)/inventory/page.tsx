@@ -85,6 +85,10 @@ function InventoryPage() {
   const canExport = hasPermission(currentUser, "excel_export");
   const canImport = hasPermission(currentUser, "excel_import");
   const [items, setItems] = useState<InventoryItem[]>([]);
+  // Share-Map: itemId → [{groupId, groupName, requires_approval}]
+  const [shareMap, setShareMap] = useState<
+    Map<string, { groupId: string; groupName: string; requires_approval: boolean }[]>
+  >(new Map());
   const [bookingMap, setBookingMap] = useState<Map<string, ItemBookingData>>(new Map());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
@@ -186,7 +190,34 @@ function InventoryPage() {
         .in("status", ["reserved", "checked_out"]),
     ]);
 
-    if (itemsRes.data) setItems(itemsRes.data as InventoryItem[]);
+    if (itemsRes.data) {
+      setItems(itemsRes.data as InventoryItem[]);
+
+      // Share-Map fuer diese Items laden
+      const ids = (itemsRes.data as InventoryItem[]).map((x) => x.id);
+      if (ids.length > 0) {
+        const { data: shares } = await supabase
+          .from("inventory_group_shares")
+          .select("inventory_item_id, group_id, requires_approval, groups(name)")
+          .in("inventory_item_id", ids)
+          .is("revoked_at", null);
+        const map = new Map<string, { groupId: string; groupName: string; requires_approval: boolean }[]>();
+        for (const s of shares || []) {
+          const grp = s.groups as unknown as { name: string } | { name: string }[] | null;
+          const groupName = Array.isArray(grp) ? grp[0]?.name : grp?.name;
+          const arr = map.get(s.inventory_item_id) || [];
+          arr.push({
+            groupId: s.group_id,
+            groupName: groupName || "Gruppe",
+            requires_approval: !!s.requires_approval,
+          });
+          map.set(s.inventory_item_id, arr);
+        }
+        setShareMap(map);
+      } else {
+        setShareMap(new Map());
+      }
+    }
 
     // Booking-Map aufbauen: itemId → { bookedQty, bookings[] }
     if (bookingsRes.data) {
@@ -923,7 +954,7 @@ function InventoryPage() {
                   {/* Artikel — always visible, includes inv-nr on mobile */}
                   <td className="px-3 sm:px-4 py-3.5">
                     <div className="font-medium text-sm">{item.name}</div>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="font-mono text-xs px-1 py-0.5 rounded"
                         style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
                         {item.inventory_number}
@@ -932,6 +963,25 @@ function InventoryPage() {
                       <span className="text-xs md:hidden" style={{ color: "var(--color-muted-foreground)" }}>
                         {categoryIcons[item.category] || "📁"} {item.category}
                       </span>
+                      {/* Share-Badges */}
+                      {(shareMap.get(item.id) || []).map((s) => (
+                        <span
+                          key={s.groupId}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium"
+                          style={{
+                            background: "var(--color-primary-light)",
+                            color: "var(--color-primary)",
+                          }}
+                          title={
+                            s.requires_approval
+                              ? `Geteilt mit ${s.groupName} (Zusage erforderlich)`
+                              : `Geteilt mit ${s.groupName} (frei verfügbar)`
+                          }
+                        >
+                          🛡️ {s.groupName}
+                          {s.requires_approval && <span>🔒</span>}
+                        </span>
+                      ))}
                     </div>
                     {item.description && (
                       <div className="text-xs mt-0.5 hidden sm:block" style={{ color: "var(--color-muted-foreground)" }}>
