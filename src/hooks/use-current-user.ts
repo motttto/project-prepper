@@ -9,6 +9,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase";
 import { useWorkspace } from "@/contexts/org-context";
+import { useImpersonate } from "@/contexts/impersonate-context";
 import type { UserPermissions, PermissionModule } from "@/types/database";
 import { defaultPermissionsByRole, modulePermissionMap } from "@/types/database";
 
@@ -73,6 +74,8 @@ export function isOrgAdmin(user: CurrentUser | null): boolean {
 export function useCurrentUser(): CurrentUser | null {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const { groupId } = useWorkspace();
+  const { impersonating } = useImpersonate();
+  const impersonateProfileId = impersonating?.profileId ?? null;
 
   useEffect(() => {
     const supabase = createClient();
@@ -83,25 +86,30 @@ export function useCurrentUser(): CurrentUser | null {
       } = await supabase.auth.getUser();
       if (!authUser) return;
 
-      // Profil laden
+      // Im Impersonation-Modus: Daten des imitierten Users laden
+      // (echter Auth-User ist immer noch der Superadmin in der Session,
+      // aber currentUser.id ist die ID des imitierten Users — Pages, die
+      // nach owner_profile_id filtern, sehen dann dessen Daten)
+      const targetProfileId = impersonateProfileId || authUser.id;
+
       const { data: profile } = await supabase
         .from("profiles")
-        .select("name, email, is_system, avatar_url, inventory_suffix")
-        .eq("id", authUser.id)
+        .select("id, name, email, is_system, avatar_url, inventory_suffix")
+        .eq("id", targetProfileId)
         .single();
 
       const isSystem = !!(profile as { is_system?: boolean } | null)?.is_system;
       const inventorySuffix =
         (profile as { inventory_suffix?: string | null } | null)?.inventory_suffix ?? null;
 
-      // Group-Membership wenn Group aktiv
+      // Group-Role bezogen auf den anzuzeigenden User
       let groupRole = "";
       let isActive = true;
       if (groupId) {
         const { data: membership } = await supabase
           .from("group_memberships")
           .select("is_active, is_founder")
-          .eq("profile_id", authUser.id)
+          .eq("profile_id", targetProfileId)
           .eq("group_id", groupId)
           .maybeSingle();
         if (membership) {
@@ -111,7 +119,7 @@ export function useCurrentUser(): CurrentUser | null {
       }
 
       setUser({
-        id: authUser.id,
+        id: targetProfileId,
         email: profile?.email || authUser.email || "",
         name:
           profile?.name ||
@@ -122,9 +130,11 @@ export function useCurrentUser(): CurrentUser | null {
         inventorySuffix,
         groupId,
         groupRole,
-        isSuperadmin: isSystem,
-        isSystem,
-        isActive: isSystem || isActive,
+        // isSuperadmin spiegelt den ECHTEN Auth-User wider — sonst koennte ein
+        // imitierter Nicht-Admin Admin-UI sehen. Wir laden dafuer sein eigenes Profil.
+        isSuperadmin: !impersonateProfileId && isSystem,
+        isSystem: !impersonateProfileId && isSystem,
+        isActive: (!impersonateProfileId && isSystem) || isActive,
         permissions: SOLO_PERMISSIONS,
         // Backward-Compat
         orgId: groupId,
@@ -133,7 +143,7 @@ export function useCurrentUser(): CurrentUser | null {
     }
 
     fetchUser();
-  }, [groupId]);
+  }, [groupId, impersonateProfileId]);
 
   return user;
 }

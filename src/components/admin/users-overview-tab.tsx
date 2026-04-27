@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase";
 import { IconTrash, IconShield, IconUsers } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
 import { appConfirm } from "@/components/ui/confirm-dialog";
+import { useImpersonate } from "@/contexts/impersonate-context";
+import { defaultPermissionsByRole } from "@/types/database";
 
 type GroupMembership = {
   group_id: string;
@@ -29,6 +31,7 @@ type Props = {
 
 export function UsersOverviewTab({ currentUserId }: Props) {
   const supabase = createClient();
+  const { startImpersonating } = useImpersonate();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -232,6 +235,26 @@ export function UsersOverviewTab({ currentUserId }: Props) {
                     {new Date(u.created_at).toLocaleDateString("de-DE")}
                   </td>
                   <td className="px-4 py-3 text-right">
+                    <div className="inline-flex items-center gap-1.5">
+                      {!isSelf && !u.is_system && (
+                        <button
+                          onClick={() =>
+                            startImpersonating({
+                              profileId: u.id,
+                              name: u.name || u.email,
+                              roleName: u.group_memberships.some((m) => m.is_founder) ? "founder" : "member",
+                              permissions: defaultPermissionsByRole.member,
+                            })
+                          }
+                          className="px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors"
+                          style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-muted)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                          title={`App als ${u.name || u.email} ansehen`}
+                        >
+                          Als User ansehen
+                        </button>
+                      )}
                     <button
                       onClick={() => handleDelete(u)}
                       disabled={!canDelete || deleting === u.id}
@@ -261,6 +284,7 @@ export function UsersOverviewTab({ currentUserId }: Props) {
                       <IconTrash size={12} />
                       {deleting === u.id ? "Lösche..." : "Löschen"}
                     </button>
+                    </div>
                   </td>
                 </tr>
               );
