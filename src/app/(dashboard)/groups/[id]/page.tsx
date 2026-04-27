@@ -574,6 +574,8 @@ export default function GroupDetailPage() {
                 votes={votes.filter((v) => v.invitation_id === inv.id)}
                 activeMembers={activeMembers}
                 currentUserId={currentUser?.id || ""}
+                groupName={group?.name || ""}
+                groupId={groupId}
                 onVote={handleVote}
                 onCancel={handleCancelInvitation}
               />
@@ -1078,6 +1080,8 @@ function InvitationCard({
   votes,
   activeMembers,
   currentUserId,
+  groupName,
+  groupId,
   onVote,
   onCancel,
 }: {
@@ -1085,15 +1089,19 @@ function InvitationCard({
   votes: InvitationVote[];
   activeMembers: Member[];
   currentUserId: string;
+  groupName: string;
+  groupId: string;
   onVote: (id: string, vote: "approve" | "reject", comment?: string) => void;
   onCancel: (id: string) => void;
 }) {
   const [comment, setComment] = useState("");
   const [showRejectInput, setShowRejectInput] = useState(false);
+  const [reminding, setReminding] = useState(false);
 
   const myVote = votes.find((v) => v.voter_id === currentUserId);
   // Voting läuft wenn jemand bereits akzeptiert hat
   const isVoting = ["accepted_by_user", "voting_in_progress"].includes(invitation.status);
+  const isRejected = invitation.status === "rejected_by_member";
   // Andere Mitglieder die abstimmen müssen (ohne den Eingeladenen selbst)
   const eligibleVoters = activeMembers.filter(
     (m) => m.profile_id !== invitation.invited_profile_id
@@ -1102,6 +1110,40 @@ function InvitationCard({
   const rejectionCount = votes.filter((v) => v.vote === "reject").length;
   const canVote =
     isVoting && eligibleVoters.some((m) => m.profile_id === currentUserId) && !myVote;
+
+  // Wer hat noch nicht abgestimmt?
+  const votedIds = new Set(votes.map((v) => v.voter_id));
+  const nonVoters = eligibleVoters.filter((m) => !votedIds.has(m.profile_id));
+  const canRemind = isVoting && nonVoters.length > 0;
+
+  // Reject-Stimmen + Begründung
+  const rejectVotes = votes.filter((v) => v.vote === "reject");
+
+  async function handleRemind() {
+    setReminding(true);
+    try {
+      const supabase = createClient();
+      const recipients = nonVoters.map((m) => m.profile_id);
+      if (recipients.length === 0) return;
+      await supabase.functions.invoke("send-notification", {
+        body: {
+          template_key: "group_invite_voting_needed",
+          recipients,
+          pref_key: "voting",
+          vars: {
+            group_name: groupName,
+            invitee_name: invitation.invitee?.name || invitation.invited_email || "?",
+            voting_url: `${typeof window !== "undefined" ? window.location.origin : ""}/groups/${groupId}`,
+          },
+        },
+      });
+      showToast(`Erinnerung an ${recipients.length} Mitglied${recipients.length !== 1 ? "er" : ""} verschickt`, "success");
+    } catch (e) {
+      showToast("Fehler beim Versand: " + (e as Error).message, "error");
+    } finally {
+      setReminding(false);
+    }
+  }
 
   const statusColors: Record<string, { bg: string; color: string; label: string }> = {
     pending: { bg: "var(--color-warning-light)", color: "var(--color-warning)", label: "Wartet auf Antwort" },
@@ -1164,6 +1206,47 @@ function InvitationCard({
               }}
             />
           </div>
+          {nonVoters.length > 0 && (
+            <div className="mt-2 flex items-center justify-between flex-wrap gap-2">
+              <div className="text-[11px]" style={{ color: "var(--color-muted-foreground)" }}>
+                Ausstehend: {nonVoters.map((m) => m.profile?.name || "?").join(", ")}
+              </div>
+              {canRemind && (
+                <button
+                  onClick={handleRemind}
+                  disabled={reminding}
+                  className="px-3 py-1 rounded text-xs font-medium disabled:opacity-50"
+                  style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+                >
+                  {reminding ? "Sende..." : "Erinnern"}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Ablehnung — sichtbar fuer alle Members */}
+      {isRejected && rejectVotes.length > 0 && (
+        <div
+          className="rounded-lg p-3 mb-3 text-xs"
+          style={{
+            background: "var(--color-destructive-light, #fef2f2)",
+            border: "1px solid var(--color-destructive, #dc2626)",
+            color: "var(--color-destructive, #991b1b)",
+          }}
+        >
+          <div className="font-semibold mb-1">Abgelehnt von:</div>
+          <ul className="space-y-1">
+            {rejectVotes.map((v) => (
+              <li key={v.id}>
+                <span className="font-medium">{v.voter?.name || "?"}</span>
+                {v.comment && (
+                  <span style={{ color: "var(--color-muted-foreground)" }}> — &quot;{v.comment}&quot;</span>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
 
