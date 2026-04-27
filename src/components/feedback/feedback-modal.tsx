@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase";
 import { showToast } from "@/hooks/use-toast";
@@ -13,6 +14,12 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
   const [feedbackType, setFeedbackType] = useState<FeedbackType>("idea");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Portal-Mount erst nach Hydration (vermeidet SSR-Mismatch)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -75,9 +82,11 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
     onClose();
   }
 
-  return (
+  if (!mounted) return null;
+
+  const modal = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-[100] flex items-start justify-center p-4 pt-[10vh] overflow-y-auto"
       style={{ background: "rgba(0,0,0,0.5)" }}
       onClick={onClose}
     >
@@ -151,4 +160,6 @@ export function FeedbackModal({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
