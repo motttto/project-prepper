@@ -174,7 +174,6 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             }}
             title={`Gruppe: ${activeGroup.name} · Klick → zurück zum Solo-Workspace`}
           >
-            <span style={{ fontSize: 14 }}>🛡️</span>
             <span className="truncate font-medium flex-1 text-left">{activeGroup.name}</span>
             <IconX size={12} />
           </button>
@@ -187,7 +186,6 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
             }}
             title={`Solo-Workspace · ${currentUser?.name || ""}`}
           >
-            <span style={{ fontSize: 14 }}>👤</span>
             <span className="truncate font-medium">{currentUser?.name || "Workspace"}</span>
           </div>
         )}

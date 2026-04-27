@@ -44,26 +44,22 @@ export default function DashboardPage() {
   const supabase = createClient();
   const router = useRouter();
   const currentUser = useCurrentUser();
-  const { isSolo, groupName, groups, reload, switchWorkspace } = useWorkspace();
+  const { isSolo, groupId, groupName, groups, reload, switchWorkspace } = useWorkspace();
   const [counts, setCounts] = useState({ inventory: 0, inquiries: 0, projects: 0 });
   const [pendingInvites, setPendingInvites] = useState<PendingInvitation[]>([]);
   const [voteRequests, setVoteRequests] = useState<VoteRequired[]>([]);
 
   const loadCounts = useCallback(async () => {
     if (!currentUser) return;
+    // Im Group-Modus: Counts der aktiven Gruppe.
+    // Im Solo-Modus: eigene Daten (owner_profile_id).
+    const ownerFilter = (q: any) =>
+      groupId ? q.eq("owner_group_id", groupId) : q.eq("owner_profile_id", currentUser.id);
+
     const [invRes, inqRes, projRes, pendRes] = await Promise.all([
-      supabase
-        .from("inventory_items")
-        .select("id")
-        .eq("owner_profile_id", currentUser.id),
-      supabase
-        .from("inquiries")
-        .select("id")
-        .eq("owner_profile_id", currentUser.id),
-      supabase
-        .from("projects")
-        .select("id")
-        .eq("owner_profile_id", currentUser.id),
+      ownerFilter(supabase.from("inventory_items").select("id")),
+      ownerFilter(supabase.from("inquiries").select("id")),
+      ownerFilter(supabase.from("projects").select("id")),
       supabase
         .from("group_invitations")
         .select("id, group_id, invited_message, created_at, status, group:groups(id, name, description), inviter:profiles!invited_by(name)")
@@ -110,7 +106,7 @@ export default function DashboardPage() {
     } else {
       setVoteRequests([]);
     }
-  }, [supabase, currentUser]);
+  }, [supabase, currentUser, groupId]);
 
   useEffect(() => {
     loadCounts();
