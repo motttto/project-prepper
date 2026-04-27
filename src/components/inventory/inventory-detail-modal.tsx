@@ -1002,7 +1002,7 @@ export function InventoryDetailModal({
                       Eigentümer
                     </label>
                     <div
-                      className="w-full px-3 py-2 rounded-lg text-sm flex items-center gap-2"
+                      className="w-full px-3 py-2 rounded-lg text-sm"
                       style={{
                         background: "var(--color-muted)",
                         border: "1px solid var(--color-border)",
@@ -1010,7 +1010,6 @@ export function InventoryDetailModal({
                       }}
                       title={ownerProfileId ? "Du bist Eigentümer" : "Kein Eigentümer gesetzt (Gruppen-Item)"}
                     >
-                      <span>👤</span>
                       <span className="font-medium truncate">
                         {ownerProfileId
                           ? allProfiles.find((p) => p.id === ownerProfileId)?.name ||
