@@ -1161,24 +1161,31 @@ function InvitationCard({
     setReminding(true);
     try {
       const supabase = createClient();
-      if (!invitation.invited_profile_id) {
-        showToast("Eingeladener User hat noch keinen Account", "error");
+      if (invitation.invited_profile_id) {
+        // Bestehender User: via send-notification (Template + User-Prefs)
+        const inviterName =
+          activeMembers.find((m) => m.profile_id === invitation.invited_by)?.profile?.name ?? "Jemand";
+        await supabase.functions.invoke("send-notification", {
+          body: {
+            template_key: "group_invite_pending_reminder",
+            recipients: [invitation.invited_profile_id],
+            pref_key: "voting",
+            vars: {
+              group_name: groupName,
+              inviter_name: inviterName,
+              invitation_url: `${typeof window !== "undefined" ? window.location.origin : ""}/dashboard`,
+            },
+          },
+        });
+      } else if (invitation.invited_email) {
+        // Email-Einladung (User existiert noch nicht): bestehende Group-Invite-Mail erneut
+        await supabase.functions.invoke("send-group-invite", {
+          body: { invitation_id: invitation.id },
+        });
+      } else {
+        showToast("Keine Email-Adresse hinterlegt", "error");
         return;
       }
-      const inviterName =
-        activeMembers.find((m) => m.profile_id === invitation.invited_by)?.profile?.name ?? "Jemand";
-      await supabase.functions.invoke("send-notification", {
-        body: {
-          template_key: "group_invite_pending_reminder",
-          recipients: [invitation.invited_profile_id],
-          pref_key: "voting",
-          vars: {
-            group_name: groupName,
-            inviter_name: inviterName,
-            invitation_url: `${typeof window !== "undefined" ? window.location.origin : ""}/dashboard`,
-          },
-        },
-      });
       await supabase
         .from("group_invitations")
         .update({
@@ -1186,7 +1193,7 @@ function InvitationCard({
           last_sent_at: new Date().toISOString(),
         })
         .eq("id", invitation.id);
-      showToast("Erinnerung an Eingeladenen verschickt", "success");
+      showToast("Erinnerung verschickt", "success");
     } catch (e) {
       showToast("Fehler beim Versand: " + (e as Error).message, "error");
     } finally {
@@ -1366,7 +1373,7 @@ function InvitationCard({
               )
             </span>
           </div>
-          {invitation.invited_profile_id && (
+          {(invitation.invited_profile_id || invitation.invited_email) && (
             <button
               onClick={handleRemindInvitee}
               disabled={reminding}
