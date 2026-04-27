@@ -1215,18 +1215,46 @@ function InvitationCard({
 
   return (
     <div className="p-4 rounded-lg" style={{ background: "var(--color-muted)" }}>
-      <div className="flex items-start justify-between mb-2">
-        <div>
+      <div className="flex items-start justify-between mb-2 gap-2">
+        <div className="flex-1 min-w-0">
           <div className="text-sm font-medium" style={{ color: "var(--color-foreground)" }}>
             {invitation.invitee?.name || invitation.invited_email}
           </div>
-          <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-            Eingeladen von {invitation.inviter?.name || "?"} ·{" "}
-            {new Date(invitation.created_at).toLocaleDateString("de-DE")}
+          <div className="text-xs flex flex-wrap items-center gap-x-2" style={{ color: "var(--color-muted-foreground)" }}>
+            <span>
+              Eingeladen von {invitation.inviter?.name || "?"} ·{" "}
+              {new Date(invitation.created_at).toLocaleDateString("de-DE")}
+            </span>
+            {(invitation.send_count || 1) > 1 && (
+              <span
+                className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                style={{ background: "var(--color-warning-light, #fef3c7)", color: "var(--color-warning, #b45309)" }}
+                title={
+                  invitation.last_sent_at
+                    ? `Zuletzt erinnert: ${new Date(invitation.last_sent_at).toLocaleString("de-DE")}`
+                    : ""
+                }
+              >
+                {(invitation.send_count - 1)}× erinnert
+              </span>
+            )}
+            {(invitation.voting_reminder_count || 0) > 0 && (
+              <span
+                className="px-1.5 py-0.5 rounded text-[10px] font-medium"
+                style={{ background: "var(--color-info-light, #dbeafe)", color: "var(--color-info, #1d4ed8)" }}
+                title={
+                  invitation.voting_reminder_last_at
+                    ? `Voting-Erinnerung zuletzt: ${new Date(invitation.voting_reminder_last_at).toLocaleString("de-DE")}`
+                    : ""
+                }
+              >
+                Voting-Erinnerung {invitation.voting_reminder_count}×
+              </span>
+            )}
           </div>
         </div>
         <span
-          className="text-xs px-2 py-0.5 rounded-full font-medium"
+          className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
           style={{ background: statusInfo.bg, color: statusInfo.color }}
         >
           {statusInfo.label}
@@ -1365,13 +1393,6 @@ function InvitationCard({
         <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
           <div className="text-xs" style={{ color: "var(--color-warning)" }}>
             Eingeladener User hat noch nicht akzeptiert
-            <span className="ml-2" style={{ color: "var(--color-muted-foreground)" }}>
-              ({invitation.send_count || 1}× gesendet
-              {invitation.last_sent_at && (
-                <> · zuletzt {new Date(invitation.last_sent_at).toLocaleDateString("de-DE")}</>
-              )}
-              )
-            </span>
           </div>
           {(invitation.invited_profile_id || invitation.invited_email) && (
             <button
@@ -1386,15 +1407,6 @@ function InvitationCard({
         </div>
       )}
 
-      {/* Voting-Reminder-Counter */}
-      {isVoting && (invitation.voting_reminder_count || 0) > 0 && (
-        <div className="mt-2 text-[11px]" style={{ color: "var(--color-muted-foreground)" }}>
-          Voting-Erinnerung {invitation.voting_reminder_count}× verschickt
-          {invitation.voting_reminder_last_at && (
-            <> · zuletzt {new Date(invitation.voting_reminder_last_at).toLocaleDateString("de-DE")}</>
-          )}
-        </div>
-      )}
 
       {/* Cancel-Button (nur Inviter) */}
       {invitation.invited_by === currentUserId &&
