@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase";
 import { IconLogout, IconUser, IconMenu } from "@/components/ui/icons";
 import { useOrg } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
+import { OnlineIndicator } from "@/components/layout/online-indicator";
 
 interface TopBarProps {
   onMenuToggle?: () => void;
@@ -99,6 +100,7 @@ export function TopBar({ onMenuToggle }: TopBarProps) {
 
       {/* Rechte Seite: Profil + Logout */}
       <div className="flex items-center gap-3">
+        <OnlineIndicator />
         <Link
           href="/profile"
           className="flex items-center gap-2.5 px-3 py-1.5 rounded-lg transition-colors"

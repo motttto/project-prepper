@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
 import imageCompression from "browser-image-compression";
+import { usePresence } from "@/hooks/use-presence";
+import { PresenceAvatars } from "@/components/ui/presence-avatars";
 
 interface Group {
   id: string;
@@ -98,6 +100,14 @@ export default function GroupDetailPage() {
   const groupId = params.id as string;
   const currentUser = useCurrentUser();
   const { reload, switchWorkspace, groupId: ctxGroupId } = useWorkspace();
+
+  // Presence: wer ist gerade in dieser Gruppe online
+  const { users: presenceUsers } = usePresence({
+    channelName: `presence:group:${groupId}`,
+    currentUser: currentUser
+      ? { id: currentUser.id, name: currentUser.name, email: currentUser.email }
+      : null,
+  });
 
   const [group, setGroup] = useState<Group | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -382,6 +392,11 @@ export default function GroupDetailPage() {
             </button>
           )}
         </div>
+        {presenceUsers.length > 1 && (
+          <div className="mt-4 pt-4 border-t" style={{ borderColor: "var(--color-border)" }}>
+            <PresenceAvatars users={presenceUsers} currentUserId={currentUser?.id} />
+          </div>
+        )}
       </div>
 
       {/* Tab Bar */}

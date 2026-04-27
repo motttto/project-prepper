@@ -14,23 +14,30 @@ export interface PresenceUser {
 }
 
 interface UsePresenceOptions {
-  projectId: string;
+  /** Channel-Name (z.B. "presence:project:abc", "presence:group:xyz", "presence:global") */
+  channelName?: string;
+  /** @deprecated nutze channelName. Ist Backward-Compat fuer Projekt-Detail */
+  projectId?: string;
   currentUser: { id: string; name: string; email: string } | null;
 }
 
 export function usePresence({
+  channelName,
   projectId,
   currentUser,
 }: UsePresenceOptions) {
   const [users, setUsers] = useState<PresenceUser[]>([]);
   const channelRef = useRef<RealtimeChannel | null>(null);
 
+  // Kanalname herleiten — channelName hat Vorrang, sonst Legacy-projectId-Pfad
+  const resolvedChannel = channelName || (projectId ? `presence:project:${projectId}` : null);
+
   useEffect(() => {
-    if (!currentUser || !projectId) return;
+    if (!currentUser || !resolvedChannel) return;
 
     const supabase = createClient();
     const channel: RealtimeChannel = supabase.channel(
-      `presence:project:${projectId}`,
+      resolvedChannel,
       {
         config: { presence: { key: currentUser.id } },
       }
@@ -86,7 +93,7 @@ export function usePresence({
       supabase.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [projectId, currentUser?.id, currentUser?.name, currentUser?.email]);
+  }, [resolvedChannel, currentUser?.id, currentUser?.name, currentUser?.email]);
 
   /**
    * Update welche Sektion der aktuelle User gerade bearbeitet.
