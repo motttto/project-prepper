@@ -22,6 +22,8 @@ import {
   IconZap,
   IconMail,
 } from "@/components/ui/icons";
+import { EmailTemplatesTab } from "@/components/admin/email-templates-tab";
+import { FeedbackTab } from "@/components/admin/feedback-tab";
 import {
   RoleBadge,
   RoleBadgeGroup,
@@ -148,7 +150,7 @@ export default function AdminPage() {
   const { orgId } = useOrg();
   const { startImpersonating } = useImpersonate();
 
-  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system" | "services" | "email" | "users">("users");
+  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system" | "services" | "email" | "users" | "templates" | "feedback">("users");
 
   // ── Rollen & Berechtigungen State ──
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -407,11 +409,13 @@ export default function AdminPage() {
   }
 
   // ── Tab Config ──
-  const tabs: { key: "roles" | "log" | "system" | "services" | "email" | "users"; label: string }[] = [
+  const tabs: { key: "roles" | "log" | "system" | "services" | "email" | "users" | "templates" | "feedback"; label: string }[] = [
     ...(currentUser?.isSuperadmin ? [{ key: "users" as const, label: "User & Gruppen" }] : []),
     { key: "log", label: "Protokoll" },
     { key: "services", label: "Services" },
     { key: "email", label: "E-Mail" },
+    ...(currentUser?.isSuperadmin ? [{ key: "templates" as const, label: "Vorlagen" }] : []),
+    ...(currentUser?.isSuperadmin ? [{ key: "feedback" as const, label: "Feedback" }] : []),
     { key: "system", label: "System" },
   ];
 
@@ -503,6 +507,10 @@ export default function AdminPage() {
         <EmailConfigTab ownerId={currentUser?.id || ""} userEmail={currentUser?.email || ""} />
       ) : activeTab === "users" ? (
         <UsersOverviewTab currentUserId={currentUser?.id || ""} />
+      ) : activeTab === "templates" ? (
+        <EmailTemplatesTab />
+      ) : activeTab === "feedback" ? (
+        <FeedbackTab />
       ) : (
         <SystemTab />
       )}

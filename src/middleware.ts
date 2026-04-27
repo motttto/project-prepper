@@ -45,10 +45,12 @@ export async function middleware(request: NextRequest) {
   const isMfaPage = pathname.startsWith("/mfa/");
   const isPartnerInvitePage = pathname === "/partner-invite";
   const isOnboardingPage = pathname === "/onboarding";
+  const isForgotPasswordPage = pathname === "/forgot-password";
+  const isResetPasswordPage = pathname === "/reset-password";
 
   // Nicht eingeloggt? → Weiterleitung zum Login mit Ziel-URL
   // (außer man ist bereits auf /login, Startseite, Auth-Callback oder MFA-Seite)
-  if (!user && !isAuthPage && !isHomePage && !isAuthCallback && !isMfaPage) {
+  if (!user && !isAuthPage && !isHomePage && !isAuthCallback && !isMfaPage && !isForgotPasswordPage && !isResetPasswordPage) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     // Original-URL als ?redirect= mitgeben, damit Login dorthin zurueckspringt

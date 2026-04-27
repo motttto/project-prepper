@@ -19,6 +19,7 @@ import {
 import { useOrg, useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
 import { useImpersonate } from "@/contexts/impersonate-context";
+import { FeedbackModal } from "@/components/feedback/feedback-modal";
 
 // Nav-Items werden jetzt dynamisch (kontextsensitiv) generiert in buildNavItems().
 type NavItem = { href: string; label: string; icon: typeof IconDashboard; adminOnly?: boolean };
@@ -59,6 +60,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const supabase = createClient();
   // Notification-Counts pro Menüpunkt
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
+  const [showFeedback, setShowFeedback] = useState(false);
   const { orgId } = useOrg();
   const { groups, groupId: contextGroupId, switchWorkspace } = useWorkspace();
   const currentUser = useCurrentUser();
@@ -250,6 +252,20 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         })}
       </nav>
 
+      {/* Feedback */}
+      <div className="px-3 py-3 border-t" style={{ borderColor: "var(--color-border)" }}>
+        <button
+          onClick={() => setShowFeedback(true)}
+          className="w-full text-left text-xs px-3 py-2 rounded-lg transition-colors"
+          style={{ color: "var(--color-muted-foreground)" }}
+          onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-muted)")}
+          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+        >
+          Feedback geben
+        </button>
+      </div>
+
+      {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}
     </aside>
   );
 }

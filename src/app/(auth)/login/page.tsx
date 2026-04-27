@@ -264,6 +264,18 @@ function LoginPage() {
             </button>
           </form>
 
+          {!isRegister && (
+            <div className="text-center text-sm">
+              <a
+                href="/forgot-password"
+                className="font-medium"
+                style={{ color: "var(--color-muted-foreground)" }}
+              >
+                Passwort vergessen?
+              </a>
+            </div>
+          )}
+
           <div className="text-center text-sm">
             <button
               onClick={() => {

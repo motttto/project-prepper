@@ -25,6 +25,7 @@ type ProfileData = {
   approved_at: string | null;
   telegram_user_id: number | null;
   inventory_suffix: string | null;
+  notification_prefs: { voting?: boolean; polls?: boolean; loans?: boolean; feedback?: boolean } | null;
   created_at: string;
 };
 
@@ -47,6 +48,9 @@ export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [authEmail, setAuthEmail] = useState("");
   const [inventorySuffix, setInventorySuffix] = useState("");
+  const [notifVoting, setNotifVoting] = useState(true);
+  const [notifPolls, setNotifPolls] = useState(true);
+  const [notifLoans, setNotifLoans] = useState(true);
 
   // Messages
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -59,7 +63,12 @@ export default function ProfilePage() {
   const hasEmailChange = email !== authEmail;
   const hasSuffixChange = profile ? inventorySuffix !== (profile.inventory_suffix || "") : false;
   const suffixValid = inventorySuffix === "" || /^[A-Z0-9]{2,6}$/.test(inventorySuffix);
-  const hasChanges = hasNameChange || hasEmailChange || hasSuffixChange;
+  const hasNotifChange = profile
+    ? notifVoting !== (profile.notification_prefs?.voting !== false)
+      || notifPolls !== (profile.notification_prefs?.polls !== false)
+      || notifLoans !== (profile.notification_prefs?.loans !== false)
+    : false;
+  const hasChanges = hasNameChange || hasEmailChange || hasSuffixChange || hasNotifChange;
 
   const loadProfile = useCallback(async () => {
     const {
@@ -72,7 +81,7 @@ export default function ProfilePage() {
     // Profil laden
     const { data } = await supabase
       .from("profiles")
-      .select("id, name, email, avatar_url, is_active, is_system, approved_at, telegram_user_id, inventory_suffix, created_at")
+      .select("id, name, email, avatar_url, is_active, is_system, approved_at, telegram_user_id, inventory_suffix, notification_prefs, created_at")
       .eq("id", user.id)
       .single();
 
@@ -82,6 +91,10 @@ export default function ProfilePage() {
       setName(p.name);
       setEmail(p.email);
       setInventorySuffix(p.inventory_suffix || "");
+      const prefs = p.notification_prefs || {};
+      setNotifVoting(prefs.voting !== false);
+      setNotifPolls(prefs.polls !== false);
+      setNotifLoans(prefs.loans !== false);
     }
 
     // Rolle aus group_memberships (user-first model)
@@ -151,6 +164,21 @@ export default function ProfilePage() {
         const { error } = await supabase
           .from("profiles")
           .update({ inventory_suffix: inventorySuffix === "" ? null : inventorySuffix })
+          .eq("id", profile.id);
+        if (error) throw new Error(error.message);
+      }
+
+      // Notification-Prefs speichern
+      if (hasNotifChange) {
+        const newPrefs = {
+          ...(profile.notification_prefs || {}),
+          voting: notifVoting,
+          polls: notifPolls,
+          loans: notifLoans,
+        };
+        const { error } = await supabase
+          .from("profiles")
+          .update({ notification_prefs: newPrefs })
           .eq("id", profile.id);
         if (error) throw new Error(error.message);
       }
@@ -471,8 +499,7 @@ export default function ProfilePage() {
 
             {/* Inventar-Suffix */}
             <div>
-              <label className="flex items-center gap-1.5 text-sm font-medium mb-1.5">
-                <IconUser size={14} style={{ color: "var(--color-muted-foreground)" }} />
+              <label className="block text-sm font-medium mb-1.5">
                 Inventar-Suffix
               </label>
               <input
@@ -492,6 +519,40 @@ export default function ProfilePage() {
                   ? "2-6 Großbuchstaben oder Ziffern"
                   : "Wird an deine Inventarnummern gehängt (z.B. LIC-001-MOT)"}
               </p>
+            </div>
+
+            {/* Email-Benachrichtigungen */}
+            <div className="pt-4 border-t" style={{ borderColor: "var(--color-border)" }}>
+              <h3 className="text-sm font-semibold mb-2">E-Mail-Benachrichtigungen</h3>
+              <p className="text-xs mb-3" style={{ color: "var(--color-muted-foreground)" }}>
+                Wann sollen wir dir eine Mail schicken?
+              </p>
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifVoting}
+                    onChange={(e) => setNotifVoting(e.target.checked)}
+                  />
+                  <span>Abstimmung über neues Gruppenmitglied</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifPolls}
+                    onChange={(e) => setNotifPolls(e.target.checked)}
+                  />
+                  <span>Neue Umfrage in einer meiner Gruppen</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={notifLoans}
+                    onChange={(e) => setNotifLoans(e.target.checked)}
+                  />
+                  <span>Verleih-Anfrage für mein Equipment</span>
+                </label>
+              </div>
             </div>
 
             {/* Save Button */}

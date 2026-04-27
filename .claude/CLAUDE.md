@@ -27,6 +27,12 @@
 - Keine Feature-Branches, keine PRs — direkter Push auf main
 - `.env.local` wird NICHT committet (enthält Supabase-Keys)
 
+## UI-Regeln
+
+- **Keine Icons ungefragt einfügen.** Nicht neben Labels, Buttons, Headlines etc., auch wenn anderswo im Code dasselbe Muster steht. User entscheidet selbst, wo Icons hin sollen.
+- Wenn ein Icon zwingend nötig erscheint (z.B. icon-only Button) → vorher fragen.
+- Bestehende Icons in Code, den ich bearbeite, bleiben unangetastet — nicht zwanghaft entfernen.
+
 ## Session-Log
 
 - **2026-03-03:** GitHub CLI installiert, SSH eingerichtet, Remote synchronisiert (8 Commits vom anderen Rechner geholt), Multi-Machine Workflow in CLAUDE.md dokumentiert

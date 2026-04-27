@@ -135,6 +135,35 @@ export default function DashboardPage() {
       return;
     }
     showToast(`Einladung zu "${inv.group?.name}" akzeptiert`, "success");
+
+    // Notification an aktive Group-Member (Voting startet)
+    try {
+      const { data: members } = await supabase
+        .from("group_memberships")
+        .select("profile_id")
+        .eq("group_id", inv.group_id)
+        .eq("is_active", true);
+      const recipients = (members || [])
+        .map((m) => m.profile_id)
+        .filter((id) => id !== currentUser.id); // nicht an sich selbst
+      if (recipients.length > 0) {
+        await supabase.functions.invoke("send-notification", {
+          body: {
+            template_key: "group_invite_voting_needed",
+            recipients,
+            pref_key: "voting",
+            vars: {
+              group_name: inv.group?.name || "Gruppe",
+              invitee_name: currentUser.name,
+              voting_url: `${window.location.origin}/groups/${inv.group_id}`,
+            },
+          },
+        });
+      }
+    } catch {
+      // silent
+    }
+
     await reload();
     await loadCounts();
   }

@@ -115,6 +115,46 @@ export function PollCreateModal({ orgId, projectId, onClose, onCreated }: PollCr
             });
 
     await supabase.from("org_poll_options").insert(options);
+
+    // Notification an Group-Member
+    if (orgId) {
+      try {
+        const { data: members } = await supabase
+          .from("group_memberships")
+          .select("profile_id")
+          .eq("group_id", orgId)
+          .eq("is_active", true);
+        const { data: { user } } = await supabase.auth.getUser();
+        const recipients = (members || [])
+          .map((m) => m.profile_id)
+          .filter((id) => id !== user?.id);
+        if (recipients.length > 0) {
+          const { data: creator } = await supabase
+            .from("profiles")
+            .select("name")
+            .eq("id", user?.id || "")
+            .single();
+          await supabase.functions.invoke("send-notification", {
+            body: {
+              template_key: "new_poll",
+              recipients,
+              pref_key: "polls",
+              vars: {
+                poll_title: title.trim(),
+                creator_name: creator?.name || "Jemand",
+                deadline: deadline
+                  ? new Date(deadline).toLocaleDateString("de-DE")
+                  : "kein Limit",
+                poll_url: `${window.location.origin}/polls`,
+              },
+            },
+          });
+        }
+      } catch {
+        // silent
+      }
+    }
+
     setSaving(false);
     onCreated();
   };

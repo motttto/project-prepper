@@ -9,6 +9,7 @@ import type { InventoryUnit } from "@/types/database";
 import { IconX, IconSave, IconExternalLink, IconHash, IconPlus, IconTrash } from "@/components/ui/icons";
 import { DateInput } from "@/components/ui/date-input";
 import { InventoryImageUpload } from "@/components/inventory/inventory-image-upload";
+import { LoanRequestModal } from "@/components/inventory/loan-request-modal";
 
 // Preset-Bedingungen für Group-Sharing (Tags)
 const CONDITION_PRESETS: { value: string; label: string; description: string }[] = [
@@ -55,6 +56,7 @@ export function InventoryDetailModal({
   const isEditable = (isUserOwner && !groupId) || isOwnGroupItem;
   // Anzeige-Name des Eigentümers (für Banner)
   const [ownerName, setOwnerName] = useState<string>("");
+  const [showLoanRequest, setShowLoanRequest] = useState(false);
 
   // Editierbare Felder
   const [name, setName] = useState(item.name);
@@ -469,7 +471,7 @@ export function InventoryDetailModal({
               }}
             >
               <span style={{ fontSize: 14 }}>🔒</span>
-              <div className="text-xs">
+              <div className="text-xs flex-1">
                 <div className="font-semibold mb-0.5">Nur Ansicht</div>
                 <div>
                   Eigentümer:{" "}
@@ -484,6 +486,16 @@ export function InventoryDetailModal({
                 <div className="mt-1">
                   Änderungen kann nur der Eigentümer in seinem persönlichen Inventar vornehmen.
                 </div>
+                {item.is_shareable && (
+                  <button
+                    type="button"
+                    onClick={() => setShowLoanRequest(true)}
+                    className="mt-2 px-3 py-1.5 rounded-md text-xs font-medium text-white"
+                    style={{ background: "var(--color-primary)" }}
+                  >
+                    Verleih anfragen
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -1465,6 +1477,14 @@ export function InventoryDetailModal({
           )}
         </div>
       </div>
+
+      {showLoanRequest && (
+        <LoanRequestModal
+          item={item}
+          onClose={() => setShowLoanRequest(false)}
+          onSubmitted={() => onItemUpdated()}
+        />
+      )}
     </div>
   );
 }
