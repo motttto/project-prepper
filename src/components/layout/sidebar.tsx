@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase";
 import {
@@ -57,6 +57,7 @@ interface SidebarProps {
 
 export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const supabase = createClient();
   // Notification-Counts pro Menüpunkt
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
@@ -166,7 +167,14 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         {activeGroup ? (
           <button
             type="button"
-            onClick={() => switchWorkspace(null)}
+            onClick={() => {
+              switchWorkspace(null);
+              // Wenn wir auf /groups/[id] sind, wuerde der URL-Kontext die Gruppe
+              // sofort wieder aktivieren — also raus navigieren.
+              if (pathname.startsWith("/groups/")) {
+                router.push("/dashboard");
+              }
+            }}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs cursor-pointer"
             style={{
               background: "var(--color-sidebar-active)",
