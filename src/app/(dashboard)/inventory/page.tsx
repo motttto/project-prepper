@@ -15,6 +15,7 @@ import { InventoryDetailModal } from "@/components/inventory/inventory-detail-mo
 import { ShareWithGroupModal } from "@/components/inventory/share-with-group-modal";
 import { EquipmentLoansPanel } from "@/components/inventory/equipment-loans-panel";
 import { FullShareModal } from "@/components/inventory/full-share-modal";
+import { InventoryEarningsOverview } from "@/components/inventory/inventory-earnings-overview";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import * as XLSX from "xlsx";
 
@@ -125,6 +126,7 @@ function InventoryPage() {
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [showLoans, setShowLoans] = useState(false);
   const [showFullShare, setShowFullShare] = useState(false);
+  const [showEarningsOverview, setShowEarningsOverview] = useState(false);
 
   // Dynamische Kategorien aus DB
   const [dbCategories, setDbCategories] = useState<InventoryCategory[]>([]);
@@ -528,6 +530,15 @@ function InventoryPage() {
               Inventar freigeben
             </button>
           )}
+          <button
+            onClick={() => setShowEarningsOverview(true)}
+            className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-sm font-medium transition-colors"
+            style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-muted)")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+          >
+            Auswertung
+          </button>
           {canEdit && (
             <button
               onClick={() => setShowCategoryManager(true)}
@@ -1263,6 +1274,13 @@ function InventoryPage() {
       />
 
       {showFullShare && <FullShareModal onClose={() => setShowFullShare(false)} />}
+
+      {showEarningsOverview && (
+        <InventoryEarningsOverview
+          items={items}
+          onClose={() => setShowEarningsOverview(false)}
+        />
+      )}
     </div>
   );
 }

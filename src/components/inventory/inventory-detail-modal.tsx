@@ -10,6 +10,7 @@ import { IconX, IconSave, IconExternalLink, IconHash, IconPlus, IconTrash } from
 import { DateInput } from "@/components/ui/date-input";
 import { InventoryImageUpload } from "@/components/inventory/inventory-image-upload";
 import { LoanRequestModal } from "@/components/inventory/loan-request-modal";
+import { ItemEarningsSection } from "@/components/inventory/item-earnings-section";
 
 // Preset-Bedingungen für Group-Sharing (Tags)
 const CONDITION_PRESETS: { value: string; label: string; description: string }[] = [
@@ -1417,6 +1418,17 @@ export function InventoryDetailModal({
           )}
 
           </fieldset>
+
+          {/* Ertragshistorie */}
+          <div className="pt-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--color-foreground)" }}>
+              Ertragshistorie
+            </h3>
+            <ItemEarningsSection
+              itemId={item.id}
+              purchasePrice={item.purchase_price !== null ? Number(item.purchase_price) : null}
+            />
+          </div>
 
           {/* Metadaten (readonly) */}
           <div
