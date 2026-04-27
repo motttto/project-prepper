@@ -9,6 +9,8 @@ import * as XLSX from "xlsx";
 
 interface ExcelImportProps {
   existingItems: InventoryItem[];
+  ownerProfileId: string | null;
+  ownerGroupId: string | null;
   onClose: () => void;
   onImportComplete: () => void;
   categoryPrefixes: Record<string, string>;
@@ -59,7 +61,7 @@ function mapCondition(val: string): InventoryItem["condition"] {
 
 type Step = "upload" | "mapping" | "preview" | "importing" | "done";
 
-export function ExcelImport({ existingItems, onClose, onImportComplete, categoryPrefixes }: ExcelImportProps) {
+export function ExcelImport({ existingItems, ownerProfileId, ownerGroupId, onClose, onImportComplete, categoryPrefixes }: ExcelImportProps) {
   const supabase = createClient();
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -200,6 +202,8 @@ export function ExcelImport({ existingItems, onClose, onImportComplete, category
         cost_per_day: r.cost_per_day,
         location: r.location || null,
         owner: r.owner || null,
+        owner_profile_id: ownerProfileId,
+        owner_group_id: ownerGroupId,
       }));
 
       const { error } = await supabase.from("inventory_items").insert(batch);

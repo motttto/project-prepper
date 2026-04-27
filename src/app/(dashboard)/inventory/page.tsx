@@ -78,7 +78,7 @@ function InventoryPage() {
   // Backward-Compat: Aliase damit alter Code minimal angepasst werden muss
   const orgId = ownerId;
   // groupId für Group-Modus
-  const { groupId, groupName } = useWorkspace();
+  const { groupId, groupName, activeGroup } = useWorkspace();
   const searchParams = useSearchParams();
   const router = useRouter();
   const canEdit = hasPermission(currentUser, "inventory_edit");
@@ -145,49 +145,55 @@ function InventoryPage() {
 
   function generateNextNumber(category: string, existingItems: InventoryItem[]): string {
     const prefix = categoryPrefixes[category] || category.slice(0, 3).toUpperCase();
+    // Im Group-Modus → Group-Suffix (z.B. DKS), im Solo-Modus → User-Suffix (z.B. MOT)
+    const suffix = activeGroup?.inventorySuffix || currentUser?.inventorySuffix || null;
     const existing = existingItems
       .filter((i) => i.inventory_number?.startsWith(prefix + "-"))
       .map((i) => parseInt(i.inventory_number.split("-")[1], 10))
       .filter((n) => !isNaN(n));
     const next = existing.length > 0 ? Math.max(...existing) + 1 : 1;
-    return `${prefix}-${String(next).padStart(3, "0")}`;
+    const base = `${prefix}-${String(next).padStart(3, "0")}`;
+    return suffix ? `${base}-${suffix}` : base;
   }
 
   const loadItems = useCallback(async () => {
     if (!ownerId) return;
 
-    // Im Group-Modus: zusaetzlich Items aller Mitglieder laden die für die Gruppe freigegeben sind
-    let itemIds: string[] = [];
+    // Im Group-Modus: group-owned Items + Items die fremde Gruppen mit uns teilen
+    // Im Solo-Modus: nur eigene Items (owner_profile_id)
+    let crossGroupItemIds: string[] = [];
     if (groupId) {
       const { data: shareRows } = await supabase
         .from("inventory_group_shares")
         .select("inventory_item_id")
         .eq("group_id", groupId)
         .is("revoked_at", null);
-      itemIds = (shareRows || []).map((r) => r.inventory_item_id);
+      crossGroupItemIds = (shareRows || []).map((r) => r.inventory_item_id);
     }
 
-    const [itemsRes, bookingsRes] = await Promise.all([
-      groupId
-        ? // Group-Modus: AUSSCHLIESSLICH Items die explizit mit dieser
-          // Gruppe geteilt sind (inventory_group_shares). Eigene Items
-          // ohne Share tauchen hier NICHT auf.
-          itemIds.length > 0
-          ? supabase
-              .from("inventory_items")
-              .select("*")
-              .in("id", itemIds)
-              .order("category")
-              .order("name")
-          : // Keine Shares → leere Liste
-            Promise.resolve({ data: [], error: null })
+    const itemsQuery = groupId
+      ? crossGroupItemIds.length > 0
+        ? supabase
+            .from("inventory_items")
+            .select("*")
+            .or(`owner_group_id.eq.${groupId},id.in.(${crossGroupItemIds.join(",")})`)
+            .order("category")
+            .order("name")
         : supabase
             .from("inventory_items")
             .select("*")
-            .eq("owner_profile_id", ownerId)
+            .eq("owner_group_id", groupId)
             .order("category")
-            .order("name"),
-      // Aktive Buchungen
+            .order("name")
+      : supabase
+          .from("inventory_items")
+          .select("*")
+          .eq("owner_profile_id", ownerId)
+          .order("category")
+          .order("name");
+
+    const [itemsRes, bookingsRes] = await Promise.all([
+      itemsQuery,
       supabase
         .from("bookings")
         .select("id, inventory_item_id, quantity, status, date_from, date_to, projects(name)")
@@ -260,20 +266,20 @@ function InventoryPage() {
   }, [loadItems]);
 
   // Kategorien laden (+ Auto-Seed falls leer)
+  // Group-Modus: group-owned. Solo-Modus: user-owned.
   const loadCategories = useCallback(async () => {
     if (!ownerId) return;
-    const { data } = await supabase
-      .from("inventory_categories")
-      .select("*")
-      .eq("owner_profile_id", ownerId)
-      .order("sort_order")
-      .order("name");
+    const query = groupId
+      ? supabase.from("inventory_categories").select("*").eq("owner_group_id", groupId)
+      : supabase.from("inventory_categories").select("*").eq("owner_profile_id", ownerId);
+    const { data } = await query.order("sort_order").order("name");
     if (data && data.length > 0) {
       setDbCategories(data);
     } else if (data && data.length === 0) {
-      // Auto-Seed: Default-Kategorien erstellen
+      // Auto-Seed
       const seeds = defaultCategories.map((c, i) => ({
-        owner_profile_id: ownerId,
+        owner_profile_id: groupId ? null : ownerId,
+        owner_group_id: groupId ?? null,
         name: c.name,
         icon: c.icon,
         prefix: c.prefix,
@@ -285,7 +291,7 @@ function InventoryPage() {
         .select();
       if (inserted) setDbCategories(inserted);
     }
-  }, [supabase, ownerId]);
+  }, [supabase, ownerId, groupId]);
 
   useEffect(() => {
     loadCategories();
@@ -330,7 +336,8 @@ function InventoryPage() {
       condition: formCondition,
       cost_per_day: formCostPerDay,
       location: formLocation || null,
-      owner_profile_id: ownerId,
+      owner_profile_id: groupId ? null : ownerId,
+      owner_group_id: groupId ?? null,
       device_name: formDeviceName || null,
       serial_number: formSerialNumber || null,
       purchase_price: formPurchasePrice !== "" ? Number(formPurchasePrice) : null,
@@ -1197,6 +1204,8 @@ function InventoryPage() {
       {showImport && (
         <ExcelImport
           existingItems={items}
+          ownerProfileId={groupId ? null : ownerId}
+          ownerGroupId={groupId}
           onClose={() => setShowImport(false)}
           onImportComplete={loadItems}
           categoryPrefixes={categoryPrefixes}
@@ -1227,7 +1236,8 @@ function InventoryPage() {
       {showCategoryManager && (
         <CategoryManagerModal
           categories={dbCategories}
-          orgId={ownerId || ""}
+          ownerProfileId={groupId ? null : ownerId}
+          ownerGroupId={groupId}
           onClose={() => setShowCategoryManager(false)}
           onUpdated={loadCategories}
         />
@@ -1245,12 +1255,14 @@ function InventoryPage() {
 // === Kategorie-Verwaltungs-Modal ===
 function CategoryManagerModal({
   categories,
-  orgId,
+  ownerProfileId,
+  ownerGroupId,
   onClose,
   onUpdated,
 }: {
   categories: InventoryCategory[];
-  orgId: string;
+  ownerProfileId: string | null;
+  ownerGroupId: string | null;
   onClose: () => void;
   onUpdated: () => void;
 }) {
@@ -1275,7 +1287,8 @@ function CategoryManagerModal({
     const { data } = await supabase
       .from("inventory_categories")
       .insert({
-        owner_profile_id: orgId, // Prop heisst noch orgId, enthaelt aber ownerId
+        owner_profile_id: ownerProfileId,
+        owner_group_id: ownerGroupId,
         name: newName.trim(),
         icon: newIcon,
         prefix,

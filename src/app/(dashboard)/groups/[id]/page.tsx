@@ -27,6 +27,7 @@ interface Group {
   founded_at: string;
   telegram_chat_id: number | null;
   telegram_thread_id: number | null;
+  inventory_suffix: string | null;
 }
 
 interface Member {
@@ -610,18 +611,26 @@ function GroupSettings({
 }) {
   const [chatId, setChatId] = useState(group.telegram_chat_id?.toString() || "");
   const [threadId, setThreadId] = useState(group.telegram_thread_id?.toString() || "");
+  const [invSuffix, setInvSuffix] = useState(group.inventory_suffix || "");
   const [saving, setSaving] = useState(false);
+  const suffixValid = invSuffix === "" || /^[A-Z0-9]{2,6}$/.test(invSuffix);
   const dirty =
     (group.telegram_chat_id?.toString() || "") !== chatId ||
-    (group.telegram_thread_id?.toString() || "") !== threadId;
+    (group.telegram_thread_id?.toString() || "") !== threadId ||
+    (group.inventory_suffix || "") !== invSuffix;
 
   async function save() {
+    if (!suffixValid) {
+      showToast("Suffix muss 2-6 Großbuchstaben/Ziffern enthalten", "error");
+      return;
+    }
     setSaving(true);
     const { error } = await supabase
       .from("groups")
       .update({
         telegram_chat_id: chatId.trim() ? Number(chatId.trim()) : null,
         telegram_thread_id: threadId.trim() ? Number(threadId.trim()) : null,
+        inventory_suffix: invSuffix === "" ? null : invSuffix,
       })
       .eq("id", group.id);
     setSaving(false);
@@ -690,6 +699,34 @@ function GroupSettings({
           />
           <p className="text-[11px] mt-1" style={{ color: "var(--color-muted-foreground)" }}>
             Nur nötig, wenn ein bestimmtes Topic in einer Forum-Gruppe genutzt werden soll.
+          </p>
+        </div>
+
+        <div className="pt-2 border-t" style={{ borderColor: "var(--color-border)" }}>
+          <label className="block text-xs font-medium mb-1.5 mt-3" style={{ color: "var(--color-muted-foreground)" }}>
+            Inventar-Suffix
+          </label>
+          <input
+            type="text"
+            value={invSuffix}
+            onChange={(e) => setInvSuffix(e.target.value.toUpperCase().slice(0, 6))}
+            disabled={!isFounder}
+            placeholder="z.B. DKS"
+            maxLength={6}
+            className="w-full px-3 py-2 rounded-lg text-sm font-mono disabled:opacity-60"
+            style={{
+              background: "var(--color-background)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-foreground)",
+            }}
+          />
+          <p
+            className="text-[11px] mt-1"
+            style={{ color: !suffixValid && invSuffix !== "" ? "var(--color-destructive)" : "var(--color-muted-foreground)" }}
+          >
+            {!suffixValid && invSuffix !== ""
+              ? "2-6 Großbuchstaben oder Ziffern"
+              : "Wird im Group-Modus an Inventarnummern gehängt (z.B. LIC-001-DKS)"}
           </p>
         </div>
 

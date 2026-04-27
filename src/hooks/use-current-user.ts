@@ -17,6 +17,8 @@ export interface CurrentUser {
   email: string;
   name: string;
   avatarUrl: string | null;
+  /** Suffix für Inventarnummern (z.B. 'MOT'). null = noch nicht gesetzt */
+  inventorySuffix: string | null;
   /** Aktive Group-ID. null = Solo-Modus */
   groupId: string | null;
   /** "founder" | "member" — nur wenn in Group, sonst "" */
@@ -84,11 +86,13 @@ export function useCurrentUser(): CurrentUser | null {
       // Profil laden
       const { data: profile } = await supabase
         .from("profiles")
-        .select("name, email, is_system, avatar_url")
+        .select("name, email, is_system, avatar_url, inventory_suffix")
         .eq("id", authUser.id)
         .single();
 
       const isSystem = !!(profile as { is_system?: boolean } | null)?.is_system;
+      const inventorySuffix =
+        (profile as { inventory_suffix?: string | null } | null)?.inventory_suffix ?? null;
 
       // Group-Membership wenn Group aktiv
       let groupRole = "";
@@ -115,6 +119,7 @@ export function useCurrentUser(): CurrentUser | null {
           authUser.email?.split("@")[0] ||
           "User",
         avatarUrl: profile?.avatar_url || null,
+        inventorySuffix,
         groupId,
         groupRole,
         isSuperadmin: isSystem,

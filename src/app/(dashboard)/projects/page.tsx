@@ -69,13 +69,13 @@ export default function ProjectsPage() {
   const loadProjects = useCallback(async () => {
     if (!ownerId || !currentUser) return;
 
-    // Group-Modus: Projekte der Gruppe laden
+    // Group-Modus: Projekte der Gruppe laden (owner_group_id, oder Legacy group_id)
     // Solo-Modus: eigene Projekte (owner_profile_id)
     const query = groupId
       ? supabase
           .from("projects")
           .select("*")
-          .eq("group_id", groupId)
+          .or(`owner_group_id.eq.${groupId},group_id.eq.${groupId}`)
           .order("date_start", { ascending: false })
       : supabase
           .from("projects")
@@ -174,7 +174,8 @@ export default function ProjectsPage() {
       date_end: formDateEnd || null,
       status: formStatus,
       created_by: user?.id,
-      owner_profile_id: ownerId,
+      owner_profile_id: groupId ? null : ownerId,
+      owner_group_id: groupId ?? null,
     });
 
     if (error) {

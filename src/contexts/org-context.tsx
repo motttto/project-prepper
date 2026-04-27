@@ -26,6 +26,7 @@ export interface GroupSummary {
   id: string;
   name: string;
   slug: string;
+  inventorySuffix: string | null;
   isActive: boolean;
   isFounder: boolean;
 }
@@ -112,13 +113,14 @@ export function OrgProvider({ children }: { children: ReactNode }) {
     // Group-Memberships laden (nur aktive sichtbar im Switcher)
     const { data: memberships } = await supabase
       .from("group_memberships")
-      .select("group_id, is_active, is_founder, groups(id, name, slug)")
+      .select("group_id, is_active, is_founder, groups(id, name, slug, inventory_suffix)")
       .eq("profile_id", user.id);
 
     const list: GroupSummary[] = (memberships || []).map((m: any) => ({
       id: m.groups?.id || m.group_id,
       name: m.groups?.name || "?",
       slug: m.groups?.slug || "",
+      inventorySuffix: m.groups?.inventory_suffix ?? null,
       isActive: m.is_active,
       isFounder: m.is_founder,
     }));

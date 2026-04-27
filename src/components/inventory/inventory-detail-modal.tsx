@@ -46,10 +46,13 @@ export function InventoryDetailModal({
   const { orgId } = useOrg();
   const { groups, groupId, groupName } = useWorkspace();
   const currentUser = useCurrentUser();
-  // "Edit-Modus" nur im Solo-Workspace UND wenn man Eigentümer ist.
-  // Im Group-Kontext immer read-only — Sharing wird im Solo verwaltet.
-  const isOwner = !!currentUser && item.owner_profile_id === currentUser.id;
-  const isEditable = isOwner && !groupId;
+  // Editierbar: Solo-Modus eigene Items, oder Group-Modus für Items der eigenen Gruppe
+  const isUserOwner = !!currentUser && item.owner_profile_id === currentUser.id;
+  const isGroupOwned = !!item.owner_group_id;
+  const isOwnGroupItem = isGroupOwned && !!groupId && item.owner_group_id === groupId;
+  const isOwner = isUserOwner || isOwnGroupItem;
+  // Bearbeitbar wenn man im richtigen Workspace ist (Solo für User-Items, Group für Group-Items)
+  const isEditable = (isUserOwner && !groupId) || isOwnGroupItem;
   // Anzeige-Name des Eigentümers (für Banner)
   const [ownerName, setOwnerName] = useState<string>("");
 
@@ -282,6 +285,10 @@ export function InventoryDetailModal({
 
   async function handleSave() {
     setSaving(true);
+    // Group-owned Items: owner_profile_id darf nicht gesetzt werden (CHECK-Constraint)
+    const ownerUpdate = isGroupOwned
+      ? {} // keine Änderung am Owner
+      : { owner_profile_id: ownerProfileId || null };
     const { error } = await supabase
       .from("inventory_items")
       .update({
@@ -304,7 +311,7 @@ export function InventoryDetailModal({
         manufacturer_url: manufacturerUrl || null,
         manual_url: manualUrl || null,
         ownership_type: ownershipType,
-        owner_profile_id: ownerProfileId || null,
+        ...ownerUpdate,
         funding_source: fundingSource,
         depreciation_method: depreciationMethod,
         depreciation_years: depreciationYears,

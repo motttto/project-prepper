@@ -24,6 +24,7 @@ type ProfileData = {
   is_system: boolean;
   approved_at: string | null;
   telegram_user_id: number | null;
+  inventory_suffix: string | null;
   created_at: string;
 };
 
@@ -45,6 +46,7 @@ export default function ProfilePage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [authEmail, setAuthEmail] = useState("");
+  const [inventorySuffix, setInventorySuffix] = useState("");
 
   // Messages
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -55,7 +57,9 @@ export default function ProfilePage() {
   // Track changes
   const hasNameChange = profile ? name !== profile.name : false;
   const hasEmailChange = email !== authEmail;
-  const hasChanges = hasNameChange || hasEmailChange;
+  const hasSuffixChange = profile ? inventorySuffix !== (profile.inventory_suffix || "") : false;
+  const suffixValid = inventorySuffix === "" || /^[A-Z0-9]{2,6}$/.test(inventorySuffix);
+  const hasChanges = hasNameChange || hasEmailChange || hasSuffixChange;
 
   const loadProfile = useCallback(async () => {
     const {
@@ -68,7 +72,7 @@ export default function ProfilePage() {
     // Profil laden
     const { data } = await supabase
       .from("profiles")
-      .select("id, name, email, avatar_url, is_active, is_system, approved_at, telegram_user_id, created_at")
+      .select("id, name, email, avatar_url, is_active, is_system, approved_at, telegram_user_id, inventory_suffix, created_at")
       .eq("id", user.id)
       .single();
 
@@ -77,6 +81,7 @@ export default function ProfilePage() {
       setProfile(p);
       setName(p.name);
       setEmail(p.email);
+      setInventorySuffix(p.inventory_suffix || "");
     }
 
     // Rolle aus group_memberships (user-first model)
@@ -134,6 +139,18 @@ export default function ProfilePage() {
         const { error } = await supabase
           .from("profiles")
           .update({ name })
+          .eq("id", profile.id);
+        if (error) throw new Error(error.message);
+      }
+
+      // Inventar-Suffix speichern
+      if (hasSuffixChange) {
+        if (!suffixValid) {
+          throw new Error("Suffix muss 2-6 Großbuchstaben/Ziffern enthalten");
+        }
+        const { error } = await supabase
+          .from("profiles")
+          .update({ inventory_suffix: inventorySuffix === "" ? null : inventorySuffix })
           .eq("id", profile.id);
         if (error) throw new Error(error.message);
       }
@@ -450,6 +467,31 @@ export default function ProfilePage() {
                   Eine Bestätigungsmail wird an die neue Adresse gesendet.
                 </p>
               )}
+            </div>
+
+            {/* Inventar-Suffix */}
+            <div>
+              <label className="flex items-center gap-1.5 text-sm font-medium mb-1.5">
+                <IconUser size={14} style={{ color: "var(--color-muted-foreground)" }} />
+                Inventar-Suffix
+              </label>
+              <input
+                type="text"
+                value={inventorySuffix}
+                onChange={(e) => setInventorySuffix(e.target.value.toUpperCase().slice(0, 6))}
+                className="w-full px-3 py-2.5 rounded-lg text-sm font-mono"
+                style={inputStyle}
+                placeholder="z.B. MOT"
+                maxLength={6}
+              />
+              <p
+                className="text-xs mt-1"
+                style={{ color: hasSuffixChange && !suffixValid ? "var(--color-destructive)" : "var(--color-muted-foreground)" }}
+              >
+                {hasSuffixChange && !suffixValid
+                  ? "2-6 Großbuchstaben oder Ziffern"
+                  : "Wird an deine Inventarnummern gehängt (z.B. LIC-001-MOT)"}
+              </p>
             </div>
 
             {/* Save Button */}

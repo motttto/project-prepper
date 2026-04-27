@@ -130,10 +130,13 @@ export type User = {
 
 export type Project = {
   id: string;
-  /** @deprecated Im neuen Modell entfaellt org_id, owner_profile_id + group_id ersetzen */
+  /** @deprecated Im neuen Modell entfaellt org_id */
   org_id: string | null;
+  /** XOR mit owner_group_id — genau eines ist gesetzt */
   owner_profile_id: string | null;
-  /** Optional: zur Gruppe zugeordnet */
+  /** XOR mit owner_profile_id — gesetzt bei Group-Ownership */
+  owner_group_id: string | null;
+  /** @deprecated Legacy: ersetzt durch owner_group_id (Migration 086) */
   group_id: string | null;
   name: string;
   description: string | null;
@@ -203,7 +206,10 @@ export type InventoryItem = {
   manual_url: string | null;
   // Eigentum & Abschreibung (Migration 036)
   ownership_type: "organization" | "member" | "shared";
+  /** XOR mit owner_group_id (Migration 086) */
   owner_profile_id: string | null;
+  /** XOR mit owner_profile_id — gesetzt bei Kollektivanschaffung (Migration 086) */
+  owner_group_id: string | null;
   ownership_shares: { profile_id: string; percentage: number; invested: number }[] | null;
   funding_source: "organization" | "self" | "project" | "sponsor";
   receipt_url: string | null;
@@ -229,7 +235,12 @@ export type InventoryUnit = {
 
 export type InventoryCategory = {
   id: string;
-  org_id: string;
+  /** @deprecated org_id ersetzt durch owner_profile_id/owner_group_id */
+  org_id: string | null;
+  /** XOR mit owner_group_id */
+  owner_profile_id: string | null;
+  /** XOR mit owner_profile_id */
+  owner_group_id: string | null;
   name: string;
   icon: string;
   prefix: string;
@@ -567,8 +578,12 @@ export type Inquiry = {
   notes: string | null;
   project_id: string | null;
   telegram_message_id: number | null;
+  /** @deprecated Legacy: ersetzt durch owner_group_id (Migration 086) */
   group_id: string | null;
+  /** XOR mit owner_group_id */
   owner_profile_id: string | null;
+  /** XOR mit owner_profile_id — gesetzt bei Group-Ownership */
+  owner_group_id: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

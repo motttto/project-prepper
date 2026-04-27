@@ -95,9 +95,10 @@ export default function InquiriesPage() {
 
   const loadInquiries = useCallback(async () => {
     if (!ownerId) return;
-    // Group-Modus: Anfragen der Gruppe; sonst eigene Anfragen (Solo)
+    // Group-Modus: Anfragen der Gruppe (owner_group_id, plus Legacy group_id)
+    // Solo-Modus: eigene Anfragen
     const query = ctxGroupId
-      ? supabase.from("inquiries").select("*").eq("group_id", ctxGroupId).order("created_at", { ascending: false })
+      ? supabase.from("inquiries").select("*").or(`owner_group_id.eq.${ctxGroupId},group_id.eq.${ctxGroupId}`).order("created_at", { ascending: false })
       : supabase.from("inquiries").select("*").eq("owner_profile_id", ownerId).order("created_at", { ascending: false });
     const { data } = await query;
     if (data) setInquiries(data as Inquiry[]);
@@ -189,8 +190,11 @@ export default function InquiriesPage() {
     e.preventDefault();
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
+    const targetGroupId = formGroupId || null;
     const { data: inserted, error } = await supabase.from("inquiries").insert({
-      owner_profile_id: ownerId,
+      // XOR: User-Owner im Solo-Modus, Group-Owner wenn Gruppe gewählt
+      owner_profile_id: targetGroupId ? null : ownerId,
+      owner_group_id: targetGroupId,
       title: formTitle,
       client_name: formClientName,
       client_contact_person: formClientContact || null,
@@ -202,7 +206,6 @@ export default function InquiriesPage() {
       estimated_budget: formBudget ? parseFloat(formBudget) : null,
       probability: formProbability ? parseInt(formProbability) : null,
       notes: formNotes || null,
-      group_id: formGroupId || null,
       created_by: user?.id,
     }).select("id").single();
     if (error) {

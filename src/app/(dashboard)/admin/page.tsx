@@ -175,7 +175,13 @@ export default function AdminPage() {
 
   // ── Load Members & Roles ──
   const loadMembers = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId) {
+      // Solo-Modus: keine Org-Mitglieder, aber Seite trotzdem rendern
+      setMembers([]);
+      setRoles([]);
+      setLoading(false);
+      return;
+    }
     const [membersRes, rolesRes] = await Promise.all([
       supabase
         .from("org_memberships")
