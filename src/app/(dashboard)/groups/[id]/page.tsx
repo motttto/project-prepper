@@ -54,6 +54,10 @@ interface Invitation {
   voting_started_at: string | null;
   resolved_at: string | null;
   expires_at: string;
+  send_count: number;
+  last_sent_at: string | null;
+  voting_reminder_count: number;
+  voting_reminder_last_at: string | null;
   created_at: string;
   invitee?: { name: string; email: string };
   inviter?: { name: string };
@@ -1137,7 +1141,52 @@ function InvitationCard({
           },
         },
       });
+      // Counter persistieren
+      await supabase
+        .from("group_invitations")
+        .update({
+          voting_reminder_count: (invitation.voting_reminder_count || 0) + 1,
+          voting_reminder_last_at: new Date().toISOString(),
+        })
+        .eq("id", invitation.id);
       showToast(`Erinnerung an ${recipients.length} Mitglied${recipients.length !== 1 ? "er" : ""} verschickt`, "success");
+    } catch (e) {
+      showToast("Fehler beim Versand: " + (e as Error).message, "error");
+    } finally {
+      setReminding(false);
+    }
+  }
+
+  async function handleRemindInvitee() {
+    setReminding(true);
+    try {
+      const supabase = createClient();
+      if (!invitation.invited_profile_id) {
+        showToast("Eingeladener User hat noch keinen Account", "error");
+        return;
+      }
+      const inviterName =
+        activeMembers.find((m) => m.profile_id === invitation.invited_by)?.profile?.name ?? "Jemand";
+      await supabase.functions.invoke("send-notification", {
+        body: {
+          template_key: "group_invite_pending_reminder",
+          recipients: [invitation.invited_profile_id],
+          pref_key: "voting",
+          vars: {
+            group_name: groupName,
+            inviter_name: inviterName,
+            invitation_url: `${typeof window !== "undefined" ? window.location.origin : ""}/dashboard`,
+          },
+        },
+      });
+      await supabase
+        .from("group_invitations")
+        .update({
+          send_count: (invitation.send_count || 1) + 1,
+          last_sent_at: new Date().toISOString(),
+        })
+        .eq("id", invitation.id);
+      showToast("Erinnerung an Eingeladenen verschickt", "success");
     } catch (e) {
       showToast("Fehler beim Versand: " + (e as Error).message, "error");
     } finally {
@@ -1304,10 +1353,39 @@ function InvitationCard({
         </div>
       )}
 
-      {/* Status-Hinweis Pending */}
+      {/* Status-Hinweis Pending + Erinnern */}
       {invitation.status === "pending" && (
-        <div className="mt-2 text-xs flex items-center gap-1" style={{ color: "var(--color-warning)" }}>
-          <IconClock size={12} /> Eingeladener User hat noch nicht akzeptiert
+        <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
+          <div className="text-xs" style={{ color: "var(--color-warning)" }}>
+            Eingeladener User hat noch nicht akzeptiert
+            <span className="ml-2" style={{ color: "var(--color-muted-foreground)" }}>
+              ({invitation.send_count || 1}× gesendet
+              {invitation.last_sent_at && (
+                <> · zuletzt {new Date(invitation.last_sent_at).toLocaleDateString("de-DE")}</>
+              )}
+              )
+            </span>
+          </div>
+          {invitation.invited_profile_id && (
+            <button
+              onClick={handleRemindInvitee}
+              disabled={reminding}
+              className="px-3 py-1 rounded text-xs font-medium disabled:opacity-50"
+              style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+            >
+              {reminding ? "Sende..." : "Erinnern"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Voting-Reminder-Counter */}
+      {isVoting && (invitation.voting_reminder_count || 0) > 0 && (
+        <div className="mt-2 text-[11px]" style={{ color: "var(--color-muted-foreground)" }}>
+          Voting-Erinnerung {invitation.voting_reminder_count}× verschickt
+          {invitation.voting_reminder_last_at && (
+            <> · zuletzt {new Date(invitation.voting_reminder_last_at).toLocaleDateString("de-DE")}</>
+          )}
         </div>
       )}
 
