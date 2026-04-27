@@ -18,11 +18,13 @@ import {
   IconTrash,
 } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
+import imageCompression from "browser-image-compression";
 
 interface Group {
   id: string;
   name: string;
   description: string | null;
+  logo_url: string | null;
   founded_by: string;
   founded_at: string;
   telegram_chat_id: number | null;
@@ -609,17 +611,71 @@ function GroupSettings({
   onUpdated: () => void;
   supabase: ReturnType<typeof createClient>;
 }) {
+  const [name, setName] = useState(group.name);
+  const [description, setDescription] = useState(group.description || "");
   const [chatId, setChatId] = useState(group.telegram_chat_id?.toString() || "");
   const [threadId, setThreadId] = useState(group.telegram_thread_id?.toString() || "");
   const [invSuffix, setInvSuffix] = useState(group.inventory_suffix || "");
+  const [logoUrl, setLogoUrl] = useState(group.logo_url || "");
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [saving, setSaving] = useState(false);
   const suffixValid = invSuffix === "" || /^[A-Z0-9]{2,6}$/.test(invSuffix);
   const dirty =
+    name !== group.name ||
+    (description || "") !== (group.description || "") ||
     (group.telegram_chat_id?.toString() || "") !== chatId ||
     (group.telegram_thread_id?.toString() || "") !== threadId ||
     (group.inventory_suffix || "") !== invSuffix;
 
+  async function uploadLogo(file: File) {
+    setUploadingLogo(true);
+    try {
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 0.1,
+        maxWidthOrHeight: 400,
+        useWebWorker: true,
+        fileType: "image/webp",
+      });
+      const filePath = `${group.id}/${Date.now()}.webp`;
+      // Altes Logo loeschen
+      if (group.logo_url) {
+        const oldPath = group.logo_url.split("/group-logos/")[1];
+        if (oldPath) await supabase.storage.from("group-logos").remove([oldPath]);
+      }
+      const { error: upErr } = await supabase.storage
+        .from("group-logos")
+        .upload(filePath, compressed, { contentType: "image/webp", upsert: true });
+      if (upErr) throw new Error(upErr.message);
+      const { data: { publicUrl } } = supabase.storage.from("group-logos").getPublicUrl(filePath);
+      const { error: updateErr } = await supabase
+        .from("groups")
+        .update({ logo_url: publicUrl })
+        .eq("id", group.id);
+      if (updateErr) throw new Error(updateErr.message);
+      setLogoUrl(publicUrl);
+      showToast("Logo aktualisiert", "success");
+      onUpdated();
+    } catch (e) {
+      showToast("Fehler: " + (e as Error).message, "error");
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
+
+  async function removeLogo() {
+    if (!group.logo_url) return;
+    const path = group.logo_url.split("/group-logos/")[1];
+    if (path) await supabase.storage.from("group-logos").remove([path]);
+    await supabase.from("groups").update({ logo_url: null }).eq("id", group.id);
+    setLogoUrl("");
+    onUpdated();
+  }
+
   async function save() {
+    if (!name.trim()) {
+      showToast("Name darf nicht leer sein", "error");
+      return;
+    }
     if (!suffixValid) {
       showToast("Suffix muss 2-6 Großbuchstaben/Ziffern enthalten", "error");
       return;
@@ -628,6 +684,8 @@ function GroupSettings({
     const { error } = await supabase
       .from("groups")
       .update({
+        name: name.trim(),
+        description: description.trim() || null,
         telegram_chat_id: chatId.trim() ? Number(chatId.trim()) : null,
         telegram_thread_id: threadId.trim() ? Number(threadId.trim()) : null,
         inventory_suffix: invSuffix === "" ? null : invSuffix,
@@ -643,6 +701,104 @@ function GroupSettings({
   }
 
   return (
+    <div className="space-y-5">
+    {/* ── Profil ───────────────────────────────────────────── */}
+    <div
+      className="rounded-xl p-6"
+      style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
+    >
+      <h2 className="text-lg font-semibold mb-4">Profil</h2>
+
+      <div className="flex items-start gap-5 mb-5">
+        <div className="flex-shrink-0">
+          <div
+            className="w-24 h-24 rounded-xl flex items-center justify-center overflow-hidden"
+            style={{ background: "var(--color-muted)" }}
+          >
+            {logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logoUrl} alt={group.name} className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-3xl font-bold" style={{ color: "var(--color-muted-foreground)" }}>
+                {group.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
+          {isFounder && (
+            <div className="mt-2 space-y-1">
+              <label className="block">
+                <span
+                  className="block text-center text-xs px-2 py-1 rounded cursor-pointer"
+                  style={{ border: "1px solid var(--color-border)" }}
+                >
+                  {uploadingLogo ? "Lade..." : logoUrl ? "Ändern" : "Hochladen"}
+                </span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploadingLogo}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) uploadLogo(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+              {logoUrl && (
+                <button
+                  onClick={removeLogo}
+                  className="block w-full text-center text-xs px-2 py-1 rounded"
+                  style={{ color: "var(--color-destructive)", border: "1px solid var(--color-border)" }}
+                >
+                  Entfernen
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 space-y-3">
+          <div>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+              Name
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              disabled={!isFounder}
+              className="w-full px-3 py-2 rounded-lg text-sm disabled:opacity-60"
+              style={{
+                background: "var(--color-background)",
+                border: "1px solid var(--color-border)",
+                color: "var(--color-foreground)",
+              }}
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1.5" style={{ color: "var(--color-muted-foreground)" }}>
+              Beschreibung
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              disabled={!isFounder}
+              rows={3}
+              placeholder="Wer seid ihr? Was macht ihr?"
+              className="w-full px-3 py-2 rounded-lg text-sm disabled:opacity-60"
+              style={{
+                background: "var(--color-background)",
+                border: "1px solid var(--color-border)",
+                color: "var(--color-foreground)",
+              }}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {/* ── Telegram-Bot ─────────────────────────────────────── */}
     <div
       className="rounded-xl p-6"
       style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}
@@ -745,6 +901,7 @@ function GroupSettings({
           </button>
         )}
       </div>
+    </div>
     </div>
   );
 }
