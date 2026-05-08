@@ -8,6 +8,7 @@ import { useFieldTracking } from "@/hooks/use-field-tracking";
 import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { SaveIndicator } from "@/components/ui/save-indicator";
+import type { SaveState } from "@/hooks/use-debounced-save";
 import { appConfirm } from "@/components/ui/confirm-dialog";
 import { StaleDataBanner } from "@/components/ui/stale-data-banner";
 import { DateInput } from "@/components/ui/date-input";
@@ -43,6 +44,25 @@ const statusColors: Record<InquiryStatus, { bg: string; color: string; dot: stri
 };
 
 const pipelineSteps: InquiryStatus[] = ["new", "reviewing", "offer_sent", "accepted", "rejected", "archived"];
+
+// ─────────────────────────────────────────────────────────────────────────
+// SectionHeader — auf Modul-Ebene definiert, damit React beim Re-Render des
+// Parents (z.B. wenn saveState wechselt) die Komponente nicht remountet.
+// Inline-Definition hat zuvor sibling-Inputs den Fokus weggerissen.
+// ─────────────────────────────────────────────────────────────────────────
+function SectionHeader({ title, saveState }: { title: string; saveState: SaveState }) {
+  return (
+    <div className="flex items-center justify-between mb-3">
+      <h3
+        className="text-sm font-semibold uppercase tracking-wider"
+        style={{ color: "var(--color-muted-foreground)" }}
+      >
+        {title}
+      </h3>
+      <SaveIndicator state={saveState} />
+    </div>
+  );
+}
 
 export default function InquiryDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -334,23 +354,6 @@ function InquiryDetailContent({
     router.push("/inquiries");
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // Reusable sub-components
-  // ─────────────────────────────────────────────────────────────────────────
-  function SectionHeader({ title }: { title: string }) {
-    return (
-      <div className="flex items-center justify-between mb-3">
-        <h3
-          className="text-sm font-semibold uppercase tracking-wider"
-          style={{ color: "var(--color-muted-foreground)" }}
-        >
-          {title}
-        </h3>
-        <SaveIndicator state={saveState} />
-      </div>
-    );
-  }
-
   // Render-Helpers (keine Komponenten-Definitionen im Render-Body!)
   function renderFieldLabel(text: string) {
     return (
@@ -566,7 +569,7 @@ function InquiryDetailContent({
         {/* 1. Anfrage-Details */}
         {/* ================================================================== */}
         <div className="p-5 rounded-xl" style={cardStyle}>
-          <SectionHeader title="Anfrage-Details" />
+          <SectionHeader title="Anfrage-Details" saveState={saveState} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {renderAutoInput("Titel", "title", "text", "Anfragetitel")}
             <div className="md:col-span-2">
@@ -579,7 +582,7 @@ function InquiryDetailContent({
         {/* 2. Kunde */}
         {/* ================================================================== */}
         <div className="p-5 rounded-xl" style={cardStyle}>
-          <SectionHeader title="Kunde" />
+          <SectionHeader title="Kunde" saveState={saveState} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {renderAutoInput("Kundenname", "client_name", "text", "Firma oder Person")}
             {renderAutoInput("Ansprechpartner", "client_contact_person", "text", "Max Mustermann")}
@@ -592,7 +595,7 @@ function InquiryDetailContent({
         {/* 3. Event */}
         {/* ================================================================== */}
         <div className="p-5 rounded-xl" style={cardStyle}>
-          <SectionHeader title="Event" />
+          <SectionHeader title="Event" saveState={saveState} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {renderAutoInput("Venue / Ort", "venue_name", "text", "Veranstaltungsort")}
             {renderAutoInput("Adresse", "venue_address", "text", "Straße, PLZ, Stadt")}
@@ -605,7 +608,7 @@ function InquiryDetailContent({
         {/* 4. Angebot */}
         {/* ================================================================== */}
         <div className="p-5 rounded-xl" style={cardStyle}>
-          <SectionHeader title="Angebot" />
+          <SectionHeader title="Angebot" saveState={saveState} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {renderAutoInput("Geschätztes Budget (€)", "estimated_budget", "number", "0.00")}
             {renderAutoInput("Angebotssumme (€)", "offer_amount", "number", "0.00")}
@@ -618,7 +621,7 @@ function InquiryDetailContent({
         {/* 5. Bewertung */}
         {/* ================================================================== */}
         <div className="p-5 rounded-xl" style={cardStyle}>
-          <SectionHeader title="Bewertung" />
+          <SectionHeader title="Bewertung" saveState={saveState} />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               {renderFieldLabel("Wahrscheinlichkeit (%)")}
@@ -655,7 +658,7 @@ function InquiryDetailContent({
         {/* 6. Notizen */}
         {/* ================================================================== */}
         <div className="p-5 rounded-xl" style={cardStyle}>
-          <SectionHeader title="Notizen" />
+          <SectionHeader title="Notizen" saveState={saveState} />
           {renderAutoTextarea("Interne Notizen", "notes", 4, "Notizen, Absprachen, TODOs...")}
         </div>
 
@@ -663,7 +666,7 @@ function InquiryDetailContent({
         {/* 7. Aktionen */}
         {/* ================================================================== */}
         <div className="p-5 rounded-xl" style={cardStyle}>
-          <SectionHeader title="Aktionen" />
+          <SectionHeader title="Aktionen" saveState={saveState} />
 
           {/* Projekt erstellen */}
           {localData.project_id ? (
