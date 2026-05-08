@@ -207,7 +207,7 @@ async function handleSendInquiry(req: Request): Promise<Response> {
   // Lade Anfrage mit Org-Daten
   const { data: inquiry, error: inquiryError } = await supabase
     .from("inquiries")
-    .select("id, title, client_name, description, venue_name, event_date_start, event_date_end, group_id, telegram_message_id, groups(telegram_chat_id, telegram_thread_id)")
+    .select("id, title, client_name, description, venue_name, event_date_start, event_date_end, group_id, telegram_message_id, groups!inquiries_group_id_fkey(telegram_chat_id, telegram_thread_id)")
     .eq("id", inquiry_id)
     .single();
 
