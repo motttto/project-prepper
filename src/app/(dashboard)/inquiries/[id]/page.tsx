@@ -544,7 +544,6 @@ function InquiryDetailContent({
         <InquiryRsvpBanner
           inquiryId={inquiry.id}
           currentUserId={currentUser.id}
-          createdBy={inquiry.created_by}
           groupId={inquiry.group_id}
         />
       )}

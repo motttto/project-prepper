@@ -8,7 +8,6 @@ import { showToast } from "@/hooks/use-toast";
 interface Props {
   inquiryId: string;
   currentUserId: string;
-  createdBy: string | null;
   groupId: string | null;
 }
 
@@ -22,7 +21,7 @@ type Status = "accepted" | "declined" | "pending";
  *
  * Ideal fuer Deep-Links aus Telegram-Bot: User klickt -> kommt an -> RSVP.
  */
-export function InquiryRsvpBanner({ inquiryId, currentUserId, createdBy, groupId }: Props) {
+export function InquiryRsvpBanner({ inquiryId, currentUserId, groupId }: Props) {
   const supabase = createClient();
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
@@ -51,7 +50,7 @@ export function InquiryRsvpBanner({ inquiryId, currentUserId, createdBy, groupId
         {
           inquiry_id: inquiryId,
           invited_profile_id: currentUserId,
-          invited_by: createdBy || currentUserId,
+          invited_by: currentUserId,
           status: next,
           responded_at: next === "pending" ? null : new Date().toISOString(),
         },
