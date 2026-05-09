@@ -84,10 +84,10 @@ export function TabTeam({ projectId, onOpenMembersPanel }: TabTeamProps) {
       supabase.from("project_contacts").select("*").eq("project_id", projectId).order("created_at"),
       // org_guests entfaellt im neuen Modell
       Promise.resolve({ data: [] as OrgGuest[] }),
-      // Verknuepfte Anfrage zum Projekt finden (fuer RSVP-Zusagen + Ersteller)
+      // Verknuepfte Anfrage zum Projekt finden (nur id + created_by, ohne FK-Join)
       supabase
         .from("inquiries")
-        .select("id, created_by, profiles:created_by(id, name, email, avatar_url)")
+        .select("id, created_by")
         .eq("project_id", projectId)
         .maybeSingle(),
     ]);
@@ -98,17 +98,28 @@ export function TabTeam({ projectId, onOpenMembersPanel }: TabTeamProps) {
     if (orgGuestsRes.data) setOrgGuests(orgGuestsRes.data as OrgGuest[]);
 
     // Wenn Projekt aus Anfrage erstellt wurde: Zugesagte RSVPs laden + Ersteller-Profil
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const inquiryRow = inquiryRes.data as any;
+    const inquiryRow = inquiryRes.data as { id: string; created_by: string | null } | null;
     const inquiryId = inquiryRow?.id ?? null;
     setLinkedInquiryId(inquiryId);
-    if (inquiryRow?.profiles) {
-      setInquiryCreator({
-        id: inquiryRow.profiles.id,
-        name: inquiryRow.profiles.name || "Unbekannt",
-        email: inquiryRow.profiles.email || null,
-        avatarUrl: inquiryRow.profiles.avatar_url || null,
-      });
+
+    // Ersteller-Profil separat laden (eigener Query, damit Inquiry-Query nicht
+    // von einem fragilen FK-Alias abhaengt)
+    if (inquiryRow?.created_by) {
+      const { data: creatorProfile } = await supabase
+        .from("profiles")
+        .select("id, name, email, avatar_url")
+        .eq("id", inquiryRow.created_by)
+        .maybeSingle();
+      if (creatorProfile) {
+        setInquiryCreator({
+          id: creatorProfile.id,
+          name: creatorProfile.name || "Unbekannt",
+          email: creatorProfile.email || null,
+          avatarUrl: creatorProfile.avatar_url || null,
+        });
+      } else {
+        setInquiryCreator(null);
+      }
     } else {
       setInquiryCreator(null);
     }
