@@ -68,7 +68,7 @@ export default function ProjectDetailPage() {
   const { groupId } = useWorkspace();
   const orgId = groupId; // backward-compat alias für Sub-Components
   const { users: presenceUsers } = usePresence({ projectId, currentUser });
-  const { canViewCosts, isOwner, loading: roleLoading } = useProjectRole(projectId);
+  const { canViewCosts, isOwner, isMember, loading: roleLoading } = useProjectRole(projectId);
 
   // Tabs dynamisch berechnen
   const tabs = useMemo(() => {
@@ -343,7 +343,7 @@ export default function ProjectDetailPage() {
       {/* Mitglieder-Panel */}
       <ProjectMembersPanel
         projectId={projectId}
-        isOwner={isOwner}
+        canManage={isMember}
         show={showMembers}
         onClose={() => setShowMembers(false)}
       />

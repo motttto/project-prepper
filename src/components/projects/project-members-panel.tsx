@@ -6,31 +6,20 @@ import type { ProjectMember, ProjectInvitation, ProjectGuest, OrgGuest, User } f
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { useOrg } from "@/contexts/org-context";
 import { showToast } from "@/hooks/use-toast";
-import { IconX, IconUserPlus, IconTrash, IconSend, IconShield, IconEye, IconPlus } from "@/components/ui/icons";
+import { IconX, IconUserPlus, IconTrash, IconSend, IconShield, IconPlus } from "@/components/ui/icons";
 import { appConfirm } from "@/components/ui/confirm-dialog";
 
 interface ProjectMembersPanelProps {
   projectId: string;
-  isOwner: boolean;
+  /** Nicht mehr Owner-Privileg: jedes Projektmitglied darf verwalten (Migration 095). */
+  canManage: boolean;
   show: boolean;
   onClose: () => void;
 }
 
-const roleLabels: Record<string, string> = {
-  owner: "Eigentümer",
-  editor: "Bearbeiter",
-  viewer: "Betrachter",
-};
-
-const roleColors: Record<string, { bg: string; text: string }> = {
-  owner: { bg: "#fef3c7", text: "#b45309" },
-  editor: { bg: "#dbeafe", text: "#1d4ed8" },
-  viewer: { bg: "#f3f4f6", text: "#374151" },
-};
-
 export function ProjectMembersPanel({
   projectId,
-  isOwner,
+  canManage,
   show,
   onClose,
 }: ProjectMembersPanelProps) {
@@ -44,7 +33,6 @@ export function ProjectMembersPanel({
   // Form state
   const [mode, setMode] = useState<"add" | "invite" | null>(null);
   const [selectedProfileId, setSelectedProfileId] = useState("");
-  const [selectedRole, setSelectedRole] = useState<"editor" | "viewer">("editor");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasActiveAgreement, setHasActiveAgreement] = useState(false);
@@ -173,7 +161,7 @@ export function ProjectMembersPanel({
     const { error: err } = await supabase.from("project_members").insert({
       project_id: projectId,
       profile_id: selectedProfileId,
-      role: selectedRole,
+      role: "editor",
     });
 
     if (err) {
@@ -200,7 +188,7 @@ export function ProjectMembersPanel({
       project_id: projectId,
       invited_by: user.id,
       invited_profile_id: selectedProfileId,
-      role: selectedRole,
+      role: "editor",
     }).select("id").single();
 
     if (err) {
@@ -292,7 +280,7 @@ export function ProjectMembersPanel({
                 </h3>
                 <div className="space-y-2">
                   {members.map((m) => {
-                    const color = roleColors[m.role] || roleColors.viewer;
+                    const isProjectOwner = m.role === "owner";
                     return (
                       <div
                         key={m.id}
@@ -302,7 +290,7 @@ export function ProjectMembersPanel({
                         <div className="flex items-center gap-3">
                           <div
                             className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold"
-                            style={{ background: color.bg, color: color.text }}
+                            style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}
                           >
                             {m.profiles?.name?.[0]?.toUpperCase() || "?"}
                           </div>
@@ -314,15 +302,17 @@ export function ProjectMembersPanel({
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span
-                            className="px-2 py-0.5 rounded-full text-xs font-medium"
-                            style={{ background: color.bg, color: color.text }}
-                          >
-                            {m.role === "owner" && <IconShield size={10} className="inline mr-1" />}
-                            {m.role === "viewer" && <IconEye size={10} className="inline mr-1" />}
-                            {roleLabels[m.role]}
-                          </span>
-                          {isOwner && m.role !== "owner" && (
+                          {isProjectOwner && (
+                            <span
+                              className="px-2 py-0.5 rounded-full text-xs font-medium"
+                              style={{ background: "#fef3c7", color: "#b45309" }}
+                              title="Hat das Projekt erstellt"
+                            >
+                              <IconShield size={10} className="inline mr-1" />
+                              Inhaber
+                            </span>
+                          )}
+                          {canManage && (
                             <button
                               onClick={() => handleRemoveMember(m.id)}
                               className="p-1 rounded hover:opacity-70"
@@ -355,7 +345,7 @@ export function ProjectMembersPanel({
                         <div>
                           <p className="text-sm">{inv.profiles?.name || inv.profiles?.email}</p>
                           <p className="text-xs" style={{ color: "var(--color-warning)" }}>
-                            Ausstehend — {roleLabels[inv.role]}
+                            Ausstehend
                             {(inv.send_count || 1) > 1 && (
                               <span style={{ color: "var(--color-muted-foreground)" }}>
                                 {" "}({inv.send_count}x gesendet)
@@ -363,7 +353,7 @@ export function ProjectMembersPanel({
                             )}
                           </p>
                         </div>
-                        {isOwner && (
+                        {canManage && (
                           <div className="flex items-center gap-1">
                             <button
                               onClick={() => handleResendInvitation(inv)}
@@ -394,7 +384,7 @@ export function ProjectMembersPanel({
                   <h3 className="text-sm font-semibold" style={{ color: "var(--color-text-muted)" }}>
                     Gäste ({projectGuests.length})
                   </h3>
-                  {isOwner && (
+                  {canManage && (
                     <button
                       onClick={() => setShowGuestForm(!showGuestForm)}
                       className="flex items-center gap-1 text-xs px-2 py-1 rounded-lg font-medium"
@@ -480,7 +470,7 @@ export function ProjectMembersPanel({
                               )}
                             </div>
                           </div>
-                          {isOwner && (
+                          {canManage && (
                             <button onClick={() => handleRemoveGuest(pg.id)}
                               className="p-1 rounded hover:opacity-70"
                               style={{ color: "var(--color-destructive)" }} title="Entfernen">
@@ -495,7 +485,7 @@ export function ProjectMembersPanel({
               </div>
 
               {/* Aktionen (nur für Owner) */}
-              {isOwner && !mode && (
+              {canManage && !mode && (
                 <div>
                   {hasActiveAgreement && (
                     <div
@@ -528,7 +518,7 @@ export function ProjectMembersPanel({
               )}
 
               {/* Add/Invite Form */}
-              {isOwner && mode && (
+              {canManage && mode && (
                 <div
                   className="p-3 rounded-lg space-y-3"
                   style={{ border: "1px solid var(--color-border)" }}
@@ -565,23 +555,6 @@ export function ProjectMembersPanel({
                         </select>
                       </div>
 
-                      <div>
-                        <label className="block text-xs mb-1" style={{ color: "var(--color-text-muted)" }}>
-                          Rolle
-                        </label>
-                        <select
-                          value={selectedRole}
-                          onChange={(e) => setSelectedRole(e.target.value as "editor" | "viewer")}
-                          className="w-full p-2 rounded-lg text-sm"
-                          style={{
-                            background: "var(--color-surface)",
-                            border: "1px solid var(--color-border)",
-                          }}
-                        >
-                          <option value="editor">Bearbeiter — kann Projektdaten bearbeiten</option>
-                          <option value="viewer">Betrachter — kann nur lesen</option>
-                        </select>
-                      </div>
                     </>
                   )}
 
