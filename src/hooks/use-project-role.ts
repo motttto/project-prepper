@@ -78,8 +78,10 @@ export function useProjectRole(projectId: string): UseProjectRoleResult {
 
   const isMember = role !== "none";
   const canViewCosts = isMember;
-  const canEditProject =
-    role === "owner" || role === "editor" || role === "admin";
+  // Vereinfachung (Migration 095): jedes Projektmitglied darf editieren.
+  // Hinzufuegen/Entfernen anderer Mitglieder ist auf RLS-Ebene fuer alle
+  // Gruppenmitglieder offen, kein Owner-Privileg mehr.
+  const canEditProject = isMember;
   const isOwner = role === "owner" || role === "admin";
 
   return { role, loading, isMember, canViewCosts, canEditProject, isOwner };

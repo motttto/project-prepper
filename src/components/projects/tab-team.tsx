@@ -7,6 +7,7 @@ import { IconPlus, IconTrash } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
 import { appConfirm } from "@/components/ui/confirm-dialog";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
+import { useCurrentUser } from "@/hooks/use-current-user";
 // org_guests waren orgweit — Phase 6.5: durch group_guests ersetzen.
 // Vorerst leere Liste, kein Org-Filter noetig.
 
@@ -37,6 +38,8 @@ interface InquiryRsvp {
 
 export function TabTeam({ projectId }: TabTeamProps) {
   const supabase = createClient();
+  const currentUser = useCurrentUser();
+  const currentUserId = currentUser?.id ?? null;
   const [projectMembers, setProjectMembers] = useState<(ProjectMember & { profiles?: { name: string; email: string } })[]>([]);
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [contacts, setContacts] = useState<ProjectContact[]>([]);
@@ -190,6 +193,8 @@ export function TabTeam({ projectId }: TabTeamProps) {
       project_id: projectId,
       org_guest_id: selectedOrgGuestId,
       plus_ones: guestPlusOnes,
+      approval_status: "proposed",
+      proposed_by: currentUserId,
     });
     if (error) {
       showToast("Fehler: " + error.message, "error");
@@ -244,17 +249,6 @@ export function TabTeam({ projectId }: TabTeamProps) {
     return { total, confirmed };
   }, [guests]);
 
-  const memberRoleLabels: Record<string, string> = {
-    owner: "Inhaber",
-    editor: "Bearbeiter",
-    viewer: "Betrachter",
-  };
-  const memberRoleColors: Record<string, { bg: string; text: string }> = {
-    owner: { bg: "#fef3c7", text: "#b45309" },
-    editor: { bg: "#dbeafe", text: "#1d4ed8" },
-    viewer: { bg: "var(--color-muted)", text: "var(--color-muted-foreground)" },
-  };
-
   async function handleAddTeamMember(e: React.FormEvent) {
     e.preventDefault();
     setSavingTeam(true);
@@ -291,6 +285,8 @@ export function TabTeam({ projectId }: TabTeamProps) {
       company: contactCompany || null,
       phone: contactPhone || null,
       email: contactEmail || null,
+      approval_status: "proposed",
+      proposed_by: currentUserId,
     });
     if (!error) {
       setContactName(""); setContactRole(""); setContactCompany(""); setContactPhone(""); setContactEmail("");
@@ -302,6 +298,34 @@ export function TabTeam({ projectId }: TabTeamProps) {
 
   async function handleDeleteContact(id: string) {
     if (!(await appConfirm("Kontakt wirklich entfernen?", { variant: "danger", confirmLabel: "Entfernen" }))) return;
+    await supabase.from("project_contacts").delete().eq("id", id);
+    loadData();
+  }
+
+  // ── Vier-Augen: Bestaetigen / Ablehnen fuer Gaeste + Kontakte ──
+  async function handleApproveGuest(id: string) {
+    await supabase.from("project_guests").update({
+      approval_status: "confirmed",
+      approved_by: currentUserId,
+      approved_at: new Date().toISOString(),
+    }).eq("id", id);
+    loadData();
+  }
+  async function handleRejectGuest(id: string) {
+    if (!(await appConfirm("Gast ablehnen und entfernen?", { variant: "danger", confirmLabel: "Ablehnen" }))) return;
+    await supabase.from("project_guests").delete().eq("id", id);
+    loadData();
+  }
+  async function handleApproveContact(id: string) {
+    await supabase.from("project_contacts").update({
+      approval_status: "confirmed",
+      approved_by: currentUserId,
+      approved_at: new Date().toISOString(),
+    }).eq("id", id);
+    loadData();
+  }
+  async function handleRejectContact(id: string) {
+    if (!(await appConfirm("Kontakt ablehnen und entfernen?", { variant: "danger", confirmLabel: "Ablehnen" }))) return;
     await supabase.from("project_contacts").delete().eq("id", id);
     loadData();
   }
@@ -413,10 +437,27 @@ export function TabTeam({ projectId }: TabTeamProps) {
                   const displayPhone = og?.phone || g.phone;
                   const displayNotes = og?.notes || g.notes;
                   const sc = guestStatusColors[g.status];
+                  const isProposed = g.approval_status === "proposed";
+                  const isOwnProposal = isProposed && g.proposed_by === currentUserId;
                   return (
-                    <tr key={g.id} style={{ borderTop: "1px solid var(--color-border)" }} className="group">
+                    <tr key={g.id}
+                      style={{
+                        borderTop: "1px solid var(--color-border)",
+                        background: isProposed
+                          ? "color-mix(in srgb, var(--color-warning) 5%, transparent)"
+                          : undefined,
+                      }}
+                      className="group">
                       <td className="px-4 py-3">
-                        <div className="font-medium">{displayName}</div>
+                        <div className="font-medium flex items-center gap-2">
+                          {displayName}
+                          {isProposed && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wider"
+                              style={{ background: "var(--color-warning-light, #fef3c7)", color: "var(--color-warning, #d97706)" }}>
+                              Vorgeschlagen
+                            </span>
+                          )}
+                        </div>
                         {displayNotes && <div className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>{displayNotes}</div>}
                       </td>
                       <td className="px-4 py-3">
@@ -446,6 +487,25 @@ export function TabTeam({ projectId }: TabTeamProps) {
                         {!displayEmail && !displayPhone && "–"}
                       </td>
                       <td className="px-4 py-3 text-right">
+                        {isProposed && !isOwnProposal && (
+                          <div className="flex gap-1 justify-end mb-1">
+                            <button onClick={() => handleApproveGuest(g.id)}
+                              className="text-xs px-2 py-1 rounded-lg font-medium text-white"
+                              style={{ background: "var(--color-success)" }}>
+                              Bestätigen
+                            </button>
+                            <button onClick={() => handleRejectGuest(g.id)}
+                              className="text-xs px-2 py-1 rounded-lg font-medium"
+                              style={{ border: "1px solid var(--color-destructive)", color: "var(--color-destructive)" }}>
+                              Ablehnen
+                            </button>
+                          </div>
+                        )}
+                        {isOwnProposal && (
+                          <div className="text-[10px] mb-1" style={{ color: "var(--color-muted-foreground)" }}>
+                            Eigener Vorschlag — wartet auf Bestätigung
+                          </div>
+                        )}
                         <button onClick={() => handleDeleteGuest(g.id)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded"
                           style={{ color: "var(--color-destructive)" }} title="Entfernen">
@@ -482,13 +542,13 @@ export function TabTeam({ projectId }: TabTeamProps) {
           </button>
         </div>
 
-        {/* App-Zugriff (project_members) */}
+        {/* Mitglieder (project_members) — alle gleichberechtigt */}
         {projectMembers.length > 0 && (
           <div className="mb-4">
             <div className="flex items-center gap-2 mb-2">
               <span className="text-xs font-semibold uppercase tracking-wider"
                 style={{ color: "var(--color-muted-foreground)" }}>
-                App-Zugriff
+                Mitglieder
               </span>
               <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
                 {projectMembers.length}
@@ -496,28 +556,21 @@ export function TabTeam({ projectId }: TabTeamProps) {
               <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
             </div>
             <div className="flex flex-wrap gap-2">
-              {projectMembers.map((pm) => {
-                const rc = memberRoleColors[pm.role] || memberRoleColors.viewer;
-                return (
-                  <div key={pm.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
-                    style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                      style={{ background: rc.bg, color: rc.text }}>
-                      {(pm.profiles?.name || "?").charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium">{pm.profiles?.name || "Unbekannt"}</div>
-                      <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                        {pm.profiles?.email}
-                      </div>
-                    </div>
-                    <span className="text-xs px-2 py-0.5 rounded-full font-medium ml-1"
-                      style={{ background: rc.bg, color: rc.text }}>
-                      {memberRoleLabels[pm.role] || pm.role}
-                    </span>
+              {projectMembers.map((pm) => (
+                <div key={pm.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
+                  style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                    style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}>
+                    {(pm.profiles?.name || "?").charAt(0).toUpperCase()}
                   </div>
-                );
-              })}
+                  <div>
+                    <div className="text-sm font-medium">{pm.profiles?.name || "Unbekannt"}</div>
+                    <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                      {pm.profiles?.email}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -818,29 +871,69 @@ export function TabTeam({ projectId }: TabTeamProps) {
                 </tr>
               </thead>
               <tbody>
-                {contacts.map((c) => (
-                  <tr key={c.id} style={{ borderTop: "1px solid var(--color-border)" }} className="group">
-                    <td className="px-4 py-3 font-medium">{c.name}</td>
-                    <td className="px-4 py-3">
-                      <span className="text-xs px-2 py-0.5 rounded-full"
-                        style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
-                        {c.role}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3" style={{ color: c.company ? undefined : "var(--color-muted-foreground)" }}>
-                      {c.company || "–"}
-                    </td>
-                    <td className="px-4 py-3">{c.phone || "–"}</td>
-                    <td className="px-4 py-3">{c.email || "–"}</td>
-                    <td className="px-4 py-3 text-right">
-                      <button onClick={() => handleDeleteContact(c.id)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-xs"
-                        style={{ color: "var(--color-destructive)" }}>
-                        Löschen
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {contacts.map((c) => {
+                  const isProposed = c.approval_status === "proposed";
+                  const isOwnProposal = isProposed && c.proposed_by === currentUserId;
+                  return (
+                    <tr key={c.id}
+                      style={{
+                        borderTop: "1px solid var(--color-border)",
+                        background: isProposed
+                          ? "color-mix(in srgb, var(--color-warning) 5%, transparent)"
+                          : undefined,
+                      }}
+                      className="group">
+                      <td className="px-4 py-3 font-medium">
+                        <div className="flex items-center gap-2">
+                          {c.name}
+                          {isProposed && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wider"
+                              style={{ background: "var(--color-warning-light, #fef3c7)", color: "var(--color-warning, #d97706)" }}>
+                              Vorgeschlagen
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-xs px-2 py-0.5 rounded-full"
+                          style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
+                          {c.role}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3" style={{ color: c.company ? undefined : "var(--color-muted-foreground)" }}>
+                        {c.company || "–"}
+                      </td>
+                      <td className="px-4 py-3">{c.phone || "–"}</td>
+                      <td className="px-4 py-3">{c.email || "–"}</td>
+                      <td className="px-4 py-3 text-right">
+                        {isProposed && !isOwnProposal && (
+                          <div className="flex gap-1 justify-end mb-1">
+                            <button onClick={() => handleApproveContact(c.id)}
+                              className="text-xs px-2 py-1 rounded-lg font-medium text-white"
+                              style={{ background: "var(--color-success)" }}>
+                              Bestätigen
+                            </button>
+                            <button onClick={() => handleRejectContact(c.id)}
+                              className="text-xs px-2 py-1 rounded-lg font-medium"
+                              style={{ border: "1px solid var(--color-destructive)", color: "var(--color-destructive)" }}>
+                              Ablehnen
+                            </button>
+                          </div>
+                        )}
+                        {isOwnProposal && (
+                          <div className="text-[10px] mb-1" style={{ color: "var(--color-muted-foreground)" }}>
+                            Eigener Vorschlag — wartet auf Bestätigung
+                          </div>
+                        )}
+                        <button onClick={() => handleDeleteContact(c.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity text-xs"
+                          style={{ color: "var(--color-destructive)" }}>
+                          Löschen
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
             </div>

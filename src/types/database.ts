@@ -307,6 +307,8 @@ export type TeamMember = {
   created_at: string;
 };
 
+export type ApprovalStatus = "proposed" | "confirmed" | "rejected";
+
 export type ProjectContact = {
   id: string;
   project_id: string;
@@ -316,6 +318,11 @@ export type ProjectContact = {
   phone: string | null;
   email: string | null;
   created_at: string;
+  /** Vier-Augen-Prinzip (Migration 095) */
+  approval_status: ApprovalStatus;
+  proposed_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
 };
 
 export type ActivityAction =
@@ -366,6 +373,11 @@ export type ProjectGuest = {
   notes: string | null;
   status: "invited" | "confirmed" | "declined" | "attended";
   created_at: string;
+  /** Vier-Augen-Prinzip (Migration 095) */
+  approval_status: ApprovalStatus;
+  proposed_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
   org_guests?: OrgGuest;
 };
 
