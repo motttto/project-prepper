@@ -13,6 +13,7 @@ import { useCurrentUser } from "@/hooks/use-current-user";
 
 interface TabTeamProps {
   projectId: string;
+  onOpenMembersPanel?: () => void;
 }
 
 const defaultDepartments = [
@@ -36,7 +37,7 @@ interface InquiryRsvp {
   respondedAt: string | null;
 }
 
-export function TabTeam({ projectId }: TabTeamProps) {
+export function TabTeam({ projectId, onOpenMembersPanel }: TabTeamProps) {
   const supabase = createClient();
   const currentUser = useCurrentUser();
   const currentUserId = currentUser?.id ?? null;
@@ -47,6 +48,7 @@ export function TabTeam({ projectId }: TabTeamProps) {
   const [orgGuests, setOrgGuests] = useState<OrgGuest[]>([]);
   const [inquiryRsvps, setInquiryRsvps] = useState<InquiryRsvp[]>([]);
   const [linkedInquiryId, setLinkedInquiryId] = useState<string | null>(null);
+  const [inquiryCreator, setInquiryCreator] = useState<{ id: string; name: string; email: string | null; avatarUrl: string | null } | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Guest form
@@ -82,8 +84,12 @@ export function TabTeam({ projectId }: TabTeamProps) {
       supabase.from("project_contacts").select("*").eq("project_id", projectId).order("created_at"),
       // org_guests entfaellt im neuen Modell
       Promise.resolve({ data: [] as OrgGuest[] }),
-      // Verknuepfte Anfrage zum Projekt finden (fuer RSVP-Zusagen)
-      supabase.from("inquiries").select("id").eq("project_id", projectId).maybeSingle(),
+      // Verknuepfte Anfrage zum Projekt finden (fuer RSVP-Zusagen + Ersteller)
+      supabase
+        .from("inquiries")
+        .select("id, created_by, profiles:created_by(id, name, email, avatar_url)")
+        .eq("project_id", projectId)
+        .maybeSingle(),
     ]);
     if (membersRes.data) setProjectMembers(membersRes.data as any);
     if (teamRes.data) setMembers(teamRes.data as TeamMember[]);
@@ -91,9 +97,21 @@ export function TabTeam({ projectId }: TabTeamProps) {
     if (contactsRes.data) setContacts(contactsRes.data as ProjectContact[]);
     if (orgGuestsRes.data) setOrgGuests(orgGuestsRes.data as OrgGuest[]);
 
-    // Wenn Projekt aus Anfrage erstellt wurde: Zugesagte RSVPs laden
-    const inquiryId = (inquiryRes.data as { id: string } | null)?.id ?? null;
+    // Wenn Projekt aus Anfrage erstellt wurde: Zugesagte RSVPs laden + Ersteller-Profil
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const inquiryRow = inquiryRes.data as any;
+    const inquiryId = inquiryRow?.id ?? null;
     setLinkedInquiryId(inquiryId);
+    if (inquiryRow?.profiles) {
+      setInquiryCreator({
+        id: inquiryRow.profiles.id,
+        name: inquiryRow.profiles.name || "Unbekannt",
+        email: inquiryRow.profiles.email || null,
+        avatarUrl: inquiryRow.profiles.avatar_url || null,
+      });
+    } else {
+      setInquiryCreator(null);
+    }
     if (inquiryId) {
       const { data: rsvps } = await supabase
         .from("inquiry_invitations")
@@ -336,13 +354,314 @@ export function TabTeam({ projectId }: TabTeamProps) {
 
   const inputStyle = { border: "1px solid var(--color-border)", background: "var(--color-background)" };
 
-  // Deduplizierte Listen fuer den unifizierten Team-Block
-  const memberProfileIds = new Set(projectMembers.map((pm) => pm.profile_id));
-  const dedupedRsvps = inquiryRsvps.filter((r) => !memberProfileIds.has(r.profileId));
-  const teamTotalCount = projectMembers.length + dedupedRsvps.length + members.length;
+  // Konsolidierte Team-Mitglieder Liste (project_members + RSVP zugesagt + Anfrage-Ersteller).
+  // Pro profile_id eine Karte, mit Markern fuer alle zutreffenden Rollen.
+  type ConsolidatedMember = {
+    profileId: string;
+    name: string;
+    email: string | null;
+    avatarUrl: string | null;
+    isProjectMember: boolean;
+    isOwner: boolean;
+    isInquiryCreator: boolean;
+    hasAcceptedRsvp: boolean;
+  };
+  const consolidatedMembers = (() => {
+    const map = new Map<string, ConsolidatedMember>();
+    const ensure = (id: string, base: Partial<ConsolidatedMember>) => {
+      if (!map.has(id)) {
+        map.set(id, {
+          profileId: id,
+          name: base.name || "Unbekannt",
+          email: base.email ?? null,
+          avatarUrl: base.avatarUrl ?? null,
+          isProjectMember: false,
+          isOwner: false,
+          isInquiryCreator: false,
+          hasAcceptedRsvp: false,
+        });
+      } else {
+        const existing = map.get(id)!;
+        // Falls Avatar/Email vorher null waren, jetzt fuellen
+        if (!existing.avatarUrl && base.avatarUrl) existing.avatarUrl = base.avatarUrl;
+        if (!existing.email && base.email) existing.email = base.email;
+      }
+      return map.get(id)!;
+    };
+    for (const pm of projectMembers) {
+      const m = ensure(pm.profile_id, {
+        name: pm.profiles?.name,
+        email: pm.profiles?.email,
+      });
+      m.isProjectMember = true;
+      if (pm.role === "owner") m.isOwner = true;
+    }
+    for (const r of inquiryRsvps) {
+      const m = ensure(r.profileId, {
+        name: r.name,
+        email: r.email,
+        avatarUrl: r.avatarUrl,
+      });
+      m.hasAcceptedRsvp = true;
+    }
+    if (inquiryCreator) {
+      const m = ensure(inquiryCreator.id, {
+        name: inquiryCreator.name,
+        email: inquiryCreator.email,
+        avatarUrl: inquiryCreator.avatarUrl,
+      });
+      m.isInquiryCreator = true;
+    }
+    return Array.from(map.values()).sort((a, b) => {
+      // Owner zuerst, dann Mitglieder, dann RSVPs, dann reine Ersteller
+      const score = (x: ConsolidatedMember) =>
+        (x.isOwner ? 0 : x.isProjectMember ? 1 : x.hasAcceptedRsvp ? 2 : 3);
+      const diff = score(a) - score(b);
+      if (diff !== 0) return diff;
+      return a.name.localeCompare(b.name, "de");
+    });
+  })();
+  const teamTotalCount = consolidatedMembers.length + members.length;
 
   return (
     <div className="space-y-8">
+      {/* ===== TEAM SECTION (unifiziert: Mitglieder + RSVP + Crew) ===== */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold">Team</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full"
+              style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
+              {teamTotalCount} {teamTotalCount === 1 ? "Person" : "Personen"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            {onOpenMembersPanel && (
+              <button
+                onClick={onOpenMembersPanel}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors"
+                style={{ border: "1px solid var(--color-border)", color: "var(--color-foreground)" }}
+              >
+                <IconPlus size={16} />
+                Mitglied einladen
+              </button>
+            )}
+            <button
+              onClick={() => setShowTeamForm(!showTeamForm)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white rounded-lg transition-colors"
+              style={{ background: "var(--color-primary)" }}
+            >
+              <IconPlus size={16} />
+              Crew hinzufügen
+            </button>
+          </div>
+        </div>
+
+        {/* Konsolidierte Mitglieder-Liste (Mitglied + Anfrage-Ersteller + RSVP zugesagt) */}
+        {consolidatedMembers.length > 0 && (
+          <div className="mb-4">
+            <div className="flex flex-wrap gap-2">
+              {consolidatedMembers.map((m) => {
+                const markers: { label: string; tone: "primary" | "warning" | "success" }[] = [];
+                if (m.isOwner) markers.push({ label: "Inhaber", tone: "warning" });
+                else if (m.isProjectMember) markers.push({ label: "Mitglied", tone: "primary" });
+                if (m.isInquiryCreator) markers.push({ label: "Anfrage erstellt", tone: "primary" });
+                if (m.hasAcceptedRsvp) markers.push({ label: "Zugesagt", tone: "success" });
+                const toneColor = (t: "primary" | "warning" | "success") =>
+                  t === "warning"
+                    ? { bg: "#fef3c7", color: "#b45309" }
+                    : t === "success"
+                      ? { bg: "var(--color-success-light)", color: "var(--color-success)" }
+                      : { bg: "var(--color-primary-light)", color: "var(--color-primary)" };
+                return (
+                  <div key={m.profileId}
+                    className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
+                    style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}
+                  >
+                    {m.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={m.avatarUrl} alt={m.name}
+                        className="w-9 h-9 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0"
+                        style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}>
+                        {m.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium">{m.name}</div>
+                      {m.email && (
+                        <div className="text-xs truncate"
+                          style={{ color: "var(--color-muted-foreground)" }}>
+                          {m.email}
+                        </div>
+                      )}
+                      {markers.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {markers.map((mk) => {
+                            const c = toneColor(mk.tone);
+                            return (
+                              <span key={mk.label}
+                                className="text-[10px] px-1.5 py-0.5 rounded font-medium"
+                                style={{ background: c.bg, color: c.color }}>
+                                {mk.label}
+                              </span>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Crew-Zwischenheader (project_team) — nur wenn drueber Mitglieder stehen */}
+        {consolidatedMembers.length > 0 && members.length > 0 && (
+          <div className="flex items-center gap-2 mb-2 mt-4">
+            <span className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color: "var(--color-muted-foreground)" }}>
+              Crew
+            </span>
+            <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+              {members.length}
+            </span>
+            <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
+          </div>
+        )}
+
+        {showTeamForm && (
+          <div className="mb-4 p-5 rounded-lg" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
+            <h3 className="font-medium mb-3">Neues Teammitglied</h3>
+            <form onSubmit={handleAddTeamMember} className="space-y-3">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Name *</label>
+                  <input type="text" value={teamName} onChange={(e) => setTeamName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
+                    placeholder="z.B. Max Mustermann" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Rolle *</label>
+                  <input type="text" value={teamRole} onChange={(e) => setTeamRole(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
+                    placeholder="z.B. Lichttechniker, FOH" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Abteilung</label>
+                  <input
+                    type="text"
+                    list="dept-suggestions"
+                    value={teamDepartment}
+                    onChange={(e) => setTeamDepartment(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
+                    placeholder="z.B. Licht, Ton, Produktion"
+                  />
+                  <datalist id="dept-suggestions">
+                    {defaultDepartments.map((d) => <option key={d} value={d} />)}
+                  </datalist>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Telefon</label>
+                  <input type="tel" value={teamPhone} onChange={(e) => setTeamPhone(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
+                    placeholder="+49..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">E-Mail</label>
+                  <input type="email" value={teamEmail} onChange={(e) => setTeamEmail(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Notizen</label>
+                  <input type="text" value={teamNotes} onChange={(e) => setTeamNotes(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
+                    placeholder="z.B. Anreise mit eigenem Bus" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button type="submit" disabled={savingTeam}
+                  className="px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50"
+                  style={{ background: "var(--color-primary)" }}>
+                  {savingTeam ? "Wird gespeichert..." : "Hinzufügen"}
+                </button>
+                <button type="button" onClick={() => setShowTeamForm(false)}
+                  className="px-4 py-2 text-sm rounded-lg"
+                  style={{ border: "1px solid var(--color-border)" }}>
+                  Abbrechen
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {members.length === 0 && teamTotalCount === 0 ? (
+          <div className="text-center py-8 rounded-lg"
+            style={{ border: "2px dashed var(--color-border)", color: "var(--color-muted-foreground)" }}>
+            Noch keine Teammitglieder eingetragen
+          </div>
+        ) : members.length === 0 ? null : (
+          <div className="space-y-5">
+            {grouped.keys.map((dept) => {
+              const deptMembers = grouped.map[dept];
+              const color = getDeptColor(dept);
+              return (
+                <div key={dept}>
+                  {/* Department header */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                      style={{ background: color.bg, color: color.text }}>
+                      {dept}
+                    </span>
+                    <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                      {deptMembers.length} {deptMembers.length === 1 ? "Person" : "Personen"}
+                    </span>
+                    <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
+                  </div>
+                  {/* Members in this department */}
+                  <div className="space-y-1.5">
+                    {deptMembers.map((m) => (
+                      <div key={m.id} className="group flex items-center justify-between p-3 rounded-lg"
+                        style={{ border: "1px solid var(--color-border)" }}>
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                            style={{ background: color.bg, color: color.text }}>
+                            {m.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0">
+                            <div className="font-medium text-sm flex items-center gap-2">
+                              {m.name}
+                              <span className="text-xs px-1.5 py-0.5 rounded"
+                                style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
+                                {m.role}
+                              </span>
+                            </div>
+                            <div className="text-xs flex items-center gap-3" style={{ color: "var(--color-muted-foreground)" }}>
+                              {m.phone && <span>{m.phone}</span>}
+                              {m.email && <span>{m.email}</span>}
+                              {m.notes && <span>· {m.notes}</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <button onClick={() => handleDeleteTeamMember(m.id)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded shrink-0"
+                          style={{ color: "var(--color-destructive)" }} title="Entfernen">
+                          <IconTrash size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       {/* ===== GUESTS SECTION ===== */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -518,270 +837,6 @@ export function TabTeam({ projectId }: TabTeamProps) {
               </tbody>
             </table>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* ===== TEAM SECTION (unifiziert: App-Zugriff + RSVP + Crew) ===== */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold">Team</h2>
-            <span className="text-xs px-2 py-0.5 rounded-full"
-              style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
-              {teamTotalCount} {teamTotalCount === 1 ? "Person" : "Personen"}
-            </span>
-          </div>
-          <button
-            onClick={() => setShowTeamForm(!showTeamForm)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-white rounded-lg transition-colors"
-            style={{ background: "var(--color-primary)" }}
-          >
-            <IconPlus size={16} />
-            Mitglied hinzufügen
-          </button>
-        </div>
-
-        {/* Mitglieder (project_members) — alle gleichberechtigt */}
-        {projectMembers.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: "var(--color-muted-foreground)" }}>
-                Mitglieder
-              </span>
-              <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                {projectMembers.length}
-              </span>
-              <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {projectMembers.map((pm) => (
-                <div key={pm.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
-                  style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                    style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}>
-                    {(pm.profiles?.name || "?").charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium">{pm.profiles?.name || "Unbekannt"}</div>
-                    <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                      {pm.profiles?.email}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* RSVP-Zusagen aus verknuepfter Anfrage (dedupliziert gegen App-Zugriff) */}
-        {linkedInquiryId && dedupedRsvps.length > 0 && (
-          <div className="mb-4">
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: "var(--color-success)" }}>
-                Aus Anfrage zugesagt
-              </span>
-              <span className="text-xs" style={{ color: "var(--color-success)" }}>
-                {dedupedRsvps.length}
-              </span>
-              <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {dedupedRsvps.map((r) => (
-                <div
-                  key={r.invitationId}
-                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
-                  style={{
-                    background: "var(--color-surface)",
-                    border: "1px solid var(--color-border)",
-                  }}
-                >
-                  {r.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={r.avatarUrl}
-                      alt={r.name}
-                      className="w-8 h-8 rounded-full object-cover shrink-0"
-                    />
-                  ) : (
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                      style={{
-                        background: "var(--color-success-light)",
-                        color: "var(--color-success)",
-                      }}
-                    >
-                      {r.name.charAt(0).toUpperCase()}
-                    </div>
-                  )}
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium">{r.name}</div>
-                    {r.email && (
-                      <div
-                        className="text-xs truncate"
-                        style={{ color: "var(--color-muted-foreground)" }}
-                      >
-                        {r.email}
-                      </div>
-                    )}
-                  </div>
-                  <span
-                    className="text-xs px-2 py-0.5 rounded-full font-medium ml-1 shrink-0"
-                    style={{
-                      background: "var(--color-success-light)",
-                      color: "var(--color-success)",
-                    }}
-                  >
-                    Zugesagt
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Crew-Zwischenheader (project_team) — nur wenn etwas drueber ist */}
-        {(projectMembers.length > 0 || dedupedRsvps.length > 0) && members.length > 0 && (
-          <div className="flex items-center gap-2 mb-2 mt-4">
-            <span className="text-xs font-semibold uppercase tracking-wider"
-              style={{ color: "var(--color-muted-foreground)" }}>
-              Crew
-            </span>
-            <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-              {members.length}
-            </span>
-            <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
-          </div>
-        )}
-
-        {showTeamForm && (
-          <div className="mb-4 p-5 rounded-lg" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
-            <h3 className="font-medium mb-3">Neues Teammitglied</h3>
-            <form onSubmit={handleAddTeamMember} className="space-y-3">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Name *</label>
-                  <input type="text" value={teamName} onChange={(e) => setTeamName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
-                    placeholder="z.B. Max Mustermann" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Rolle *</label>
-                  <input type="text" value={teamRole} onChange={(e) => setTeamRole(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
-                    placeholder="z.B. Lichttechniker, FOH" required />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Abteilung</label>
-                  <input
-                    type="text"
-                    list="dept-suggestions"
-                    value={teamDepartment}
-                    onChange={(e) => setTeamDepartment(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
-                    placeholder="z.B. Licht, Ton, Produktion"
-                  />
-                  <datalist id="dept-suggestions">
-                    {defaultDepartments.map((d) => <option key={d} value={d} />)}
-                  </datalist>
-                </div>
-              </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium mb-1">Telefon</label>
-                  <input type="tel" value={teamPhone} onChange={(e) => setTeamPhone(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
-                    placeholder="+49..." />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">E-Mail</label>
-                  <input type="email" value={teamEmail} onChange={(e) => setTeamEmail(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium mb-1">Notizen</label>
-                  <input type="text" value={teamNotes} onChange={(e) => setTeamNotes(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg text-sm" style={inputStyle}
-                    placeholder="z.B. Anreise mit eigenem Bus" />
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button type="submit" disabled={savingTeam}
-                  className="px-4 py-2 text-sm text-white rounded-lg disabled:opacity-50"
-                  style={{ background: "var(--color-primary)" }}>
-                  {savingTeam ? "Wird gespeichert..." : "Hinzufügen"}
-                </button>
-                <button type="button" onClick={() => setShowTeamForm(false)}
-                  className="px-4 py-2 text-sm rounded-lg"
-                  style={{ border: "1px solid var(--color-border)" }}>
-                  Abbrechen
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {members.length === 0 && teamTotalCount === 0 ? (
-          <div className="text-center py-8 rounded-lg"
-            style={{ border: "2px dashed var(--color-border)", color: "var(--color-muted-foreground)" }}>
-            Noch keine Teammitglieder eingetragen
-          </div>
-        ) : members.length === 0 ? null : (
-          <div className="space-y-5">
-            {grouped.keys.map((dept) => {
-              const deptMembers = grouped.map[dept];
-              const color = getDeptColor(dept);
-              return (
-                <div key={dept}>
-                  {/* Department header */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-                      style={{ background: color.bg, color: color.text }}>
-                      {dept}
-                    </span>
-                    <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                      {deptMembers.length} {deptMembers.length === 1 ? "Person" : "Personen"}
-                    </span>
-                    <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
-                  </div>
-                  {/* Members in this department */}
-                  <div className="space-y-1.5">
-                    {deptMembers.map((m) => (
-                      <div key={m.id} className="group flex items-center justify-between p-3 rounded-lg"
-                        style={{ border: "1px solid var(--color-border)" }}>
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                            style={{ background: color.bg, color: color.text }}>
-                            {m.name.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <div className="font-medium text-sm flex items-center gap-2">
-                              {m.name}
-                              <span className="text-xs px-1.5 py-0.5 rounded"
-                                style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
-                                {m.role}
-                              </span>
-                            </div>
-                            <div className="text-xs flex items-center gap-3" style={{ color: "var(--color-muted-foreground)" }}>
-                              {m.phone && <span>{m.phone}</span>}
-                              {m.email && <span>{m.email}</span>}
-                              {m.notes && <span>· {m.notes}</span>}
-                            </div>
-                          </div>
-                        </div>
-                        <button onClick={() => handleDeleteTeamMember(m.id)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded shrink-0"
-                          style={{ color: "var(--color-destructive)" }} title="Entfernen">
-                          <IconTrash size={14} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
           </div>
         )}
       </div>

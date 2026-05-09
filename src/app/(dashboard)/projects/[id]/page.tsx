@@ -25,7 +25,7 @@ import { useProjectRole } from "@/hooks/use-project-role";
 import { PresenceAvatars } from "@/components/ui/presence-avatars";
 import { ProjectMembersPanel } from "@/components/projects/project-members-panel";
 import { useWorkspace } from "@/contexts/org-context";
-import { IconUsers, IconInbox } from "@/components/ui/icons";
+import { IconInbox } from "@/components/ui/icons";
 
 const statusLabels: Record<Project["status"], string> = {
   draft: "Entwurf",
@@ -275,18 +275,6 @@ export default function ProjectDetailPage() {
         </div>
         <div className="flex items-center gap-3">
           <PresenceAvatars users={presenceUsers} currentUserId={currentUser?.id} />
-          <button
-            onClick={() => setShowMembers(true)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm"
-            style={{
-              border: "1px solid var(--color-border)",
-              color: "var(--color-text-muted)",
-            }}
-            title="Mitglieder verwalten"
-          >
-            <IconUsers size={16} />
-            Mitglieder
-          </button>
         </div>
       </div>
 
@@ -311,7 +299,7 @@ export default function ProjectDetailPage() {
         <TabEquipment projectId={projectId} project={project} currentOrgId={orgId} />
       )}
       {activeTab === "team" && (
-        <TabTeam projectId={projectId} />
+        <TabTeam projectId={projectId} onOpenMembersPanel={() => setShowMembers(true)} />
       )}
       {activeTab === "materials" && (
         <TabMaterials projectId={projectId} project={project} onProjectUpdate={handleProjectUpdate} />
