@@ -312,50 +312,13 @@ export function TabTeam({ projectId }: TabTeamProps) {
 
   const inputStyle = { border: "1px solid var(--color-border)", background: "var(--color-background)" };
 
+  // Deduplizierte Listen fuer den unifizierten Team-Block
+  const memberProfileIds = new Set(projectMembers.map((pm) => pm.profile_id));
+  const dedupedRsvps = inquiryRsvps.filter((r) => !memberProfileIds.has(r.profileId));
+  const teamTotalCount = projectMembers.length + dedupedRsvps.length + members.length;
+
   return (
     <div className="space-y-8">
-      {/* ===== PROJECT MEMBERS SECTION ===== */}
-      <div>
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-lg font-semibold">Projekt-Team</h2>
-          <span className="text-xs px-2 py-0.5 rounded-full"
-            style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
-            {projectMembers.length} Personen
-          </span>
-        </div>
-        {projectMembers.length === 0 ? (
-          <div className="text-center py-6 rounded-lg"
-            style={{ border: "2px dashed var(--color-border)", color: "var(--color-muted-foreground)" }}>
-            Noch keine Mitglieder
-          </div>
-        ) : (
-          <div className="flex flex-wrap gap-2">
-            {projectMembers.map((pm) => {
-              const rc = memberRoleColors[pm.role] || memberRoleColors.viewer;
-              return (
-                <div key={pm.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
-                  style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
-                    style={{ background: rc.bg, color: rc.text }}>
-                    {(pm.profiles?.name || "?").charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium">{pm.profiles?.name || "Unbekannt"}</div>
-                    <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-                      {pm.profiles?.email}
-                    </div>
-                  </div>
-                  <span className="text-xs px-2 py-0.5 rounded-full font-medium ml-1"
-                    style={{ background: rc.bg, color: rc.text }}>
-                    {memberRoleLabels[pm.role] || pm.role}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
       {/* ===== GUESTS SECTION ===== */}
       <div>
         <div className="flex items-center justify-between mb-4">
@@ -499,14 +462,14 @@ export function TabTeam({ projectId }: TabTeamProps) {
         )}
       </div>
 
-      {/* ===== TEAM SECTION ===== */}
+      {/* ===== TEAM SECTION (unifiziert: App-Zugriff + RSVP + Crew) ===== */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <h2 className="text-lg font-semibold">Team-Mitglieder</h2>
+            <h2 className="text-lg font-semibold">Team</h2>
             <span className="text-xs px-2 py-0.5 rounded-full"
               style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}>
-              {members.length} Personen
+              {teamTotalCount} {teamTotalCount === 1 ? "Person" : "Personen"}
             </span>
           </div>
           <button
@@ -519,34 +482,61 @@ export function TabTeam({ projectId }: TabTeamProps) {
           </button>
         </div>
 
-        {/* RSVP-Zusagen aus verknuepfter Anfrage */}
-        {linkedInquiryId && inquiryRsvps.length > 0 && (
-          <div
-            className="mb-4 p-4 rounded-lg"
-            style={{
-              border: "1px solid var(--color-success)",
-              background: "color-mix(in srgb, var(--color-success) 6%, transparent)",
-            }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <span
-                className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: "var(--color-success)" }}
-              >
-                Aus Anfrage zugesagt
+        {/* App-Zugriff (project_members) */}
+        {projectMembers.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--color-muted-foreground)" }}>
+                App-Zugriff
               </span>
-              <span
-                className="text-xs px-1.5 py-0.5 rounded-full font-medium"
-                style={{
-                  background: "var(--color-success-light)",
-                  color: "var(--color-success)",
-                }}
-              >
-                {inquiryRsvps.length}
+              <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                {projectMembers.length}
               </span>
+              <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
             </div>
             <div className="flex flex-wrap gap-2">
-              {inquiryRsvps.map((r) => (
+              {projectMembers.map((pm) => {
+                const rc = memberRoleColors[pm.role] || memberRoleColors.viewer;
+                return (
+                  <div key={pm.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
+                    style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                      style={{ background: rc.bg, color: rc.text }}>
+                      {(pm.profiles?.name || "?").charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">{pm.profiles?.name || "Unbekannt"}</div>
+                      <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                        {pm.profiles?.email}
+                      </div>
+                    </div>
+                    <span className="text-xs px-2 py-0.5 rounded-full font-medium ml-1"
+                      style={{ background: rc.bg, color: rc.text }}>
+                      {memberRoleLabels[pm.role] || pm.role}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* RSVP-Zusagen aus verknuepfter Anfrage (dedupliziert gegen App-Zugriff) */}
+        {linkedInquiryId && dedupedRsvps.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--color-success)" }}>
+                Aus Anfrage zugesagt
+              </span>
+              <span className="text-xs" style={{ color: "var(--color-success)" }}>
+                {dedupedRsvps.length}
+              </span>
+              <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {dedupedRsvps.map((r) => (
                 <div
                   key={r.invitationId}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
@@ -596,6 +586,20 @@ export function TabTeam({ projectId }: TabTeamProps) {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* Crew-Zwischenheader (project_team) — nur wenn etwas drueber ist */}
+        {(projectMembers.length > 0 || dedupedRsvps.length > 0) && members.length > 0 && (
+          <div className="flex items-center gap-2 mb-2 mt-4">
+            <span className="text-xs font-semibold uppercase tracking-wider"
+              style={{ color: "var(--color-muted-foreground)" }}>
+              Crew
+            </span>
+            <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+              {members.length}
+            </span>
+            <div className="flex-1 h-px" style={{ background: "var(--color-border)" }} />
           </div>
         )}
 
@@ -666,12 +670,12 @@ export function TabTeam({ projectId }: TabTeamProps) {
           </div>
         )}
 
-        {members.length === 0 ? (
+        {members.length === 0 && teamTotalCount === 0 ? (
           <div className="text-center py-8 rounded-lg"
             style={{ border: "2px dashed var(--color-border)", color: "var(--color-muted-foreground)" }}>
             Noch keine Teammitglieder eingetragen
           </div>
-        ) : (
+        ) : members.length === 0 ? null : (
           <div className="space-y-5">
             {grouped.keys.map((dept) => {
               const deptMembers = grouped.map[dept];
