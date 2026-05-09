@@ -200,6 +200,33 @@ function InquiryDetailContent({
       .then(({ data }) => setTelegramChatId((data?.telegram_chat_id as number | null) ?? null));
   }, [supabase, inquiryGroupId]);
 
+  // Ersteller des verknuepften Projekts laden (fuer "Projekt erstellt von …")
+  const linkedProjectId = inquiry?.project_id ?? null;
+  const [projectCreator, setProjectCreator] = useState<{ name: string | null; created_at: string | null } | null>(null);
+  useEffect(() => {
+    if (!linkedProjectId) {
+      setProjectCreator(null);
+      return;
+    }
+    supabase
+      .from("projects")
+      .select("created_at, profiles:created_by(name)")
+      .eq("id", linkedProjectId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) {
+          setProjectCreator(null);
+          return;
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const profile = (data as any).profiles;
+        setProjectCreator({
+          name: profile?.name ?? null,
+          created_at: (data as { created_at: string | null }).created_at ?? null,
+        });
+      });
+  }, [supabase, linkedProjectId]);
+
   // ─────────────────────────────────────────────────────────────────────────
   // Field Tracking
   // ─────────────────────────────────────────────────────────────────────────
@@ -674,12 +701,29 @@ function InquiryDetailContent({
               className="flex items-center gap-3 p-3 rounded-lg mb-3"
               style={{ background: "var(--color-success-light)", border: "1px solid var(--color-success)" }}
             >
-              <span className="text-sm font-medium" style={{ color: "var(--color-success)" }}>
-                ✓ Projekt erstellt
-              </span>
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-medium" style={{ color: "var(--color-success)" }}>
+                  ✓ Projekt erstellt
+                </span>
+                {(projectCreator?.name || projectCreator?.created_at) && (
+                  <span className="text-xs mt-0.5" style={{ color: "var(--color-success)" }}>
+                    {projectCreator?.name ? <>von <strong>{projectCreator.name}</strong></> : null}
+                    {projectCreator?.name && projectCreator?.created_at ? " · " : null}
+                    {projectCreator?.created_at
+                      ? new Date(projectCreator.created_at).toLocaleString("de-DE", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })
+                      : null}
+                  </span>
+                )}
+              </div>
               <button
                 onClick={() => router.push(`/projects/${localData.project_id}`)}
-                className="ml-auto text-xs font-medium px-3 py-1.5 rounded-lg text-white transition-opacity hover:opacity-80"
+                className="ml-auto text-xs font-medium px-3 py-1.5 rounded-lg text-white transition-opacity hover:opacity-80 flex-shrink-0"
                 style={{ background: "var(--color-success)" }}
               >
                 Zum Projekt →
