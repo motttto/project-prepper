@@ -24,7 +24,10 @@ interface OrgProfile {
 interface InquiryTeamSectionProps {
   inquiryId: string;
   currentUserId: string;
-  orgId: string;
+  /** Bevorzugt — Gruppe der Anfrage (Group-Ownership Modell, Migration 086). */
+  groupId: string | null;
+  /** Legacy-Fallback (alte org_memberships Welt). */
+  orgId: string | null;
   isCreator: boolean;
   isAdmin: boolean;
   telegramChatId: number | null;
@@ -77,6 +80,7 @@ function statusOrder(status: string | null): number {
 export function InquiryTeamSection({
   inquiryId,
   currentUserId,
+  groupId,
   orgId,
   isCreator,
   isAdmin,
@@ -96,7 +100,34 @@ export function InquiryTeamSection({
   const [profilesLoading, setProfilesLoading] = useState(true);
 
   const loadProfiles = useCallback(async () => {
-    if (!orgId) return;
+    // Bevorzugt: Mitglieder der zugeordneten Gruppe (Migration 086).
+    if (groupId) {
+      const { data } = await supabase
+        .from("group_memberships")
+        .select("profile_id, is_active, profiles(id, name, email, avatar_url)")
+        .eq("group_id", groupId)
+        .eq("is_active", true);
+      if (data) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setAllProfiles(
+          data.map((m: any) => ({
+            id: m.profiles?.id || m.profile_id,
+            name: m.profiles?.name || "",
+            email: m.profiles?.email || "",
+            avatar_url: m.profiles?.avatar_url || null,
+            is_active: m.is_active,
+          }))
+        );
+      }
+      setProfilesLoading(false);
+      return;
+    }
+
+    // Legacy-Fallback: alte org_memberships Welt.
+    if (!orgId) {
+      setProfilesLoading(false);
+      return;
+    }
     const { data } = await supabase
       .from("org_memberships")
       .select("profile_id, is_active, profiles(id, name, email, avatar_url)")
@@ -115,7 +146,7 @@ export function InquiryTeamSection({
       );
     }
     setProfilesLoading(false);
-  }, [supabase, orgId]);
+  }, [supabase, groupId, orgId]);
 
   useEffect(() => {
     loadProfiles();

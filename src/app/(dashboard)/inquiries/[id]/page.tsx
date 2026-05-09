@@ -551,10 +551,11 @@ function InquiryDetailContent({
       {/* ================================================================== */}
       {/* Team-Verfügbarkeit */}
       {/* ================================================================== */}
-      {currentUser && orgId && (
+      {currentUser && (orgId || inquiry.owner_group_id || inquiry.group_id) && (
         <InquiryTeamSection
           inquiryId={inquiry.id}
           currentUserId={currentUser.id}
+          groupId={inquiry.owner_group_id ?? inquiry.group_id ?? null}
           orgId={orgId}
           isCreator={inquiry.created_by === currentUser.id}
           isAdmin={currentUser.roleName === "admin"}
