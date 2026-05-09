@@ -339,6 +339,13 @@ function InquiryDetailContent({
 
     const { data: { user } } = await supabase.auth.getUser();
 
+    // Budget-Mapping aus Anfrage:
+    // - estimated_budget (geschaetzt) -> budget_planned (Spending-Plan).
+    // - offer_amount (Angebot an Kunden) -> revenue_actual (Umsatz).
+    // Wenn nur offer_amount gesetzt ist, dient er auch als budget_planned-Fallback.
+    const inquiryBudgetPlanned = localData.estimated_budget ?? localData.offer_amount ?? null;
+    const inquiryRevenue = localData.offer_amount ?? null;
+
     const { data: project, error } = await supabase
       .from("projects")
       .insert({
@@ -354,7 +361,8 @@ function InquiryDetailContent({
         venue_address: localData.venue_address,
         date_start: localData.event_date_start,
         date_end: localData.event_date_end,
-        budget_planned: localData.estimated_budget,
+        budget_planned: inquiryBudgetPlanned,
+        revenue_actual: inquiryRevenue,
         created_by: user?.id,
       })
       .select()
