@@ -26,6 +26,15 @@ const defaultDepartments = [
   "Security",
 ];
 
+interface InquiryRsvp {
+  invitationId: string;
+  profileId: string;
+  name: string;
+  email: string | null;
+  avatarUrl: string | null;
+  respondedAt: string | null;
+}
+
 export function TabTeam({ projectId }: TabTeamProps) {
   const supabase = createClient();
   const [projectMembers, setProjectMembers] = useState<(ProjectMember & { profiles?: { name: string; email: string } })[]>([]);
@@ -33,6 +42,8 @@ export function TabTeam({ projectId }: TabTeamProps) {
   const [contacts, setContacts] = useState<ProjectContact[]>([]);
   const [guests, setGuests] = useState<(ProjectGuest & { org_guests?: OrgGuest })[]>([]);
   const [orgGuests, setOrgGuests] = useState<OrgGuest[]>([]);
+  const [inquiryRsvps, setInquiryRsvps] = useState<InquiryRsvp[]>([]);
+  const [linkedInquiryId, setLinkedInquiryId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Guest form
@@ -61,19 +72,45 @@ export function TabTeam({ projectId }: TabTeamProps) {
   const [savingContact, setSavingContact] = useState(false);
 
   const loadData = useCallback(async () => {
-    const [membersRes, teamRes, guestsRes, contactsRes, orgGuestsRes] = await Promise.all([
+    const [membersRes, teamRes, guestsRes, contactsRes, orgGuestsRes, inquiryRes] = await Promise.all([
       supabase.from("project_members").select("*, profiles(name, email)").eq("project_id", projectId),
       supabase.from("project_team").select("*").eq("project_id", projectId).order("department").order("created_at"),
       supabase.from("project_guests").select("*, org_guests(*)").eq("project_id", projectId).order("created_at"),
       supabase.from("project_contacts").select("*").eq("project_id", projectId).order("created_at"),
       // org_guests entfaellt im neuen Modell
       Promise.resolve({ data: [] as OrgGuest[] }),
+      // Verknuepfte Anfrage zum Projekt finden (fuer RSVP-Zusagen)
+      supabase.from("inquiries").select("id").eq("project_id", projectId).maybeSingle(),
     ]);
     if (membersRes.data) setProjectMembers(membersRes.data as any);
     if (teamRes.data) setMembers(teamRes.data as TeamMember[]);
     if (guestsRes.data) setGuests(guestsRes.data as any);
     if (contactsRes.data) setContacts(contactsRes.data as ProjectContact[]);
     if (orgGuestsRes.data) setOrgGuests(orgGuestsRes.data as OrgGuest[]);
+
+    // Wenn Projekt aus Anfrage erstellt wurde: Zugesagte RSVPs laden
+    const inquiryId = (inquiryRes.data as { id: string } | null)?.id ?? null;
+    setLinkedInquiryId(inquiryId);
+    if (inquiryId) {
+      const { data: rsvps } = await supabase
+        .from("inquiry_invitations")
+        .select("id, invited_profile_id, status, responded_at, profiles!invited_profile_id(id, name, email, avatar_url)")
+        .eq("inquiry_id", inquiryId)
+        .eq("status", "accepted");
+      if (rsvps) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        setInquiryRsvps(rsvps.map((r: any) => ({
+          invitationId: r.id,
+          profileId: r.invited_profile_id,
+          name: r.profiles?.name || "Unbekannt",
+          email: r.profiles?.email || null,
+          avatarUrl: r.profiles?.avatar_url || null,
+          respondedAt: r.responded_at,
+        })));
+      }
+    } else {
+      setInquiryRsvps([]);
+    }
     setLoading(false);
   }, [supabase, projectId]);
 
@@ -101,6 +138,14 @@ export function TabTeam({ projectId }: TabTeamProps) {
     table: "project_members",
     filter: { column: "project_id", value: projectId },
     onDataChange: loadData,
+  });
+  useRealtimeTable({
+    table: "inquiry_invitations",
+    filter: linkedInquiryId
+      ? { column: "inquiry_id", value: linkedInquiryId }
+      : undefined,
+    onDataChange: loadData,
+    enabled: !!linkedInquiryId,
   });
 
   // Gruppen-Logik: nach department gruppieren
@@ -473,6 +518,86 @@ export function TabTeam({ projectId }: TabTeamProps) {
             Mitglied hinzufügen
           </button>
         </div>
+
+        {/* RSVP-Zusagen aus verknuepfter Anfrage */}
+        {linkedInquiryId && inquiryRsvps.length > 0 && (
+          <div
+            className="mb-4 p-4 rounded-lg"
+            style={{
+              border: "1px solid var(--color-success)",
+              background: "color-mix(in srgb, var(--color-success) 6%, transparent)",
+            }}
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <span
+                className="text-xs font-semibold uppercase tracking-wider"
+                style={{ color: "var(--color-success)" }}
+              >
+                Aus Anfrage zugesagt
+              </span>
+              <span
+                className="text-xs px-1.5 py-0.5 rounded-full font-medium"
+                style={{
+                  background: "var(--color-success-light)",
+                  color: "var(--color-success)",
+                }}
+              >
+                {inquiryRsvps.length}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {inquiryRsvps.map((r) => (
+                <div
+                  key={r.invitationId}
+                  className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
+                  style={{
+                    background: "var(--color-surface)",
+                    border: "1px solid var(--color-border)",
+                  }}
+                >
+                  {r.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={r.avatarUrl}
+                      alt={r.name}
+                      className="w-8 h-8 rounded-full object-cover shrink-0"
+                    />
+                  ) : (
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                      style={{
+                        background: "var(--color-success-light)",
+                        color: "var(--color-success)",
+                      }}
+                    >
+                      {r.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">{r.name}</div>
+                    {r.email && (
+                      <div
+                        className="text-xs truncate"
+                        style={{ color: "var(--color-muted-foreground)" }}
+                      >
+                        {r.email}
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-medium ml-1 shrink-0"
+                    style={{
+                      background: "var(--color-success-light)",
+                      color: "var(--color-success)",
+                    }}
+                  >
+                    Zugesagt
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {showTeamForm && (
           <div className="mb-4 p-5 rounded-lg" style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}>
