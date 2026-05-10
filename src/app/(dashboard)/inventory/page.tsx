@@ -119,6 +119,8 @@ function InventoryPage() {
   const [formPowerWatts, setFormPowerWatts] = useState<number | "">("");
   const [formAccessories, setFormAccessories] = useState<string[]>([]);
   const [formAccessoryCustom, setFormAccessoryCustom] = useState("");
+  const [formTags, setFormTags] = useState<string[]>([]);
+  const [formTagCustom, setFormTagCustom] = useState("");
   const [formCustomField, setFormCustomField] = useState("");
   const [formManufacturerUrl, setFormManufacturerUrl] = useState("");
   const [formManualUrl, setFormManualUrl] = useState("");
@@ -348,6 +350,7 @@ function InventoryPage() {
       dimensions: formDimensions || null,
       power_watts: formPowerWatts !== "" ? Number(formPowerWatts) : null,
       accessories: formAccessories.length > 0 ? formAccessories : null,
+      tags: formTags,
       custom_field: formCustomField || null,
       manufacturer_url: formManufacturerUrl || null,
       manual_url: formManualUrl || null,
@@ -359,7 +362,7 @@ function InventoryPage() {
       setFormQuantity(1); setFormCondition("new"); setFormCostPerDay(0); setFormLocation("");
       setFormDeviceName(""); setFormSerialNumber(""); setFormPurchasePrice("");
       setFormDimensions(""); setFormPowerWatts(""); setFormAccessories([]);
-      setFormAccessoryCustom(""); setFormCustomField("");
+      setFormAccessoryCustom(""); setFormTags([]); setFormTagCustom(""); setFormCustomField("");
       setFormManufacturerUrl(""); setFormManualUrl(""); setShowCreateDetails(false);
       setShowCreate(false);
       loadItems();
@@ -425,6 +428,7 @@ function InventoryPage() {
           i.serial_number?.toLowerCase().includes(q) ||
           i.custom_field?.toLowerCase().includes(q) ||
           i.accessories?.some((a) => a.toLowerCase().includes(q)) ||
+          i.tags?.some((t) => t.toLowerCase().includes(q)) ||
           i.manufacturer_url?.toLowerCase().includes(q) ||
           i.manual_url?.toLowerCase().includes(q)
       );
@@ -434,6 +438,19 @@ function InventoryPage() {
 
   const totalQuantity = filtered.reduce((sum, i) => sum + i.quantity, 0);
   const totalValue = filtered.reduce((sum, i) => sum + Number(i.cost_per_day) * i.quantity, 0);
+
+  // Duplicate-Hint im Anlegen-Dialog: aehnliche Items (Name, Tags, device_name)
+  const duplicateCandidates = useMemo(() => {
+    const q = formName.trim().toLowerCase();
+    if (q.length < 3) return [];
+    return items
+      .filter((i) =>
+        i.name.toLowerCase().includes(q) ||
+        i.device_name?.toLowerCase().includes(q) ||
+        i.tags?.some((t) => t.toLowerCase().includes(q))
+      )
+      .slice(0, 5);
+  }, [formName, items]);
 
   function handleExportXLS() {
     const rows = filtered.map((item) => ({
@@ -622,6 +639,21 @@ function InventoryPage() {
                   className="w-full px-3 py-2 rounded-lg text-sm"
                   style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
                   placeholder="z.B. Beamer Epson EB-U50" required />
+                {duplicateCandidates.length > 0 && (
+                  <div className="mt-2 px-3 py-2 rounded-lg text-xs"
+                    style={{ background: "var(--color-warning-light)", color: "var(--color-warning)", border: "1px solid var(--color-warning)" }}>
+                    <div className="font-medium mb-1">&Auml;hnliche Eintr&auml;ge schon vorhanden:</div>
+                    <ul className="space-y-0.5">
+                      {duplicateCandidates.map((c) => (
+                        <li key={c.id}>
+                          &middot; {c.inventory_number ? `${c.inventory_number} — ` : ""}{c.name}
+                          {c.device_name ? ` (${c.device_name})` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-1 opacity-80">Pr&uuml;fe, ob du das Item ggf. nur erg&auml;nzen statt neu anlegen solltest.</div>
+                  </div>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-1.5">Kategorie</label>
@@ -795,6 +827,47 @@ function InventoryPage() {
                           setFormAccessories((prev) => [...prev, formAccessoryCustom.trim()]);
                         }
                         setFormAccessoryCustom("");
+                      }}
+                      className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                      style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}>
+                      +
+                    </button>
+                  </div>
+                </div>
+                {/* Tags / Suchbegriffe */}
+                <div>
+                  <label className="block text-sm font-medium mb-1.5">Tags / Suchbegriffe</label>
+                  <p className="text-xs mb-2" style={{ color: "var(--color-muted-foreground)" }}>
+                    Mehrere Begriffe, unter denen das Item gefunden werden soll (z.B. &bdquo;Beamer&ldquo;, &bdquo;Projektor&ldquo;, &bdquo;EB-U50&ldquo;).
+                  </p>
+                  <div className="flex flex-wrap gap-1.5 mb-2">
+                    {formTags.map((t) => (
+                      <span key={t} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
+                        style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}>
+                        #{t}
+                        <button type="button" onClick={() => setFormTags((prev) => prev.filter((x) => x !== t))} className="ml-0.5 hover:opacity-70">&times;</button>
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input type="text" value={formTagCustom}
+                      onChange={(e) => setFormTagCustom(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && formTagCustom.trim()) {
+                          e.preventDefault();
+                          const v = formTagCustom.trim();
+                          if (!formTags.includes(v)) setFormTags((prev) => [...prev, v]);
+                          setFormTagCustom("");
+                        }
+                      }}
+                      className="flex-1 px-3 py-1.5 rounded-lg text-xs"
+                      style={{ border: "1px solid var(--color-border)", background: "var(--color-background)" }}
+                      placeholder="Tag eingeben + Enter" />
+                    <button type="button"
+                      onClick={() => {
+                        const v = formTagCustom.trim();
+                        if (v && !formTags.includes(v)) setFormTags((prev) => [...prev, v]);
+                        setFormTagCustom("");
                       }}
                       className="px-3 py-1.5 rounded-lg text-xs font-medium"
                       style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}>

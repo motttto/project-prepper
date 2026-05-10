@@ -201,6 +201,8 @@ export type InventoryItem = {
   dimensions: string | null;
   power_watts: number | null;
   accessories: string[] | null;
+  /** Frei waehlbare Suchbegriffe / Aliase (Migration 096) */
+  tags: string[];
   custom_field: string | null;
   manufacturer_url: string | null;
   manual_url: string | null;

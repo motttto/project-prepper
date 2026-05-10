@@ -79,6 +79,8 @@ export function InventoryDetailModal({
   const [powerWatts, setPowerWatts] = useState(item.power_watts ?? "");
   const [accessories, setAccessories] = useState<string[]>(item.accessories || []);
   const [accessoryCustom, setAccessoryCustom] = useState("");
+  const [tags, setTags] = useState<string[]>(item.tags || []);
+  const [tagCustom, setTagCustom] = useState("");
   const [customField, setCustomField] = useState(item.custom_field || "");
   const [manufacturerUrl, setManufacturerUrl] = useState(item.manufacturer_url || "");
   const [manualUrl, setManualUrl] = useState(item.manual_url || "");
@@ -133,6 +135,7 @@ export function InventoryDetailModal({
       dimensions !== (item.dimensions || "") ||
       String(powerWatts) !== String(item.power_watts ?? "") ||
       JSON.stringify(accessories) !== JSON.stringify(item.accessories || []) ||
+      JSON.stringify(tags) !== JSON.stringify(item.tags || []) ||
       customField !== (item.custom_field || "") ||
       manufacturerUrl !== (item.manufacturer_url || "") ||
       manualUrl !== (item.manual_url || "") ||
@@ -145,7 +148,7 @@ export function InventoryDetailModal({
       isSharable !== (item.is_shareable ?? false) ||
       sharingNotes !== (item.sharing_notes || "");
     setHasChanges(changed);
-  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, deviceName, serialNumber, purchasePrice, dimensions, powerWatts, accessories, customField, manufacturerUrl, manualUrl, ownershipType, ownerProfileId, fundingSource, depreciationMethod, depreciationYears, residualValue, isSharable, sharingNotes, item]);
+  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, deviceName, serialNumber, purchasePrice, dimensions, powerWatts, accessories, tags, customField, manufacturerUrl, manualUrl, ownershipType, ownerProfileId, fundingSource, depreciationMethod, depreciationYears, residualValue, isSharable, sharingNotes, item]);
 
   // Einzelstücke laden
   useEffect(() => {
@@ -310,6 +313,7 @@ export function InventoryDetailModal({
         dimensions: dimensions || null,
         power_watts: powerWatts !== "" ? Number(powerWatts) : null,
         accessories: accessories.length > 0 ? accessories : null,
+        tags,
         custom_field: customField || null,
         manufacturer_url: manufacturerUrl || null,
         manual_url: manualUrl || null,
@@ -942,6 +946,57 @@ export function InventoryDetailModal({
                   +
                 </button>
               </div>
+              )}
+            </div>
+            )}
+
+            {/* Tags / Suchbegriffe */}
+            {(isEditable || tags.length > 0) && (
+            <div className="mt-4">
+              <label className="block text-xs font-medium mb-2"
+                style={{ color: "var(--color-muted-foreground)" }}>
+                Tags / Suchbegriffe
+              </label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {tags.map((t) => (
+                  <span key={t} className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium"
+                    style={{ background: "var(--color-info-light)", color: "var(--color-info)" }}>
+                    #{t}
+                    {isEditable && (
+                      <button type="button" onClick={() => setTags((prev) => prev.filter((x) => x !== t))} className="ml-0.5 hover:opacity-70">&times;</button>
+                    )}
+                  </span>
+                ))}
+                {tags.length === 0 && !isEditable && (
+                  <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>—</span>
+                )}
+              </div>
+              {isEditable && (
+                <div className="flex gap-2">
+                  <input type="text" value={tagCustom}
+                    onChange={(e) => setTagCustom(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && tagCustom.trim()) {
+                        e.preventDefault();
+                        const v = tagCustom.trim();
+                        if (!tags.includes(v)) setTags((prev) => [...prev, v]);
+                        setTagCustom("");
+                      }
+                    }}
+                    className="flex-1 px-3 py-1.5 rounded-lg text-xs"
+                    style={inputStyle}
+                    placeholder="Tag hinzuf&uuml;gen + Enter (z.B. Beamer, Projektor)" />
+                  <button type="button"
+                    onClick={() => {
+                      const v = tagCustom.trim();
+                      if (v && !tags.includes(v)) setTags((prev) => [...prev, v]);
+                      setTagCustom("");
+                    }}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                    style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}>
+                    +
+                  </button>
+                </div>
               )}
             </div>
             )}
