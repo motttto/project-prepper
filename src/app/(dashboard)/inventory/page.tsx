@@ -352,28 +352,32 @@ function InventoryPage() {
     e.preventDefault();
     setSaving(true);
     const invNumber = formInventoryNumber || generateNextNumber(formCategory || "Sonstiges", items);
-    const { error } = await supabase.from("inventory_items").insert({
-      inventory_number: invNumber,
-      name: formName,
-      description: formDescription || null,
-      category: formCategory || "Sonstiges",
-      quantity: formQuantity,
-      condition: formCondition,
-      cost_per_day: formCostPerDay,
-      location: formLocation || null,
-      owner_profile_id: groupId ? null : ownerId,
-      owner_group_id: groupId ?? null,
-      device_name: formDeviceName || null,
-      serial_number: formSerialNumber || null,
-      purchase_price: formPurchasePrice !== "" ? Number(formPurchasePrice) : null,
-      dimensions: formDimensions || null,
-      power_watts: formPowerWatts !== "" ? Number(formPowerWatts) : null,
-      accessories: formAccessories.length > 0 ? formAccessories : null,
-      tags: formTags,
-      custom_field: formCustomField || null,
-      manufacturer_url: formManufacturerUrl || null,
-      manual_url: formManualUrl || null,
-    });
+    const { data: created, error } = await supabase
+      .from("inventory_items")
+      .insert({
+        inventory_number: invNumber,
+        name: formName,
+        description: formDescription || null,
+        category: formCategory || "Sonstiges",
+        quantity: formQuantity,
+        condition: formCondition,
+        cost_per_day: formCostPerDay,
+        location: formLocation || null,
+        owner_profile_id: groupId ? null : ownerId,
+        owner_group_id: groupId ?? null,
+        device_name: formDeviceName || null,
+        serial_number: formSerialNumber || null,
+        purchase_price: formPurchasePrice !== "" ? Number(formPurchasePrice) : null,
+        dimensions: formDimensions || null,
+        power_watts: formPowerWatts !== "" ? Number(formPowerWatts) : null,
+        accessories: formAccessories.length > 0 ? formAccessories : null,
+        tags: formTags,
+        custom_field: formCustomField || null,
+        manufacturer_url: formManufacturerUrl || null,
+        manual_url: formManualUrl || null,
+      })
+      .select()
+      .single();
     if (error) {
       showToast("Fehler beim Erstellen: " + error.message, "error");
     } else {
@@ -385,7 +389,10 @@ function InventoryPage() {
       setFormManufacturerUrl(""); setFormManualUrl(""); setShowCreateDetails(false);
       setShowCreate(false);
       loadItems();
-      showToast("Artikel erstellt", "success");
+      // Direkt das Detail-Modal oeffnen, damit User Foto / Eigentum /
+      // Sharing / Abschreibung / Einzelstuecke ohne Umweg ergaenzen kann.
+      if (created) setSelectedItem(created as InventoryItem);
+      showToast("Artikel erstellt — Details ergänzen", "success");
       // logActivity entfaellt während Refactor (org_activity_log noch nicht migriert)
     }
     setSaving(false);
