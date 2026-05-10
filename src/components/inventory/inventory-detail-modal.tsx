@@ -1435,8 +1435,8 @@ export function InventoryDetailModal({
                       className="flex items-center gap-3 px-3 py-2 rounded-lg"
                       style={{ background: "var(--color-muted)", border: "1px solid var(--color-border-light)" }}
                     >
-                      <span className="text-xs font-mono font-bold shrink-0" style={{ color: "var(--color-muted-foreground)", minWidth: "2rem" }}>
-                        #{unit.unit_number}
+                      <span className="text-xs font-mono font-bold shrink-0" style={{ color: "var(--color-muted-foreground)" }}>
+                        {item.inventory_number}-{unit.unit_number}
                       </span>
                       <select
                         value={unit.condition}
