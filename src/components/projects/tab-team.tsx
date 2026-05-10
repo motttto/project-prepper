@@ -359,6 +359,24 @@ export function TabTeam({ projectId, onOpenMembersPanel }: TabTeamProps) {
     loadData();
   }
 
+  // Self-Leave: Aktueller User loescht seine eigene project_members-Zeile.
+  // Per Migration 095 darf jedes aktive Gruppenmitglied project_members loeschen.
+  async function handleLeaveProject() {
+    if (!currentUserId) return;
+    if (!(await appConfirm("Mich aus diesem Projekt austragen?", { variant: "danger", confirmLabel: "Austragen" }))) return;
+    const { error } = await supabase
+      .from("project_members")
+      .delete()
+      .eq("project_id", projectId)
+      .eq("profile_id", currentUserId);
+    if (error) {
+      showToast("Konnte nicht austragen: " + error.message, "error");
+      return;
+    }
+    showToast("Du wurdest aus dem Projekt ausgetragen.", "success");
+    loadData();
+  }
+
   if (loading) {
     return <div className="py-8 text-center" style={{ color: "var(--color-muted-foreground)" }}>Team wird geladen...</div>;
   }
@@ -484,6 +502,8 @@ export function TabTeam({ projectId, onOpenMembersPanel }: TabTeamProps) {
                     : t === "success"
                       ? { bg: "var(--color-success-light)", color: "var(--color-success)" }
                       : { bg: "var(--color-primary-light)", color: "var(--color-primary)" };
+                const isSelf = m.profileId === currentUserId;
+                const canSelfLeave = isSelf && m.isProjectMember && !m.isOwner;
                 return (
                   <div key={m.profileId}
                     className="flex items-center gap-2.5 px-3 py-2 rounded-lg"
@@ -499,7 +519,7 @@ export function TabTeam({ projectId, onOpenMembersPanel }: TabTeamProps) {
                         {m.name.charAt(0).toUpperCase()}
                       </div>
                     )}
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium">{m.name}</div>
                       {m.email && (
                         <div className="text-xs truncate"
@@ -522,6 +542,17 @@ export function TabTeam({ projectId, onOpenMembersPanel }: TabTeamProps) {
                         </div>
                       )}
                     </div>
+                    {canSelfLeave && (
+                      <button
+                        type="button"
+                        onClick={handleLeaveProject}
+                        title="Mich aus diesem Projekt austragen"
+                        className="shrink-0 px-2 py-1 rounded text-[11px] font-medium transition-colors"
+                        style={{ border: "1px solid var(--color-destructive)", color: "var(--color-destructive)", background: "transparent" }}
+                      >
+                        Austragen
+                      </button>
+                    )}
                   </div>
                 );
               })}
