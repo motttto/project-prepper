@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { IconCalendar, IconPlus, IconTrash, IconX } from "@/components/ui/icons";
 import { showToast } from "@/hooks/use-toast";
 import { appConfirm } from "@/components/ui/confirm-dialog";
 import { createClient } from "@/lib/supabase";
 import { useOrg, useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
+
+const LOANS_GROUP_ID = "__loans__";
+const LOANS_GROUP_COLOR = "#A855F7";
 
 type CalendarGroup = {
   id: string;
@@ -26,6 +30,19 @@ type CalendarEvent = {
   end_at: string | null;
   created_by: string | null;
   groupName?: string;
+  isLoan?: boolean;
+  loanProjectId?: string;
+};
+
+type LoanRow = {
+  id: string;
+  quantity: number;
+  date_from: string;
+  date_to: string;
+  status: string;
+  approval_status: string;
+  inventory_items: { name: string } | null;
+  projects: { id: string; title: string; org_id: string | null } | null;
 };
 
 type ViewMode = "month" | "week";
@@ -165,14 +182,16 @@ function toDateTimeInputValue(d: Date): string {
 
 export default function CalendarPage() {
   const supabase = createClient();
+  const router = useRouter();
   // groupId aus useWorkspace; orgId Alias für Backward-Compat im restlichen Code
   const { groupId, isSolo, groupName } = useWorkspace();
   const orgId = groupId;
   const orgName = groupName;
   const currentUser = useCurrentUser();
 
-  const [groups, setGroups] = useState<CalendarGroup[]>([]);
-  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [groupsRaw, setGroupsRaw] = useState<CalendarGroup[]>([]);
+  const [eventsRaw, setEventsRaw] = useState<CalendarEvent[]>([]);
+  const [loans, setLoans] = useState<LoanRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -187,8 +206,44 @@ export default function CalendarPage() {
   const [showSubscribeInfo, setShowSubscribeInfo] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
+  // Verleih (virtuelle Gruppe) — synthetische Events aus Bookings
+  const loanEvents: CalendarEvent[] = useMemo(() => loans.map((b) => {
+    const itemName = b.inventory_items?.name ?? "Equipment";
+    const projectTitle = b.projects?.title ?? "Projekt";
+    const summary = `${b.quantity}x ${itemName} — ${projectTitle}`;
+    const description = b.approval_status === "pending"
+      ? "Status: Anfrage offen"
+      : b.status === "checked_out" ? "Status: Ausgegeben"
+      : b.status === "returned" ? "Status: Zurueck"
+      : "Status: Reserviert";
+    return {
+      id: `loan-${b.id}`,
+      group_id: LOANS_GROUP_ID,
+      summary,
+      description,
+      location: null,
+      all_day: true,
+      start_at: `${b.date_from}T00:00:00Z`,
+      end_at: `${b.date_to}T00:00:00Z`,
+      created_by: null,
+      isLoan: true,
+      loanProjectId: b.projects?.id,
+    } as CalendarEvent;
+  }), [loans]);
+
+  const groups = useMemo<CalendarGroup[]>(() => (
+    loans.length > 0
+      ? [...groupsRaw, { id: LOANS_GROUP_ID, name: "Verleih", color: LOANS_GROUP_COLOR, sort_order: 9999 }]
+      : groupsRaw
+  ), [groupsRaw, loans.length]);
+
+  const events = useMemo<CalendarEvent[]>(() => (
+    [...eventsRaw, ...loanEvents]
+  ), [eventsRaw, loanEvents]);
+
   // Group color helper
   const getEventColor = useCallback((event: CalendarEvent) => {
+    if (event.isLoan) return LOANS_GROUP_COLOR;
     const idx = groups.findIndex((g) => g.id === event.group_id);
     return getGroupColor(groups[idx], idx);
   }, [groups]);
@@ -201,11 +256,11 @@ export default function CalendarPage() {
       .select("*")
       .eq("group_id", groupId)
       .order("sort_order");
-    if (data) setGroups(data);
+    if (data) setGroupsRaw(data);
   }, [supabase, orgId]);
 
   const fetchEvents = useCallback(async () => {
-    if (!groupId || groups.length === 0) {
+    if (!groupId || groupsRaw.length === 0) {
       setLoading(false);
       return;
     }
@@ -223,7 +278,7 @@ export default function CalendarPage() {
     }
 
     // calendar_events über calendar_groups Ids filtern (keine direkte org/group_id Spalte)
-    const groupIds = groups.map((g) => g.id);
+    const groupIds = groupsRaw.map((g) => g.id);
     const { data } = await supabase
       .from("calendar_events")
       .select("*")
@@ -232,12 +287,41 @@ export default function CalendarPage() {
       .lte("start_at", end.toISOString())
       .order("start_at");
 
-    if (data) setEvents(data);
+    if (data) setEventsRaw(data);
     setLoading(false);
-  }, [supabase, groupId, groups, currentDate, viewMode]);
+  }, [supabase, groupId, groupsRaw, currentDate, viewMode]);
+
+  // Bookings (Verleih) im selben Zeitfenster fetchen
+  const fetchLoans = useCallback(async () => {
+    if (!orgId) return;
+    let start: Date;
+    let end: Date;
+    if (viewMode === "month") {
+      start = new Date(currentDate.getFullYear(), currentDate.getMonth(), -7);
+      end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 14);
+    } else {
+      const monday = getMonday(currentDate);
+      start = new Date(monday); start.setDate(start.getDate() - 1);
+      end = new Date(monday); end.setDate(end.getDate() + 8);
+    }
+    const startStr = start.toISOString().slice(0, 10);
+    const endStr = end.toISOString().slice(0, 10);
+
+    // Overlap: date_from <= end AND date_to >= start
+    const { data } = await supabase
+      .from("bookings")
+      .select("id,quantity,date_from,date_to,status,approval_status,inventory_items(name),projects!inner(id,title,org_id)")
+      .eq("projects.org_id", orgId)
+      .neq("approval_status", "rejected")
+      .lte("date_from", endStr)
+      .gte("date_to", startStr);
+
+    if (data) setLoans(data as unknown as LoanRow[]);
+  }, [supabase, orgId, currentDate, viewMode]);
 
   useEffect(() => { fetchGroups(); }, [fetchGroups]);
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
+  useEffect(() => { fetchLoans(); }, [fetchLoans]);
 
   // Realtime
   useEffect(() => {
@@ -246,9 +330,19 @@ export default function CalendarPage() {
       .channel("calendar-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "calendar_events" }, () => fetchEvents())
       .on("postgres_changes", { event: "*", schema: "public", table: "calendar_groups", filter: `group_id=eq.${groupId}` }, () => { fetchGroups(); fetchEvents(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchLoans())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [supabase, orgId, fetchEvents, fetchGroups]);
+  }, [supabase, orgId, fetchEvents, fetchGroups, fetchLoans]);
+
+  // Klick auf Event → Loan: zum Projekt navigieren, sonst Detail-Modal
+  const handleEventClick = useCallback((event: CalendarEvent) => {
+    if (event.isLoan && event.loanProjectId) {
+      router.push(`/projects/${event.loanProjectId}`);
+    } else {
+      setSelectedEvent(event);
+    }
+  }, [router]);
 
   // Navigation
   function goNext() {
@@ -304,7 +398,7 @@ export default function CalendarPage() {
       if (!(await appConfirm(`"${event.summary}" wirklich löschen?`, { variant: "danger", confirmLabel: "Löschen" }))) return;
     }
     // Optimistisch: sofort aus UI entfernen
-    setEvents(prev => prev.filter(e => e.id !== event.id));
+    setEventsRaw(prev => prev.filter(e => e.id !== event.id));
     setSelectedEvent(null);
     setEditEvent(null);
     setShowCreateModal(false);
@@ -628,7 +722,7 @@ export default function CalendarPage() {
                             return (
                               <button
                                 key={event.id + event.start_at}
-                                onClick={() => setSelectedEvent(event)}
+                                onClick={() => handleEventClick(event)}
                                 className="w-full text-left px-1.5 py-[3px] rounded text-[11px] leading-tight truncate font-medium transition-opacity hover:opacity-80 flex items-center gap-0"
                                 style={{ background: `${color}18`, borderLeft: `3px solid ${color}`, color }}
                                 title={event.summary}
@@ -666,7 +760,7 @@ export default function CalendarPage() {
                   return (
                     <button
                       key={`${sp.event.id}-${wIdx}-span`}
-                      onClick={() => setSelectedEvent(sp.event)}
+                      onClick={() => handleEventClick(sp.event)}
                       className="absolute text-[11px] font-semibold truncate transition-opacity hover:opacity-80 z-[5] flex items-center"
                       style={{
                         top: 36 + sp.lane * SPAN_ROW_HEIGHT,
@@ -700,7 +794,7 @@ export default function CalendarPage() {
           today={today}
           getEventsForDay={getEventsForDay}
           getEventColor={getEventColor}
-          onEventClick={setSelectedEvent}
+          onEventClick={handleEventClick}
           onCreateClick={(date) => { setCreateForDate(date); setShowCreateModal(true); }}
         />
       )}

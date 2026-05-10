@@ -1,12 +1,16 @@
 import { type NextRequest } from "next/server";
 import { createServerSupabaseClient } from "@/lib/supabase-server";
 
+const LOANS_GROUP_ID = "loans";
+
 /**
  * iCal Feed — exportiert Kalender-Events als .ics
  * GET /api/calendar/feed?token=xxx[&group_id=yyy]
  *
  * Authentifizierung über Feed-Token (kein Session-Cookie nötig).
  * Damit können Apple Calendar, Google Calendar, Outlook etc. den Feed abonnieren.
+ *
+ * group_id=loans liefert die virtuelle Verleih-Collection (Bookings als read-only Events).
  */
 export async function GET(request: NextRequest) {
   const supabase = await createServerSupabaseClient();
@@ -38,20 +42,47 @@ export async function GET(request: NextRequest) {
     .eq("id", feedToken.id)
     .then();
 
-  // Fetch events
-  let query = supabase
-    .from("calendar_events")
-    .select("*")
-    .eq("org_id", orgId)
-    .order("start_at", { ascending: true });
+  const wantOnlyLoans = groupId === LOANS_GROUP_ID;
+  const wantLoans = !groupId || wantOnlyLoans;
 
-  if (groupId) {
-    query = query.eq("group_id", groupId);
+  // Fetch events (skip wenn nur Verleih angefragt)
+  let events: any[] = [];
+  if (!wantOnlyLoans) {
+    let query = supabase
+      .from("calendar_events")
+      .select("*")
+      .eq("org_id", orgId)
+      .order("start_at", { ascending: true });
+
+    if (groupId) {
+      query = query.eq("group_id", groupId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      return new Response("Database error", { status: 500 });
+    }
+    events = data || [];
   }
 
-  const { data: events, error } = await query;
-  if (error) {
-    return new Response("Database error", { status: 500 });
+  // Verleih-Collection (Bookings → virtuelle Events)
+  let loans: any[] = [];
+  if (wantLoans) {
+    const now = new Date();
+    const start = new Date(now); start.setUTCMonth(start.getUTCMonth() - 1);
+    const end = new Date(now); end.setUTCFullYear(end.getUTCFullYear() + 1);
+    const startStr = start.toISOString().slice(0, 10);
+    const endStr = end.toISOString().slice(0, 10);
+
+    const { data: bookings } = await supabase
+      .from("bookings")
+      .select("id,quantity,date_from,date_to,status,approval_status,created_at,inventory_items(name),projects!inner(id,title,org_id)")
+      .eq("projects.org_id", orgId)
+      .neq("approval_status", "rejected")
+      .lte("date_from", endStr)
+      .gte("date_to", startStr);
+
+    loans = bookings || [];
   }
 
   // Org-Name für Kalender-Titel
@@ -62,7 +93,9 @@ export async function GET(request: NextRequest) {
     .single();
 
   let calName = org?.name ? `${org.name} — Team-Kalender` : "Team-Kalender";
-  if (groupId) {
+  if (wantOnlyLoans) {
+    calName = `${org?.name || "Team"} — Verleih`;
+  } else if (groupId) {
     const { data: group } = await supabase
       .from("calendar_groups")
       .select("name")
@@ -82,7 +115,7 @@ export async function GET(request: NextRequest) {
     "X-WR-TIMEZONE:Europe/Berlin",
   ];
 
-  for (const evt of events || []) {
+  for (const evt of events) {
     const uid = evt.id + "@project-prepper";
     const created = formatIcalDate(evt.created_at);
     const modified = formatIcalDate(evt.updated_at || evt.created_at);
@@ -109,6 +142,31 @@ export async function GET(request: NextRequest) {
     if (evt.location) icsLines.push(`LOCATION:${escapeIcal(evt.location)}`);
     if (evt.description) icsLines.push(`DESCRIPTION:${escapeIcal(evt.description)}`);
     icsLines.push(`LAST-MODIFIED:${modified}`);
+    icsLines.push("END:VEVENT");
+  }
+
+  // Verleih-Bookings als read-only VEVENTs
+  for (const b of loans) {
+    const itemName = b.inventory_items?.name ?? "Equipment";
+    const projectTitle = b.projects?.title ?? "Projekt";
+    const summary = `${b.quantity}x ${itemName} — ${projectTitle}`;
+    const description = b.approval_status === "pending"
+      ? "Status: Anfrage offen"
+      : b.status === "checked_out" ? "Status: Ausgegeben"
+      : b.status === "returned" ? "Status: Zurueck"
+      : "Status: Reserviert";
+    const stamp = formatIcalDate(b.created_at);
+    const endDate = new Date(`${b.date_to}T00:00:00Z`);
+    endDate.setUTCDate(endDate.getUTCDate() + 1);
+
+    icsLines.push("BEGIN:VEVENT");
+    icsLines.push(`UID:loan-${b.id}@project-prepper`);
+    icsLines.push(`DTSTAMP:${stamp}`);
+    icsLines.push(`DTSTART;VALUE=DATE:${b.date_from.replace(/-/g, "")}`);
+    icsLines.push(`DTEND;VALUE=DATE:${formatIcalDateOnly(endDate.toISOString())}`);
+    icsLines.push(`SUMMARY:${escapeIcal(summary)}`);
+    icsLines.push(`DESCRIPTION:${escapeIcal(description)}`);
+    icsLines.push(`LAST-MODIFIED:${stamp}`);
     icsLines.push("END:VEVENT");
   }
 

@@ -20,6 +20,11 @@ const DAV_HEADERS = {
   DAV: "1, calendar-access",
 };
 
+// Virtuelle Verleih-Collection: Bookings als read-only iCal-Events
+const LOANS_GROUP_ID = "loans";
+const LOANS_GROUP_NAME = "Verleih";
+const LOANS_GROUP_COLOR = "#A855F7";
+
 // ============================================================
 // XML Builder (ported from xml.ts)
 // ============================================================
@@ -280,6 +285,142 @@ function supabaseQuery(env, path, options = {}) {
 }
 
 // ============================================================
+// Loans (Verleih) — virtuelle CalDAV-Collection aus Bookings
+// ============================================================
+
+function simpleHash(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h).toString(36);
+}
+
+function bookingToVirtualEvent(b) {
+  const itemName = b.inventory_items?.name ?? "Equipment";
+  const projectTitle = b.projects?.title ?? "Projekt";
+  const summary = `${b.quantity}x ${itemName} — ${projectTitle}`;
+  const description = b.approval_status === "pending"
+    ? "Status: Anfrage offen"
+    : b.status === "checked_out" ? "Status: Ausgegeben"
+    : b.status === "returned" ? "Status: Zurueck"
+    : "Status: Reserviert";
+  const sig = `${b.id}|${b.date_from}|${b.date_to}|${b.quantity}|${b.status}|${b.approval_status}`;
+  const etag = simpleHash(sig);
+  return {
+    id: b.id,
+    caldav_uid: `loan-${b.id}@project-prepper`,
+    summary,
+    description,
+    location: null,
+    all_day: true,
+    // generateVCalendar erwartet ISO-Strings; nur Datum reicht (parseDate)
+    start_at: `${b.date_from}T00:00:00Z`,
+    end_at: `${b.date_to}T00:00:00Z`,
+    created_at: b.created_at,
+    updated_at: b.created_at,
+    etag,
+  };
+}
+
+async function fetchLoanEvents(env, orgId) {
+  // Zeitfenster: heute -1 Monat bis +1 Jahr
+  const now = new Date();
+  const start = new Date(now); start.setUTCMonth(start.getUTCMonth() - 1);
+  const end = new Date(now); end.setUTCFullYear(end.getUTCFullYear() + 1);
+  const startStr = start.toISOString().slice(0, 10);
+  const endStr = end.toISOString().slice(0, 10);
+
+  const select = "id,quantity,date_from,date_to,status,approval_status,created_at,inventory_items(name),projects!inner(id,title,org_id)";
+  const filter = `projects.org_id=eq.${orgId}&approval_status=neq.rejected&date_from=lte.${endStr}&date_to=gte.${startStr}`;
+  const path = `bookings?select=${encodeURIComponent(select)}&${filter}`;
+
+  const { data } = await supabaseQuery(env, path);
+  if (!data || !Array.isArray(data)) return [];
+  return data.map(bookingToVirtualEvent);
+}
+
+function loanCollectionCtag(events) {
+  if (events.length === 0) return "0";
+  return `${events.length}-${simpleHash(events.map(e => e.etag).join(","))}`;
+}
+
+async function handleLoansPropfindCalendar(env, auth, baseHref, depth) {
+  const events = await fetchLoanEvents(env, auth.orgId);
+  const ctag = loanCollectionCtag(events);
+  const calHref = `${baseHref}calendars/${LOANS_GROUP_ID}/`;
+  let inner = xmlResponse(calHref, calendarProps(LOANS_GROUP_NAME, LOANS_GROUP_COLOR, ctag));
+
+  if (depth === "1") {
+    for (const e of events) {
+      inner += xmlResponse(`${calHref}${e.caldav_uid}.ics`, eventPropsXml(e.etag));
+    }
+  }
+  return davResponse(multistatus(inner));
+}
+
+async function handleLoansReport(env, auth, baseHref, body) {
+  const calHref = `${baseHref}calendars/${LOANS_GROUP_ID}/`;
+
+  if (body.includes("sync-collection")) {
+    return new Response(
+      `${XML_HEADER}\n<d:error xmlns:d="DAV:"><d:valid-sync-token>DAV:valid-sync-token</d:valid-sync-token></d:error>`,
+      { status: 403, headers: DAV_HEADERS }
+    );
+  }
+
+  const events = await fetchLoanEvents(env, auth.orgId);
+  const byUid = new Map(events.map(e => [e.caldav_uid, e]));
+
+  if (body.includes("calendar-multiget")) {
+    const hrefs = parseMultigetHrefs(body);
+    const uids = hrefs.map(h => { const m = h.match(/\/([^/]+)\.ics$/); return m ? decodeURIComponent(m[1]) : null; }).filter(Boolean);
+    let inner = "";
+    for (const uid of uids) {
+      const e = byUid.get(uid);
+      if (e) inner += xmlResponse(`${calHref}${e.caldav_uid}.ics`, eventWithData(e.etag, generateVCalendar(e)));
+    }
+    return davResponse(multistatus(inner));
+  }
+
+  // calendar-query (mit optionalem time-range)
+  const timeRange = parseTimeRange(body);
+  const requestedProps = parseRequestedProps(body);
+  const wantData = requestedProps.includes("calendar-data");
+
+  let filtered = events;
+  if (timeRange?.start || timeRange?.end) {
+    const tStart = timeRange.start ? new Date(timeRange.start) : null;
+    const tEnd = timeRange.end ? new Date(timeRange.end) : null;
+    filtered = events.filter(e => {
+      const s = new Date(e.start_at);
+      if (tEnd && s > tEnd) return false;
+      if (tStart && new Date(e.end_at || e.start_at) < tStart) return false;
+      return true;
+    });
+  }
+
+  let inner = "";
+  for (const e of filtered) {
+    const eventHref = `${calHref}${e.caldav_uid}.ics`;
+    inner += xmlResponse(eventHref, wantData ? eventWithData(e.etag, generateVCalendar(e)) : eventPropsXml(e.etag));
+  }
+  return davResponse(multistatus(inner));
+}
+
+async function handleLoansGetEvent(env, auth, eventFile) {
+  const uid = decodeURIComponent(eventFile.replace(/\.ics$/i, ""));
+  const events = await fetchLoanEvents(env, auth.orgId);
+  const event = events.find(e => e.caldav_uid === uid);
+  if (!event) return new Response("Not Found", { status: 404 });
+  return new Response(generateVCalendar(event), {
+    status: 200,
+    headers: { "Content-Type": "text/calendar; charset=utf-8", ETag: `"${event.etag}"`, DAV: "1, calendar-access" },
+  });
+}
+
+// ============================================================
 // Auth
 // ============================================================
 
@@ -367,11 +508,18 @@ async function handlePropfindCalendarHome(env, auth, baseHref, depth) {
         inner += xmlResponse(`${baseHref}calendars/${g.id}/`, calendarProps(g.name, g.color, g.ctag ?? 1));
       }
     }
+    // Verleih-Collection (virtuell, read-only)
+    const loanEvents = await fetchLoanEvents(env, auth.orgId);
+    const ctag = loanCollectionCtag(loanEvents);
+    inner += xmlResponse(`${baseHref}calendars/${LOANS_GROUP_ID}/`, calendarProps(LOANS_GROUP_NAME, LOANS_GROUP_COLOR, ctag));
   }
   return davResponse(multistatus(inner));
 }
 
 async function handlePropfindCalendar(env, auth, groupId, baseHref, depth) {
+  if (groupId === LOANS_GROUP_ID) {
+    return handleLoansPropfindCalendar(env, auth, baseHref, depth);
+  }
   const { data: group } = await supabaseQuery(env,
     `calendar_groups?id=eq.${groupId}&org_id=eq.${auth.orgId}&select=id,name,color,ctag`, { single: true }
   );
@@ -395,6 +543,9 @@ async function handlePropfindCalendar(env, auth, groupId, baseHref, depth) {
 }
 
 async function handleReport(env, auth, groupId, baseHref, body) {
+  if (groupId === LOANS_GROUP_ID) {
+    return handleLoansReport(env, auth, baseHref, body);
+  }
   const calHref = `${baseHref}calendars/${groupId}/`;
 
   // sync-collection → 403 (force CTag-based sync)
@@ -452,6 +603,9 @@ async function handleReport(env, auth, groupId, baseHref, body) {
 }
 
 async function handleGetEvent(env, auth, groupId, eventFile) {
+  if (groupId === LOANS_GROUP_ID) {
+    return handleLoansGetEvent(env, auth, eventFile);
+  }
   const uid = decodeURIComponent(eventFile.replace(/\.ics$/i, ""));
   const { data: event } = await supabaseQuery(env,
     `calendar_events?org_id=eq.${auth.orgId}&group_id=eq.${groupId}&caldav_uid=eq.${uid}&select=*`,
@@ -618,6 +772,7 @@ export default {
       case "PUT": {
         if (!auth.readWrite) return new Response("Forbidden — read-only token", { status: 403 });
         if (parsed.type !== "event") return new Response("Bad Request", { status: 400 });
+        if (parsed.groupId === LOANS_GROUP_ID) return new Response("Forbidden — Verleih ist read-only", { status: 403 });
         const body = await request.text();
         const ifMatch = request.headers.get("If-Match");
         return handlePutEvent(env, auth, parsed.groupId, parsed.eventFile, body, ifMatch, baseHref);
@@ -626,6 +781,7 @@ export default {
       case "DELETE":
         if (!auth.readWrite) return new Response("Forbidden", { status: 403 });
         if (parsed.type !== "event") return new Response("Bad Request", { status: 400 });
+        if (parsed.groupId === LOANS_GROUP_ID) return new Response("Forbidden — Verleih ist read-only", { status: 403 });
         return handleDeleteEvent(env, auth, parsed.groupId, parsed.eventFile);
 
       case "PROPPATCH": {
