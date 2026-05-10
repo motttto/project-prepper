@@ -1198,19 +1198,19 @@ function InventoryPage() {
                       </div>
                     ) : item.owner_profile_id ? (
                       <span
-                        className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full"
+                        className="text-xs px-1.5 py-0.5 rounded-full"
                         style={{ background: "var(--color-muted)", color: "var(--color-foreground)" }}
                         title="Eigentümer"
                       >
-                        👤 {profileMap.get(item.owner_profile_id) || "—"}
+                        {profileMap.get(item.owner_profile_id) || "—"}
                       </span>
                     ) : groupId && groupName ? (
                       <span
-                        className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full"
+                        className="text-xs px-1.5 py-0.5 rounded-full"
                         style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}
                         title="Gruppen-Eigentum"
                       >
-                        🛡️ {groupName}
+                        {groupName}
                       </span>
                     ) : (
                       <span className="text-xs italic" style={{ color: "var(--color-muted-foreground)" }}>
