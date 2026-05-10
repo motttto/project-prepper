@@ -94,7 +94,8 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
   }
 
   async function createPayoutDecision() {
-    if (!currentUser || !agreement || shares.length === 0 || !project.group_id) return;
+    const projectGroupId = project.owner_group_id ?? project.group_id;
+    if (!currentUser || !agreement || shares.length === 0 || !projectGroupId) return;
     setCreatingDecision(true);
 
     const totalPayout = shares.reduce((s, sh) => s + sh.calculated_amount, 0);
@@ -105,7 +106,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
     const { data, error } = await supabase
       .from("org_decisions")
       .insert({
-        group_id: project.group_id,
+        group_id: projectGroupId,
         title: `Gewinn-Auszahlung: ${project.name}`,
         description: `Gesamt: ${totalPayout.toFixed(2)}€\n\nVerteilung:\n${breakdown}`,
         decision_type: "profit_distribution",
@@ -315,7 +316,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
           )}
 
           {/* Auszahlungs-Voting */}
-          {agreement.status === "active" && netProfit > 0 && project.group_id && (
+          {agreement.status === "active" && netProfit > 0 && (project.owner_group_id ?? project.group_id) && (
             <div className="mt-4 pt-3 border-t" style={{ borderColor: "var(--color-border)" }}>
               {openDecisionId ? (
                 <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: "var(--color-info-light)" }}>
@@ -328,7 +329,7 @@ export function TabProfit({ project, canEdit }: TabProfitProps) {
                     </div>
                   </div>
                   <Link
-                    href={`/groups/${project.group_id}`}
+                    href={`/groups/${project.owner_group_id ?? project.group_id}`}
                     className="text-xs px-3 py-1.5 rounded-lg font-medium"
                     style={{ background: "var(--color-info)", color: "white" }}
                   >

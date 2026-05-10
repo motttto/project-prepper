@@ -186,7 +186,7 @@ function InquiryDetailContent({
 
   // Telegram-Chat-ID der zugeordneten Gruppe laden
   const [telegramChatId, setTelegramChatId] = useState<number | null>(null);
-  const inquiryGroupId = inquiry?.group_id ?? null;
+  const inquiryGroupId = inquiry?.owner_group_id ?? inquiry?.group_id ?? null;
   useEffect(() => {
     if (!inquiryGroupId) {
       setTelegramChatId(null);
@@ -579,7 +579,7 @@ function InquiryDetailContent({
         <InquiryRsvpBanner
           inquiryId={inquiry.id}
           currentUserId={currentUser.id}
-          groupId={inquiry.group_id}
+          groupId={inquiry.owner_group_id ?? inquiry.group_id}
         />
       )}
 

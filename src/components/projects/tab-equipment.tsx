@@ -114,7 +114,7 @@ export function TabEquipment({ projectId, project }: TabEquipmentProps) {
 
     setAvailableItems(allItems);
     setLoading(false);
-  }, [supabase, currentUser, projectId, project.group_id]);
+  }, [supabase, currentUser, projectId, project.owner_group_id, project.group_id]);
 
   useEffect(() => {
     loadAll();
@@ -165,7 +165,7 @@ export function TabEquipment({ projectId, project }: TabEquipmentProps) {
             Equipment-Buchungen
           </h2>
           <p className="text-xs mt-0.5" style={{ color: "var(--color-muted-foreground)" }}>
-            {project.group_id
+            {(project.owner_group_id ?? project.group_id)
               ? "Buchungen aus eigenem Inventar + freigegebenen Items der Gruppe"
               : "Buchungen aus deinem Inventar"}
           </p>
