@@ -303,13 +303,32 @@ function InventoryPage() {
     loadCategories();
   }, [loadCategories]);
 
-  // Profile-Map: Im Solo-Modus nur eigener User. (Group-Member kommen in Phase 4)
+  // Profile-Map: aktueller User + alle aktiven Gruppenmitglieder, damit
+  // Eigentuemer-Namen auf geteilten Items im Gruppeninventar aufloesen.
   useEffect(() => {
-    if (!currentUser) return;
-    const map = new Map<string, string>();
-    map.set(currentUser.id, currentUser.name);
-    setProfileMap(map);
-  }, [currentUser]);
+    let cancelled = false;
+    async function loadProfiles() {
+      if (!currentUser) return;
+      const map = new Map<string, string>();
+      map.set(currentUser.id, currentUser.name);
+      if (groupId) {
+        const { data } = await supabase
+          .from("group_memberships")
+          .select("profile_id, is_active, profile:profiles(name)")
+          .eq("group_id", groupId)
+          .eq("is_active", true);
+        for (const row of (data ?? []) as { profile_id: string; profile: { name: string | null } | { name: string | null }[] | null }[]) {
+          const profile = Array.isArray(row.profile) ? row.profile[0] : row.profile;
+          if (profile?.name) map.set(row.profile_id, profile.name);
+        }
+      }
+      if (!cancelled) setProfileMap(map);
+    }
+    loadProfiles();
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUser, groupId, supabase]);
 
   // Realtime: Kategorien (einfach alle, RLS schraenkt ein)
   useRealtimeTable({
