@@ -72,26 +72,44 @@ export function TabEquipment({ projectId, project }: TabEquipmentProps) {
       (i) => ({ ...(i as InventoryItem), ownerName: "Du", daily_rate: i.cost_per_day })
     );
 
-    // 3. Falls Projekt zu einer Gruppe gehört: zusaetzlich Items, die für diese Gruppe freigegeben sind
-    if (project.group_id) {
-      const { data: shares } = await supabase
-        .from("inventory_group_shares")
-        .select("inventory_item_id, daily_rate, inventory_items(*, owner:profiles!owner_profile_id(name))")
-        .eq("group_id", project.group_id)
-        .is("revoked_at", null);
+    // 3. Falls Projekt zu einer Gruppe gehört: zusaetzlich
+    //    a) Items, die der Gruppe direkt gehoeren (owner_group_id, Migration 086)
+    //    b) Items, die Mitglieder fuer diese Gruppe freigegeben haben (inventory_group_shares)
+    const projectGroupId = project.owner_group_id ?? project.group_id;
+    if (projectGroupId) {
+      const [groupOwnedRes, sharesRes] = await Promise.all([
+        supabase
+          .from("inventory_items")
+          .select("*")
+          .eq("owner_group_id", projectGroupId),
+        supabase
+          .from("inventory_group_shares")
+          .select("inventory_item_id, daily_rate, inventory_items(*, owner:profiles!owner_profile_id(name))")
+          .eq("group_id", projectGroupId)
+          .is("revoked_at", null),
+      ]);
+
+      const groupOwnedItems = (groupOwnedRes.data || []).map((i) => ({
+        ...(i as InventoryItem),
+        ownerName: "Gruppe",
+        daily_rate: Number(i.cost_per_day),
+      }));
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sharedItems = (shares || []).map((s: any) => ({
+      const sharedItems = (sharesRes.data || []).map((s: any) => ({
         ...(s.inventory_items as InventoryItem),
         ownerName: s.inventory_items?.owner?.name || "?",
         daily_rate: Number(s.daily_rate),
       }));
 
-      // Duplikate vermeiden (eigene Items koennten dabei sein)
-      const ownIds = new Set(allItems.map((i) => i.id));
-      sharedItems.forEach((i) => {
-        if (!ownIds.has(i.id)) allItems.push(i);
-      });
+      // Duplikate vermeiden (eigene Items + Gruppen-Items koennten doppelt vorkommen)
+      const seen = new Set(allItems.map((i) => i.id));
+      for (const i of [...groupOwnedItems, ...sharedItems]) {
+        if (!seen.has(i.id)) {
+          allItems.push(i);
+          seen.add(i.id);
+        }
+      }
     }
 
     setAvailableItems(allItems);
