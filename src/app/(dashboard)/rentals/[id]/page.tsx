@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase";
 import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
+import { useWorkspace } from "@/contexts/org-context";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { DateInput } from "@/components/ui/date-input";
 import { showToast } from "@/hooks/use-toast";
@@ -121,6 +122,7 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
   const supabase = createClient();
   const router = useRouter();
   const currentUser = useCurrentUser();
+  const { isSolo } = useWorkspace();
   const canEdit = hasPermission(currentUser, "rentals_edit");
 
   const [rental, setRental] = useState<Rental | null>(null);
@@ -724,7 +726,8 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                   const ownerId = it.inventory_items?.owner_profile_id ?? null;
                   const isMyItem = currentUser?.id != null && ownerId === currentUser.id;
                   const status = it.approval_status;
-                  const showApprovalActions = isMyItem && status === "pending";
+                  // Owner-Approval gemaess /modi-Guideline nur im Solo-Modus
+                  const showApprovalActions = isSolo && isMyItem && status === "pending";
                   const proposed = it.proposed_rate != null ? Number(it.proposed_rate) : null;
                   const agreed = it.agreed_rate != null ? Number(it.agreed_rate) : null;
                   const effectiveRate = agreed ?? proposed ?? 0;

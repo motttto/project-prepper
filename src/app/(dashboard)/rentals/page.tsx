@@ -807,8 +807,9 @@ export default function RentalsPage() {
         </div>
       )}
 
-      {/* Mein Equipment unterwegs — Verleihe mit Items, die mir gehören */}
-      {myItemRentals.length > 0 && (
+      {/* Mein Equipment unterwegs — gemaess /modi-Guideline nur im Solo-Modus.
+          Im Gruppen-Modus sind Owner-Entscheidungen nicht zustaendig. */}
+      {!groupId && myItemRentals.length > 0 && (
         <div className="mt-10">
           <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
             <IconPackage size={18} />

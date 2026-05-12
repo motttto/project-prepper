@@ -85,7 +85,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       const counts: Record<string, number> = {};
 
       // Pending project & inquiry invitations für diesen User (User-First)
-      // + Pending rental approvals (Owner muss zustimmen)
+      // + Pending rental approvals (Owner muss zustimmen, gemaess /modi nur Solo)
       const [projRes, inqRes, rentRes] = await Promise.all([
         supabase
           .from("project_invitations")
@@ -97,11 +97,13 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           .select("id")
           .eq("invited_profile_id", userId)
           .eq("status", "pending"),
-        supabase
-          .from("rental_items")
-          .select("id, inventory_items!inner(owner_profile_id)")
-          .eq("approval_status", "pending")
-          .eq("inventory_items.owner_profile_id", userId),
+        activeGroupId
+          ? Promise.resolve({ data: [] as { id: string }[] })
+          : supabase
+              .from("rental_items")
+              .select("id, inventory_items!inner(owner_profile_id)")
+              .eq("approval_status", "pending")
+              .eq("inventory_items.owner_profile_id", userId),
       ]);
       counts["/projects"] = projRes.data?.length || 0;
       counts["/inquiries"] = inqRes.data?.length || 0;
@@ -123,7 +125,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, userId]);
+  }, [supabase, userId, activeGroupId]);
 
   // Sidebar auf Mobile schließen bei Navigation
   useEffect(() => {
