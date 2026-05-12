@@ -912,8 +912,11 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                         </button>
                       )}
                     </div>
-                    {/* Zweite Reihe: fehlende Freigabe / Approval-Block */}
-                    {missingShare && isMyItem && rental.owner_group_id && (
+                    {/* Zweite Reihe: fehlende Freigabe.
+                        Wird nur bei pending angezeigt — bei approved/auto/rejected ist
+                        der Verleih fuer dieses Item ohnehin entschieden, der Share-Eintrag
+                        ist dann nur noch eine Konfigurations-Frage, kein Blocker. */}
+                    {missingShare && status === "pending" && isMyItem && rental.owner_group_id && (
                       <ShareWithGroupBlock
                         defaultRate={proposed ?? 0}
                         onShare={(r) =>
@@ -921,7 +924,7 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                         }
                       />
                     )}
-                    {missingShare && !isMyItem && (
+                    {missingShare && status === "pending" && !isMyItem && (
                       <div className="flex flex-wrap items-center gap-2 text-xs px-1" style={{ color: "var(--color-destructive)" }}>
                         <span>⚠ Nicht für die Gruppe freigegeben — Ausgabe blockiert bis der Eigentümer zustimmt.</span>
                       </div>
