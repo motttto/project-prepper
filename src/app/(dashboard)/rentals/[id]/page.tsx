@@ -626,8 +626,12 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                       </span>
                       <span className="text-sm font-semibold tabular-nums">{it.quantity}×</span>
                       {av && status !== "rejected" && (
-                        <span className="text-xs tabular-nums" style={{ color: "var(--color-muted-foreground)" }}>
-                          {av.available} von {av.total} sonst frei
+                        <span
+                          className="text-xs tabular-nums"
+                          style={{ color: "var(--color-muted-foreground)" }}
+                          title={`Bestand ${av.total} Stück, ${av.available} davon frei im Zeitraum (ohne diesen Verleih).`}
+                        >
+                          Bestand: {av.total}
                         </span>
                       )}
                       {/* Anteilige Kostenposition: cost_per_day × Tage × quantity */}
