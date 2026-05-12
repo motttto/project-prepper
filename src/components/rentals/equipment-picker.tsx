@@ -63,15 +63,51 @@ export function EquipmentPicker({ dateFrom, dateTo, picked, onChange, excludeRen
   }, [refreshAvailability]);
 
   // Inventar laden (im Workspace-Scope) + Owner-Labels aufloesen
+  // Siehe /modi-Skill: Gruppen-Picker enthaelt Gruppen-Items UNION shares.
   useEffect(() => {
     async function load() {
       if (!ownerId) return;
-      const query = groupId
-        ? supabase.from("inventory_items").select("*").eq("owner_group_id", groupId)
-        : supabase.from("inventory_items").select("*").eq("owner_profile_id", ownerId);
-      const { data } = await query.order("name");
-      if (!data) return;
-      const list = data as InventoryItem[];
+
+      let list: InventoryItem[] = [];
+
+      if (groupId) {
+        // 1) Items die der Gruppe direkt gehoeren
+        const { data: groupItems } = await supabase
+          .from("inventory_items")
+          .select("*")
+          .eq("owner_group_id", groupId);
+
+        // 2) Items die Solo-User der Gruppe via inventory_group_shares freigegeben haben
+        const { data: shares } = await supabase
+          .from("inventory_group_shares")
+          .select("inventory_item_id")
+          .eq("group_id", groupId)
+          .is("revoked_at", null);
+
+        const sharedIds = (shares ?? []).map((s) => s.inventory_item_id);
+        let sharedItems: InventoryItem[] = [];
+        if (sharedIds.length > 0) {
+          const { data } = await supabase
+            .from("inventory_items")
+            .select("*")
+            .in("id", sharedIds);
+          sharedItems = (data ?? []) as InventoryItem[];
+        }
+
+        // Dedupliziert (Items koennen theoretisch ueber beide Quellen kommen)
+        const merged = new Map<string, InventoryItem>();
+        for (const it of (groupItems ?? []) as InventoryItem[]) merged.set(it.id, it);
+        for (const it of sharedItems) merged.set(it.id, it);
+        list = Array.from(merged.values()).sort((a, b) => a.name.localeCompare(b.name));
+      } else {
+        const { data } = await supabase
+          .from("inventory_items")
+          .select("*")
+          .eq("owner_profile_id", ownerId)
+          .order("name");
+        list = (data ?? []) as InventoryItem[];
+      }
+
       setItems(list);
 
       // Owner-Labels in einem Rutsch nachladen
