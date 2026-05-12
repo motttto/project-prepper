@@ -10,7 +10,8 @@ import { DateInput } from "@/components/ui/date-input";
 import { showToast } from "@/hooks/use-toast";
 import { appConfirm } from "@/components/ui/confirm-dialog";
 import { EquipmentPicker, type PickedItem } from "@/components/rentals/equipment-picker";
-import type { Rental, RentalStatus } from "@/types/database";
+import type { Rental, RentalStatus, RentalItemApprovalStatus } from "@/types/database";
+import { rentalItemApprovalLabels } from "@/types/database";
 import {
   IconPlus,
   IconSearch,
@@ -49,6 +50,32 @@ const filterLabels: Record<StatusFilter, string> = {
 
 type RentalWithCounts = Rental & { itemCount: number };
 
+type MyItemRental = {
+  rental_item_id: string;
+  rental_id: string;
+  item_name: string;
+  inventory_number: string;
+  quantity: number;
+  approval_status: RentalItemApprovalStatus;
+  rejection_reason: string | null;
+  rental: {
+    borrower_name: string;
+    date_from: string;
+    date_to: string;
+    status: RentalStatus;
+    owner_group_id: string | null;
+    rental_fee: number | null;
+    groups: { name: string } | null;
+  };
+};
+
+const approvalBadgeColors: Record<RentalItemApprovalStatus, { bg: string; color: string }> = {
+  auto: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)" },
+  pending: { bg: "var(--color-warning-light)", color: "var(--color-warning)" },
+  approved: { bg: "var(--color-success-light)", color: "var(--color-success)" },
+  rejected: { bg: "var(--color-destructive-light)", color: "var(--color-destructive)" },
+};
+
 export default function RentalsPage() {
   const supabase = createClient();
   const router = useRouter();
@@ -61,6 +88,7 @@ export default function RentalsPage() {
   const canEdit = hasPermission(currentUser, "rentals_edit");
 
   const [rentals, setRentals] = useState<RentalWithCounts[]>([]);
+  const [myItemRentals, setMyItemRentals] = useState<MyItemRental[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("open");
@@ -118,12 +146,83 @@ export default function RentalsPage() {
     setLoading(true);
   }, [groupId]);
 
+  // Verleihe in denen MEIN Equipment verwendet wird (durch andere User).
+  // Nur Solo-Owner-Items relevant — bei Group-Owned-Items gibt es keinen Einzel-Approver.
+  const loadMyItemRentals = useCallback(async () => {
+    if (!ownerId) {
+      setMyItemRentals([]);
+      return;
+    }
+    const { data } = await supabase
+      .from("rental_items")
+      .select(`
+        id,
+        rental_id,
+        quantity,
+        approval_status,
+        rejection_reason,
+        inventory_items!inner(name, inventory_number, owner_profile_id),
+        rentals!inner(
+          borrower_name, date_from, date_to, status, owner_group_id, rental_fee,
+          groups:owner_group_id(name)
+        )
+      `)
+      .eq("inventory_items.owner_profile_id", ownerId)
+      .neq("rentals.owner_profile_id", ownerId)
+      .order("created_at", { ascending: false });
+
+    if (data) {
+      const mapped: MyItemRental[] = (data as any[]).map((row) => ({
+        rental_item_id: row.id,
+        rental_id: row.rental_id,
+        item_name: row.inventory_items?.name ?? "Gerät",
+        inventory_number: row.inventory_items?.inventory_number ?? "",
+        quantity: row.quantity,
+        approval_status: row.approval_status,
+        rejection_reason: row.rejection_reason,
+        rental: {
+          borrower_name: row.rentals?.borrower_name ?? "",
+          date_from: row.rentals?.date_from,
+          date_to: row.rentals?.date_to,
+          status: row.rentals?.status,
+          owner_group_id: row.rentals?.owner_group_id,
+          rental_fee: row.rentals?.rental_fee,
+          groups: row.rentals?.groups ?? null,
+        },
+      }));
+      setMyItemRentals(mapped);
+    }
+  }, [supabase, ownerId]);
+
   useEffect(() => {
     loadRentals();
-  }, [loadRentals]);
+    loadMyItemRentals();
+  }, [loadRentals, loadMyItemRentals]);
 
-  useRealtimeTable({ table: "rentals", onDataChange: loadRentals });
-  useRealtimeTable({ table: "rental_items", onDataChange: loadRentals });
+  useRealtimeTable({ table: "rentals", onDataChange: () => { loadRentals(); loadMyItemRentals(); } });
+  useRealtimeTable({ table: "rental_items", onDataChange: () => { loadRentals(); loadMyItemRentals(); } });
+
+  async function handleApproveItem(rentalItemId: string) {
+    const { error } = await supabase.rpc("approve_rental_item", { p_rental_item_id: rentalItemId });
+    if (error) showToast("Fehler: " + error.message, "error");
+    else {
+      showToast("Freigegeben", "success");
+      loadMyItemRentals();
+    }
+  }
+
+  async function handleRejectItem(rentalItemId: string) {
+    const reason = window.prompt("Grund für die Ablehnung (optional):") ?? null;
+    const { error } = await supabase.rpc("reject_rental_item", {
+      p_rental_item_id: rentalItemId,
+      p_reason: reason,
+    });
+    if (error) showToast("Fehler: " + error.message, "error");
+    else {
+      showToast("Abgelehnt", "success");
+      loadMyItemRentals();
+    }
+  }
 
   const filtered = useMemo(() => {
     let result = rentals;
@@ -635,6 +734,100 @@ export default function RentalsPage() {
               <IconChevronRight size={16} className="opacity-30 group-hover:opacity-60 transition-opacity flex-shrink-0" />
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Mein Equipment unterwegs — Verleihe mit Items, die mir gehören */}
+      {myItemRentals.length > 0 && (
+        <div className="mt-10">
+          <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
+            <IconPackage size={18} />
+            Mein Equipment unterwegs
+            <span
+              className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ background: "var(--color-muted)", color: "var(--color-muted-foreground)" }}
+            >
+              {myItemRentals.length}
+            </span>
+          </h2>
+          <p className="text-sm mb-4" style={{ color: "var(--color-muted-foreground)" }}>
+            Geräte aus deinem Inventar, die über eine Gruppe verliehen werden.
+          </p>
+          <div className="space-y-2">
+            {myItemRentals.map((row) => {
+              const status = row.approval_status;
+              const showActions = status === "pending";
+              const days = Math.max(
+                1,
+                Math.round((new Date(row.rental.date_to).getTime() - new Date(row.rental.date_from).getTime()) / 86400000) + 1
+              );
+              return (
+                <div
+                  key={row.rental_item_id}
+                  className="flex flex-wrap items-center gap-3 p-3 rounded-xl"
+                  style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{row.item_name}</span>
+                      <span className="text-xs tabular-nums" style={{ color: "var(--color-muted-foreground)" }}>
+                        {row.inventory_number} · {row.quantity}×
+                      </span>
+                      <span
+                        className="text-xs font-medium px-1.5 py-0.5 rounded"
+                        style={{ background: approvalBadgeColors[status].bg, color: approvalBadgeColors[status].color }}
+                        title={status === "rejected" && row.rejection_reason ? `Grund: ${row.rejection_reason}` : undefined}
+                      >
+                        {rentalItemApprovalLabels[status]}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 mt-0.5 text-xs flex-wrap" style={{ color: "var(--color-muted-foreground)" }}>
+                      <span>
+                        an <strong style={{ color: "var(--color-foreground)" }}>{row.rental.borrower_name}</strong>
+                      </span>
+                      {row.rental.groups && (
+                        <span>via {row.rental.groups.name}</span>
+                      )}
+                      <span>
+                        {new Date(row.rental.date_from).toLocaleDateString("de-DE", { day: "numeric", month: "short" })}
+                        {" – "}
+                        {new Date(row.rental.date_to).toLocaleDateString("de-DE", { day: "numeric", month: "short", year: "numeric" })}
+                        {" "}({days}t)
+                      </span>
+                      {row.rental.rental_fee != null && (
+                        <span>Leihgebühr: {Number(row.rental.rental_fee).toLocaleString("de-DE")} €</span>
+                      )}
+                    </div>
+                  </div>
+                  {showActions && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleApproveItem(row.rental_item_id)}
+                        className="px-3 py-1.5 rounded text-xs font-medium text-white"
+                        style={{ background: "var(--color-success)" }}
+                      >
+                        Freigeben
+                      </button>
+                      <button
+                        onClick={() => handleRejectItem(row.rental_item_id)}
+                        className="px-3 py-1.5 rounded text-xs font-medium"
+                        style={{ border: "1px solid var(--color-destructive)", color: "var(--color-destructive)" }}
+                      >
+                        Ablehnen
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => router.push(`/rentals/${row.rental_id}`)}
+                    className="text-xs px-2 py-1 rounded"
+                    style={{ border: "1px solid var(--color-border)", color: "var(--color-muted-foreground)" }}
+                  >
+                    Verleih ansehen
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

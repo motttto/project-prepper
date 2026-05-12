@@ -10,7 +10,14 @@ import { DateInput } from "@/components/ui/date-input";
 import { showToast } from "@/hooks/use-toast";
 import { appConfirm } from "@/components/ui/confirm-dialog";
 import { EquipmentPicker, type PickedItem } from "@/components/rentals/equipment-picker";
-import type { Rental, RentalItem, RentalStatus, InventoryAvailability } from "@/types/database";
+import type {
+  Rental,
+  RentalItem,
+  RentalStatus,
+  InventoryAvailability,
+  RentalItemApprovalStatus,
+} from "@/types/database";
+import { rentalItemApprovalLabels } from "@/types/database";
 import {
   IconChevronLeft,
   IconTrash,
@@ -18,6 +25,13 @@ import {
   IconCheck,
   IconX,
 } from "@/components/ui/icons";
+
+const approvalColors: Record<RentalItemApprovalStatus, { bg: string; color: string }> = {
+  auto: { bg: "var(--color-muted)", color: "var(--color-muted-foreground)" },
+  pending: { bg: "var(--color-warning-light)", color: "var(--color-warning)" },
+  approved: { bg: "var(--color-success-light)", color: "var(--color-success)" },
+  rejected: { bg: "var(--color-destructive-light)", color: "var(--color-destructive)" },
+};
 
 const statusLabels: Record<RentalStatus, string> = {
   reserved: "Reserviert",
@@ -76,7 +90,7 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
 
     const { data: itemsData } = await supabase
       .from("rental_items")
-      .select("*, inventory_items(id, name, inventory_number, image_url, quantity)")
+      .select("*, inventory_items(id, name, inventory_number, image_url, quantity, owner_profile_id, loan_approval_mode)")
       .eq("rental_id", id)
       .order("created_at");
 
@@ -164,24 +178,50 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
       return;
     }
 
-    // Items: einfach löschen + neu anlegen (pragmatisch)
-    const { error: delErr } = await supabase.from("rental_items").delete().eq("rental_id", rental.id);
-    if (delErr) {
-      showToast("Fehler bei Equipment: " + delErr.message, "error");
-      setSaving(false);
-      return;
+    // Diff statt delete-all/insert-all, damit approval_status erhalten bleibt.
+    const existing = new Map(items.map((it) => [it.inventory_item_id, it]));
+    const desired = new Map(editItems.map((p) => [p.inventory_item_id, p]));
+
+    const toDelete = items.filter((it) => !desired.has(it.inventory_item_id));
+    const toInsert = editItems.filter((p) => !existing.has(p.inventory_item_id));
+    const toUpdate = editItems.filter((p) => {
+      const ex = existing.get(p.inventory_item_id);
+      return ex && ex.quantity !== p.quantity;
+    });
+
+    if (toDelete.length > 0) {
+      const { error } = await supabase.from("rental_items").delete().in("id", toDelete.map((it) => it.id));
+      if (error) {
+        showToast("Fehler bei Equipment: " + error.message, "error");
+        setSaving(false);
+        return;
+      }
     }
-    const { error: insErr } = await supabase.from("rental_items").insert(
-      editItems.map((p) => ({
-        rental_id: rental.id,
-        inventory_item_id: p.inventory_item_id,
-        quantity: p.quantity,
-      }))
-    );
-    if (insErr) {
-      showToast("Fehler bei Equipment: " + insErr.message, "error");
-      setSaving(false);
-      return;
+    if (toInsert.length > 0) {
+      const { error } = await supabase.from("rental_items").insert(
+        toInsert.map((p) => ({
+          rental_id: rental.id,
+          inventory_item_id: p.inventory_item_id,
+          quantity: p.quantity,
+        }))
+      );
+      if (error) {
+        showToast("Fehler bei Equipment: " + error.message, "error");
+        setSaving(false);
+        return;
+      }
+    }
+    for (const p of toUpdate) {
+      const ex = existing.get(p.inventory_item_id)!;
+      const { error } = await supabase
+        .from("rental_items")
+        .update({ quantity: p.quantity })
+        .eq("id", ex.id);
+      if (error) {
+        showToast("Fehler bei Equipment: " + error.message, "error");
+        setSaving(false);
+        return;
+      }
     }
 
     setEditMode(false);
@@ -195,6 +235,28 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
     const { error } = await supabase.from("rentals").update({ status: newStatus }).eq("id", rental.id);
     if (error) showToast("Fehler: " + error.message, "error");
     else load();
+  }
+
+  async function handleApprove(rentalItemId: string) {
+    const { error } = await supabase.rpc("approve_rental_item", { p_rental_item_id: rentalItemId });
+    if (error) showToast("Fehler: " + error.message, "error");
+    else {
+      showToast("Freigegeben", "success");
+      load();
+    }
+  }
+
+  async function handleReject(rentalItemId: string) {
+    const reason = window.prompt("Grund für die Ablehnung (optional):") ?? null;
+    const { error } = await supabase.rpc("reject_rental_item", {
+      p_rental_item_id: rentalItemId,
+      p_reason: reason,
+    });
+    if (error) showToast("Fehler: " + error.message, "error");
+    else {
+      showToast("Abgelehnt", "success");
+      load();
+    }
   }
 
   async function handleDelete() {
@@ -496,34 +558,67 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
               <div className="space-y-1.5">
                 {items.map((it) => {
                   const av = it.availability;
-                  // Konflikt wenn andere Reservierungen + diese Menge > Bestand
                   const conflict = av && it.quantity > av.available;
+                  const ownerId = it.inventory_items?.owner_profile_id ?? null;
+                  const isMyItem = currentUser?.id != null && ownerId === currentUser.id;
+                  const status = it.approval_status;
+                  const showApprovalActions = isMyItem && status === "pending";
                   return (
                     <div
                       key={it.id}
-                      className="flex items-center gap-3 px-3 py-2 rounded-lg"
+                      className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg"
                       style={{
                         border: `1px solid ${conflict ? "var(--color-destructive)" : "var(--color-border-light)"}`,
                         background: conflict ? "var(--color-destructive-light)" : "var(--color-background)",
                       }}
                     >
-                      <span className="flex-1 text-sm">{it.inventory_items?.name ?? "Gerät"}</span>
+                      <span className="flex-1 text-sm min-w-0 truncate">{it.inventory_items?.name ?? "Gerät"}</span>
                       <span className="text-xs tabular-nums" style={{ color: "var(--color-muted-foreground)" }}>
                         {it.inventory_items?.inventory_number}
                       </span>
                       <span className="text-sm font-semibold tabular-nums">{it.quantity}×</span>
-                      {av && (
+                      {av && status !== "rejected" && (
                         <span className="text-xs tabular-nums" style={{ color: "var(--color-muted-foreground)" }}>
                           {av.available + it.quantity} von {av.total} sonst frei
                         </span>
                       )}
-                      {conflict && (
+                      {/* Approval-Status-Badge — nur anzeigen wenn nicht 'auto' */}
+                      {status !== "auto" && (
+                        <span
+                          className="text-xs font-medium px-1.5 py-0.5 rounded"
+                          style={{ background: approvalColors[status].bg, color: approvalColors[status].color }}
+                          title={status === "rejected" && it.rejection_reason ? `Grund: ${it.rejection_reason}` : undefined}
+                        >
+                          {rentalItemApprovalLabels[status]}
+                        </span>
+                      )}
+                      {conflict && status !== "rejected" && (
                         <span
                           className="text-xs font-medium px-1.5 py-0.5 rounded"
                           style={{ background: "var(--color-destructive)", color: "#fff" }}
                         >
                           Überbucht
                         </span>
+                      )}
+                      {showApprovalActions && (
+                        <div className="flex items-center gap-1 ml-auto">
+                          <button
+                            onClick={() => handleApprove(it.id)}
+                            className="px-2 py-1 rounded text-xs font-medium text-white"
+                            style={{ background: "var(--color-success)" }}
+                            title="Ausleihe freigeben"
+                          >
+                            Freigeben
+                          </button>
+                          <button
+                            onClick={() => handleReject(it.id)}
+                            className="px-2 py-1 rounded text-xs font-medium"
+                            style={{ border: "1px solid var(--color-destructive)", color: "var(--color-destructive)" }}
+                            title="Ausleihe ablehnen"
+                          >
+                            Ablehnen
+                          </button>
+                        </div>
                       )}
                     </div>
                   );

@@ -85,7 +85,8 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       const counts: Record<string, number> = {};
 
       // Pending project & inquiry invitations für diesen User (User-First)
-      const [projRes, inqRes] = await Promise.all([
+      // + Pending rental approvals (Owner muss zustimmen)
+      const [projRes, inqRes, rentRes] = await Promise.all([
         supabase
           .from("project_invitations")
           .select("id")
@@ -96,9 +97,15 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
           .select("id")
           .eq("invited_profile_id", userId)
           .eq("status", "pending"),
+        supabase
+          .from("rental_items")
+          .select("id, inventory_items!inner(owner_profile_id)")
+          .eq("approval_status", "pending")
+          .eq("inventory_items.owner_profile_id", userId),
       ]);
       counts["/projects"] = projRes.data?.length || 0;
       counts["/inquiries"] = inqRes.data?.length || 0;
+      counts["/rentals"] = rentRes.data?.length || 0;
 
       setBadgeCounts(counts);
     }
@@ -110,6 +117,7 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
       .on("postgres_changes", { event: "*", schema: "public", table: "project_invitations" }, loadCounts)
       .on("postgres_changes", { event: "*", schema: "public", table: "inquiry_invitations" }, loadCounts)
       .on("postgres_changes", { event: "*", schema: "public", table: "task_notifications" }, loadCounts)
+      .on("postgres_changes", { event: "*", schema: "public", table: "rental_items" }, loadCounts)
       .subscribe();
 
     return () => {

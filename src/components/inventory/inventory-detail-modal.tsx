@@ -94,6 +94,10 @@ export function InventoryDetailModal({
   // Sharing (Migration 041)
   const [isSharable, setIsSharable] = useState(item.is_shareable ?? false);
   const [sharingNotes, setSharingNotes] = useState(item.sharing_notes || "");
+  // Verleih-Freigabe-Modus (Migration 099)
+  const [loanApprovalMode, setLoanApprovalMode] = useState<"open" | "notify" | "manual">(
+    (item.loan_approval_mode as "open" | "notify" | "manual") ?? "manual"
+  );
   const [saving, setSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
   const [showOwnership, setShowOwnership] = useState(false);
@@ -146,9 +150,10 @@ export function InventoryDetailModal({
       depreciationYears !== (item.depreciation_years ?? 7) ||
       residualValue !== (item.residual_value ?? 0) ||
       isSharable !== (item.is_shareable ?? false) ||
-      sharingNotes !== (item.sharing_notes || "");
+      sharingNotes !== (item.sharing_notes || "") ||
+      loanApprovalMode !== ((item.loan_approval_mode as "open" | "notify" | "manual") ?? "manual");
     setHasChanges(changed);
-  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, deviceName, serialNumber, purchasePrice, dimensions, powerWatts, accessories, tags, customField, manufacturerUrl, manualUrl, ownershipType, ownerProfileId, fundingSource, depreciationMethod, depreciationYears, residualValue, isSharable, sharingNotes, item]);
+  }, [name, description, category, quantity, condition, costPerDay, location, purchasedBy, purchasedAt, deviceName, serialNumber, purchasePrice, dimensions, powerWatts, accessories, tags, customField, manufacturerUrl, manualUrl, ownershipType, ownerProfileId, fundingSource, depreciationMethod, depreciationYears, residualValue, isSharable, sharingNotes, loanApprovalMode, item]);
 
   // Einzelstücke laden
   useEffect(() => {
@@ -325,6 +330,7 @@ export function InventoryDetailModal({
         residual_value: residualValue,
         is_shareable: isSharable,
         sharing_notes: sharingNotes || null,
+        loan_approval_mode: loanApprovalMode,
       })
       .eq("id", item.id);
 
@@ -1270,6 +1276,31 @@ export function InventoryDetailModal({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Verleih-Freigabe-Modus (pro Item) */}
+          {isEditable && (
+            <div
+              className="pt-3"
+              style={{ borderTop: "1px solid var(--color-border-light)" }}
+            >
+              <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--color-muted-foreground)" }}>
+                Verleih-Freigabe
+              </h3>
+              <p className="text-xs mb-2" style={{ color: "var(--color-muted-foreground)" }}>
+                Bestimmt, wie eine Ausleihe durch andere User abläuft, wenn das Gerät über eine Gruppe geteilt ist.
+              </p>
+              <select
+                value={loanApprovalMode}
+                onChange={(e) => setLoanApprovalMode(e.target.value as "open" | "notify" | "manual")}
+                className="w-full px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+              >
+                <option value="open">Frei zur Verfügung — kein Approval nötig</option>
+                <option value="notify">Nur Info — läuft automatisch, du wirst informiert</option>
+                <option value="manual">Freigabe erforderlich — du musst jede Ausleihe bestätigen</option>
+              </select>
             </div>
           )}
 

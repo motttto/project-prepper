@@ -234,7 +234,17 @@ export type InventoryItem = {
   // Sharing (Migration 041)
   is_shareable: boolean;
   sharing_notes: string | null;
+  /** Verleih-Freigabe-Modus (Migration 099) */
+  loan_approval_mode: LoanApprovalMode;
   created_at: string;
+};
+
+export type LoanApprovalMode = "open" | "notify" | "manual";
+
+export const loanApprovalModeLabels: Record<LoanApprovalMode, string> = {
+  open: "Frei zur Verfügung",
+  notify: "Nur Info",
+  manual: "Freigabe erforderlich",
 };
 
 export type InventoryUnit = {
@@ -1098,6 +1108,15 @@ export type Rental = {
   borrower_profile?: { name: string; avatar_url: string | null } | null;
 };
 
+export type RentalItemApprovalStatus = "auto" | "pending" | "approved" | "rejected";
+
+export const rentalItemApprovalLabels: Record<RentalItemApprovalStatus, string> = {
+  auto: "Auto OK",
+  pending: "Freigabe ausstehend",
+  approved: "Freigegeben",
+  rejected: "Ausleihe abgelehnt",
+};
+
 export type RentalItem = {
   id: string;
   rental_id: string;
@@ -1105,9 +1124,20 @@ export type RentalItem = {
   unit_id: string | null;
   quantity: number;
   notes: string | null;
+  /** Approval pro Item (Migration 099) */
+  approval_status: RentalItemApprovalStatus;
+  approved_by: string | null;
+  approved_at: string | null;
+  rejection_reason: string | null;
   created_at: string;
   // Joined
-  inventory_items?: { name: string; inventory_number: string; image_url: string | null } | null;
+  inventory_items?: {
+    name: string;
+    inventory_number: string;
+    image_url: string | null;
+    owner_profile_id?: string | null;
+    loan_approval_mode?: LoanApprovalMode;
+  } | null;
   inventory_units?: { unit_number: number } | null;
 };
 
