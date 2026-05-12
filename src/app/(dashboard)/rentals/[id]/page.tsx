@@ -34,6 +34,55 @@ const approvalColors: Record<RentalItemApprovalStatus, { bg: string; color: stri
   rejected: { bg: "var(--color-destructive-light)", color: "var(--color-destructive)" },
 };
 
+function ShareWithGroupBlock({
+  defaultRate,
+  onShare,
+}: {
+  defaultRate: number;
+  onShare: (rate: number) => Promise<void>;
+}) {
+  const [rate, setRate] = useState<string>(String(defaultRate));
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span style={{ color: "var(--color-destructive)" }}>
+        ⚠ Nicht für die Gruppe freigegeben — Ausgabe blockiert.
+      </span>
+      <div className="flex items-center gap-1 ml-auto">
+        <label className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+          Tagessatz
+        </label>
+        <input
+          type="number"
+          min={0}
+          step={0.01}
+          value={rate}
+          onChange={(e) => setRate(e.target.value)}
+          className="w-20 px-2 py-1 rounded text-xs"
+          style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}
+        />
+        <span className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>€/Tag</span>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              await onShare(rate === "" ? 0 : Number(rate));
+            } finally {
+              setBusy(false);
+            }
+          }}
+          className="px-3 py-1 rounded text-xs font-medium text-white disabled:opacity-50"
+          style={{ background: "var(--color-primary)" }}
+        >
+          {busy ? "..." : "Jetzt freigeben"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function OwnerApprovalBlock({
   proposed,
   onApprove,
@@ -376,6 +425,36 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
     const { error } = await supabase.from("rentals").update({ status: newStatus }).eq("id", rental.id);
     if (error) showToast("Fehler: " + error.message, "error");
     else load();
+  }
+
+  // Item fuer die Verleih-Gruppe freigeben (legt inventory_group_shares an).
+  // /modi-Skill: Owner-Aktion auch in Gruppen-Detail-Seite inline erlaubt,
+  // weil sie sich im Kontext eines konkreten Gruppen-Verleihs befindet.
+  async function handleShareWithGroup(
+    rentalItemId: string,
+    itemId: string,
+    groupId: string,
+    dailyRate: number
+  ) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error: shareErr } = await supabase.from("inventory_group_shares").insert({
+      inventory_item_id: itemId,
+      group_id: groupId,
+      daily_rate: dailyRate,
+      shared_by: user.id,
+    });
+    if (shareErr) {
+      showToast("Fehler beim Freigeben: " + shareErr.message, "error");
+      return;
+    }
+    // proposed_rate des rental_items auf den Owner-Tagessatz synchronisieren.
+    await supabase
+      .from("rental_items")
+      .update({ proposed_rate: dailyRate })
+      .eq("id", rentalItemId);
+    showToast("Für Gruppe freigegeben", "success");
+    load();
   }
 
   async function handleUpdateItemQty(rentalItemId: string, newQty: number) {
@@ -834,7 +913,15 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                       )}
                     </div>
                     {/* Zweite Reihe: fehlende Freigabe / Approval-Block */}
-                    {missingShare && (
+                    {missingShare && isMyItem && rental.owner_group_id && (
+                      <ShareWithGroupBlock
+                        defaultRate={proposed ?? 0}
+                        onShare={(r) =>
+                          handleShareWithGroup(it.id, it.inventory_item_id, rental.owner_group_id!, r)
+                        }
+                      />
+                    )}
+                    {missingShare && !isMyItem && (
                       <div className="flex flex-wrap items-center gap-2 text-xs px-1" style={{ color: "var(--color-destructive)" }}>
                         <span>⚠ Nicht für die Gruppe freigegeben — Ausgabe blockiert bis der Eigentümer zustimmt.</span>
                       </div>
