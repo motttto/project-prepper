@@ -713,6 +713,14 @@ export default function RentalsPage() {
                 </div>
               </div>
 
+              {/* Leihgebühr */}
+              {rental.rental_fee != null && Number(rental.rental_fee) > 0 && (
+                <div className="text-sm font-semibold tabular-nums text-right" style={{ minWidth: 80 }}>
+                  {Number(rental.rental_fee).toLocaleString("de-DE")} €
+                  <div className="text-[10px] font-normal" style={{ color: "var(--color-muted-foreground)" }}>Leihgebühr</div>
+                </div>
+              )}
+
               {/* Kaution */}
               {Number(rental.deposit_amount) > 0 && (
                 <div className="text-sm font-semibold tabular-nums text-right" style={{ minWidth: 80 }}>
@@ -785,9 +793,6 @@ export default function RentalsPage() {
                       <span>
                         an <strong style={{ color: "var(--color-foreground)" }}>{row.rental.borrower_name}</strong>
                       </span>
-                      {row.rental.groups && (
-                        <span>via {row.rental.groups.name}</span>
-                      )}
                       <span>
                         {new Date(row.rental.date_from).toLocaleDateString("de-DE", { day: "numeric", month: "short" })}
                         {" – "}
