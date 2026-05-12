@@ -204,6 +204,8 @@ export default function RentalsPage() {
       setMyItemRentals([]);
       return;
     }
+    // Items die mir gehoeren — Verleih-Filter (nicht meine eigenen Solo-Verleihe)
+    // passiert clientseitig, weil .neq mit NULL in PostgREST nicht matched.
     const { data } = await supabase
       .from("rental_items")
       .select(`
@@ -216,35 +218,37 @@ export default function RentalsPage() {
         agreed_rate,
         inventory_items!inner(name, inventory_number, owner_profile_id),
         rentals!inner(
-          borrower_name, date_from, date_to, status, owner_group_id, rental_fee,
+          borrower_name, date_from, date_to, status, owner_profile_id, owner_group_id, rental_fee,
           groups:owner_group_id(name)
         )
       `)
       .eq("inventory_items.owner_profile_id", ownerId)
-      .neq("rentals.owner_profile_id", ownerId)
       .order("created_at", { ascending: false });
 
     if (data) {
-      const mapped: MyItemRental[] = (data as any[]).map((row) => ({
-        rental_item_id: row.id,
-        rental_id: row.rental_id,
-        item_name: row.inventory_items?.name ?? "Gerät",
-        inventory_number: row.inventory_items?.inventory_number ?? "",
-        quantity: row.quantity,
-        approval_status: row.approval_status,
-        rejection_reason: row.rejection_reason,
-        proposed_rate: row.proposed_rate,
-        agreed_rate: row.agreed_rate,
-        rental: {
-          borrower_name: row.rentals?.borrower_name ?? "",
-          date_from: row.rentals?.date_from,
-          date_to: row.rentals?.date_to,
-          status: row.rentals?.status,
-          owner_group_id: row.rentals?.owner_group_id,
-          rental_fee: row.rentals?.rental_fee,
-          groups: row.rentals?.groups ?? null,
-        },
-      }));
+      const mapped: MyItemRental[] = (data as any[])
+        // Eigene Solo-Verleihe ausfiltern (wenn rental.owner_profile_id == me)
+        .filter((row) => row.rentals?.owner_profile_id !== ownerId)
+        .map((row) => ({
+          rental_item_id: row.id,
+          rental_id: row.rental_id,
+          item_name: row.inventory_items?.name ?? "Gerät",
+          inventory_number: row.inventory_items?.inventory_number ?? "",
+          quantity: row.quantity,
+          approval_status: row.approval_status,
+          rejection_reason: row.rejection_reason,
+          proposed_rate: row.proposed_rate,
+          agreed_rate: row.agreed_rate,
+          rental: {
+            borrower_name: row.rentals?.borrower_name ?? "",
+            date_from: row.rentals?.date_from,
+            date_to: row.rentals?.date_to,
+            status: row.rentals?.status,
+            owner_group_id: row.rentals?.owner_group_id,
+            rental_fee: row.rentals?.rental_fee,
+            groups: row.rentals?.groups ?? null,
+          },
+        }));
       setMyItemRentals(mapped);
     }
   }, [supabase, ownerId]);
