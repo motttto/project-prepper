@@ -92,16 +92,21 @@ Im Code **immer** `groupId`/`isSolo` zur Modus-Unterscheidung nutzen — niemals
    - Verleih-Detail zeigt ROLAND nun als "Freigegeben" mit zugestimmtem Tagessatz
    - Verleih kann jetzt auf `active` gesetzt werden (war vorher blockiert)
 
-## Implementation-Lücken (Stand: Migration 101)
+## Implementation-Status (Stand: nach den Commits 423cdb4..a0e7892)
 
-Diese Stellen entsprechen aktuell **nicht** der Guideline und sollten beim nächsten Touchen gefixt werden:
+Umgesetzt:
+- [x] **Verleih-Picker im Gruppen-Modus** lädt jetzt auch via `inventory_group_shares` geteilte Items (`src/components/rentals/equipment-picker.tsx`).
+- [x] **Owner-Approval-Buttons** in `/rentals/[id]` nur sichtbar wenn `isSolo`.
+- [x] **Sidebar-Badge** für pending Rental-Approvals nur im Solo-Modus (`activeGroupId === null`).
+- [x] **"Mein Equipment unterwegs"** Sektion nur im Solo-Modus gerendert.
+- [x] **Inline "Jetzt freigeben"-Button** im Verleih-Detail (Pattern 3) — legt `inventory_group_shares`-Eintrag an und synct `proposed_rate`. Nur sichtbar bei `isMyItem && status === 'pending'`.
+- [x] **Visuelle Item-Card-Zustände** richtig: Border/Background nur rot wenn `conflict || (missingShare && status === 'pending')`.
 
-- [ ] **Verleih-Picker im Gruppen-Modus**: lädt nur `owner_group_id = group`-Items, nicht via `inventory_group_shares` geteilte Items. → `src/components/rentals/equipment-picker.tsx` Query erweitern.
-- [ ] **Owner-Approval-Buttons** in `/rentals/[id]` und in "Mein Equipment unterwegs" werden auch im Gruppen-Modus gezeigt — sollte `&& isSolo` Check bekommen.
-- [ ] **Sidebar-Badge** an "Verleih"/"Mein Verleih" zählt Pending-Approvals immer (auch im Gruppen-Modus). → `src/components/layout/sidebar.tsx` `loadCounts()` an `groupId === null` koppeln.
-- [ ] **"Mein Equipment unterwegs"** wird zwar nur mit Solo-Filter geladen (`owner_profile_id = ownerId`), aber das `<section>` rendert sich auch im Gruppen-Modus, wenn Daten irgendwie reinkommen. Expliziter `{isSolo && ...}` Guard.
-- [ ] **Inline-Sharing-Button** beim "Nicht für die Gruppe freigegeben"-Hinweis im Verleih-Detail: aktuell nur Anzeige. → Button "Jetzt freigeben" der einen `inventory_group_shares`-Eintrag anlegt. **Aber:** Wenn der User im Gruppen-Modus ist und das Item ihm als Solo-User gehört, muss der Button via `switchWorkspace(null)` erst in den Solo-Modus springen und dort den Share öffnen. Cross-Modus-Aktion immer erst Modus wechseln, dann ausführen.
-- [ ] **Tab-Equipment im Projekt**: gleiches Picker-Problem wie Verleih.
+Noch offen:
+- [ ] **Tab-Equipment im Projekt** (`src/components/projects/tab-equipment.tsx`): Picker-Query bezieht `inventory_group_shares` noch nicht ein — gleiches Problem wie Verleih hatte.
+- [ ] **Projekt-Bookings nutzen Approval-Flow nicht**: rental_items hat das System, bookings nicht. Migration nötig wenn Owner-Approval auch bei Projekt-Buchungen greifen soll.
+- [ ] **Hinweis bei abgelehnten Items im Verleiher-Workflow**: aktuell wird nur "Ausleihe abgelehnt"-Badge angezeigt; ein klarer Call-to-Action ("Alternative wählen oder Item entfernen") fehlt.
+- [ ] **Sharing-UI im Inventar-Modal nur im Solo-Kontext** rendert ist zu prüfen — Section "Teilen mit Gruppen" wird unter `isEditable && myGroups.length > 0` gerendert, ist aber im Gruppen-Modus auch erreichbar wenn das Item dem User gehört.
 
 ## Realtime-Hinweis
 
@@ -134,3 +139,111 @@ Permissions (`rentals_edit`, `inventory_edit` etc.) auf `org_memberships.permiss
 - **Share**: Solo-Owner gibt sein Item explizit für eine Gruppe frei via `inventory_group_shares` (mit Tagessatz, Bedingungen, Approval-Modus).
 - **Approval-Modus** (`inventory_items.loan_approval_mode`): `open` (keine Freigabe), `notify` (Info an Owner), `manual` (Owner muss zustimmen).
 - **Tagessatz-Verhandlung**: `rental_items.proposed_rate` (vom Verleiher vorgeschlagen) ↔ `rental_items.agreed_rate` (vom Owner bestätigt, ggf. Override oder Verzicht=0).
+
+## Die zwei Approval-Ebenen — nicht vermischen!
+
+Es gibt **zwei unabhängige Konzepte**, die Solo-Owner und Gruppen-Verleih verknüpfen. Beim Code-Schreiben unbedingt sauber trennen:
+
+### Ebene A: Generelle Gruppen-Freigabe (`inventory_group_shares`)
+- **Wofür**: Das Item ist für *zukünftige* Verleihe der Gruppe verfügbar. Standard-Tagessatz, Bedingungen, Approval-Modus pro Share.
+- **Sichtbar in**: Inventar-Picker, Verleih-Picker, evtl. Projekt-Booking-Picker.
+- **Wer setzt**: Solo-Owner im Solo-Modus (oder im Gruppen-Modus inline beim konkreten Verleih, wenn er Owner ist — Ausnahme zur Solo-only-Regel).
+- **Tabelle**: `inventory_group_shares` mit `daily_rate`, `conditions`, `revoked_at`.
+- **Fehlt = Item taucht nicht im Picker auf**.
+
+### Ebene B: Per-Verleih-Zustimmung (`rental_items.approval_status`)
+- **Wofür**: Pro konkretem Verleih entscheidet der Owner — auch wenn das Item generell für die Gruppe freigegeben ist (Modus `manual`).
+- **Sichtbar in**: `/rentals/[id]` (Pending-Block), `/rentals` "Mein Equipment unterwegs".
+- **Wer setzt**: Item-Owner, nur im Solo-Modus (gemäß Leitprinzip).
+- **Tabelle**: `rental_items` mit `approval_status` (`auto`/`pending`/`approved`/`rejected`), `proposed_rate`, `agreed_rate`, `approved_by`, `rejection_reason`.
+- **Blockiert die Ausgabe** (Verleih-Status `active`) solange `pending`.
+
+**Wichtig**: Approve auf Ebene B legt **nicht** automatisch einen Share auf Ebene A an. Wenn der Owner im konkreten Verleih zustimmt, ist das nur für *diesen* Verleih ok. Für die generelle Verfügbarkeit braucht's einen separaten `inventory_group_shares`-Eintrag (über den Inline-Button im Verleih-Detail oder über die Inventar-Detail-Seite).
+
+## Visuelle Zustände der Item-Card im Verleih-Detail
+
+Pro `rental_item` gibt es drei optische Zustände — checke beim Stylen *immer* die Kombination aus `missingShare`, `status` und `conflict`:
+
+| Zustand | Bedingung | Border / Background |
+|---|---|---|
+| **Blockiert** (pending + keine Freigabe) | `missingShare && status === 'pending'` *oder* `quantity > available` | rot |
+| **Neutral / OK** | sonst | normale Border, Standard-Background |
+| **Überbucht** (Konflikt) | `conflict = quantity > av.available` | rot + "Überbucht"-Badge |
+
+**Pattern** für die Bedingung:
+```tsx
+const missingShare = it.needsExternalApproval && it.hasShareForGroup === false;
+const shareBlocks = missingShare && status === "pending"; // tatsaechlich blockierend
+const conflict = av && it.quantity > av.available;
+// Border/Background-Style:
+border: conflict || shareBlocks ? destructive : normal
+```
+
+Approved/auto/rejected-Items: visuell **neutral**, auch wenn kein Share existiert — die Per-Verleih-Entscheidung ist gefallen.
+
+## Cross-Modus-Aktionen: drei Patterns
+
+Wenn eine Owner-Aktion (Solo-Modus-Domäne) in einem Gruppen-Kontext angeboten werden soll, gibt's drei mögliche Patterns. Wähle je nach UX-Kontext:
+
+### Pattern 1: Reine Anzeige im Gruppen-Modus, Aktion nur Solo
+Die UI zeigt einen Hinweis ("Eigentümer muss zustimmen"), keine Aktion. Owner muss aktiv in Solo wechseln. Default-Pattern für Approve/Reject im `/rentals/[id]`.
+
+### Pattern 2: Modus-Switch beim Klick
+Klick auf den Aktion-Button ruft `switchWorkspace(null)` und navigiert ggf. zur passenden Solo-Seite. Sinnvoll bei komplexen Aktionen, die mehrere Felder brauchen (z.B. komplette Share-Konfig mit Bedingungen, Multi-Group-Sharing).
+
+### Pattern 3: Inline-Aktion mit Mini-Form
+Ein kleiner Inline-Form direkt im Gruppen-Detail (z.B. nur Tagessatz-Input + "Jetzt freigeben"-Button) führt die Owner-Aktion direkt aus. RLS prüft serverseitig per `auth.uid()` — der Workspace ist ohnehin nur Daten-Filter, kein Auth-Switch. Sinnvoll bei punktuellen Owner-Aktionen mit klarem Kontext (z.B. "Item für diese Gruppe freigeben, weil ich gerade hier reinverliehen werde").
+
+**Ausnahme dokumentieren**: Pattern 3 ist eine Abweichung von "Owner-Aktionen nur im Solo". Begründe es im Code-Kommentar ("inline-Aktion im konkreten Verleih-Kontext").
+
+## Approval-Flow-Diagramm (Owner-Sicht)
+
+```
+1. Verleih wird angelegt (Gruppen-Modus)
+   ├─ Item gehört Gruppe       → approval_status = 'auto'         ✅ fertig
+   ├─ Item gehört Solo, Modus open    → approval_status = 'auto'   ✅ fertig
+   ├─ Item gehört Solo, Modus notify  → approval_status = 'approved' ✅ Info an Owner
+   └─ Item gehört Solo, Modus manual  → approval_status = 'pending' ⏸️ wartet auf Owner
+
+2. Owner-Sicht (Solo-Modus):
+   /rentals → "Mein Equipment unterwegs"
+   Pending-Items: Input mit proposed_rate + [Akzeptieren] [Verzicht] [Ablehnen]
+
+3. Approval-Aktion (Solo):
+   - Akzeptieren (mit rate)  → approval_status = 'approved', agreed_rate = rate
+   - Verzicht                → approval_status = 'approved', agreed_rate = 0
+   - Ablehnen (mit Grund)    → approval_status = 'rejected', rejection_reason = ?
+
+4. Gruppen-Sicht (nach Approval):
+   /rentals/[id] → Item ist neutral/grün, Status-Badge "Freigegeben"
+   Verleih kann auf 'active' (Ausgegeben) gesetzt werden
+```
+
+Status-Badge-Mapping (`rentalItemApprovalLabels`):
+- `auto` — versteckt (kein Badge)
+- `pending` — gelb "Freigabe ausstehend"
+- `approved` — grün "Freigegeben"
+- `rejected` — rot "Ausleihe abgelehnt"
+
+## Verrechnung pro Eigentümer (Kostenbox)
+
+In `/rentals/[id]` zeigt die Kostenzusammenfassung pro externem Owner einen Auszahlungs-Block:
+- `agreed_amount = Σ (agreed_rate × tage × quantity)` über alle eigenen Items des Owners
+- Items mit `agreed_rate IS NULL` (= pending): in `pending_amount` zählen, mit gelbem "+X ausstehend"-Hinweis
+- "Verbleibend bei Verleih-Org" = `rental_fee - Σ owner_payouts.agreed`
+
+Wenn `agreed_rate = 0` (Verzicht): Item taucht im Block auf mit `0 €`, ist also explizit dokumentiert. Items mit `approval_status = 'rejected'` werden komplett ignoriert.
+
+## Häufige Fallen
+
+1. **PostgREST `.neq` mit NULL matched nicht.** Filter wie `.neq("rentals.owner_profile_id", me)` schließen Gruppen-Verleihe (owner_profile_id=NULL) versehentlich aus. Lösung: clientseitig filtern oder `.or("col.is.null,col.neq.value")`.
+
+2. **State bei Workspace-Switch nicht leeren** → vorheriger Workspace bleibt sichtbar bis neuer Load durch ist. Lösung: `useEffect(() => setItems([]), [groupId])`.
+
+3. **`useCallback`-Identity ändert sich nicht wenn nur `groupId` fehlt** → deps müssen `[supabase, ownerId, groupId]` enthalten.
+
+4. **Rote Optik nach Approval bleibt hängen.** `missingShare`-basierte Styles müssen mit `status === 'pending'` kombiniert werden (siehe Visuelle Zustände).
+
+5. **Approve auf Ebene B legt keinen Ebene-A-Share an** — bewusst getrennt. Owner muss separat freigeben falls er das Item generell für die Gruppe verfügbar haben will.
+
+6. **RLS-Rekursion bei Cross-Table-Policies**: rentals_select referenzierte rental_items_select und umgekehrt → Endlosrekursion. Lösung in Migration 100: SECURITY DEFINER-Helper (`user_owns_item_in_rental`, `user_is_rental_owner`) entkoppeln.
