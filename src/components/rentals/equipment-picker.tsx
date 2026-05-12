@@ -99,7 +99,7 @@ export function EquipmentPicker({ dateFrom, dateTo, picked, onChange, excludeRen
           const name = pMap.get(it.owner_profile_id) ?? "—";
           labels[it.id] = it.owner_profile_id === ownerId ? `${name} (du)` : name;
         } else if (it.owner_group_id) {
-          labels[it.id] = `🛡️ ${gMap.get(it.owner_group_id) ?? "Gruppe"}`;
+          labels[it.id] = gMap.get(it.owner_group_id) ?? "Gruppe";
         }
       }
       setOwnerLabels(labels);

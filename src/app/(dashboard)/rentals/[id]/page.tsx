@@ -145,7 +145,7 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
           labels[it.inventory_item_id] =
             inv.owner_profile_id === currentUser?.id ? `${name} (du)` : name;
         } else if (inv?.owner_group_id) {
-          labels[it.inventory_item_id] = `🛡️ ${gMap.get(inv.owner_group_id) ?? "Gruppe"}`;
+          labels[it.inventory_item_id] = gMap.get(inv.owner_group_id) ?? "Gruppe";
         }
       }
       setItemOwnerLabels(labels);
