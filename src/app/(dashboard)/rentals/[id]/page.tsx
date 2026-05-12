@@ -278,6 +278,26 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
     else load();
   }
 
+  async function handleUpdateItemQty(rentalItemId: string, newQty: number) {
+    if (newQty < 1) return;
+    const { error } = await supabase
+      .from("rental_items")
+      .update({ quantity: newQty })
+      .eq("id", rentalItemId);
+    if (error) showToast("Fehler: " + error.message, "error");
+    else load();
+  }
+
+  async function handleRemoveItem(rentalItemId: string) {
+    if (!(await appConfirm("Gerät aus Verleih entfernen?", { variant: "danger", confirmLabel: "Entfernen" }))) return;
+    const { error } = await supabase.from("rental_items").delete().eq("id", rentalItemId);
+    if (error) showToast("Fehler: " + error.message, "error");
+    else {
+      showToast("Entfernt", "success");
+      load();
+    }
+  }
+
   async function handleApprove(rentalItemId: string) {
     const { error } = await supabase.rpc("approve_rental_item", { p_rental_item_id: rentalItemId });
     if (error) showToast("Fehler: " + error.message, "error");
@@ -613,9 +633,37 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                         background: conflict ? "var(--color-destructive-light)" : "var(--color-background)",
                       }}
                     >
-                      <span className="text-sm font-semibold tabular-nums" style={{ minWidth: 28 }}>
-                        {it.quantity}×
-                      </span>
+                      {canEdit && status !== "rejected" ? (
+                        <div className="flex items-center gap-0.5" style={{ minWidth: 84 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateItemQty(it.id, it.quantity - 1)}
+                            disabled={it.quantity <= 1}
+                            className="w-6 h-6 rounded flex items-center justify-center text-sm leading-none disabled:opacity-30"
+                            style={{ border: "1px solid var(--color-border)" }}
+                            title="Anzahl reduzieren"
+                          >
+                            −
+                          </button>
+                          <span className="text-sm font-semibold tabular-nums text-center" style={{ minWidth: 36 }}>
+                            {it.quantity}×
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateItemQty(it.id, it.quantity + 1)}
+                            disabled={av != null && it.quantity >= av.total}
+                            className="w-6 h-6 rounded flex items-center justify-center text-sm leading-none disabled:opacity-30"
+                            style={{ border: "1px solid var(--color-border)" }}
+                            title={av != null && it.quantity >= av.total ? `Max ${av.total} verfügbar` : "Anzahl erhöhen"}
+                          >
+                            +
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-sm font-semibold tabular-nums" style={{ minWidth: 28 }}>
+                          {it.quantity}×
+                        </span>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="text-sm truncate">{it.inventory_items?.name ?? "Gerät"}</div>
                         {itemOwnerLabels[it.inventory_item_id] && (
@@ -685,12 +733,83 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                           </button>
                         </div>
                       )}
+                      {canEdit && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveItem(it.id)}
+                          className={`p-1 rounded ${showApprovalActions ? "" : "ml-auto"}`}
+                          style={{ color: "var(--color-destructive)" }}
+                          title="Gerät aus Verleih entfernen"
+                        >
+                          <IconX size={14} />
+                        </button>
+                      )}
                     </div>
                   );
                 })}
               </div>
             )}
           </div>
+
+          {/* Kostenzusammenfassung */}
+          {(() => {
+            const VAT_RATE = 19;
+            const itemsTotal = items.reduce((sum, it) => {
+              if (it.approval_status === "rejected") return sum;
+              const cpd = (it.inventory_items as { cost_per_day?: number | null } | null)?.cost_per_day ?? 0;
+              return sum + Number(cpd) * days * it.quantity;
+            }, 0);
+            const brutto = rental.rental_fee != null ? Number(rental.rental_fee) : itemsTotal;
+            const netto = brutto / (1 + VAT_RATE / 100);
+            const vatAmount = brutto - netto;
+            const deposit = Number(rental.deposit_amount ?? 0);
+            const totalDue = brutto + deposit;
+            const fmt = (n: number) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return (
+              <div
+                className="p-5 rounded-xl"
+                style={{ background: "var(--color-surface)", border: "1px solid var(--color-border-light)" }}
+              >
+                <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--color-muted-foreground)" }}>
+                  Kostenzusammenfassung
+                </h3>
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between" style={{ color: "var(--color-muted-foreground)" }}>
+                    <span>Kalkulation (Tagessätze × {days} {days === 1 ? "Tag" : "Tage"})</span>
+                    <span className="tabular-nums">{fmt(itemsTotal)} €</span>
+                  </div>
+                  <div className="flex justify-between pt-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+                    <span>Leihgebühr (brutto)</span>
+                    <span className="font-medium tabular-nums">{fmt(brutto)} €</span>
+                  </div>
+                  <div className="flex justify-between text-xs pl-3" style={{ color: "var(--color-muted-foreground)" }}>
+                    <span>Netto</span>
+                    <span className="tabular-nums">{fmt(netto)} €</span>
+                  </div>
+                  <div className="flex justify-between text-xs pl-3" style={{ color: "var(--color-muted-foreground)" }}>
+                    <span>USt ({VAT_RATE} %)</span>
+                    <span className="tabular-nums">{fmt(vatAmount)} €</span>
+                  </div>
+                  {deposit > 0 && (
+                    <div className="flex justify-between pt-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+                      <span>Kaution (umsatzsteuerfrei)</span>
+                      <span className="font-medium tabular-nums">{fmt(deposit)} €</span>
+                    </div>
+                  )}
+                  <div
+                    className="flex justify-between font-bold text-base pt-2 mt-1"
+                    style={{ borderTop: "2px solid var(--color-border)" }}
+                  >
+                    <span>Gesamt zu zahlen</span>
+                    <span className="tabular-nums">{fmt(totalDue)} €</span>
+                  </div>
+                </div>
+                <p className="text-[11px] mt-3" style={{ color: "var(--color-muted-foreground)" }}>
+                  USt-Berechnung pauschal mit {VAT_RATE} %. Kaution gilt als umsatzsteuerfreier durchlaufender Posten.
+                </p>
+              </div>
+            );
+          })()}
 
           {/* Notizen */}
           {rental.notes && (
