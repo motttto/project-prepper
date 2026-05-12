@@ -81,28 +81,42 @@ export default function RentalsPage() {
   const [formItems, setFormItems] = useState<PickedItem[]>([]);
 
   const loadRentals = useCallback(async () => {
-    if (!ownerId) return;
+    if (!ownerId) {
+      setRentals([]);
+      setLoading(false);
+      return;
+    }
+    // Strikte Workspace-Isolation: zusaetzlich zur owner_*-Spalte das jeweils
+    // andere Owner-Feld auf NULL pinnen (XOR ist DB-seitig garantiert, aber
+    // doppelt haelt besser falls je Legacy-Daten auftauchen).
     const query = groupId
       ? supabase
           .from("rentals")
           .select("*, rental_items(id)")
           .eq("owner_group_id", groupId)
+          .is("owner_profile_id", null)
           .order("created_at", { ascending: false })
       : supabase
           .from("rentals")
           .select("*, rental_items(id)")
           .eq("owner_profile_id", ownerId)
+          .is("owner_group_id", null)
           .order("created_at", { ascending: false });
     const { data } = await query;
-    if (data) {
-      const mapped: RentalWithCounts[] = (data as (Rental & { rental_items: { id: string }[] })[]).map((r) => ({
-        ...r,
-        itemCount: r.rental_items?.length ?? 0,
-      }));
-      setRentals(mapped);
-    }
+    const mapped: RentalWithCounts[] = (data ?? []).map((r) => {
+      const row = r as Rental & { rental_items: { id: string }[] };
+      return { ...row, itemCount: row.rental_items?.length ?? 0 };
+    });
+    setRentals(mapped);
     setLoading(false);
   }, [supabase, ownerId, groupId]);
+
+  // State leeren, sobald Workspace wechselt — verhindert dass Group-Rentals
+  // beim Switch zu Solo (oder umgekehrt) kurzzeitig haengen bleiben.
+  useEffect(() => {
+    setRentals([]);
+    setLoading(true);
+  }, [groupId]);
 
   useEffect(() => {
     loadRentals();

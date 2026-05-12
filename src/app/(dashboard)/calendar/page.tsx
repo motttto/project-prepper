@@ -386,7 +386,7 @@ export default function CalendarPage() {
     const startStr = start.toISOString().slice(0, 10);
     const endStr = end.toISOString().slice(0, 10);
 
-    // Scope: aktiver Workspace (Gruppe oder Solo). RLS filtert ohnehin korrekt.
+    // Scope: aktiver Workspace strikt isoliert (XOR auf owner-Spalten).
     let query = supabase
       .from("rentals")
       .select("id,borrower_name,date_from,date_to,status,rental_items(quantity,inventory_items(name))")
@@ -395,13 +395,13 @@ export default function CalendarPage() {
       .gte("date_to", startStr);
 
     if (orgId) {
-      query = query.eq("owner_group_id", orgId);
+      query = query.eq("owner_group_id", orgId).is("owner_profile_id", null);
     } else {
-      query = query.eq("owner_profile_id", currentUser.id);
+      query = query.eq("owner_profile_id", currentUser.id).is("owner_group_id", null);
     }
 
     const { data } = await query;
-    if (data) setRentals(data as unknown as RentalEventRow[]);
+    setRentals((data ?? []) as unknown as RentalEventRow[]);
   }, [supabase, orgId, currentUser?.id, currentDate, viewMode]);
 
   useEffect(() => { fetchGroups(); }, [fetchGroups]);
