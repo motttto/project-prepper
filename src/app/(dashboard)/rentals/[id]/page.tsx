@@ -91,7 +91,7 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
 
     const { data: itemsData } = await supabase
       .from("rental_items")
-      .select("*, inventory_items(id, name, inventory_number, image_url, quantity, owner_profile_id, owner_group_id, loan_approval_mode)")
+      .select("*, inventory_items(id, name, inventory_number, image_url, quantity, owner_profile_id, owner_group_id, loan_approval_mode, cost_per_day)")
       .eq("rental_id", id)
       .order("created_at");
 
@@ -627,9 +627,20 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                       <span className="text-sm font-semibold tabular-nums">{it.quantity}×</span>
                       {av && status !== "rejected" && (
                         <span className="text-xs tabular-nums" style={{ color: "var(--color-muted-foreground)" }}>
-                          {av.available + it.quantity} von {av.total} sonst frei
+                          {av.available} von {av.total} sonst frei
                         </span>
                       )}
+                      {/* Anteilige Kostenposition: cost_per_day × Tage × quantity */}
+                      {(() => {
+                        const cpd = (it.inventory_items as { cost_per_day?: number | null } | null)?.cost_per_day;
+                        if (cpd == null || Number(cpd) <= 0) return null;
+                        const lineFee = Number(cpd) * days * it.quantity;
+                        return (
+                          <span className="text-xs tabular-nums whitespace-nowrap" style={{ color: "var(--color-muted-foreground)" }} title={`${Number(cpd).toLocaleString("de-DE")} €/Tag × ${days} Tage × ${it.quantity}`}>
+                            {lineFee.toLocaleString("de-DE")} €
+                          </span>
+                        );
+                      })()}
                       {/* Approval-Status-Badge — nur anzeigen wenn nicht 'auto' */}
                       {status !== "auto" && (
                         <span
