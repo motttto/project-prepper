@@ -58,6 +58,8 @@ type MyItemRental = {
   quantity: number;
   approval_status: RentalItemApprovalStatus;
   rejection_reason: string | null;
+  proposed_rate: number | null;
+  agreed_rate: number | null;
   rental: {
     borrower_name: string;
     date_from: string;
@@ -75,6 +77,55 @@ const approvalBadgeColors: Record<RentalItemApprovalStatus, { bg: string; color:
   approved: { bg: "var(--color-success-light)", color: "var(--color-success)" },
   rejected: { bg: "var(--color-destructive-light)", color: "var(--color-destructive)" },
 };
+
+function MyItemApprovalControls({
+  proposed,
+  onApprove,
+  onReject,
+}: {
+  proposed: number;
+  onApprove: (rate: number | null) => void;
+  onReject: () => void;
+}) {
+  const [rate, setRate] = useState<string>(String(proposed));
+  return (
+    <div className="flex items-center gap-1 flex-wrap">
+      <input
+        type="number"
+        min={0}
+        step={0.01}
+        value={rate}
+        onChange={(e) => setRate(e.target.value)}
+        className="w-20 px-2 py-1.5 rounded text-xs"
+        style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}
+        title="Vereinbarter Tagessatz (€/Tag)"
+      />
+      <button
+        onClick={() => onApprove(rate === "" ? null : Number(rate))}
+        className="px-3 py-1.5 rounded text-xs font-medium text-white"
+        style={{ background: "var(--color-success)" }}
+        title={`Freigeben mit ${rate || proposed} €/Tag`}
+      >
+        Akzeptieren
+      </button>
+      <button
+        onClick={() => onApprove(0)}
+        className="px-3 py-1.5 rounded text-xs font-medium"
+        style={{ border: "1px solid var(--color-border)" }}
+        title="Auf Einnahmen verzichten (0 €/Tag)"
+      >
+        Verzicht
+      </button>
+      <button
+        onClick={onReject}
+        className="px-3 py-1.5 rounded text-xs font-medium"
+        style={{ border: "1px solid var(--color-destructive)", color: "var(--color-destructive)" }}
+      >
+        Ablehnen
+      </button>
+    </div>
+  );
+}
 
 export default function RentalsPage() {
   const supabase = createClient();
@@ -161,6 +212,8 @@ export default function RentalsPage() {
         quantity,
         approval_status,
         rejection_reason,
+        proposed_rate,
+        agreed_rate,
         inventory_items!inner(name, inventory_number, owner_profile_id),
         rentals!inner(
           borrower_name, date_from, date_to, status, owner_group_id, rental_fee,
@@ -180,6 +233,8 @@ export default function RentalsPage() {
         quantity: row.quantity,
         approval_status: row.approval_status,
         rejection_reason: row.rejection_reason,
+        proposed_rate: row.proposed_rate,
+        agreed_rate: row.agreed_rate,
         rental: {
           borrower_name: row.rentals?.borrower_name ?? "",
           date_from: row.rentals?.date_from,
@@ -202,8 +257,11 @@ export default function RentalsPage() {
   useRealtimeTable({ table: "rentals", onDataChange: () => { loadRentals(); loadMyItemRentals(); } });
   useRealtimeTable({ table: "rental_items", onDataChange: () => { loadRentals(); loadMyItemRentals(); } });
 
-  async function handleApproveItem(rentalItemId: string) {
-    const { error } = await supabase.rpc("approve_rental_item", { p_rental_item_id: rentalItemId });
+  async function handleApproveItem(rentalItemId: string, agreedRate?: number | null) {
+    const { error } = await supabase.rpc("approve_rental_item", {
+      p_rental_item_id: rentalItemId,
+      p_agreed_rate: agreedRate ?? null,
+    });
     if (error) showToast("Fehler: " + error.message, "error");
     else {
       showToast("Freigegeben", "success");
@@ -805,22 +863,11 @@ export default function RentalsPage() {
                     </div>
                   </div>
                   {showActions && (
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleApproveItem(row.rental_item_id)}
-                        className="px-3 py-1.5 rounded text-xs font-medium text-white"
-                        style={{ background: "var(--color-success)" }}
-                      >
-                        Freigeben
-                      </button>
-                      <button
-                        onClick={() => handleRejectItem(row.rental_item_id)}
-                        className="px-3 py-1.5 rounded text-xs font-medium"
-                        style={{ border: "1px solid var(--color-destructive)", color: "var(--color-destructive)" }}
-                      >
-                        Ablehnen
-                      </button>
-                    </div>
+                    <MyItemApprovalControls
+                      proposed={Number(row.proposed_rate ?? 0)}
+                      onApprove={(rate) => handleApproveItem(row.rental_item_id, rate)}
+                      onReject={() => handleRejectItem(row.rental_item_id)}
+                    />
                   )}
                   <button
                     onClick={() => router.push(`/rentals/${row.rental_id}`)}

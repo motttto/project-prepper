@@ -1129,6 +1129,9 @@ export type RentalItem = {
   approved_by: string | null;
   approved_at: string | null;
   rejection_reason: string | null;
+  /** Tagessatz-Verhandlung (Migration 101) */
+  proposed_rate: number | null;
+  agreed_rate: number | null;
   created_at: string;
   // Joined
   inventory_items?: {

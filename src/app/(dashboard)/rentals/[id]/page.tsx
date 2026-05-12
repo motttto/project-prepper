@@ -33,6 +33,65 @@ const approvalColors: Record<RentalItemApprovalStatus, { bg: string; color: stri
   rejected: { bg: "var(--color-destructive-light)", color: "var(--color-destructive)" },
 };
 
+function OwnerApprovalBlock({
+  proposed,
+  onApprove,
+  onReject,
+}: {
+  proposed: number;
+  onApprove: (rate: number | null) => void;
+  onReject: () => void;
+}) {
+  const [rate, setRate] = useState<string>(String(proposed));
+  return (
+    <div
+      className="flex flex-wrap items-center gap-2 text-xs px-3 py-2 rounded"
+      style={{ background: "var(--color-warning-light)", border: "1px dashed var(--color-warning)" }}
+    >
+      <span style={{ color: "var(--color-warning)" }}>
+        Vorgeschlagener Tagessatz: <strong>{proposed.toLocaleString("de-DE")} €/Tag</strong> — du kannst zustimmen, ändern oder ablehnen.
+      </span>
+      <div className="flex items-center gap-1 ml-auto">
+        <input
+          type="number"
+          min={0}
+          step={0.01}
+          value={rate}
+          onChange={(e) => setRate(e.target.value)}
+          className="w-20 px-2 py-1 rounded text-xs"
+          style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}
+          title="Vereinbarter Tagessatz (€/Tag)"
+        />
+        <button
+          type="button"
+          onClick={() => onApprove(rate === "" ? null : Number(rate))}
+          className="px-2 py-1 rounded text-xs font-medium text-white"
+          style={{ background: "var(--color-success)" }}
+        >
+          Akzeptieren
+        </button>
+        <button
+          type="button"
+          onClick={() => onApprove(0)}
+          className="px-2 py-1 rounded text-xs font-medium"
+          style={{ border: "1px solid var(--color-border)" }}
+          title="Auf Einnahmen verzichten (0 €/Tag)"
+        >
+          Verzicht
+        </button>
+        <button
+          type="button"
+          onClick={onReject}
+          className="px-2 py-1 rounded text-xs font-medium"
+          style={{ border: "1px solid var(--color-destructive)", color: "var(--color-destructive)" }}
+        >
+          Ablehnen
+        </button>
+      </div>
+    </div>
+  );
+}
+
 const statusLabels: Record<RentalStatus, string> = {
   reserved: "Reserviert",
   active: "Ausgegeben",
@@ -49,7 +108,13 @@ const statusColors: Record<RentalStatus, { bg: string; color: string; dot: strin
 
 const statusOrder: RentalStatus[] = ["reserved", "active", "returned", "cancelled"];
 
-type RentalItemWithAvailability = RentalItem & { availability?: InventoryAvailability };
+type RentalItemWithAvailability = RentalItem & {
+  availability?: InventoryAvailability;
+  /** true wenn Item-Owner != Verleih-Owner und Verleih ist Gruppen-Owned */
+  needsExternalApproval?: boolean;
+  /** true wenn fuer die Verleih-Gruppe ein inventory_group_shares Eintrag existiert */
+  hasShareForGroup?: boolean;
+};
 
 export default function RentalDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -96,6 +161,19 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
       .order("created_at");
 
     if (itemsData) {
+      // Share-Eintraege fuer die Verleih-Gruppe laden (falls Group-Verleih)
+      let sharedItemIds = new Set<string>();
+      if (rentalData.owner_group_id) {
+        const itemIds = itemsData.map((it) => it.inventory_item_id);
+        const { data: shares } = await supabase
+          .from("inventory_group_shares")
+          .select("inventory_item_id")
+          .eq("group_id", rentalData.owner_group_id)
+          .is("revoked_at", null)
+          .in("inventory_item_id", itemIds);
+        sharedItemIds = new Set((shares ?? []).map((s) => s.inventory_item_id));
+      }
+
       // Verfuegbarkeit pro Item (nur reservierte, andere als sich selbst)
       const enriched = await Promise.all(
         itemsData.map(async (it) => {
@@ -106,7 +184,16 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
             p_exclude_rental_id: id,
             p_exclude_booking_id: null,
           });
-          return { ...it, availability: av?.[0] as InventoryAvailability | undefined };
+          const inv = it.inventory_items as { owner_profile_id?: string | null } | null;
+          const needsExternalApproval = Boolean(
+            inv?.owner_profile_id && rentalData.owner_group_id
+          );
+          return {
+            ...it,
+            availability: av?.[0] as InventoryAvailability | undefined,
+            needsExternalApproval,
+            hasShareForGroup: needsExternalApproval ? sharedItemIds.has(it.inventory_item_id) : true,
+          };
         })
       );
       const itemsWithMeta = enriched as RentalItemWithAvailability[];
@@ -273,6 +360,17 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
 
   async function handleStatusChange(newStatus: RentalStatus) {
     if (!rental) return;
+    // Block: Ausgabe nicht moeglich solange irgend ein Item noch auf Freigabe wartet
+    if (newStatus === "active") {
+      const pending = items.filter((it) => it.approval_status === "pending");
+      if (pending.length > 0) {
+        showToast(
+          `Ausgabe blockiert: ${pending.length} Gerät${pending.length === 1 ? "" : "e"} warten auf Eigentümer-Freigabe.`,
+          "error"
+        );
+        return;
+      }
+    }
     const { error } = await supabase.from("rentals").update({ status: newStatus }).eq("id", rental.id);
     if (error) showToast("Fehler: " + error.message, "error");
     else load();
@@ -298,8 +396,11 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
     }
   }
 
-  async function handleApprove(rentalItemId: string) {
-    const { error } = await supabase.rpc("approve_rental_item", { p_rental_item_id: rentalItemId });
+  async function handleApprove(rentalItemId: string, agreedRate?: number | null) {
+    const { error } = await supabase.rpc("approve_rental_item", {
+      p_rental_item_id: rentalItemId,
+      p_agreed_rate: agreedRate ?? null,
+    });
     if (error) showToast("Fehler: " + error.message, "error");
     else {
       showToast("Freigegeben", "success");
@@ -624,15 +725,20 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                   const isMyItem = currentUser?.id != null && ownerId === currentUser.id;
                   const status = it.approval_status;
                   const showApprovalActions = isMyItem && status === "pending";
+                  const proposed = it.proposed_rate != null ? Number(it.proposed_rate) : null;
+                  const agreed = it.agreed_rate != null ? Number(it.agreed_rate) : null;
+                  const effectiveRate = agreed ?? proposed ?? 0;
+                  const lineFee = effectiveRate * days * it.quantity;
+                  const missingShare = it.needsExternalApproval && it.hasShareForGroup === false;
                   return (
                     <div
                       key={it.id}
-                      className="flex flex-wrap items-center gap-3 px-3 py-2 rounded-lg"
+                      className="flex flex-col gap-2 px-3 py-2 rounded-lg"
                       style={{
-                        border: `1px solid ${conflict ? "var(--color-destructive)" : "var(--color-border-light)"}`,
-                        background: conflict ? "var(--color-destructive-light)" : "var(--color-background)",
+                        border: `1px solid ${conflict || missingShare ? "var(--color-destructive)" : "var(--color-border-light)"}`,
+                        background: conflict || missingShare ? "var(--color-destructive-light)" : "var(--color-background)",
                       }}
-                    >
+                    ><div className="flex flex-wrap items-center gap-3">
                       {canEdit && status !== "rejected" ? (
                         <div className="flex items-center gap-0.5" style={{ minWidth: 84 }}>
                           <button
@@ -684,17 +790,16 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                           Bestand: {av.total} · verfügbar: {Math.max(0, av.available - it.quantity)}
                         </span>
                       )}
-                      {/* Anteilige Kostenposition: cost_per_day × Tage × quantity */}
-                      {(() => {
-                        const cpd = (it.inventory_items as { cost_per_day?: number | null } | null)?.cost_per_day;
-                        if (cpd == null || Number(cpd) <= 0) return null;
-                        const lineFee = Number(cpd) * days * it.quantity;
-                        return (
-                          <span className="text-xs tabular-nums whitespace-nowrap" style={{ color: "var(--color-muted-foreground)" }} title={`${Number(cpd).toLocaleString("de-DE")} €/Tag × ${days} Tage × ${it.quantity}`}>
-                            {lineFee.toLocaleString("de-DE")} €
-                          </span>
-                        );
-                      })()}
+                      {/* Anteilige Kostenposition aus agreed/proposed_rate */}
+                      {effectiveRate > 0 && (
+                        <span
+                          className="text-xs tabular-nums whitespace-nowrap"
+                          style={{ color: "var(--color-muted-foreground)" }}
+                          title={`${effectiveRate.toLocaleString("de-DE")} €/Tag × ${days} Tage × ${it.quantity}${agreed == null ? " (vorgeschlagen)" : ""}`}
+                        >
+                          {lineFee.toLocaleString("de-DE")} €
+                        </span>
+                      )}
                       {/* Approval-Status-Badge — nur anzeigen wenn nicht 'auto' */}
                       {status !== "auto" && (
                         <span
@@ -713,31 +818,11 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                           Überbucht
                         </span>
                       )}
-                      {showApprovalActions && (
-                        <div className="flex items-center gap-1 ml-auto">
-                          <button
-                            onClick={() => handleApprove(it.id)}
-                            className="px-2 py-1 rounded text-xs font-medium text-white"
-                            style={{ background: "var(--color-success)" }}
-                            title="Ausleihe freigeben"
-                          >
-                            Freigeben
-                          </button>
-                          <button
-                            onClick={() => handleReject(it.id)}
-                            className="px-2 py-1 rounded text-xs font-medium"
-                            style={{ border: "1px solid var(--color-destructive)", color: "var(--color-destructive)" }}
-                            title="Ausleihe ablehnen"
-                          >
-                            Ablehnen
-                          </button>
-                        </div>
-                      )}
                       {canEdit && (
                         <button
                           type="button"
                           onClick={() => handleRemoveItem(it.id)}
-                          className={`p-1 rounded ${showApprovalActions ? "" : "ml-auto"}`}
+                          className="p-1 rounded ml-auto"
                           style={{ color: "var(--color-destructive)" }}
                           title="Gerät aus Verleih entfernen"
                         >
@@ -745,6 +830,25 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                         </button>
                       )}
                     </div>
+                    {/* Zweite Reihe: fehlende Freigabe / Approval-Block */}
+                    {missingShare && (
+                      <div className="flex flex-wrap items-center gap-2 text-xs px-1" style={{ color: "var(--color-destructive)" }}>
+                        <span>⚠ Nicht für die Gruppe freigegeben — Ausgabe blockiert bis der Eigentümer zustimmt.</span>
+                      </div>
+                    )}
+                    {showApprovalActions && (
+                      <OwnerApprovalBlock
+                        proposed={proposed ?? 0}
+                        onApprove={(rate) => handleApprove(it.id, rate)}
+                        onReject={() => handleReject(it.id)}
+                      />
+                    )}
+                    {status === "rejected" && (
+                      <div className="text-xs px-1" style={{ color: "var(--color-destructive)" }}>
+                        Ausleihe abgelehnt{it.rejection_reason ? ` — ${it.rejection_reason}` : ""}
+                      </div>
+                    )}
+                  </div>
                   );
                 })}
               </div>
@@ -754,16 +858,35 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
           {/* Kostenzusammenfassung */}
           {(() => {
             const VAT_RATE = 19;
-            const itemsTotal = items.reduce((sum, it) => {
-              if (it.approval_status === "rejected") return sum;
-              const cpd = (it.inventory_items as { cost_per_day?: number | null } | null)?.cost_per_day ?? 0;
-              return sum + Number(cpd) * days * it.quantity;
-            }, 0);
+            // Auszahlungen pro externem Eigentümer (Solo-Owner != Verleih-Owner)
+            type OwnerPayout = { label: string; agreed: number; pending: number; items: string[] };
+            const ownerPayouts = new Map<string, OwnerPayout>();
+            let itemsTotal = 0;
+            let pendingTotal = 0;
+            for (const it of items) {
+              if (it.approval_status === "rejected") continue;
+              const rate = Number(it.agreed_rate ?? it.proposed_rate ?? 0);
+              const amount = rate * days * it.quantity;
+              itemsTotal += amount;
+              if (it.needsExternalApproval) {
+                const key = itemOwnerLabels[it.inventory_item_id] ?? "Eigentümer";
+                if (!ownerPayouts.has(key)) {
+                  ownerPayouts.set(key, { label: key, agreed: 0, pending: 0, items: [] });
+                }
+                const entry = ownerPayouts.get(key)!;
+                if (it.agreed_rate != null) entry.agreed += amount;
+                else entry.pending += amount;
+                entry.items.push(`${it.quantity}× ${it.inventory_items?.name ?? "Gerät"}`);
+                if (it.agreed_rate == null) pendingTotal += amount;
+              }
+            }
             const brutto = rental.rental_fee != null ? Number(rental.rental_fee) : itemsTotal;
             const netto = brutto / (1 + VAT_RATE / 100);
             const vatAmount = brutto - netto;
             const deposit = Number(rental.deposit_amount ?? 0);
             const totalDue = brutto + deposit;
+            const totalOwnerPayout = Array.from(ownerPayouts.values()).reduce((s, p) => s + p.agreed, 0);
+            const groupNet = brutto - totalOwnerPayout;
             const fmt = (n: number) => n.toLocaleString("de-DE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             return (
               <div
@@ -778,6 +901,11 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                     <span>Kalkulation (Tagessätze × {days} {days === 1 ? "Tag" : "Tage"})</span>
                     <span className="tabular-nums">{fmt(itemsTotal)} €</span>
                   </div>
+                  {pendingTotal > 0 && (
+                    <div className="text-xs pl-3" style={{ color: "var(--color-warning)" }}>
+                      davon noch offen / nicht vereinbart: {fmt(pendingTotal)} €
+                    </div>
+                  )}
                   <div className="flex justify-between pt-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>
                     <span>Leihgebühr (brutto)</span>
                     <span className="font-medium tabular-nums">{fmt(brutto)} €</span>
@@ -804,8 +932,47 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                     <span className="tabular-nums">{fmt(totalDue)} €</span>
                   </div>
                 </div>
+
+                {ownerPayouts.size > 0 && (
+                  <div className="mt-5 pt-4" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+                    <h4 className="text-sm font-semibold mb-2" style={{ color: "var(--color-muted-foreground)" }}>
+                      Verrechnung pro Eigentümer
+                    </h4>
+                    <div className="space-y-1.5 text-sm">
+                      {Array.from(ownerPayouts.values()).map((p) => (
+                        <div key={p.label}>
+                          <div className="flex justify-between">
+                            <span>
+                              {p.label}{" "}
+                              <span className="text-[11px]" style={{ color: "var(--color-muted-foreground)" }}>
+                                ({p.items.join(", ")})
+                              </span>
+                            </span>
+                            <span className="font-medium tabular-nums">
+                              {fmt(p.agreed)} €
+                              {p.pending > 0 && (
+                                <span className="text-xs ml-1" style={{ color: "var(--color-warning)" }}>
+                                  (+{fmt(p.pending)} ausstehend)
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                      <div
+                        className="flex justify-between pt-2"
+                        style={{ borderTop: "1px solid var(--color-border-light)", color: "var(--color-muted-foreground)" }}
+                      >
+                        <span>Verbleibend bei Verleih-Org</span>
+                        <span className="tabular-nums">{fmt(groupNet)} €</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <p className="text-[11px] mt-3" style={{ color: "var(--color-muted-foreground)" }}>
                   USt-Berechnung pauschal mit {VAT_RATE} %. Kaution gilt als umsatzsteuerfreier durchlaufender Posten.
+                  Auszahlungen werden aus den vereinbarten Tagessätzen der Eigentümer berechnet.
                 </p>
               </div>
             );
