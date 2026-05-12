@@ -60,6 +60,7 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
 
   const [rental, setRental] = useState<Rental | null>(null);
   const [items, setItems] = useState<RentalItemWithAvailability[]>([]);
+  const [itemOwnerLabels, setItemOwnerLabels] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -90,7 +91,7 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
 
     const { data: itemsData } = await supabase
       .from("rental_items")
-      .select("*, inventory_items(id, name, inventory_number, image_url, quantity, owner_profile_id, loan_approval_mode)")
+      .select("*, inventory_items(id, name, inventory_number, image_url, quantity, owner_profile_id, owner_group_id, loan_approval_mode)")
       .eq("rental_id", id)
       .order("created_at");
 
@@ -108,10 +109,49 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
           return { ...it, availability: av?.[0] as InventoryAvailability | undefined };
         })
       );
-      setItems(enriched as RentalItemWithAvailability[]);
+      const itemsWithMeta = enriched as RentalItemWithAvailability[];
+      setItems(itemsWithMeta);
+
+      // Owner-Labels aufloesen (Profil-Name oder Group-Name)
+      const profileIds = Array.from(
+        new Set(
+          itemsWithMeta
+            .map((it) => (it.inventory_items as { owner_profile_id?: string | null } | null)?.owner_profile_id)
+            .filter((x): x is string => !!x)
+        )
+      );
+      const groupIds = Array.from(
+        new Set(
+          itemsWithMeta
+            .map((it) => (it.inventory_items as { owner_group_id?: string | null } | null)?.owner_group_id)
+            .filter((x): x is string => !!x)
+        )
+      );
+      const [profilesRes, groupsRes] = await Promise.all([
+        profileIds.length
+          ? supabase.from("profiles").select("id, name").in("id", profileIds)
+          : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+        groupIds.length
+          ? supabase.from("groups").select("id, name").in("id", groupIds)
+          : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+      ]);
+      const pMap = new Map((profilesRes.data ?? []).map((p) => [p.id, p.name]));
+      const gMap = new Map((groupsRes.data ?? []).map((g) => [g.id, g.name]));
+      const labels: Record<string, string> = {};
+      for (const it of itemsWithMeta) {
+        const inv = it.inventory_items as { owner_profile_id?: string | null; owner_group_id?: string | null } | null;
+        if (inv?.owner_profile_id) {
+          const name = pMap.get(inv.owner_profile_id) ?? "—";
+          labels[it.inventory_item_id] =
+            inv.owner_profile_id === currentUser?.id ? `${name} (du)` : name;
+        } else if (inv?.owner_group_id) {
+          labels[it.inventory_item_id] = `🛡️ ${gMap.get(inv.owner_group_id) ?? "Gruppe"}`;
+        }
+      }
+      setItemOwnerLabels(labels);
     }
     setLoading(false);
-  }, [supabase, id]);
+  }, [supabase, id, currentUser?.id]);
 
   useEffect(() => {
     load();
@@ -137,6 +177,7 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
         quantity: it.quantity,
         itemName: it.inventory_items?.name ?? "Gerät",
         itemQuantity: 0,
+        ownerLabel: itemOwnerLabels[it.inventory_item_id],
         availability: it.availability,
       }))
     );
@@ -572,7 +613,14 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                         background: conflict ? "var(--color-destructive-light)" : "var(--color-background)",
                       }}
                     >
-                      <span className="flex-1 text-sm min-w-0 truncate">{it.inventory_items?.name ?? "Gerät"}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm truncate">{it.inventory_items?.name ?? "Gerät"}</div>
+                        {itemOwnerLabels[it.inventory_item_id] && (
+                          <div className="text-[11px] truncate" style={{ color: "var(--color-muted-foreground)" }}>
+                            Eigentümer: {itemOwnerLabels[it.inventory_item_id]}
+                          </div>
+                        )}
+                      </div>
                       <span className="text-xs tabular-nums" style={{ color: "var(--color-muted-foreground)" }}>
                         {it.inventory_items?.inventory_number}
                       </span>

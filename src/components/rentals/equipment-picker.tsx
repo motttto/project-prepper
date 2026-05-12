@@ -13,6 +13,8 @@ export type PickedItem = {
   // gecacht
   itemName: string;
   itemQuantity: number;
+  /** Label des Eigentuemers (Profil-Name oder Group-Name + (du) falls eigen) */
+  ownerLabel?: string;
   availability?: InventoryAvailability;
 };
 
@@ -32,6 +34,7 @@ export function EquipmentPicker({ dateFrom, dateTo, picked, onChange, excludeRen
   const ownerId = currentUser?.id ?? null;
 
   const [items, setItems] = useState<InventoryItem[]>([]);
+  const [ownerLabels, setOwnerLabels] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
 
@@ -59,7 +62,7 @@ export function EquipmentPicker({ dateFrom, dateTo, picked, onChange, excludeRen
     refreshAvailability();
   }, [refreshAvailability]);
 
-  // Inventar laden (im Workspace-Scope)
+  // Inventar laden (im Workspace-Scope) + Owner-Labels aufloesen
   useEffect(() => {
     async function load() {
       if (!ownerId) return;
@@ -67,7 +70,39 @@ export function EquipmentPicker({ dateFrom, dateTo, picked, onChange, excludeRen
         ? supabase.from("inventory_items").select("*").eq("owner_group_id", groupId)
         : supabase.from("inventory_items").select("*").eq("owner_profile_id", ownerId);
       const { data } = await query.order("name");
-      if (data) setItems(data as InventoryItem[]);
+      if (!data) return;
+      const list = data as InventoryItem[];
+      setItems(list);
+
+      // Owner-Labels in einem Rutsch nachladen
+      const profileIds = Array.from(
+        new Set(list.map((i) => i.owner_profile_id).filter((x): x is string => !!x))
+      );
+      const groupIds = Array.from(
+        new Set(list.map((i) => i.owner_group_id).filter((x): x is string => !!x))
+      );
+
+      const [profilesRes, groupsRes] = await Promise.all([
+        profileIds.length
+          ? supabase.from("profiles").select("id, name").in("id", profileIds)
+          : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+        groupIds.length
+          ? supabase.from("groups").select("id, name").in("id", groupIds)
+          : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+      ]);
+      const pMap = new Map((profilesRes.data ?? []).map((p) => [p.id, p.name]));
+      const gMap = new Map((groupsRes.data ?? []).map((g) => [g.id, g.name]));
+
+      const labels: Record<string, string> = {};
+      for (const it of list) {
+        if (it.owner_profile_id) {
+          const name = pMap.get(it.owner_profile_id) ?? "—";
+          labels[it.id] = it.owner_profile_id === ownerId ? `${name} (du)` : name;
+        } else if (it.owner_group_id) {
+          labels[it.id] = `🛡️ ${gMap.get(it.owner_group_id) ?? "Gruppe"}`;
+        }
+      }
+      setOwnerLabels(labels);
     }
     load();
   }, [supabase, ownerId, groupId]);
@@ -100,6 +135,7 @@ export function EquipmentPicker({ dateFrom, dateTo, picked, onChange, excludeRen
         quantity: 1,
         itemName: item.name,
         itemQuantity: item.quantity,
+        ownerLabel: ownerLabels[item.id],
         availability,
       },
     ]);
@@ -139,7 +175,14 @@ export function EquipmentPicker({ dateFrom, dateTo, picked, onChange, excludeRen
                   background: conflict ? "var(--color-destructive-light)" : "var(--color-background)",
                 }}
               >
-                <span className="flex-1 text-sm truncate">{p.itemName}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm truncate">{p.itemName}</div>
+                  {p.ownerLabel && (
+                    <div className="text-[11px] truncate" style={{ color: "var(--color-muted-foreground)" }}>
+                      Eigentümer: {p.ownerLabel}
+                    </div>
+                  )}
+                </div>
                 <input
                   type="number"
                   min={1}
@@ -240,12 +283,19 @@ export function EquipmentPicker({ dateFrom, dateTo, picked, onChange, excludeRen
                   key={item.id}
                   type="button"
                   onClick={() => handleAdd(item)}
-                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded text-sm text-left transition-colors"
+                  className="w-full flex items-start justify-between gap-2 px-2.5 py-1.5 rounded text-sm text-left transition-colors"
                   onMouseEnter={(e) => (e.currentTarget.style.background = "var(--color-muted)")}
                   onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                 >
-                  <span className="flex-1 truncate">{item.name}</span>
-                  <span className="text-xs ml-2" style={{ color: "var(--color-muted-foreground)" }}>
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate">{item.name}</div>
+                    {ownerLabels[item.id] && (
+                      <div className="text-[11px] truncate" style={{ color: "var(--color-muted-foreground)" }}>
+                        {ownerLabels[item.id]}
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-xs whitespace-nowrap" style={{ color: "var(--color-muted-foreground)" }}>
                     {item.inventory_number} · {item.quantity} Stk
                   </span>
                 </button>
