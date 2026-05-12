@@ -613,6 +613,9 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                         background: conflict ? "var(--color-destructive-light)" : "var(--color-background)",
                       }}
                     >
+                      <span className="text-sm font-semibold tabular-nums" style={{ minWidth: 28 }}>
+                        {it.quantity}×
+                      </span>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm truncate">{it.inventory_items?.name ?? "Gerät"}</div>
                         {itemOwnerLabels[it.inventory_item_id] && (
@@ -624,14 +627,13 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                       <span className="text-xs tabular-nums" style={{ color: "var(--color-muted-foreground)" }}>
                         {it.inventory_items?.inventory_number}
                       </span>
-                      <span className="text-sm font-semibold tabular-nums">{it.quantity}×</span>
                       {av && status !== "rejected" && (
                         <span
                           className="text-xs tabular-nums"
                           style={{ color: "var(--color-muted-foreground)" }}
-                          title={`Bestand ${av.total} Stück, ${av.available} davon frei im Zeitraum (ohne diesen Verleih).`}
+                          title={`Bestand ${av.total} · ${av.available} frei im Zeitraum (ohne diesen Verleih) · ${Math.max(0, av.available - it.quantity)} noch verleihbar inkl. dieser Buchung`}
                         >
-                          Bestand: {av.total}
+                          Bestand: {av.total} · verfügbar: {Math.max(0, av.available - it.quantity)}
                         </span>
                       )}
                       {/* Anteilige Kostenposition: cost_per_day × Tage × quantity */}
