@@ -19,10 +19,11 @@ export type PermissionKey =
   | "costs_view" | "costs_edit"
   | "team_view" | "team_manage"
   | "inquiries_view" | "inquiries_edit" | "inquiries_create"
-  | "polls_view" | "polls_create";
+  | "polls_view" | "polls_create"
+  | "rentals_view" | "rentals_edit" | "rentals_create";
 
 // Backward-Compat: grobe Module für Sidebar-Filter
-export type PermissionModule = "projects" | "inventory" | "costs" | "team" | "inquiries" | "polls";
+export type PermissionModule = "projects" | "inventory" | "costs" | "team" | "inquiries" | "polls" | "rentals";
 
 export type UserPermissions = Record<string, boolean>;
 
@@ -77,6 +78,14 @@ export const permissionGroups: PermissionGroup[] = [
       { key: "polls_create", label: "Umfragen erstellen" },
     ],
   },
+  {
+    label: "Verleih",
+    permissions: [
+      { key: "rentals_view", label: "Verleih sehen" },
+      { key: "rentals_create", label: "Verleih anlegen" },
+      { key: "rentals_edit", label: "Verleih bearbeiten" },
+    ],
+  },
 ];
 
 // Alle Permission-Keys flach
@@ -93,6 +102,7 @@ export const defaultPermissionsByRole: Record<string, UserPermissions> = {
     team_view: true, team_manage: false,
     inquiries_view: true, inquiries_edit: true, inquiries_create: true,
     polls_view: true, polls_create: true,
+    rentals_view: true, rentals_create: true, rentals_edit: true,
   },
   member: {
     projects_view: true, projects_edit: false,
@@ -102,6 +112,7 @@ export const defaultPermissionsByRole: Record<string, UserPermissions> = {
     team_view: true, team_manage: false,
     inquiries_view: false, inquiries_edit: false, inquiries_create: false,
     polls_view: true, polls_create: true,
+    rentals_view: true, rentals_create: false, rentals_edit: false,
   },
 };
 
@@ -113,6 +124,7 @@ export const modulePermissionMap: Record<PermissionModule, PermissionKey> = {
   team: "team_view",
   inquiries: "inquiries_view",
   polls: "polls_view",
+  rentals: "rentals_view",
 };
 
 export type User = {
@@ -1055,4 +1067,52 @@ export type AgreementAmendment = {
   created_by: string | null;
   created_at: string;
   resolved_at: string | null;
+};
+
+// ── Verleih / Rentals (Migration 098) ──
+
+export type RentalStatus = "reserved" | "active" | "returned" | "cancelled";
+
+export type Rental = {
+  id: string;
+  /** XOR mit owner_group_id */
+  owner_profile_id: string | null;
+  /** XOR mit owner_profile_id */
+  owner_group_id: string | null;
+  borrower_name: string;
+  borrower_email: string | null;
+  borrower_phone: string | null;
+  borrower_address: string | null;
+  borrower_profile_id: string | null;
+  date_from: string;
+  date_to: string;
+  deposit_amount: number;
+  rental_fee: number | null;
+  status: RentalStatus;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  rental_items?: RentalItem[];
+  borrower_profile?: { name: string; avatar_url: string | null } | null;
+};
+
+export type RentalItem = {
+  id: string;
+  rental_id: string;
+  inventory_item_id: string;
+  unit_id: string | null;
+  quantity: number;
+  notes: string | null;
+  created_at: string;
+  // Joined
+  inventory_items?: { name: string; inventory_number: string; image_url: string | null } | null;
+  inventory_units?: { unit_number: number } | null;
+};
+
+export type InventoryAvailability = {
+  total: number;
+  reserved: number;
+  available: number;
 };

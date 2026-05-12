@@ -9,8 +9,14 @@ import { createClient } from "@/lib/supabase";
 import { useOrg, useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
 
+// Projekt-Reservierungen (bookings) — frueher als "Verleih" gelabelt,
+// ab Migration 098 umbenannt um nicht mit externem Verleih zu kollidieren.
 const LOANS_GROUP_ID = "__loans__";
 const LOANS_GROUP_COLOR = "#A855F7";
+
+// Externer Verleih (rentals, Migration 098)
+const RENTALS_GROUP_ID = "__rentals__";
+const RENTALS_GROUP_COLOR = "#F97316";
 
 type CalendarGroup = {
   id: string;
@@ -32,6 +38,8 @@ type CalendarEvent = {
   groupName?: string;
   isLoan?: boolean;
   loanProjectId?: string;
+  isRental?: boolean;
+  rentalId?: string;
 };
 
 type LoanRow = {
@@ -43,6 +51,15 @@ type LoanRow = {
   approval_status: string;
   inventory_items: { name: string } | null;
   projects: { id: string; title: string; org_id: string | null } | null;
+};
+
+type RentalEventRow = {
+  id: string;
+  borrower_name: string;
+  date_from: string;
+  date_to: string;
+  status: string;
+  rental_items: { quantity: number; inventory_items: { name: string } | null }[] | null;
 };
 
 type ViewMode = "month" | "week";
@@ -192,6 +209,7 @@ export default function CalendarPage() {
   const [groupsRaw, setGroupsRaw] = useState<CalendarGroup[]>([]);
   const [eventsRaw, setEventsRaw] = useState<CalendarEvent[]>([]);
   const [loans, setLoans] = useState<LoanRow[]>([]);
+  const [rentals, setRentals] = useState<RentalEventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("month");
@@ -206,7 +224,7 @@ export default function CalendarPage() {
   const [showSubscribeInfo, setShowSubscribeInfo] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
-  // Verleih (virtuelle Gruppe) — synthetische Events aus Bookings
+  // Projekt-Reservierungen (virtuelle Gruppe) — synthetische Events aus Bookings
   const loanEvents: CalendarEvent[] = useMemo(() => loans.map((b) => {
     const itemName = b.inventory_items?.name ?? "Equipment";
     const projectTitle = b.projects?.title ?? "Projekt";
@@ -231,19 +249,52 @@ export default function CalendarPage() {
     } as CalendarEvent;
   }), [loans]);
 
-  const groups = useMemo<CalendarGroup[]>(() => (
-    loans.length > 0
-      ? [...groupsRaw, { id: LOANS_GROUP_ID, name: "Verleih", color: LOANS_GROUP_COLOR, sort_order: 9999 }]
-      : groupsRaw
-  ), [groupsRaw, loans.length]);
+  // Externer Verleih (virtuelle Gruppe) — synthetische Events aus Rentals
+  const rentalEvents: CalendarEvent[] = useMemo(() => rentals.map((r) => {
+    const items = r.rental_items ?? [];
+    const totalQty = items.reduce((s, i) => s + (i.quantity ?? 0), 0);
+    const firstName = items[0]?.inventory_items?.name ?? "Equipment";
+    const extra = items.length > 1 ? ` +${items.length - 1}` : "";
+    const summary = `${r.borrower_name} — ${totalQty}× ${firstName}${extra}`;
+    const description =
+      r.status === "active" ? "Status: Ausgegeben"
+      : r.status === "returned" ? "Status: Zurueck"
+      : r.status === "cancelled" ? "Status: Storniert"
+      : "Status: Reserviert";
+    return {
+      id: `rental-${r.id}`,
+      group_id: RENTALS_GROUP_ID,
+      summary,
+      description,
+      location: null,
+      all_day: true,
+      start_at: `${r.date_from}T00:00:00Z`,
+      end_at: `${r.date_to}T00:00:00Z`,
+      created_by: null,
+      isRental: true,
+      rentalId: r.id,
+    } as CalendarEvent;
+  }), [rentals]);
+
+  const groups = useMemo<CalendarGroup[]>(() => {
+    const extra: CalendarGroup[] = [];
+    if (loans.length > 0) {
+      extra.push({ id: LOANS_GROUP_ID, name: "Projekt-Reservierungen", color: LOANS_GROUP_COLOR, sort_order: 9998 });
+    }
+    if (rentals.length > 0) {
+      extra.push({ id: RENTALS_GROUP_ID, name: "Verleih", color: RENTALS_GROUP_COLOR, sort_order: 9999 });
+    }
+    return extra.length ? [...groupsRaw, ...extra] : groupsRaw;
+  }, [groupsRaw, loans.length, rentals.length]);
 
   const events = useMemo<CalendarEvent[]>(() => (
-    [...eventsRaw, ...loanEvents]
-  ), [eventsRaw, loanEvents]);
+    [...eventsRaw, ...loanEvents, ...rentalEvents]
+  ), [eventsRaw, loanEvents, rentalEvents]);
 
   // Group color helper
   const getEventColor = useCallback((event: CalendarEvent) => {
     if (event.isLoan) return LOANS_GROUP_COLOR;
+    if (event.isRental) return RENTALS_GROUP_COLOR;
     const idx = groups.findIndex((g) => g.id === event.group_id);
     return getGroupColor(groups[idx], idx);
   }, [groups]);
@@ -319,9 +370,44 @@ export default function CalendarPage() {
     if (data) setLoans(data as unknown as LoanRow[]);
   }, [supabase, orgId, currentDate, viewMode]);
 
+  // Rentals (externer Verleih) im Zeitfenster fetchen
+  const fetchRentals = useCallback(async () => {
+    if (!currentUser?.id) return;
+    let start: Date;
+    let end: Date;
+    if (viewMode === "month") {
+      start = new Date(currentDate.getFullYear(), currentDate.getMonth(), -7);
+      end = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 14);
+    } else {
+      const monday = getMonday(currentDate);
+      start = new Date(monday); start.setDate(start.getDate() - 1);
+      end = new Date(monday); end.setDate(end.getDate() + 8);
+    }
+    const startStr = start.toISOString().slice(0, 10);
+    const endStr = end.toISOString().slice(0, 10);
+
+    // Scope: aktiver Workspace (Gruppe oder Solo). RLS filtert ohnehin korrekt.
+    let query = supabase
+      .from("rentals")
+      .select("id,borrower_name,date_from,date_to,status,rental_items(quantity,inventory_items(name))")
+      .neq("status", "cancelled")
+      .lte("date_from", endStr)
+      .gte("date_to", startStr);
+
+    if (orgId) {
+      query = query.eq("owner_group_id", orgId);
+    } else {
+      query = query.eq("owner_profile_id", currentUser.id);
+    }
+
+    const { data } = await query;
+    if (data) setRentals(data as unknown as RentalEventRow[]);
+  }, [supabase, orgId, currentUser?.id, currentDate, viewMode]);
+
   useEffect(() => { fetchGroups(); }, [fetchGroups]);
   useEffect(() => { fetchEvents(); }, [fetchEvents]);
   useEffect(() => { fetchLoans(); }, [fetchLoans]);
+  useEffect(() => { fetchRentals(); }, [fetchRentals]);
 
   // Realtime
   useEffect(() => {
@@ -331,14 +417,21 @@ export default function CalendarPage() {
       .on("postgres_changes", { event: "*", schema: "public", table: "calendar_events" }, () => fetchEvents())
       .on("postgres_changes", { event: "*", schema: "public", table: "calendar_groups", filter: `group_id=eq.${groupId}` }, () => { fetchGroups(); fetchEvents(); })
       .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => fetchLoans())
+      .on("postgres_changes", { event: "*", schema: "public", table: "rentals" }, () => fetchRentals())
+      .on("postgres_changes", { event: "*", schema: "public", table: "rental_items" }, () => fetchRentals())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [supabase, orgId, fetchEvents, fetchGroups, fetchLoans]);
+  }, [supabase, orgId, fetchEvents, fetchGroups, fetchLoans, fetchRentals]);
 
-  // Klick auf Event → Loan: zum Projekt navigieren, sonst Detail-Modal
+  // Klick auf Event:
+  //  - Loan (Projekt-Reservierung) → zum Projekt
+  //  - Rental (Verleih) → zur Verleih-Detailseite
+  //  - sonst → Detail-Modal
   const handleEventClick = useCallback((event: CalendarEvent) => {
     if (event.isLoan && event.loanProjectId) {
       router.push(`/projects/${event.loanProjectId}`);
+    } else if (event.isRental && event.rentalId) {
+      router.push(`/rentals/${event.rentalId}`);
     } else {
       setSelectedEvent(event);
     }

@@ -15,6 +15,7 @@ import {
   IconInbox,
   IconCalendar,
   IconClipboard,
+  IconPackage,
 } from "@/components/ui/icons";
 import { useOrg, useWorkspace } from "@/contexts/org-context";
 import { useCurrentUser } from "@/hooks/use-current-user";
@@ -32,6 +33,7 @@ function buildNavItems(activeGroupId: string | null): NavItem[] {
       { href: `/groups/${activeGroupId}`, label: "Übersicht", icon: IconUsers },
       { href: "/inventory", label: "Inventar", icon: IconInventory },
       { href: "/inquiries", label: "Anfragen", icon: IconInbox },
+      { href: "/rentals", label: "Verleih", icon: IconPackage },
       { href: "/projects", label: "Projekte", icon: IconProjects },
       { href: "/calendar", label: "Kalender", icon: IconCalendar },
       { href: "/polls", label: "Umfragen", icon: IconClipboard },
@@ -44,6 +46,7 @@ function buildNavItems(activeGroupId: string | null): NavItem[] {
     { href: "/dashboard", label: "Dashboard", icon: IconDashboard },
     { href: "/inventory", label: "Mein Inventar", icon: IconInventory },
     { href: "/inquiries", label: "Meine Anfragen", icon: IconInbox },
+    { href: "/rentals", label: "Mein Verleih", icon: IconPackage },
     { href: "/projects", label: "Meine Projekte", icon: IconProjects },
     { href: "/groups", label: "Meine Gruppen", icon: IconUsers },
     { href: "/admin", label: "Admin", icon: IconZap, adminOnly: true },
