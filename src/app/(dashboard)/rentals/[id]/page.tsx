@@ -812,13 +812,15 @@ export default function RentalDetailPage({ params }: { params: Promise<{ id: str
                   const effectiveRate = agreed ?? proposed ?? 0;
                   const lineFee = effectiveRate * days * it.quantity;
                   const missingShare = it.needsExternalApproval && it.hasShareForGroup === false;
+                  // Rote Optik nur solange das Item wirklich noch blockiert ist (pending).
+                  const shareBlocks = missingShare && status === "pending";
                   return (
                     <div
                       key={it.id}
                       className="flex flex-col gap-2 px-3 py-2 rounded-lg"
                       style={{
-                        border: `1px solid ${conflict || missingShare ? "var(--color-destructive)" : "var(--color-border-light)"}`,
-                        background: conflict || missingShare ? "var(--color-destructive-light)" : "var(--color-background)",
+                        border: `1px solid ${conflict || shareBlocks ? "var(--color-destructive)" : "var(--color-border-light)"}`,
+                        background: conflict || shareBlocks ? "var(--color-destructive-light)" : "var(--color-background)",
                       }}
                     ><div className="flex flex-wrap items-center gap-3">
                       {canEdit && status !== "rejected" ? (
