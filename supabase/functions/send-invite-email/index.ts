@@ -6,6 +6,7 @@
 // Für bestehende User: kein Email nötig, sie sehen die Einladung in der App
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { requireUuid, ValidationError } from "../_shared/validation.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -33,9 +34,13 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { invitation_id } = await req.json();
-    if (!invitation_id) {
-      return json({ error: "invitation_id required" }, 400);
+    let invitation_id: string;
+    try {
+      const body = await req.json();
+      invitation_id = requireUuid(body?.invitation_id, "invitation_id");
+    } catch (e) {
+      if (e instanceof ValidationError) return json({ error: e.message }, 400);
+      return json({ error: "Invalid JSON" }, 400);
     }
 
     const supabase = getServiceClient();
