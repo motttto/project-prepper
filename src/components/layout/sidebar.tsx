@@ -282,6 +282,12 @@ export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
         >
           Feedback geben
         </button>
+        {/* Legal-Footer */}
+        <div className="flex items-center gap-3 px-3 mt-1 text-[11px]" style={{ color: "var(--color-muted-foreground)" }}>
+          <Link href="/impressum" className="hover:underline">Impressum</Link>
+          <Link href="/datenschutz" className="hover:underline">Datenschutz</Link>
+          <Link href="/agb" className="hover:underline">AGB</Link>
+        </div>
       </div>
 
       {showFeedback && <FeedbackModal onClose={() => setShowFeedback(false)} />}

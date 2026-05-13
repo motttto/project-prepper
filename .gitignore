@@ -27,3 +27,6 @@ next-env.d.ts
 supabase/.temp/
 .vercel
 cloudflare-caldav-proxy/.next/
+
+# Claude Code lokale Settings (enthält Auto-Approvals mit Pfaden)
+.claude/settings.local.json

@@ -13,7 +13,10 @@ import {
   IconShield,
 } from "@/components/ui/icons";
 import imageCompression from "browser-image-compression";
+import { useRouter } from "next/navigation";
 import { RoleBadge, RoleBadgeGroup, orgBadgeStyles } from "@/components/ui/role-badge";
+import { showToast } from "@/hooks/use-toast";
+import { appConfirm } from "@/components/ui/confirm-dialog";
 
 type ProfileData = {
   id: string;
@@ -33,8 +36,53 @@ const roleBadgeStyles = orgBadgeStyles;
 
 export default function ProfilePage() {
   const supabase = createClient();
+  const router = useRouter();
   const { orgId } = useOrg();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [exporting, setExporting] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
+  async function handleExportData() {
+    setExporting(true);
+    const { data, error } = await supabase.rpc("export_my_data");
+    setExporting(false);
+    if (error || !data) {
+      showToast("Export fehlgeschlagen: " + (error?.message ?? ""), "error");
+      return;
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `project-prepper-export-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast("Daten heruntergeladen", "success");
+  }
+
+  async function handleDeleteAccount() {
+    const ok1 = await appConfirm(
+      "Account und alle eigenen Daten unwiderruflich loeschen? Diese Aktion kann nicht rueckgaengig gemacht werden.",
+      { variant: "danger", confirmLabel: "Weiter" }
+    );
+    if (!ok1) return;
+    const ok2 = await appConfirm(
+      "Letzte Bestaetigung: Alle Inventare, Verleihe, Projekte, Anfragen und Mitgliedschaften werden geloescht. Sicher?",
+      { variant: "danger", confirmLabel: "Endgueltig loeschen" }
+    );
+    if (!ok2) return;
+    setDeletingAccount(true);
+    const { error } = await supabase.rpc("delete_my_account");
+    if (error) {
+      showToast("Loeschen fehlgeschlagen: " + error.message, "error");
+      setDeletingAccount(false);
+      return;
+    }
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [orgRoleName, setOrgRoleName] = useState("member");
@@ -742,6 +790,67 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+
+        {/* DSGVO-Selfservice: Daten exportieren + Account loeschen */}
+        <div
+          className="mt-8 p-6 rounded-2xl"
+          style={{
+            background: "var(--color-surface)",
+            border: "1px solid var(--color-destructive)",
+          }}
+        >
+          <h2 className="text-lg font-semibold mb-1" style={{ color: "var(--color-destructive)" }}>
+            Gefahrenzone
+          </h2>
+          <p className="text-sm mb-5" style={{ color: "var(--color-muted-foreground)" }}>
+            Deine gesetzlichen Rechte nach DSGVO: Datenauskunft (Art. 15 / 20) und Loeschung (Art. 17).
+          </p>
+
+          <div
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3"
+            style={{ borderTop: "1px solid var(--color-border-light)" }}
+          >
+            <div>
+              <div className="text-sm font-medium">Meine Daten exportieren</div>
+              <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                Lade alle Daten, die mit deinem Account verknuepft sind, als JSON-Datei herunter.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleExportData}
+              disabled={exporting}
+              className="px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50"
+              style={{ border: "1px solid var(--color-border)" }}
+            >
+              {exporting ? "Wird erstellt..." : "Export herunterladen"}
+            </button>
+          </div>
+
+          <div
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 py-3"
+            style={{ borderTop: "1px solid var(--color-border-light)" }}
+          >
+            <div>
+              <div className="text-sm font-medium" style={{ color: "var(--color-destructive)" }}>
+                Account loeschen
+              </div>
+              <div className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+                Loescht deinen Account unwiderruflich inkl. aller eigenen Inventare, Verleihe, Projekte,
+                Anfragen und Mitgliedschaften. Founder-Gruppen muessen vorher uebertragen oder aufgeloest werden.
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleDeleteAccount}
+              disabled={deletingAccount}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+              style={{ background: "var(--color-destructive)" }}
+            >
+              {deletingAccount ? "Wird geloescht..." : "Account loeschen"}
+            </button>
           </div>
         </div>
       </div>

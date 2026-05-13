@@ -291,6 +291,16 @@ function LoginPage() {
                 : "Noch kein Konto? Registrieren"}
             </button>
           </div>
+
+          {/* Legal-Footer */}
+          <div
+            className="flex items-center justify-center gap-4 text-[11px] pt-4"
+            style={{ color: "var(--color-muted-foreground)" }}
+          >
+            <a href="/impressum" className="hover:underline">Impressum</a>
+            <a href="/datenschutz" className="hover:underline">Datenschutz</a>
+            <a href="/agb" className="hover:underline">AGB</a>
+          </div>
         </div>
       </div>
     </div>
