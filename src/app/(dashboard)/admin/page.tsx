@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/icons";
 import { EmailTemplatesTab } from "@/components/admin/email-templates-tab";
 import { FeedbackTab } from "@/components/admin/feedback-tab";
+import { MonetisationTab } from "@/components/admin/monetisation-tab";
 import {
   RoleBadge,
   RoleBadgeGroup,
@@ -150,7 +151,7 @@ export default function AdminPage() {
   const { orgId } = useOrg();
   const { startImpersonating } = useImpersonate();
 
-  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system" | "services" | "email" | "users" | "templates" | "feedback">("users");
+  const [activeTab, setActiveTab] = useState<"roles" | "log" | "system" | "services" | "email" | "users" | "templates" | "feedback" | "monetisation">("users");
 
   // ── Rollen & Berechtigungen State ──
   const [members, setMembers] = useState<OrgMember[]>([]);
@@ -409,13 +410,14 @@ export default function AdminPage() {
   }
 
   // ── Tab Config ──
-  const tabs: { key: "roles" | "log" | "system" | "services" | "email" | "users" | "templates" | "feedback"; label: string }[] = [
+  const tabs: { key: "roles" | "log" | "system" | "services" | "email" | "users" | "templates" | "feedback" | "monetisation"; label: string }[] = [
     ...(currentUser?.isSuperadmin ? [{ key: "users" as const, label: "User & Gruppen" }] : []),
     { key: "log", label: "Protokoll" },
     { key: "services", label: "Services" },
     { key: "email", label: "E-Mail" },
     ...(currentUser?.isSuperadmin ? [{ key: "templates" as const, label: "Vorlagen" }] : []),
     ...(currentUser?.isSuperadmin ? [{ key: "feedback" as const, label: "Feedback" }] : []),
+    ...(currentUser?.isSuperadmin ? [{ key: "monetisation" as const, label: "Monetarisierung" }] : []),
     { key: "system", label: "System" },
   ];
 
@@ -511,6 +513,8 @@ export default function AdminPage() {
         <EmailTemplatesTab />
       ) : activeTab === "feedback" ? (
         <FeedbackTab />
+      ) : activeTab === "monetisation" ? (
+        <MonetisationTab />
       ) : (
         <SystemTab />
       )}

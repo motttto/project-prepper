@@ -6,10 +6,9 @@ export const metadata: Metadata = {
   description: "Informationen zur Verarbeitung personenbezogener Daten nach Art. 13 DSGVO",
 };
 
-// HINWEIS: Vorlage. Bitte alle [PLATZHALTER] durch echte Daten ersetzen
-// und unbedingt anwaltlich prüfen lassen, bevor das Produkt live geht.
-// Insb. die Auftragsverarbeitungsverträge mit Supabase, Vercel und allen
-// Telegram/SMTP-Anbietern müssen geprüft und verlinkt werden.
+// HINWEIS: Default-Texte mit eingesetzten Daten wo bekannt. Anbieter-Anschrift
+// muss ergaenzt werden. Vor Live-Gang anwaltlich pruefen lassen, insbesondere
+// die DPAs mit Supabase, Vercel, Cloudflare und ggf. SMTP-Anbietern.
 
 export default function DatenschutzPage() {
   return (
@@ -20,14 +19,31 @@ export default function DatenschutzPage() {
         </Link>
         <h1 className="text-3xl font-bold mt-6 mb-8">Datenschutzerklärung</h1>
 
+        <div
+          className="mb-8 p-4 rounded-lg text-sm"
+          style={{
+            background: "var(--color-warning-light)",
+            border: "1px dashed var(--color-warning)",
+            color: "var(--color-warning)",
+          }}
+        >
+          <strong>Vorlage in Arbeit:</strong> Adresse des Verantwortlichen und Datum müssen vor
+          Veröffentlichung gefüllt werden. Anwaltliche Prüfung empfohlen.
+        </div>
+
         <section className="space-y-2 mb-8">
           <h2 className="text-lg font-semibold">1. Verantwortlicher</h2>
           <p className="text-sm">
             Verantwortlich für die Datenverarbeitung auf dieser Plattform ist:
           </p>
-          <p>[BETREIBER NAME]</p>
-          <p>[STRASSE HAUSNR], [PLZ ORT]</p>
-          <p>E-Mail: [KONTAKT-EMAIL]</p>
+          <p>[Betreiber-Name]</p>
+          <p>[Straße], [PLZ Ort]</p>
+          <p>
+            E-Mail:{" "}
+            <a href="mailto:post@michaotto.com" style={{ color: "var(--color-primary)" }}>
+              post@michaotto.com
+            </a>
+          </p>
           <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
             Weitere Angaben siehe <Link href="/impressum" style={{ color: "var(--color-primary)" }}>Impressum</Link>.
           </p>
@@ -124,8 +140,8 @@ export default function DatenschutzPage() {
           </ul>
           <p className="text-sm mt-2">
             Zur Wahrnehmung Ihrer Rechte wenden Sie sich an{" "}
-            <a href="mailto:[KONTAKT-EMAIL]" style={{ color: "var(--color-primary)" }}>
-              [KONTAKT-EMAIL]
+            <a href="mailto:post@michaotto.com" style={{ color: "var(--color-primary)" }}>
+              post@michaotto.com
             </a>{" "}
             oder nutzen die Funktionen unter <Link href="/profile" style={{ color: "var(--color-primary)" }}>Profil</Link>.
           </p>
@@ -150,7 +166,7 @@ export default function DatenschutzPage() {
         </section>
 
         <p className="text-xs mt-12" style={{ color: "var(--color-muted-foreground)" }}>
-          Stand: [DATUM]. Bitte regelmäßig prüfen — diese Erklärung kann sich ändern.
+          Stand: Mai 2026. Bitte regelmäßig prüfen — diese Erklärung kann sich ändern.
         </p>
       </div>
     </main>

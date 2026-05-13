@@ -6,9 +6,9 @@ export const metadata: Metadata = {
   description: "Allgemeine Geschäftsbedingungen",
 };
 
-// HINWEIS: Vorlage / Gerüst. Vor Live-Gang anwaltlich prüfen lassen,
-// insbesondere für die jeweiligen Tarif-Modelle (Pro, Business, Enterprise),
-// Widerrufsregelung und Haftungsbegrenzung.
+// HINWEIS: Default-Texte; Tarif-Details und Widerrufsregelung muessen mit
+// dem konkreten Stripe/Paddle-Setup abgeglichen werden. Anwaltliche Pruefung
+// vor Live-Gang.
 
 export default function AGBPage() {
   return (
@@ -19,12 +19,25 @@ export default function AGBPage() {
         </Link>
         <h1 className="text-3xl font-bold mt-6 mb-8">Allgemeine Geschäftsbedingungen</h1>
 
+        <div
+          className="mb-8 p-4 rounded-lg text-sm"
+          style={{
+            background: "var(--color-warning-light)",
+            border: "1px dashed var(--color-warning)",
+            color: "var(--color-warning)",
+          }}
+        >
+          <strong>Vorlage in Arbeit:</strong> Anbieter-Name, Tarifdetails und Zahlungs­dienstleister
+          sind als Default eingesetzt. Vor Veröffentlichung mit echten Daten füllen und
+          anwaltlich prüfen lassen.
+        </div>
+
         <section className="space-y-2 mb-8">
           <h2 className="text-lg font-semibold">§ 1 Geltungsbereich</h2>
           <p className="text-sm">
             Diese Allgemeinen Geschäftsbedingungen (AGB) gelten für die Nutzung der Plattform
             &quot;Project Prepper&quot; (im Folgenden &quot;Plattform&quot;), bereitgestellt von
-            [BETREIBER NAME] (im Folgenden &quot;Anbieter&quot;). Mit der Registrierung erkennen Sie
+            [Betreiber-Name] (im Folgenden &quot;Anbieter&quot;). Mit der Registrierung erkennen Sie
             diese AGB an.
           </p>
         </section>
@@ -63,7 +76,7 @@ export default function AGBPage() {
           <h2 className="text-lg font-semibold">§ 5 Widerrufsrecht für Verbraucher</h2>
           <p className="text-sm">
             Verbraucher (§ 13 BGB) haben das Recht, den Vertrag binnen 14 Tagen ohne Angabe von
-            Gründen zu widerrufen. Der Widerruf ist zu richten an: [KONTAKT-EMAIL].
+            Gründen zu widerrufen. Der Widerruf ist zu richten an: post@michaotto.com.
           </p>
           <p className="text-sm">
             Mit der Bereitstellung kostenpflichtiger Funktionen vor Ablauf der Widerrufsfrist
@@ -76,7 +89,7 @@ export default function AGBPage() {
           <p className="text-sm">
             Monatstarife können jederzeit zum Ende des laufenden Monats gekündigt werden,
             Jahrestarife zum Ende der Laufzeit. Die Kündigung erfolgt über die Profil-Einstellungen
-            oder per E-Mail an [KONTAKT-EMAIL].
+            oder per E-Mail an post@michaotto.com.
           </p>
           <p className="text-sm">
             Bei Kündigung bleibt der Account bis zum Ende des bezahlten Zeitraums aktiv. Danach
@@ -134,7 +147,7 @@ export default function AGBPage() {
         </section>
 
         <p className="text-xs mt-12" style={{ color: "var(--color-muted-foreground)" }}>
-          Stand: [DATUM]
+          Stand: Mai 2026
         </p>
       </div>
     </main>

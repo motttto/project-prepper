@@ -6,8 +6,8 @@ export const metadata: Metadata = {
   description: "Anbieterkennzeichnung nach § 5 TMG",
 };
 
-// HINWEIS: Vorlage. Bitte alle [PLATZHALTER] durch echte Daten ersetzen
-// und anwaltlich prüfen lassen, bevor das Produkt monetarisiert wird.
+// HINWEIS: Default-Texte mit eingesetzten Daten wo bekannt. Adresse + USt-ID
+// muss der Betreiber selbst ergaenzen. Vor Live-Gang anwaltlich pruefen.
 
 export default function ImpressumPage() {
   return (
@@ -18,47 +18,58 @@ export default function ImpressumPage() {
         </Link>
         <h1 className="text-3xl font-bold mt-6 mb-8">Impressum</h1>
 
+        <div
+          className="mb-8 p-4 rounded-lg text-sm"
+          style={{
+            background: "var(--color-warning-light)",
+            border: "1px dashed var(--color-warning)",
+            color: "var(--color-warning)",
+          }}
+        >
+          <strong>Vorlage in Arbeit:</strong> Die mit <code>[ ]</code> markierten Felder müssen vor
+          Veröffentlichung mit den echten Anbieter-Daten gefüllt werden. Anwaltliche Prüfung empfohlen.
+        </div>
+
         <section className="space-y-2 mb-8">
           <h2 className="text-lg font-semibold">Anbieter</h2>
-          <p>[BETREIBER NAME]</p>
-          <p>[STRASSE HAUSNR]</p>
-          <p>[PLZ ORT]</p>
-          <p>[LAND]</p>
+          <p>[Betreiber-Name oder Firma]</p>
+          <p>[Straße Hausnummer]</p>
+          <p>[PLZ Ort]</p>
+          <p>Deutschland</p>
         </section>
 
         <section className="space-y-2 mb-8">
           <h2 className="text-lg font-semibold">Kontakt</h2>
           <p>
-            Telefon: <a href="tel:[TELEFON]" style={{ color: "var(--color-primary)" }}>[TELEFON]</a>
-          </p>
-          <p>
             E-Mail:{" "}
-            <a href="mailto:[KONTAKT-EMAIL]" style={{ color: "var(--color-primary)" }}>
-              [KONTAKT-EMAIL]
+            <a href="mailto:post@michaotto.com" style={{ color: "var(--color-primary)" }}>
+              post@michaotto.com
             </a>
+          </p>
+          <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
+            Telefon wird ergänzt, sobald Support-Hotline eingerichtet ist.
           </p>
         </section>
 
         <section className="space-y-2 mb-8">
           <h2 className="text-lg font-semibold">Vertretungsberechtigt</h2>
-          <p>[NAME DER VERTRETUNGSBERECHTIGTEN PERSON]</p>
+          <p>[Vor- und Nachname]</p>
         </section>
 
         <section className="space-y-2 mb-8">
-          <h2 className="text-lg font-semibold">Umsatzsteuer-ID</h2>
-          <p>
-            Umsatzsteuer-Identifikationsnummer gemäß § 27 a Umsatzsteuergesetz:
-            <br />
-            [USt-ID, z.B. DE123456789]
+          <h2 className="text-lg font-semibold">Umsatzsteuer</h2>
+          <p className="text-sm">
+            Aktuell besteht keine Umsatzsteuer-Identifikationsnummer (Kleinunternehmer gemäß § 19 UStG)
+            bzw. die Plattform befindet sich noch in der Vor-Markt-Phase ohne Umsatz.
           </p>
           <p className="text-xs" style={{ color: "var(--color-muted-foreground)" }}>
-            Falls nicht umsatzsteuerpflichtig, diesen Abschnitt entfernen.
+            Sobald umsatzsteuerpflichtig: USt-ID hier eintragen (Format: DE123456789).
           </p>
         </section>
 
         <section className="space-y-2 mb-8">
           <h2 className="text-lg font-semibold">Redaktionell verantwortlich (§ 18 Abs. 2 MStV)</h2>
-          <p>[NAME], [STRASSE], [PLZ ORT]</p>
+          <p>Wie oben (Anbieter-Anschrift).</p>
         </section>
 
         <section className="space-y-2 mb-8">
@@ -91,7 +102,7 @@ export default function ImpressumPage() {
         </section>
 
         <p className="text-xs mt-12" style={{ color: "var(--color-muted-foreground)" }}>
-          Stand: [DATUM, z.B. Mai 2026]
+          Stand: Mai 2026
         </p>
       </div>
     </main>
