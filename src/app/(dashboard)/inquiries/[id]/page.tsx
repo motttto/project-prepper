@@ -9,7 +9,7 @@ import { useDebouncedSave } from "@/hooks/use-debounced-save";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import { SaveIndicator } from "@/components/ui/save-indicator";
 import type { SaveState } from "@/hooks/use-debounced-save";
-import { appConfirm } from "@/components/ui/confirm-dialog";
+import { appConfirm, appAlert } from "@/components/ui/confirm-dialog";
 import { StaleDataBanner } from "@/components/ui/stale-data-banner";
 import { DateInput } from "@/components/ui/date-input";
 import { useCurrentUser, hasPermission } from "@/hooks/use-current-user";
@@ -346,9 +346,20 @@ function InquiryDetailContent({
     const inquiryBudgetPlanned = localData.estimated_budget ?? localData.offer_amount ?? null;
     const inquiryRevenue = localData.offer_amount ?? null;
 
+    // Owner-Modell (Migration 086): projects haben einen CHECK, der GENAU einen
+    // Owner verlangt (owner_profile_id XOR owner_group_id). Wir leiten den Owner
+    // aus der Anfrage ab — Gruppen-Anfrage -> Gruppe, sonst Solo (eigener User).
+    const ownerGroupId = inquiryGroupId;
+    const ownerProfileId = ownerGroupId
+      ? null
+      : (inquiry.owner_profile_id ?? user?.id ?? null);
+
     const { data: project, error } = await supabase
       .from("projects")
       .insert({
+        owner_profile_id: ownerProfileId,
+        owner_group_id: ownerGroupId,
+        group_id: ownerGroupId,
         org_id: orgId,
         name: localData.title,
         description: localData.description,
@@ -368,15 +379,25 @@ function InquiryDetailContent({
       .select()
       .single();
 
-    if (!error && project) {
-      // Anfrage mit Projekt verknüpfen
-      await supabase
-        .from("inquiries")
-        .update({ project_id: project.id, status: "accepted" })
-        .eq("id", inquiry.id);
-
-      router.push(`/projects/${project.id}`);
+    if (error || !project) {
+      console.error("Projekt erstellen fehlgeschlagen:", error);
+      await appAlert(
+        error?.message
+          ? `Projekt konnte nicht erstellt werden:\n${error.message}`
+          : "Projekt konnte nicht erstellt werden.",
+        { title: "Fehler" }
+      );
+      setCreatingProject(false);
+      return;
     }
+
+    // Anfrage mit Projekt verknüpfen
+    await supabase
+      .from("inquiries")
+      .update({ project_id: project.id, status: "accepted" })
+      .eq("id", inquiry.id);
+
+    router.push(`/projects/${project.id}`);
     setCreatingProject(false);
   }
 
