@@ -11,6 +11,7 @@ import { DateInput } from "@/components/ui/date-input";
 import { InventoryImageUpload } from "@/components/inventory/inventory-image-upload";
 import { LoanRequestModal } from "@/components/inventory/loan-request-modal";
 import { ItemEarningsSection } from "@/components/inventory/item-earnings-section";
+import { InventoryDocumentsSection } from "@/components/inventory/inventory-documents-section";
 
 // Preset-Bedingungen für Group-Sharing (Tags)
 const CONDITION_PRESETS: { value: string; label: string; description: string }[] = [
@@ -1503,6 +1504,11 @@ export function InventoryDetailModal({
           )}
 
           </fieldset>
+
+          {/* Dokumente / PDFs — außerhalb fieldset, damit Betrachter öffnen können */}
+          <div className="pt-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>
+            <InventoryDocumentsSection itemId={item.id} isEditable={isEditable} />
+          </div>
 
           {/* Ertragshistorie */}
           <div className="pt-2" style={{ borderTop: "1px solid var(--color-border-light)" }}>

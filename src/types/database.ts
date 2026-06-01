@@ -257,6 +257,18 @@ export type InventoryUnit = {
   created_at: string;
 };
 
+/** PDF-Dokumente pro Inventar-Artikel (Migration 106) */
+export type InventoryDocument = {
+  id: string;
+  item_id: string;
+  file_name: string;
+  /** Pfad im privaten Bucket 'inventory-documents': {item_id}/{timestamp}.pdf */
+  storage_path: string;
+  file_size: number | null;
+  uploaded_by: string | null;
+  created_at: string;
+};
+
 export type InventoryCategory = {
   id: string;
   /** @deprecated org_id ersetzt durch owner_profile_id/owner_group_id */
