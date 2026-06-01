@@ -93,6 +93,10 @@ function InventoryPage() {
     Map<string, { groupId: string; groupName: string; requires_approval: boolean }[]>
   >(new Map());
   const [bookingMap, setBookingMap] = useState<Map<string, ItemBookingData>>(new Map());
+  // itemId → vorhandene PDF-Dokumente
+  const [docsMap, setDocsMap] = useState<
+    Map<string, { id: string; file_name: string; storage_path: string }[]>
+  >(new Map());
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("");
   const [loanFilter, setLoanFilter] = useState(false);
@@ -235,8 +239,23 @@ function InventoryPage() {
           map.set(s.inventory_item_id, arr);
         }
         setShareMap(map);
+
+        // PDF-Dokumente fuer diese Items laden
+        const { data: docs } = await supabase
+          .from("inventory_documents")
+          .select("id, item_id, file_name, storage_path")
+          .in("item_id", ids)
+          .order("created_at", { ascending: false });
+        const dmap = new Map<string, { id: string; file_name: string; storage_path: string }[]>();
+        for (const d of docs || []) {
+          const arr = dmap.get(d.item_id) || [];
+          arr.push({ id: d.id, file_name: d.file_name, storage_path: d.storage_path });
+          dmap.set(d.item_id, arr);
+        }
+        setDocsMap(dmap);
       } else {
         setShareMap(new Map());
+        setDocsMap(new Map());
       }
     }
 
@@ -438,6 +457,24 @@ function InventoryPage() {
       }
     }
     return imageUrl;
+  }
+
+  // PDF aus der Liste öffnen: genau eins → direkt (Signed-URL), mehrere → Detail-Modal
+  async function openItemPdf(item: InventoryItem) {
+    const docs = docsMap.get(item.id);
+    if (!docs || docs.length === 0) return;
+    if (docs.length > 1) {
+      setSelectedItem(item);
+      return;
+    }
+    const { data, error } = await supabase.storage
+      .from("inventory-documents")
+      .createSignedUrl(docs[0].storage_path, 60);
+    if (error || !data) {
+      showToast("PDF konnte nicht geöffnet werden.", "error");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -1262,6 +1299,18 @@ function InventoryPage() {
                       <span className="text-xs md:hidden" style={{ color: "var(--color-muted-foreground)" }}>
                         {categoryIcons[item.category] || "📁"} {item.category}
                       </span>
+                      {/* PDF anzeigen — nur wenn Dokumente vorhanden */}
+                      {docsMap.has(item.id) && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); openItemPdf(item); }}
+                          className="text-xs px-1.5 py-0.5 rounded font-medium transition-opacity hover:opacity-80"
+                          style={{ background: "var(--color-primary-light)", color: "var(--color-primary)" }}
+                          title={docsMap.get(item.id)!.length > 1 ? "Dokumente anzeigen" : "PDF anzeigen"}
+                        >
+                          PDF anzeigen{docsMap.get(item.id)!.length > 1 ? ` (${docsMap.get(item.id)!.length})` : ""}
+                        </button>
+                      )}
                     </div>
                     {item.description && (
                       <div className="text-xs mt-0.5 hidden sm:block" style={{ color: "var(--color-muted-foreground)" }}>
