@@ -18,6 +18,7 @@ import { FullShareModal } from "@/components/inventory/full-share-modal";
 import { InventoryEarningsOverview } from "@/components/inventory/inventory-earnings-overview";
 import { useRealtimeTable } from "@/hooks/use-realtime-table";
 import * as XLSX from "xlsx";
+import imageCompression from "browser-image-compression";
 
 // Booking-Info pro Inventar-Artikel (aggregiert)
 interface BookingInfo {
@@ -125,6 +126,10 @@ function InventoryPage() {
   const [formManufacturerUrl, setFormManufacturerUrl] = useState("");
   const [formManualUrl, setFormManualUrl] = useState("");
   const [showCreateDetails, setShowCreateDetails] = useState(false);
+  // Foto + PDFs vorab auswählen, Upload erst nach Insert (Artikel-ID nötig)
+  const [formPhoto, setFormPhoto] = useState<File | null>(null);
+  const [formPhotoPreview, setFormPhotoPreview] = useState<string | null>(null);
+  const [formPdfs, setFormPdfs] = useState<File[]>([]);
   const [showCategoryManager, setShowCategoryManager] = useState(false);
   const [showLoans, setShowLoans] = useState(false);
   const [showFullShare, setShowFullShare] = useState(false);
@@ -348,6 +353,93 @@ function InventoryPage() {
     onDataChange: loadItems,
   });
 
+  function handleCreatePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast("Nur Bilddateien erlaubt.", "error");
+      return;
+    }
+    if (formPhotoPreview) URL.revokeObjectURL(formPhotoPreview);
+    setFormPhoto(file);
+    setFormPhotoPreview(URL.createObjectURL(file));
+  }
+
+  function clearCreatePhoto() {
+    if (formPhotoPreview) URL.revokeObjectURL(formPhotoPreview);
+    setFormPhoto(null);
+    setFormPhotoPreview(null);
+  }
+
+  function handleCreatePdfChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    const pdfs = files.filter(
+      (f) => f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf")
+    );
+    if (pdfs.length !== files.length) {
+      showToast("Nur PDF-Dateien werden übernommen.", "error");
+    }
+    const tooBig = pdfs.filter((f) => f.size > 20 * 1024 * 1024);
+    if (tooBig.length > 0) {
+      showToast("PDFs über 20 MB werden übersprungen.", "error");
+    }
+    setFormPdfs((prev) => [...prev, ...pdfs.filter((f) => f.size <= 20 * 1024 * 1024)]);
+  }
+
+  // Foto + PDFs eines frisch erstellten Artikels hochladen (braucht die ID)
+  async function uploadCreateMedia(itemId: string): Promise<string | null> {
+    let imageUrl: string | null = null;
+    if (formPhoto) {
+      try {
+        const compressed = await imageCompression(formPhoto, {
+          maxSizeMB: 0.2,
+          maxWidthOrHeight: 800,
+          useWebWorker: true,
+          fileType: "image/webp",
+        });
+        const path = `${itemId}/${Date.now()}.webp`;
+        const { error: upErr } = await supabase.storage
+          .from("inventory-images")
+          .upload(path, compressed, { contentType: "image/webp", upsert: false });
+        if (!upErr) {
+          const {
+            data: { publicUrl },
+          } = supabase.storage.from("inventory-images").getPublicUrl(path);
+          imageUrl = publicUrl;
+          await supabase.from("inventory_items").update({ image_url: publicUrl }).eq("id", itemId);
+        }
+      } catch (err) {
+        console.error("Foto-Upload:", err);
+        showToast("Foto konnte nicht hochgeladen werden.", "error");
+      }
+    }
+    for (let i = 0; i < formPdfs.length; i++) {
+      const pdf = formPdfs[i];
+      try {
+        const path = `${itemId}/${Date.now()}-${i}.pdf`;
+        const { error: upErr } = await supabase.storage
+          .from("inventory-documents")
+          .upload(path, pdf, { contentType: "application/pdf", upsert: false });
+        if (!upErr) {
+          await supabase.from("inventory_documents").insert({
+            item_id: itemId,
+            file_name: pdf.name,
+            storage_path: path,
+            file_size: pdf.size,
+            uploaded_by: ownerId,
+          });
+        } else {
+          console.error("PDF-Upload:", upErr);
+        }
+      } catch (err) {
+        console.error("PDF-Upload:", err);
+      }
+    }
+    return imageUrl;
+  }
+
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
@@ -381,18 +473,26 @@ function InventoryPage() {
     if (error) {
       showToast("Fehler beim Erstellen: " + error.message, "error");
     } else {
+      // Foto + PDFs hochladen (jetzt ist die Artikel-ID bekannt)
+      const uploadedImageUrl = created ? await uploadCreateMedia(created.id) : null;
       setFormInventoryNumber(""); setFormName(""); setFormDescription(""); setFormCategory("");
       setFormQuantity(1); setFormCondition("new"); setFormCostPerDay(0); setFormLocation("");
       setFormDeviceName(""); setFormSerialNumber(""); setFormPurchasePrice("");
       setFormDimensions(""); setFormPowerWatts(""); setFormAccessories([]);
       setFormAccessoryCustom(""); setFormTags([]); setFormTagCustom(""); setFormCustomField("");
       setFormManufacturerUrl(""); setFormManualUrl(""); setShowCreateDetails(false);
+      clearCreatePhoto(); setFormPdfs([]);
       setShowCreate(false);
       loadItems();
-      // Direkt das Detail-Modal oeffnen, damit User Foto / Eigentum /
+      // Direkt das Detail-Modal oeffnen, damit User Eigentum /
       // Sharing / Abschreibung / Einzelstuecke ohne Umweg ergaenzen kann.
-      if (created) setSelectedItem(created as InventoryItem);
-      showToast("Artikel erstellt — Details ergänzen", "success");
+      if (created) {
+        setSelectedItem({
+          ...(created as InventoryItem),
+          image_url: uploadedImageUrl ?? (created as InventoryItem).image_url,
+        });
+      }
+      showToast("Artikel erstellt", "success");
       // logActivity entfaellt während Refactor (org_activity_log noch nicht migriert)
     }
     setSaving(false);
@@ -726,6 +826,68 @@ function InventoryPage() {
                   placeholder="z.B. Lager A" />
               </div>
             </div>
+            {/* Foto + Dokumente */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Foto</label>
+                <label
+                  className="relative flex items-center justify-center rounded-xl cursor-pointer overflow-hidden"
+                  style={{ height: 120, border: "2px dashed var(--color-border)", background: "var(--color-muted)" }}
+                >
+                  {formPhotoPreview ? (
+                    <>
+                      <img src={formPhotoPreview} alt="Vorschau" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); clearCreatePhoto(); }}
+                        className="absolute top-1 right-1 p-1 rounded-full"
+                        style={{ background: "rgba(0,0,0,0.5)", color: "#fff" }}
+                      >
+                        <IconX size={14} />
+                      </button>
+                    </>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1" style={{ color: "var(--color-muted-foreground)" }}>
+                      <IconImage size={24} />
+                      <span className="text-xs">Foto wählen</span>
+                    </div>
+                  )}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleCreatePhotoChange} />
+                </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1.5">Dokumente / PDFs</label>
+                <label
+                  className="flex items-center justify-center gap-1.5 rounded-lg cursor-pointer text-sm font-medium"
+                  style={{ height: 40, border: "1px solid var(--color-border)", color: "var(--color-primary)" }}
+                >
+                  <IconPlus size={14} /> PDF hinzufügen
+                  <input type="file" accept="application/pdf,.pdf" multiple className="hidden" onChange={handleCreatePdfChange} />
+                </label>
+                {formPdfs.length > 0 && (
+                  <div className="mt-2 space-y-1">
+                    {formPdfs.map((pdf, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-2 px-2 py-1.5 rounded text-xs"
+                        style={{ background: "var(--color-muted)" }}
+                      >
+                        <span>📄</span>
+                        <span className="flex-1 truncate">{pdf.name}</span>
+                        <button
+                          type="button"
+                          onClick={() => setFormPdfs((prev) => prev.filter((_, idx) => idx !== i))}
+                          style={{ color: "var(--color-error)" }}
+                        >
+                          <IconTrash size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Aufklappbare Gerätedetails */}
             <div>
               <button
