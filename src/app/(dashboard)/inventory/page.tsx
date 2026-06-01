@@ -836,7 +836,7 @@ function InventoryPage() {
                 >
                   {formPhotoPreview ? (
                     <>
-                      <img src={formPhotoPreview} alt="Vorschau" className="w-full h-full object-cover" />
+                      <img src={formPhotoPreview} alt="Vorschau" className="w-full h-full object-contain" />
                       <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); clearCreatePhoto(); }}
@@ -1238,7 +1238,7 @@ function InventoryPage() {
                       <img
                         src={item.image_url}
                         alt={item.name}
-                        className="w-10 h-10 rounded-lg object-cover"
+                        className="w-10 h-10 rounded-lg object-contain"
                         style={{ border: "1px solid var(--color-border-light)" }}
                       />
                     ) : (

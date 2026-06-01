@@ -154,7 +154,7 @@ export function InventoryImageUpload({
           <img
             src={displayUrl}
             alt="Inventar-Foto"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
           />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-2">
