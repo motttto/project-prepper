@@ -42,6 +42,9 @@ git checkout main
 
 - [x] Funktionsmapping erstellt (2026-06-11, Stand Migration 105, Commit e9fe5b8)
 - [x] Portierungs-Analyse erstellt
-- [ ] Entscheidung Produktform (Plugin-Rewrite vs. SaaS-Vorlage — siehe 02-WORDPRESS-PORTIERUNG.md)
-- [ ] Plugin-Grundgerüst
-- [ ] MVP-Module
+- [x] **Entscheidung Produktform: Option A — WordPress-Plugin-Neuentwicklung** (2026-06-11)
+- [x] Branch `wordpress-edition` für die WordPress-Entwicklung angelegt (GitHub)
+- [ ] Plugin-Grundgerüst (auf Branch `wordpress-edition` unter `wordpress-edition/plugin/`)
+- [ ] MVP-Module ausbauen (Excel-Import/-Export, PDF-Dokumente, Einzelstücke-UI, E-Mail, iCal)
+- [ ] Englische Übersetzung + readme.txt für wordpress.org
+- [ ] Demo-Site + Lizenzmodell (Freemius/EDD)

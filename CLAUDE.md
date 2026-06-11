@@ -421,9 +421,19 @@ Bilder werden client-seitig komprimiert via `browser-image-compression`:
 
 Dieses Projekt wird von **mehreren Rechnern** aus bearbeitet (gleicher GitHub-Account, SSH-Auth).
 
+### Zwei Entwicklungsebenen (Branches)
+
+| Branch | Zweck |
+|--------|-------|
+| `main` | Haupt-App (Next.js/Supabase) — deployt automatisch auf Vercel |
+| `wordpress-edition` | WordPress-Plugin-Entwicklung (Doku: `wordpress-edition/`) |
+
 ### Session-Start (PFLICHT)
+1. **User fragen, welcher Branch bearbeitet werden soll** (`main` oder `wordpress-edition`)
+2. Dann:
 ```bash
-git pull origin main
+git checkout <branch>
+git pull origin <branch>
 ```
 **Immer zuerst pullen**, bevor Änderungen gemacht werden.
 
@@ -431,12 +441,13 @@ git pull origin main
 ```bash
 git add .
 git commit -m "Beschreibung der Änderungen"
-git push origin main
+git push origin <branch>
 ```
 
 ### Regeln
-- **Ein Branch:** `main` — keine Feature-Branches, kein PR-Workflow
-- **Immer pushen** am Ende einer Session
+- **Zwei Branches:** `main` (App) + `wordpress-edition` (WordPress) — darüber hinaus keine Feature-Branches, kein PR-Workflow
+- App-Änderungen → `main`; WordPress-Code → `wordpress-edition`; Doku in `wordpress-edition/docs/` → `main`
+- **Immer pushen** am Ende einer Session (auf den aktiven Branch)
 - **Immer pullen** am Anfang einer Session
 
 ---

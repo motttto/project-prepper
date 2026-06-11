@@ -15,17 +15,20 @@
 
 ## Workflow-Hinweise
 
-- **Kein Branch-Workflow** — alles direkt auf `main`
-- **Immer `git pull` vor Arbeitsbeginn** (siehe `/sync` Skill)
-- **Immer committen + pushen** am Ende einer Session
+- **Zwei Entwicklungsebenen (seit 2026-06-11):**
+  - `main` — Haupt-App (Next.js/Supabase), deployt auf Vercel
+  - `wordpress-edition` — WordPress-Plugin-Entwicklung (Doku: `wordpress-edition/`)
+- **Bei Projektstart IMMER zuerst fragen, welcher Branch bearbeitet werden soll** (main oder wordpress-edition), dann `git checkout` + `git pull` für diesen Branch (siehe `/sync` Skill)
+- Innerhalb der Ebenen: keine weiteren Feature-Branches, keine PRs — direkter Push
+- **Immer committen + pushen** am Ende einer Session (auf den aktiven Branch)
 - User hat wenig Git-Erfahrung — klare Anweisungen geben, nicht zu technisch
 
 ## Bekannte Entscheidungen
 
 - UI-Sprache ist Deutsch, Code/Variablen auf Englisch
 - Supabase als einziges Backend (kein eigener API-Server)
-- Keine Feature-Branches, keine PRs — direkter Push auf main
 - `.env.local` wird NICHT committet (enthält Supabase-Keys)
+- **WordPress-Edition = Option A** (Plugin-Neuentwicklung in PHP), siehe `wordpress-edition/docs/02-WORDPRESS-PORTIERUNG.md`
 
 ## UI-Regeln
 
