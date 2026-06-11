@@ -44,6 +44,12 @@ class ItemsController extends BaseController {
 			],
 		] );
 
+		register_rest_route( self::REST_NAMESPACE, '/stats', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'stats' ],
+			'permission_callback' => $this->require_cap( Capabilities::VIEW_INVENTORY ),
+		] );
+
 		register_rest_route( self::REST_NAMESPACE, '/items/(?P<id>\d+)/availability', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'availability' ],
@@ -93,6 +99,10 @@ class ItemsController extends BaseController {
 		return new WP_REST_Response( [ 'deleted' => true ] );
 	}
 
+	public function stats(): WP_REST_Response {
+		return new WP_REST_Response( Inventory::stats() );
+	}
+
 	public function availability( WP_REST_Request $request ) {
 		$from = sanitize_text_field( (string) $request->get_param( 'from' ) );
 		$to   = sanitize_text_field( (string) $request->get_param( 'to' ) );
@@ -113,10 +123,15 @@ class ItemsController extends BaseController {
 	private function payload( WP_REST_Request $request ): array {
 		$json = $request->get_json_params() ?: [];
 		$data = $this->sanitize_text_fields( $json, [
-			'inventory_number', 'name', 'manufacturer', 'model', 'condition', 'location', 'purchase_date',
+			'inventory_number', 'name', 'manufacturer', 'model', 'serial_number', 'condition', 'location', 'purchase_date', 'dimensions',
 		] );
 
-		foreach ( [ 'description', 'notes' ] as $key ) {
+		foreach ( [ 'manufacturer_url', 'manual_url' ] as $key ) {
+			if ( array_key_exists( $key, $json ) ) {
+				$data[ $key ] = esc_url_raw( (string) $json[ $key ] );
+			}
+		}
+		foreach ( [ 'description', 'notes', 'accessories' ] as $key ) {
 			if ( array_key_exists( $key, $json ) ) {
 				$data[ $key ] = sanitize_textarea_field( (string) $json[ $key ] );
 			}
@@ -126,7 +141,10 @@ class ItemsController extends BaseController {
 				$data[ $key ] = (int) $json[ $key ];
 			}
 		}
-		foreach ( [ 'cost_per_day', 'current_value' ] as $key ) {
+		if ( array_key_exists( 'power_watts', $json ) ) {
+			$data['power_watts'] = '' === $json['power_watts'] ? '' : (int) $json['power_watts'];
+		}
+		foreach ( [ 'cost_per_day', 'purchase_price', 'current_value' ] as $key ) {
 			if ( array_key_exists( $key, $json ) ) {
 				$data[ $key ] = '' === $json[ $key ] ? '' : (float) $json[ $key ];
 			}

@@ -19,6 +19,9 @@ class Plugin {
 
 		add_action( 'rest_api_init', [ self::class, 'register_rest_routes' ] );
 
+		Email\Notifications::init();
+		Privacy::init();
+
 		if ( is_admin() ) {
 			Admin\Menu::init();
 		}
@@ -27,6 +30,11 @@ class Plugin {
 	public static function register_rest_routes(): void {
 		( new Rest\CategoriesController() )->register_routes();
 		( new Rest\ItemsController() )->register_routes();
+		( new Rest\UnitsController() )->register_routes();
+		( new Rest\MediaController() )->register_routes();
 		( new Rest\RentalsController() )->register_routes();
+		( new Rest\ImportExportController() )->register_routes();
+		( new Rest\CalendarController() )->register_routes();
+		( new Rest\SettingsController() )->register_routes();
 	}
 }

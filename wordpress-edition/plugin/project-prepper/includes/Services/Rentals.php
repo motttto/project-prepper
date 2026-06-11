@@ -61,7 +61,35 @@ class Rentals {
 			 ORDER BY ri.id ASC',
 			$id
 		) ) ?: [];
+		$rental->billing = self::billing( $rental );
 		return $rental;
+	}
+
+	/**
+	 * Kostenrechnung (§9.4): Brutto = Leihgebühr, Fallback Σ Tagessatz × Tage × Menge;
+	 * Netto/USt ausgewiesen; Kaution = durchlaufender Posten (steuerfrei).
+	 */
+	private static function billing( object $rental ): array {
+		$days = max( 1, (int) ( ( strtotime( $rental->date_to ) - strtotime( $rental->date_from ) ) / DAY_IN_SECONDS ) + 1 );
+
+		$gross = null !== $rental->rental_fee ? (float) $rental->rental_fee : 0.0;
+		if ( ! $gross ) {
+			foreach ( $rental->items as $line ) {
+				$gross += (float) ( $line->daily_rate ?? 0 ) * $days * (int) $line->quantity;
+			}
+		}
+
+		$vat_rate = null !== $rental->vat_rate ? (float) $rental->vat_rate : 19.0;
+		$net      = $gross / ( 1 + $vat_rate / 100 );
+
+		return [
+			'days'     => $days,
+			'gross'    => round( $gross, 2 ),
+			'net'      => round( $net, 2 ),
+			'vat'      => round( $gross - $net, 2 ),
+			'vat_rate' => $vat_rate,
+			'deposit'  => null !== $rental->deposit_amount ? (float) $rental->deposit_amount : 0.0,
+		];
 	}
 
 	/**
@@ -117,6 +145,7 @@ class Rentals {
 			'borrower_name'  => $data['borrower_name'],
 			'borrower_email' => $data['borrower_email'] ?? '',
 			'borrower_phone' => $data['borrower_phone'] ?? '',
+			'borrower_address' => $data['borrower_address'] ?? '',
 			'date_from'      => $data['date_from'],
 			'date_to'        => $data['date_to'],
 			'status'         => 'reserved',
@@ -145,6 +174,11 @@ class Rentals {
 			'from'     => $data['date_from'],
 			'to'       => $data['date_to'],
 		] );
+
+		/**
+		 * Hook-Punkt (ersetzt DB-Trigger): E-Mail-Bestätigung an den Leiher etc.
+		 */
+		do_action( 'pp_rental_created', $rental_id );
 
 		return $rental_id;
 	}

@@ -55,6 +55,15 @@ class Menu {
 			'pp-categories',
 			[ self::class, 'render_categories' ]
 		);
+
+		add_submenu_page(
+			'project-prepper',
+			__( 'Einstellungen', 'project-prepper' ),
+			__( 'Einstellungen', 'project-prepper' ),
+			Capabilities::MANAGE_SETTINGS,
+			'pp-settings',
+			[ self::class, 'render_settings' ]
+		);
 	}
 
 	public static function enqueue_assets( string $hook ): void {
@@ -69,8 +78,10 @@ class Menu {
 			'restUrl' => esc_url_raw( rest_url( 'project-prepper/v1' ) ),
 			'nonce'   => wp_create_nonce( 'wp_rest' ),
 			'canEdit' => [
-				'inventory' => current_user_can( Capabilities::EDIT_INVENTORY ),
-				'rentals'   => current_user_can( Capabilities::EDIT_RENTALS ),
+				'inventory'    => current_user_can( Capabilities::EDIT_INVENTORY ),
+				'rentals'      => current_user_can( Capabilities::EDIT_RENTALS ),
+				'importExport' => current_user_can( Capabilities::IMPORT_EXPORT ),
+				'settings'     => current_user_can( Capabilities::MANAGE_SETTINGS ),
 			],
 		] );
 	}
@@ -85,5 +96,9 @@ class Menu {
 
 	public static function render_categories(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Kategorien', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="categories"></div></div>';
+	}
+
+	public static function render_settings(): void {
+		echo '<div class="wrap"><h1>' . esc_html__( 'Einstellungen', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="settings"></div></div>';
 	}
 }

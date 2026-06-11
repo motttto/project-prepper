@@ -65,8 +65,9 @@ class RentalsController extends BaseController {
 		$data = $this->sanitize_text_fields( $json, [
 			'borrower_name', 'borrower_phone', 'date_from', 'date_to',
 		] );
-		$data['borrower_email'] = sanitize_email( (string) ( $json['borrower_email'] ?? '' ) );
-		$data['notes']          = sanitize_textarea_field( (string) ( $json['notes'] ?? '' ) );
+		$data['borrower_email']   = sanitize_email( (string) ( $json['borrower_email'] ?? '' ) );
+		$data['borrower_address'] = sanitize_textarea_field( (string) ( $json['borrower_address'] ?? '' ) );
+		$data['notes']            = sanitize_textarea_field( (string) ( $json['notes'] ?? '' ) );
 		foreach ( [ 'deposit_amount', 'rental_fee', 'vat_rate' ] as $key ) {
 			$data[ $key ] = isset( $json[ $key ] ) && '' !== $json[ $key ] ? (float) $json[ $key ] : '';
 		}

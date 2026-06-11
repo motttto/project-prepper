@@ -60,13 +60,23 @@ npx @wordpress/env destroy  # komplett zurücksetzen (frische DB)
 
 Das ZIP unter **WP-Admin → Plugins → Installieren → Plugin hochladen** einspielen und aktivieren — Tabellen werden bei Aktivierung automatisch angelegt. Enthält nur Laufzeit-Dateien (ohne `.wp-env.json`, Dev-README, build-Script).
 
-## Noch offen (v1.0-Scope)
+## Stand v0.2.0 (MVP-Scope aus Doku §4)
 
-- [ ] Excel-Import/-Export (PhpSpreadsheet)
-- [ ] Foto-Upload (Media Library) + PDF-Dokumente im Admin-UI
-- [ ] Einzelstücke-UI (`pp_units` — Tabelle existiert)
-- [ ] E-Mail-Benachrichtigungen (`wp_mail`, Hook `pp_rental_status_changed` existiert)
-- [ ] iCal-Export der Verleihe
-- [ ] DSGVO-Hooks (`wp_privacy_personal_data_exporters` / `_erasers` für Leiher-Daten)
-- [ ] Einstellungs-Seite (u. a. Checkbox „Daten bei Deinstallation löschen")
+- [x] Inventar: alle App-Felder (§8.1 — Seriennummer, Kaufpreis, Maße, Watt, Zubehör, URLs, Tags), Zustands-Enum der App (new/good/fair/poor/broken/retired), Auto-Seed der 10 Default-Kategorien, Volltextsuche über 10 Felder, KPI-Stats (§8.5)
+- [x] Foto-Upload (Media Library) + PDF-Dokumente (max. 20 MB) im Detail-Modal
+- [x] Einzelstücke-UI (§8.4) — Limit: max. so viele Stücke wie Menge
+- [x] CSV-Import/-Export (§8.6): Export 19 Spalten (Semikolon + BOM für deutsches Excel), Import mit Auto-Spalten-Mapping (deutsche Header), Mapping-Editor, Vorschau, Zustands-Mapping („defekt"→broken), Fehlerliste pro Zeile, Kategorien werden auto-angelegt
+- [x] Verleih: Adresse, USt-Satz, Abrechnung §9.4 (Brutto/Netto/USt, Fallback Σ Tagessatz × Tage × Menge, Kaution durchlaufend)
+- [x] E-Mail-Benachrichtigungen an Leiher (Reservierung/Ausgabe/Rückgabe), editierbare Templates mit `{{vars}}`, abschaltbar
+- [x] iCal-Feed der Verleihe (Token-Auth, abonnierbar)
+- [x] DSGVO: WP-Core-Exporter/-Eraser für Leiher-Daten (Werkzeuge → Personenbezogene Daten)
+- [x] Einstellungs-Seite (E-Mail, Templates, iCal-Token, Daten-Löschung bei Uninstall)
+- [x] Admin-UI im Look der Live-App (Design-Tokens aus `globals.css`: Indigo-Palette, Light/Dark, KPI-Karten, Kategorie-Pills, Detail-Modals, Badges, Toasts)
+
+## Noch offen
+
+- [ ] Echtes XLSX statt CSV (SheetJS client-seitig oder PhpSpreadsheet)
+- [ ] Verleih bearbeiten (Diff-Logik §9.4) — aktuell nur anlegen/Status/löschen
+- [ ] Freigabe-Logik pro Position (§9.2/9.3 — braucht Multi-Owner, kommt mit Gruppen-Modul)
+- [ ] Gutenberg-Blöcke / Frontend-Ausgabe (Inventarliste, Anfrage-Formular)
 - [ ] i18n: Strings sind de-Default; en_US-Übersetzung für den Verkauf

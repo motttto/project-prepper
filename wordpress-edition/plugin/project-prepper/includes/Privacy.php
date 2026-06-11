@@ -1,0 +1,92 @@
+<?php
+namespace ProjectPrepper;
+
+use ProjectPrepper\Services\ActivityLog;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * DSGVO (§17) über die WP-Core-Privacy-Hooks:
+ * Export (Art. 15/20) und Löschung/Anonymisierung (Art. 17) der Leiher-Daten,
+ * gesucht per E-Mail-Adresse über Werkzeuge → Personenbezogene Daten.
+ */
+class Privacy {
+
+	public static function init(): void {
+		add_filter( 'wp_privacy_personal_data_exporters', [ self::class, 'register_exporter' ] );
+		add_filter( 'wp_privacy_personal_data_erasers', [ self::class, 'register_eraser' ] );
+	}
+
+	public static function register_exporter( array $exporters ): array {
+		$exporters['project-prepper-rentals'] = [
+			'exporter_friendly_name' => __( 'Project Prepper — Verleihdaten', 'project-prepper' ),
+			'callback'               => [ self::class, 'export_rentals' ],
+		];
+		return $exporters;
+	}
+
+	public static function register_eraser( array $erasers ): array {
+		$erasers['project-prepper-rentals'] = [
+			'eraser_friendly_name' => __( 'Project Prepper — Verleihdaten', 'project-prepper' ),
+			'callback'             => [ self::class, 'erase_rentals' ],
+		];
+		return $erasers;
+	}
+
+	public static function export_rentals( string $email, int $page = 1 ): array {
+		global $wpdb;
+		$rentals = $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM ' . Schema::table( 'rentals' ) . ' WHERE borrower_email = %s ORDER BY id ASC',
+			$email
+		) ) ?: [];
+
+		$export_items = [];
+		foreach ( $rentals as $rental ) {
+			$export_items[] = [
+				'group_id'    => 'pp_rentals',
+				'group_label' => __( 'Verleihvorgänge', 'project-prepper' ),
+				'item_id'     => 'pp-rental-' . $rental->id,
+				'data'        => [
+					[ 'name' => __( 'Verleihnummer', 'project-prepper' ), 'value' => $rental->rental_number ],
+					[ 'name' => __( 'Name', 'project-prepper' ), 'value' => $rental->borrower_name ],
+					[ 'name' => __( 'E-Mail', 'project-prepper' ), 'value' => $rental->borrower_email ],
+					[ 'name' => __( 'Telefon', 'project-prepper' ), 'value' => $rental->borrower_phone ],
+					[ 'name' => __( 'Adresse', 'project-prepper' ), 'value' => $rental->borrower_address ?? '' ],
+					[ 'name' => __( 'Zeitraum', 'project-prepper' ), 'value' => $rental->date_from . ' – ' . $rental->date_to ],
+					[ 'name' => __( 'Status', 'project-prepper' ), 'value' => $rental->status ],
+				],
+			];
+		}
+
+		return [ 'data' => $export_items, 'done' => true ];
+	}
+
+	public static function erase_rentals( string $email, int $page = 1 ): array {
+		global $wpdb;
+		$count = (int) $wpdb->get_var( $wpdb->prepare(
+			'SELECT COUNT(*) FROM ' . Schema::table( 'rentals' ) . ' WHERE borrower_email = %s',
+			$email
+		) );
+
+		if ( $count > 0 ) {
+			// Anonymisieren statt löschen — die Verleih-Historie (Zahlen) bleibt erhalten.
+			$wpdb->query( $wpdb->prepare(
+				'UPDATE ' . Schema::table( 'rentals' ) . "
+				 SET borrower_name = %s, borrower_email = '', borrower_phone = '', borrower_address = '', notes = ''
+				 WHERE borrower_email = %s",
+				__( 'Anonymisiert (DSGVO)', 'project-prepper' ),
+				$email
+			) );
+			ActivityLog::log( 'gdpr_erasure', 'rental', null, [ 'count' => $count ] );
+		}
+
+		return [
+			'items_removed'  => $count > 0,
+			'items_retained' => false,
+			'messages'       => $count > 0
+				? [ sprintf( __( '%d Verleihvorgänge anonymisiert.', 'project-prepper' ), $count ) ]
+				: [],
+			'done'           => true,
+		];
+	}
+}
