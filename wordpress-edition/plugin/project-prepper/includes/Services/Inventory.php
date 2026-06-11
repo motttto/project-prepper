@@ -110,6 +110,10 @@ class Inventory {
 			$where[]  = 'i.category_id = %d';
 			$params[] = (int) $args['category_id'];
 		}
+		if ( ! empty( $args['usable_only'] ) ) {
+			// Öffentliches Frontend: defekte/ausgemusterte Artikel ausblenden.
+			$where[] = "i.item_condition NOT IN ('broken', 'retired')";
+		}
 
 		$sql = "SELECT i.*, c.name AS category_name, c.icon AS category_icon
 				FROM {$items} i

@@ -74,6 +74,74 @@ class Inquiries {
 		return $inquiry_id;
 	}
 
+	/**
+	 * Anfrage → Verleih konvertieren (§11 Konvertierung).
+	 *
+	 * Übernimmt Name/E-Mail/Telefon/Zeitraum/Items in einen neuen Verleih
+	 * (Status reserved, Tagessatz pro Position aus dem Artikel-Stammdatensatz),
+	 * setzt die Anfrage auf closed und verlinkt beides im Activity-Log.
+	 *
+	 * @return int|WP_Error Neue Verleih-ID.
+	 */
+	public static function convert_to_rental( int $id ) {
+		$inquiry = self::get( $id );
+		if ( ! $inquiry ) {
+			return new WP_Error( 'pp_not_found', __( 'Anfrage nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		if ( 'closed' === $inquiry->status ) {
+			return new WP_Error( 'pp_already_closed', __( 'Anfrage ist bereits abgeschlossen.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
+		if ( empty( $inquiry->date_from ) || empty( $inquiry->date_to ) ) {
+			return new WP_Error( 'pp_missing_dates', __( 'Anfrage hat keinen Zeitraum — Konvertierung nicht möglich.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		// Items übernehmen — gelöschte Artikel überspringen, Tagessatz aus dem Artikel.
+		$items = [];
+		foreach ( $inquiry->items as $line ) {
+			$item_id = (int) ( $line['item_id'] ?? 0 );
+			$item    = $item_id ? Inventory::get_item( $item_id ) : null;
+			if ( ! $item ) {
+				continue;
+			}
+			$items[] = [
+				'item_id'    => $item_id,
+				'quantity'   => max( 1, (int) ( $line['quantity'] ?? 1 ) ),
+				'daily_rate' => null !== $item->cost_per_day ? (float) $item->cost_per_day : '',
+			];
+		}
+		if ( ! $items ) {
+			return new WP_Error( 'pp_no_items', __( 'Anfrage enthält keine (gültigen) Artikel.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		/* translators: 1: Anfrage-ID, 2: Name */
+		$notes = sprintf( __( 'Aus Anfrage #%1$d (%2$s) übernommen.', 'project-prepper' ), $id, $inquiry->name );
+		if ( ! empty( $inquiry->message ) ) {
+			$notes .= "\n\n" . $inquiry->message;
+		}
+
+		$rental_id = Rentals::create( [
+			'borrower_name'  => $inquiry->name,
+			'borrower_email' => $inquiry->email,
+			'borrower_phone' => $inquiry->phone,
+			'date_from'      => $inquiry->date_from,
+			'date_to'        => $inquiry->date_to,
+			'notes'          => $notes,
+		], $items );
+		if ( is_wp_error( $rental_id ) ) {
+			return $rental_id;
+		}
+
+		self::set_status( $id, 'closed' );
+		ActivityLog::log( 'inquiry_converted', 'inquiry', $id, [ 'rental_id' => $rental_id ] );
+
+		/**
+		 * Hook-Punkt: z. B. Bestätigungs-Mail an den Anfragenden.
+		 */
+		do_action( 'pp_inquiry_converted', $id, $rental_id );
+
+		return $rental_id;
+	}
+
 	public static function set_status( int $id, string $status ): bool {
 		global $wpdb;
 		if ( ! in_array( $status, self::STATUSES, true ) ) {

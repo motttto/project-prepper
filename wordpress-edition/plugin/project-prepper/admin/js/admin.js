@@ -655,21 +655,108 @@
 
 		function openRentalModal(rentalId) {
 			api("/rentals/" + rentalId).then(function (rental) {
+				// Bearbeitbar nur in Status reserved/active (Diff-Logik §9.4).
+				var editable = ppConfig.canEdit.rentals && (rental.status === "reserved" || rental.status === "active");
+
+				function input(type, value, step) {
+					var attrs = { type: type, value: value === null || value === undefined ? "" : value };
+					if (step) attrs.step = step;
+					if (!editable) attrs.disabled = "disabled";
+					return el("input", attrs);
+				}
+
+				var f = {
+					name: input("text", rental.borrower_name),
+					email: input("email", rental.borrower_email),
+					phone: input("text", rental.borrower_phone),
+					address: input("text", rental.borrower_address),
+					from: input("date", rental.date_from),
+					to: input("date", rental.date_to),
+					fee: input("number", rental.rental_fee, "0.01"),
+					deposit: input("number", rental.deposit_amount, "0.01"),
+					vat: input("number", rental.vat_rate === null || rental.vat_rate === undefined ? "" : rental.vat_rate, "0.1"),
+					notes: el("textarea", { rows: "2" })
+				};
+				f.notes.value = rental.notes || "";
+				if (!editable) f.notes.disabled = true;
+
 				var info = el("div", { class: "pp-modal-grid" }, [
-					field("Leiher", el("input", { type: "text", value: rental.borrower_name, disabled: "disabled" })),
-					field("E-Mail", el("input", { type: "text", value: rental.borrower_email || "—", disabled: "disabled" })),
-					field("Telefon", el("input", { type: "text", value: rental.borrower_phone || "—", disabled: "disabled" })),
-					field("Zeitraum", el("input", { type: "text", value: dateDe(rental.date_from) + " – " + dateDe(rental.date_to), disabled: "disabled" }))
+					field("Leiher *", f.name), field("E-Mail", f.email), field("Telefon", f.phone), field("Adresse", f.address),
+					field("Von", f.from), field("Bis", f.to),
+					field("Gebühr €", f.fee), field("Kaution €", f.deposit), field("USt %", f.vat), field("Notizen", f.notes)
 				]);
 
-				var lineList = el("ul", { class: "pp-lines" });
-				rental.items.forEach(function (line) {
-					lineList.appendChild(el("li", null, [
-						el("code", { text: line.inventory_number || "#" + line.item_id }),
-						el("span", { text: (line.item_name || "") + " × " + line.quantity }),
-						el("span", { class: "pp-muted", text: line.daily_rate ? money(line.daily_rate) + "/Tag" : "" })
-					]));
+				// Positionen — als editierbare Zeilen (Menge + Tagessatz), per id für den Server-Diff.
+				var editLines = rental.items.map(function (line) {
+					return {
+						id: line.id,
+						item_id: line.item_id,
+						unit_id: line.unit_id,
+						quantity: parseInt(line.quantity, 10) || 1,
+						daily_rate: line.daily_rate,
+						code: line.inventory_number || "#" + line.item_id,
+						name: line.item_name || ""
+					};
 				});
+				var lineList = el("ul", { class: "pp-lines" });
+				function renderModalLines() {
+					lineList.innerHTML = "";
+					editLines.forEach(function (line, index) {
+						if (!editable) {
+							lineList.appendChild(el("li", null, [
+								el("code", { text: line.code }),
+								el("span", { text: line.name + " × " + line.quantity }),
+								el("span", { class: "pp-muted", text: line.daily_rate ? money(line.daily_rate) + "/Tag" : "" })
+							]));
+							return;
+						}
+						var qty = el("input", { type: "number", min: "1", value: line.quantity, class: "pp-input-sm", title: "Menge" });
+						qty.addEventListener("change", function () { line.quantity = parseInt(qty.value, 10) || 1; });
+						var rate = el("input", { type: "number", step: "0.01", value: line.daily_rate === null || line.daily_rate === undefined ? "" : line.daily_rate, class: "pp-input-sm", placeholder: "Tagessatz €", title: "Tagessatz €" });
+						rate.addEventListener("change", function () { line.daily_rate = rate.value; });
+						lineList.appendChild(el("li", null, [
+							el("code", { text: line.code }),
+							el("span", { text: line.name }),
+							qty, rate,
+							el("button", {
+								class: "pp-link pp-link-danger", text: "entfernen", type: "button",
+								onclick: function () { editLines.splice(index, 1); renderModalLines(); }
+							})
+						]));
+					});
+					if (!editLines.length) lineList.appendChild(el("li", { class: "pp-muted", text: "Keine Positionen." }));
+				}
+				renderModalLines();
+
+				var linesSection = el("div", { class: "pp-modal-section" }, [el("h3", { text: "Positionen" }), lineList]);
+				if (editable) {
+					var addItem = el("select", { class: "pp-input-lg" });
+					addItem.appendChild(el("option", { value: "", text: "— Artikel wählen —" }));
+					items.forEach(function (item) {
+						addItem.appendChild(el("option", { value: item.id, text: item.inventory_number + " — " + item.name }));
+					});
+					var addQty = el("input", { type: "number", value: "1", min: "1", class: "pp-input-sm", title: "Menge" });
+					var addRate = el("input", { type: "number", step: "0.01", placeholder: "Tagessatz €", class: "pp-input-sm", title: "Tagessatz €" });
+					linesSection.appendChild(el("div", { class: "pp-row" }, [
+						addItem, addQty, addRate,
+						el("button", {
+							class: "pp-btn pp-btn-sm", text: "+ Position", type: "button",
+							onclick: function () {
+								if (!addItem.value) return;
+								var item = items.find(function (it) { return it.id == addItem.value; });
+								editLines.push({
+									item_id: parseInt(addItem.value, 10),
+									quantity: parseInt(addQty.value, 10) || 1,
+									daily_rate: addRate.value,
+									code: item ? item.inventory_number : "#" + addItem.value,
+									name: item ? item.name : ""
+								});
+								addItem.value = ""; addQty.value = "1"; addRate.value = "";
+								renderModalLines();
+							}
+						})
+					]));
+				}
 
 				var b = rental.billing || {};
 				var billing = el("dl", { class: "pp-billing" }, [
@@ -683,16 +770,43 @@
 				var body = el("div", null, [
 					el("div", { class: "pp-row" }, [badge(rental.status, STATUS_LABELS)]),
 					info,
-					el("div", { class: "pp-modal-section" }, [el("h3", { text: "Positionen" }), lineList]),
+					linesSection,
 					el("div", { class: "pp-modal-section" }, [el("h3", { text: "Abrechnung" }), billing])
 				]);
 
 				var close;
 				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: "Schließen", onclick: function () { close(); } })]);
+				if (editable) {
+					footerButtons.insertBefore(el("button", {
+						class: "pp-btn pp-btn-primary", text: "Speichern",
+						onclick: function () {
+							api("/rentals/" + rentalId, {
+								method: "PUT",
+								body: JSON.stringify({
+									borrower_name: f.name.value.trim(),
+									borrower_email: f.email.value.trim(),
+									borrower_phone: f.phone.value.trim(),
+									borrower_address: f.address.value.trim(),
+									date_from: f.from.value,
+									date_to: f.to.value,
+									rental_fee: f.fee.value,
+									deposit_amount: f.deposit.value,
+									vat_rate: f.vat.value,
+									notes: f.notes.value,
+									items: editLines.map(function (line) {
+										return { id: line.id, item_id: line.item_id, unit_id: line.unit_id, quantity: line.quantity, daily_rate: line.daily_rate };
+									})
+								})
+							}).then(function () {
+								toast("Gespeichert."); close(); load();
+							}).catch(function (e) { toast(e.message, "error"); });
+						}
+					}), footerButtons.firstChild);
+				}
 				(TRANSITIONS[rental.status] || []).forEach(function (next) {
 					if (!ppConfig.canEdit.rentals) return;
 					footerButtons.insertBefore(el("button", {
-						class: "pp-btn pp-btn-primary", text: STATUS_ACTIONS[next],
+						class: "pp-btn", text: STATUS_ACTIONS[next],
 						onclick: function () {
 							api("/rentals/" + rentalId + "/status", { method: "POST", body: JSON.stringify({ status: next }) })
 								.then(function () { close(); load(); }).catch(function (e) { toast(e.message, "error"); });
@@ -728,6 +842,7 @@
 
 			var fItem = el("select", { class: "pp-input-lg" });
 			var fItemQty = el("input", { type: "number", value: "1", min: "1", class: "pp-input-sm" });
+			var fItemRate = el("input", { type: "number", step: "0.01", placeholder: "Tagessatz €", class: "pp-input-sm" });
 			var availInfo = el("span");
 			var linesView = el("ul", { class: "pp-lines" });
 
@@ -738,6 +853,7 @@
 					linesView.appendChild(el("li", null, [
 						el("code", { text: item ? item.inventory_number : "#" + line.item_id }),
 						el("span", { text: (item ? item.name : "") + " × " + line.quantity }),
+						el("span", { class: "pp-muted", text: line.daily_rate ? money(line.daily_rate) + "/Tag" : "" }),
 						el("button", {
 							class: "pp-link pp-link-danger", text: "entfernen",
 							onclick: function (e) { e.preventDefault(); lines.splice(index, 1); refreshLines(); }
@@ -756,6 +872,12 @@
 				}).catch(function () {});
 			};
 			[fItem, fFrom, fTo].forEach(function (f) { f.addEventListener("change", checkAvailability); });
+
+			// Tagessatz aus dem Artikel-Stammdatensatz vorschlagen (wie equipment-picker der App).
+			fItem.addEventListener("change", function () {
+				var item = items.find(function (it) { return it.id == fItem.value; });
+				fItemRate.value = item && item.cost_per_day !== null && item.cost_per_day !== undefined ? item.cost_per_day : "";
+			});
 
 			var form = el("form", {
 				onsubmit: function (e) {
@@ -789,12 +911,13 @@
 					field("Von", fFrom), field("Bis", fTo), field("Gebühr €", fFee), field("Kaution €", fDeposit), field("USt %", fVat)
 				]),
 				el("div", { class: "pp-row" }, [
-					field("Artikel", fItem), field("Menge", fItemQty),
+					field("Artikel", fItem), field("Menge", fItemQty), field("Tagessatz €", fItemRate),
 					el("button", {
 						class: "pp-btn", text: "+ Position", type: "button",
 						onclick: function () {
 							if (!fItem.value) return;
-							lines.push({ item_id: parseInt(fItem.value, 10), quantity: parseInt(fItemQty.value, 10) || 1 });
+							lines.push({ item_id: parseInt(fItem.value, 10), quantity: parseInt(fItemQty.value, 10) || 1, daily_rate: fItemRate.value });
+							fItemRate.value = "";
 							refreshLines();
 						}
 					}),
@@ -907,6 +1030,24 @@
 				inquiries.forEach(function (inquiry) {
 					var actions = el("td");
 					if (ppConfig.canEdit.inquiries) {
+						// Anfrage → Verleih (braucht beide Edit-Caps; ohne Zeitraum deaktiviert).
+						if (ppConfig.canEdit.rentals && inquiry.status !== "closed") {
+							var convertBtn = el("button", {
+								class: "pp-btn pp-btn-sm pp-btn-primary", text: "In Verleih übernehmen", style: "margin-right:4px",
+								onclick: function () {
+									if (!confirm('Anfrage von "' + inquiry.name + '" in einen Verleih übernehmen? Die Anfrage wird abgeschlossen.')) return;
+									api("/inquiries/" + inquiry.id + "/convert", { method: "POST" }).then(function (rental) {
+										toast("Verleih " + rental.rental_number + " angelegt.");
+										load();
+									}).catch(function (e) { toast(e.message, "error"); });
+								}
+							});
+							if (!inquiry.date_from || !inquiry.date_to) {
+								convertBtn.disabled = true;
+								convertBtn.title = "Zeitraum fehlt — Konvertierung nicht möglich";
+							}
+							actions.appendChild(convertBtn);
+						}
 						(INQUIRY_ACTIONS[inquiry.status] || []).forEach(function (next) {
 							actions.appendChild(el("button", {
 								class: "pp-btn pp-btn-sm", text: INQUIRY_STATUS[next], style: "margin-right:4px",

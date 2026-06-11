@@ -184,6 +184,143 @@ class Rentals {
 	}
 
 	/**
+	 * Verleih bearbeiten (§9.4) — Header-Felder + Positionen mit Diff-Logik.
+	 *
+	 * Nur in Status reserved/active erlaubt. Die Verfügbarkeit wird für den
+	 * (ggf. geänderten) Zeitraum neu geprüft; der eigene Verleih wird dabei
+	 * über exclude_rental_id ausgenommen.
+	 *
+	 * @param int        $id    Verleih.
+	 * @param array      $data  Header-Felder — nur übergebene Keys werden geändert.
+	 * @param array|null $items Neue Positionsliste oder null (= Positionen unverändert).
+	 *                          Zeilen mit `id` werden aktualisiert, ohne `id` eingefügt,
+	 *                          nicht mehr enthaltene gelöscht.
+	 * @return true|WP_Error
+	 */
+	public static function update( int $id, array $data, ?array $items = null ) {
+		global $wpdb;
+
+		$rental = self::get( $id );
+		if ( ! $rental ) {
+			return new WP_Error( 'pp_not_found', __( 'Verleih nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		if ( ! in_array( $rental->status, [ 'reserved', 'active' ], true ) ) {
+			return new WP_Error(
+				'pp_locked',
+				__( 'Nur reservierte oder aktive Verleihe können bearbeitet werden.', 'project-prepper' ),
+				[ 'status' => 409 ]
+			);
+		}
+		if ( array_key_exists( 'borrower_name', $data ) && '' === trim( (string) $data['borrower_name'] ) ) {
+			return new WP_Error( 'pp_missing_borrower', __( 'Name des Leihers fehlt.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		// Effektiver Zeitraum = neue Werte, Fallback auf Bestand.
+		$date_from = ! empty( $data['date_from'] ) ? $data['date_from'] : $rental->date_from;
+		$date_to   = ! empty( $data['date_to'] ) ? $data['date_to'] : $rental->date_to;
+		if ( ! Availability::is_valid_range( $date_from, $date_to ) ) {
+			return new WP_Error( 'pp_invalid_dates', __( 'Ungültiger Zeitraum.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		// Effektive Positionen = neue Liste, Fallback auf Bestand.
+		if ( null === $items ) {
+			$effective = array_map( static function ( $line ) {
+				return [ 'item_id' => (int) $line->item_id, 'quantity' => (int) $line->quantity ];
+			}, $rental->items );
+		} else {
+			if ( ! $items ) {
+				return new WP_Error( 'pp_no_items', __( 'Mindestens eine Position erforderlich.', 'project-prepper' ), [ 'status' => 400 ] );
+			}
+			$effective = $items;
+		}
+
+		// Verfügbarkeits-Guard (eigener Verleih ausgenommen).
+		$wanted = [];
+		foreach ( $effective as $line ) {
+			$item_id = (int) ( $line['item_id'] ?? 0 );
+			$qty     = max( 1, (int) ( $line['quantity'] ?? 1 ) );
+			if ( ! $item_id ) {
+				return new WP_Error( 'pp_invalid_line', __( 'Ungültige Position.', 'project-prepper' ), [ 'status' => 400 ] );
+			}
+			$wanted[ $item_id ] = ( $wanted[ $item_id ] ?? 0 ) + $qty;
+		}
+		foreach ( $wanted as $item_id => $qty ) {
+			$available = Availability::available_quantity( $item_id, $date_from, $date_to, $id );
+			if ( $qty > $available ) {
+				$item = Inventory::get_item( $item_id );
+				return new WP_Error(
+					'pp_not_available',
+					sprintf(
+						/* translators: 1: Artikelname, 2: verfügbare Menge */
+						__( '"%1$s" ist im Zeitraum nur %2$d× verfügbar.', 'project-prepper' ),
+						$item ? $item->name : "#{$item_id}",
+						$available
+					),
+					[ 'status' => 409 ]
+				);
+			}
+		}
+
+		// Header-Diff: nur übergebene Felder schreiben.
+		$fields = [];
+		foreach ( [ 'borrower_name', 'borrower_email', 'borrower_phone', 'borrower_address', 'date_from', 'date_to', 'notes' ] as $key ) {
+			if ( array_key_exists( $key, $data ) ) {
+				$fields[ $key ] = (string) $data[ $key ];
+			}
+		}
+		foreach ( [ 'deposit_amount', 'rental_fee', 'vat_rate' ] as $key ) {
+			if ( array_key_exists( $key, $data ) ) {
+				$fields[ $key ] = '' !== $data[ $key ] && null !== $data[ $key ] ? (float) $data[ $key ] : null;
+			}
+		}
+		$fields['updated_at'] = current_time( 'mysql' );
+		$wpdb->update( Schema::table( 'rentals' ), $fields, [ 'id' => $id ] );
+
+		// Positions-Diff: vorhandene Zeilen (per id) aktualisieren, neue einfügen, fehlende löschen.
+		if ( null !== $items ) {
+			$existing = [];
+			foreach ( $rental->items as $line ) {
+				$existing[ (int) $line->id ] = $line;
+			}
+			$kept = [];
+			foreach ( $items as $line ) {
+				$row = [
+					'item_id'    => (int) $line['item_id'],
+					'unit_id'    => ! empty( $line['unit_id'] ) ? (int) $line['unit_id'] : null,
+					'quantity'   => max( 1, (int) ( $line['quantity'] ?? 1 ) ),
+					'daily_rate' => isset( $line['daily_rate'] ) && '' !== $line['daily_rate'] ? (float) $line['daily_rate'] : null,
+				];
+				$line_id = (int) ( $line['id'] ?? 0 );
+				if ( $line_id && isset( $existing[ $line_id ] ) ) {
+					$wpdb->update( Schema::table( 'rental_items' ), $row, [ 'id' => $line_id, 'rental_id' => $id ] );
+					$kept[] = $line_id;
+				} else {
+					$row['rental_id'] = $id;
+					$wpdb->insert( Schema::table( 'rental_items' ), $row );
+					$kept[] = (int) $wpdb->insert_id;
+				}
+			}
+			foreach ( array_keys( $existing ) as $line_id ) {
+				if ( ! in_array( $line_id, $kept, true ) ) {
+					$wpdb->delete( Schema::table( 'rental_items' ), [ 'id' => $line_id, 'rental_id' => $id ], [ '%d', '%d' ] );
+				}
+			}
+		}
+
+		ActivityLog::log( 'rental_updated', 'rental', $id, [
+			'fields'         => array_values( array_diff( array_keys( $fields ), [ 'updated_at' ] ) ),
+			'items_replaced' => null !== $items,
+		] );
+
+		/**
+		 * Hook-Punkt (ersetzt DB-Trigger): z. B. aktualisierte Bestätigung an den Leiher.
+		 */
+		do_action( 'pp_rental_updated', $id );
+
+		return true;
+	}
+
+	/**
 	 * @return true|WP_Error
 	 */
 	public static function set_status( int $id, string $status ) {

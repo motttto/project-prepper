@@ -17,6 +17,15 @@
 		return el(InspectorControls, {}, el(PanelBody, { title: "Einstellungen", initialOpen: true }, children));
 	}
 
+	function showAllToggle(props) {
+		return el(ToggleControl, {
+			key: "showAll",
+			label: "Auch defekte/ausgemusterte zeigen",
+			checked: props.attributes.showAll,
+			onChange: function (v) { props.setAttributes({ showAll: v }); }
+		});
+	}
+
 	registerBlockType("project-prepper/inventory", {
 		title: "PP: Equipment-Liste",
 		description: "Öffentliche Inventarliste aus Project Prepper.",
@@ -25,7 +34,8 @@
 		attributes: {
 			category: { type: "string", default: "" },
 			showRates: { type: "boolean", default: false },
-			search: { type: "boolean", default: false }
+			search: { type: "boolean", default: false },
+			showAll: { type: "boolean", default: false }
 		},
 		edit: function (props) {
 			return el(wp.element.Fragment, {},
@@ -47,7 +57,8 @@
 						label: "Suchfeld anzeigen",
 						checked: props.attributes.search,
 						onChange: function (v) { props.setAttributes({ search: v }); }
-					})
+					}),
+					showAllToggle(props)
 				]),
 				el(ServerSideRender, { block: "project-prepper/inventory", attributes: props.attributes })
 			);
@@ -61,7 +72,8 @@
 		icon: "calendar-alt",
 		category: "widgets",
 		attributes: {
-			item: { type: "string", default: "" }
+			item: { type: "string", default: "" },
+			showAll: { type: "boolean", default: false }
 		},
 		edit: function (props) {
 			return el(wp.element.Fragment, {},
@@ -71,7 +83,8 @@
 						label: "Artikel-ID (leer = Auswahlfeld)",
 						value: props.attributes.item,
 						onChange: function (v) { props.setAttributes({ item: v }); }
-					})
+					}),
+					showAllToggle(props)
 				]),
 				el(ServerSideRender, { block: "project-prepper/availability", attributes: props.attributes })
 			);
@@ -85,7 +98,8 @@
 		icon: "email",
 		category: "widgets",
 		attributes: {
-			showItems: { type: "boolean", default: true }
+			showItems: { type: "boolean", default: true },
+			showAll: { type: "boolean", default: false }
 		},
 		edit: function (props) {
 			return el(wp.element.Fragment, {},
@@ -95,7 +109,8 @@
 						label: "Equipment-Auswahl anzeigen",
 						checked: props.attributes.showItems,
 						onChange: function (v) { props.setAttributes({ showItems: v }); }
-					})
+					}),
+					showAllToggle(props)
 				]),
 				el(ServerSideRender, { block: "project-prepper/request-form", attributes: props.attributes })
 			);

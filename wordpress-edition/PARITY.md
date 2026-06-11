@@ -1,6 +1,6 @@
 # Parity-Matrix — Live-App ↔ WordPress-Edition
 
-> Stand: 2026-06-11, Plugin v0.3.0, vor Lauf 1
+> Stand: 2026-06-11, Plugin v0.4.0, nach Lauf 1
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
 ## Inventar (Parität: ~70 %)
@@ -18,32 +18,32 @@
 | Kategorien-Merge (Migration 097) | ❌ | nur Löschen (Items → ohne Kategorie) | C |
 | Excel **XLSX** Import/Export (§8.6) | ⚠️ CSV | XLSX via SheetJS/PhpSpreadsheet | B |
 
-## Verleih (Parität: ~65 %)
+## Verleih (Parität: ~85 %)
 
 | App-Feature (Quelle) | WP-Status | Lücke | Prio |
 |---|---|---|---|
 | Anlegen + Verfügbarkeits-Check + Status-Flow (§9.1/9.4) | ✅ v0.1.0 | — | — |
 | Abrechnung Brutto/Netto/USt, Kaution (§9.4) | ✅ v0.2.0 | — | — |
-| **Tagessatz pro Position** im Anlege-UI (App: equipment-picker) | ⚠️ | REST kann `daily_rate`, Admin-UI bietet kein Feld | B |
-| Verleih **bearbeiten** mit Diff-Logik (§9.4) | ❌ | nur anlegen/Status/löschen | A |
+| **Tagessatz pro Position** im Anlege-UI (App: equipment-picker) | ✅ v0.4.0 | — (inkl. Vorschlag aus Artikel-Tagessatz) | — |
+| Verleih **bearbeiten** mit Diff-Logik (§9.4) | ✅ v0.4.0 | — (Header + Positionen, nur reserved/active, Verfügbarkeit mit exclude_rental_id) | — |
 | Freigabe-Logik pro Position (§9.2/9.3, approval_status) | ❌ | braucht Multi-Owner | blockiert |
 | "Mein Equipment unterwegs" (§9.3) | ❌ | braucht Multi-Owner | blockiert |
 
-## Anfragen (Parität: ~50 %)
+## Anfragen (Parität: ~70 %)
 
 | App-Feature (Quelle) | WP-Status | Lücke | Prio |
 |---|---|---|---|
 | Öffentliches Formular → Pipeline (§11) | ✅ v0.3.0 | — | — |
 | Status-Pipeline der App (new→contacted→offer→won/lost) | ⚠️ | WP nur new/contacted/closed | C |
 | Anfrage-**Detail** (App: inquiries/[id]) | ❌ | nur Tabellenzeile | B |
-| **Anfrage → Verleih konvertieren** (§11 Konvertierung) | ❌ | fehlt | A |
+| **Anfrage → Verleih konvertieren** (§11 Konvertierung) | ✅ v0.4.0 | — (Button im Admin, beide Edit-Caps nötig, ohne Zeitraum deaktiviert; Anfrage → closed, Verlinkung im Activity-Log) | — |
 
 ## Öffentliches Frontend (WP-only, kein App-Pendant — App ist komplett auth-geschützt)
 
 | Feature | WP-Status | Lücke | Prio |
 |---|---|---|---|
 | [pp_inventory], [pp_availability], [pp_request_form] + Blöcke | ✅ v0.3.0 | — | — |
-| Defekte/ausgemusterte Artikel öffentlich ausblenden | ❌ | zeigt alles; `show_all`-Attribut fehlt | B |
+| Defekte/ausgemusterte Artikel öffentlich ausblenden | ✅ v0.4.0 | — (`show_all="yes"` bzw. Block-Toggle übersteuert) | — |
 | Artikel-Detailseite (/equipment/{nummer}) | ❌ | fehlt | C |
 
 ## E-Mail / Kalender / DSGVO / Einstellungen (Parität: ~85 %)
@@ -62,9 +62,9 @@ Gruppen + Voting, Vereinbarungen + Gewinnverteilung, Sharing/Erträge, Aktivitä
 
 ## Nächster Lauf
 
-- [ ] A: Verleih bearbeiten (Diff-Logik) — Backend (Update-Service + REST PUT) + Admin-UI (Modal editierbar)
-- [ ] A: Anfrage → Verleih konvertieren — Backend (Service + REST) + Button im Anfragen-Admin
-- [ ] B: Defekte/ausgemusterte Artikel im öffentlichen Frontend ausblenden (`show_all="yes"` zum Übersteuern)
+- [ ] B: Foto + PDFs direkt im Inventar-Anlege-Formular (Commit 60eb81b der App) — Admin-UI erweitern, Media-REST existiert bereits (`/items/{id}/image` + `/documents` nach dem Anlegen aufrufen)
+- [ ] B: Inventar-Filter "Ausgeliehen" (§8.5) — aggregiert aus reserved/active-Rentals, als Pill/Toggle neben den Kategorie-Pills; Backend: `Inventory::items()` um `out_today`-Flag/Filter ergänzen
+- [ ] B: Anfrage-Detail-Modal (App: inquiries/[id]) — Tabellenzeile klickbar, Modal mit allen Feldern, Items, Nachricht komplett, Status-Aktionen + Konvertieren-Button
 
 ## Blockiert / Entscheidungen
 
@@ -73,3 +73,4 @@ Gruppen + Voting, Vereinbarungen + Gewinnverteilung, Sharing/Erträge, Aktivitä
 ## Log
 
 - Vor Lauf 1 (2026-06-11): Matrix initial erstellt aus v0.3.0-Stand + Funktionsmapping.
+- Lauf 1 (2026-06-11, v0.4.0): Verleih bearbeiten (`Rentals::update()` mit Header- + Positions-Diff, Verfügbarkeit via exclude_rental_id, nur reserved/active; REST `PUT /rentals/{id}`; Detail-Modal editierbar inkl. Menge/Tagessatz pro Position + Position hinzufügen/entfernen). Tagessatz pro Position auch im Anlege-Formular (mit Vorschlag aus Artikel-Tagessatz). Anfrage → Verleih (`Inquiries::convert_to_rental()`, REST `POST /inquiries/{id}/convert` mit Doppel-Cap-Check, Button im Anfragen-Admin, ohne Zeitraum deaktiviert). Öffentliches Frontend blendet broken/retired aus (`usable_only` in `Inventory::items()`, `show_all`-Attribut auf allen 3 Shortcodes + Block-Toggle "Auch defekte/ausgemusterte zeigen"). Alle Tests grün (14 wp-eval-Service-Tests, REST-Tests inkl. 401/403/409, Frontend-HTML-Check, 5 Admin-Seiten). Schema unverändert (0.3.0).

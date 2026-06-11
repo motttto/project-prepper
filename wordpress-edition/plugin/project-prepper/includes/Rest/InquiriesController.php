@@ -3,6 +3,7 @@ namespace ProjectPrepper\Rest;
 
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Services\Inquiries;
+use ProjectPrepper\Services\Rentals;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
@@ -33,6 +34,15 @@ class InquiriesController extends BaseController {
 			'callback'            => [ $this, 'delete' ],
 			'permission_callback' => $this->require_cap( Capabilities::EDIT_INQUIRIES ),
 		] );
+
+		// Konvertierung legt einen Verleih an → braucht BEIDE Edit-Caps.
+		register_rest_route( self::REST_NAMESPACE, '/inquiries/(?P<id>\d+)/convert', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'convert' ],
+			'permission_callback' => static function () {
+				return current_user_can( Capabilities::EDIT_INQUIRIES ) && current_user_can( Capabilities::EDIT_RENTALS );
+			},
+		] );
 	}
 
 	public function index( WP_REST_Request $request ): WP_REST_Response {
@@ -48,6 +58,14 @@ class InquiriesController extends BaseController {
 		}
 		Inquiries::set_status( (int) $request['id'], $status );
 		return new WP_REST_Response( Inquiries::get( (int) $request['id'] ) );
+	}
+
+	public function convert( WP_REST_Request $request ) {
+		$result = Inquiries::convert_to_rental( (int) $request['id'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Rentals::get( $result ), 201 );
 	}
 
 	public function delete( WP_REST_Request $request ) {

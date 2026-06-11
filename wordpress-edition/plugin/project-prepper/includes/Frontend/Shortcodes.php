@@ -16,6 +16,8 @@ defined( 'ABSPATH' ) || exit;
  *
  * Öffentlich sichtbar sind nur unkritische Felder (kein Kaufpreis, keine
  * Seriennummer, keine Leiher-Daten) — das ist der Capability-Ersatz fürs Frontend.
+ * Defekte/ausgemusterte Artikel (broken/retired) sind standardmäßig ausgeblendet;
+ * show_all="yes" übersteuert das pro Shortcode/Block.
  */
 class Shortcodes {
 
@@ -67,6 +69,7 @@ class Shortcodes {
 			'category'   => '',
 			'show_rates' => 'no',
 			'search'     => 'no',
+			'show_all'   => 'no',
 		], $atts, 'pp_inventory' );
 
 		$category_id = 0;
@@ -84,6 +87,7 @@ class Shortcodes {
 		$items = Inventory::items( array_filter( [
 			'category_id' => $category_id,
 			'search'      => $search,
+			'usable_only' => 'yes' !== $atts['show_all'],
 		] ) );
 
 		return self::render_template( 'inventory-list.php', [
@@ -116,7 +120,10 @@ class Shortcodes {
 	/* ---------- [pp_availability] ---------- */
 
 	public static function availability( $atts ): string {
-		$atts = shortcode_atts( [ 'item' => '' ], $atts, 'pp_availability' );
+		$atts = shortcode_atts( [
+			'item'     => '',
+			'show_all' => 'no',
+		], $atts, 'pp_availability' );
 
 		// phpcs:disable WordPress.Security.NonceVerification -- reines Lese-Formular (GET)
 		$item_id = (int) ( $atts['item'] ?: ( $_GET['pp_item'] ?? 0 ) );
@@ -138,7 +145,10 @@ class Shortcodes {
 		return self::render_template( 'availability.php', [
 			'fixed_item' => (bool) $atts['item'],
 			'item_id'    => $item_id,
-			'items'      => $atts['item'] ? [] : array_map( [ self::class, 'public_item' ], Inventory::items() ),
+			'items'      => $atts['item'] ? [] : array_map(
+				[ self::class, 'public_item' ],
+				Inventory::items( 'yes' === $atts['show_all'] ? [] : [ 'usable_only' => true ] )
+			),
 			'from'       => $from,
 			'to'         => $to,
 			'result'     => $result,
@@ -148,12 +158,18 @@ class Shortcodes {
 	/* ---------- [pp_request_form] ---------- */
 
 	public static function request_form( $atts ): string {
-		$atts = shortcode_atts( [ 'show_items' => 'yes' ], $atts, 'pp_request_form' );
+		$atts = shortcode_atts( [
+			'show_items' => 'yes',
+			'show_all'   => 'no',
+		], $atts, 'pp_request_form' );
 
 		$state = sanitize_text_field( (string) ( $_GET['pp_inquiry'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
 
 		return self::render_template( 'request-form.php', [
-			'items'   => 'yes' === $atts['show_items'] ? array_map( [ self::class, 'public_item' ], Inventory::items() ) : [],
+			'items'   => 'yes' === $atts['show_items'] ? array_map(
+				[ self::class, 'public_item' ],
+				Inventory::items( 'yes' === $atts['show_all'] ? [] : [ 'usable_only' => true ] )
+			) : [],
 			'success' => 'ok' === $state,
 			'error'   => 'error' === $state,
 		] );

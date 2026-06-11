@@ -32,6 +32,11 @@ class RentalsController extends BaseController {
 				'permission_callback' => $this->require_cap( Capabilities::VIEW_RENTALS ),
 			],
 			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_RENTALS ),
+			],
+			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'delete' ],
 				'permission_callback' => $this->require_cap( Capabilities::EDIT_RENTALS ),
@@ -77,6 +82,36 @@ class RentalsController extends BaseController {
 			return $result;
 		}
 		return new WP_REST_Response( Rentals::get( $result ), 201 );
+	}
+
+	public function update( WP_REST_Request $request ) {
+		$json = $request->get_json_params() ?: [];
+
+		// Nur übergebene Keys weiterreichen — der Service macht den Header-Diff.
+		$data = $this->sanitize_text_fields( $json, [
+			'borrower_name', 'borrower_phone', 'date_from', 'date_to',
+		] );
+		if ( array_key_exists( 'borrower_email', $json ) ) {
+			$data['borrower_email'] = sanitize_email( (string) $json['borrower_email'] );
+		}
+		if ( array_key_exists( 'borrower_address', $json ) ) {
+			$data['borrower_address'] = sanitize_textarea_field( (string) $json['borrower_address'] );
+		}
+		if ( array_key_exists( 'notes', $json ) ) {
+			$data['notes'] = sanitize_textarea_field( (string) $json['notes'] );
+		}
+		foreach ( [ 'deposit_amount', 'rental_fee', 'vat_rate' ] as $key ) {
+			if ( array_key_exists( $key, $json ) ) {
+				$data[ $key ] = '' !== $json[ $key ] && null !== $json[ $key ] ? (float) $json[ $key ] : '';
+			}
+		}
+
+		$items  = array_key_exists( 'items', $json ) ? (array) $json['items'] : null;
+		$result = Rentals::update( (int) $request['id'], $data, $items );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Rentals::get( (int) $request['id'] ) );
 	}
 
 	public function set_status( WP_REST_Request $request ) {

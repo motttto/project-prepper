@@ -21,12 +21,14 @@ class Blocks {
 				'category'  => [ 'type' => 'string', 'default' => '' ],
 				'showRates' => [ 'type' => 'boolean', 'default' => false ],
 				'search'    => [ 'type' => 'boolean', 'default' => false ],
+				'showAll'   => [ 'type' => 'boolean', 'default' => false ],
 			],
 			'render_callback' => static function ( array $attributes ): string {
 				return Shortcodes::inventory( [
 					'category'   => $attributes['category'] ?? '',
 					'show_rates' => ! empty( $attributes['showRates'] ) ? 'yes' : 'no',
 					'search'     => ! empty( $attributes['search'] ) ? 'yes' : 'no',
+					'show_all'   => ! empty( $attributes['showAll'] ) ? 'yes' : 'no',
 				] );
 			},
 		] );
@@ -34,10 +36,14 @@ class Blocks {
 		register_block_type( 'project-prepper/availability', [
 			'api_version'     => 3,
 			'attributes'      => [
-				'item' => [ 'type' => 'string', 'default' => '' ],
+				'item'    => [ 'type' => 'string', 'default' => '' ],
+				'showAll' => [ 'type' => 'boolean', 'default' => false ],
 			],
 			'render_callback' => static function ( array $attributes ): string {
-				return Shortcodes::availability( [ 'item' => $attributes['item'] ?? '' ] );
+				return Shortcodes::availability( [
+					'item'     => $attributes['item'] ?? '',
+					'show_all' => ! empty( $attributes['showAll'] ) ? 'yes' : 'no',
+				] );
 			},
 		] );
 
@@ -45,9 +51,13 @@ class Blocks {
 			'api_version'     => 3,
 			'attributes'      => [
 				'showItems' => [ 'type' => 'boolean', 'default' => true ],
+				'showAll'   => [ 'type' => 'boolean', 'default' => false ],
 			],
 			'render_callback' => static function ( array $attributes ): string {
-				return Shortcodes::request_form( [ 'show_items' => empty( $attributes['showItems'] ) ? 'no' : 'yes' ] );
+				return Shortcodes::request_form( [
+					'show_items' => empty( $attributes['showItems'] ) ? 'no' : 'yes',
+					'show_all'   => ! empty( $attributes['showAll'] ) ? 'yes' : 'no',
+				] );
 			},
 		] );
 	}
