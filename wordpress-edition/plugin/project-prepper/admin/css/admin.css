@@ -1,0 +1,112 @@
+/* Project Prepper — Admin-UI */
+
+#pp-admin {
+	max-width: 1100px;
+}
+
+.pp-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	background: #fff;
+	border: 1px solid #c3c4c7;
+	padding: 12px;
+	margin: 12px 0 20px;
+}
+
+.pp-form-stacked {
+	flex-direction: column;
+	align-items: stretch;
+}
+
+.pp-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+}
+
+.pp-form input[type="text"],
+.pp-form input[type="email"],
+.pp-form input[type="search"] {
+	min-width: 200px;
+}
+
+.pp-input-small {
+	width: 110px !important;
+	min-width: 0 !important;
+}
+
+.pp-toolbar {
+	display: flex;
+	gap: 8px;
+	margin-bottom: 12px;
+}
+
+.pp-search {
+	min-width: 320px;
+}
+
+.pp-table {
+	margin-top: 8px;
+}
+
+.pp-table td {
+	vertical-align: middle;
+}
+
+.pp-action {
+	margin-right: 4px;
+}
+
+.pp-notice {
+	padding: 8px 12px;
+	margin: 8px 0;
+	border-left: 4px solid #00a32a;
+	background: #fff;
+}
+
+.pp-notice-error {
+	border-left-color: #d63638;
+}
+
+.pp-status {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	background: #f0f0f1;
+}
+
+.pp-status-reserved { background: #fcf3cd; }
+.pp-status-active   { background: #d1ecf1; }
+.pp-status-returned { background: #d4edda; }
+.pp-status-cancelled { background: #f0f0f1; color: #777; }
+
+.pp-avail {
+	font-size: 12px;
+	padding: 2px 8px;
+	border-radius: 10px;
+}
+
+.pp-avail-ok { background: #d4edda; }
+.pp-avail-none { background: #f8d7da; }
+
+.pp-lines {
+	margin: 4px 0;
+	padding-left: 4px;
+	list-style: none;
+}
+
+.pp-lines li {
+	padding: 2px 0;
+}
+
+.pp-remove {
+	color: #d63638;
+	cursor: pointer;
+	background: none;
+	border: none;
+	font-size: 12px;
+}
