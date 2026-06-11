@@ -30,17 +30,35 @@ GET/DELETE     /wp-json/project-prepper/v1/rentals/{id}
 POST           /wp-json/project-prepper/v1/rentals/{id}/status   {"status": "active"}
 ```
 
-## Lokal testen
+## Lokal testen (wp-env + Colima)
 
-Am einfachsten mit [wp-env](https://developer.wordpress.org/block-editor/getting-started/devenv/get-started-with-wp-env/) (braucht Docker):
+Docker-Runtime auf diesem Rechner ist **Colima** (kein Docker Desktop):
 
 ```bash
+colima start                # Docker-Runtime hochfahren
 cd wordpress-edition/plugin/project-prepper
-npx @wordpress/env start    # nutzt .wp-env.json → Plugin ist vorinstalliert
+npx @wordpress/env start    # nutzt .wp-env.json → Plugin ist vorinstalliert & aktiviert
 # Admin: http://localhost:8888/wp-admin (admin / password)
+
+npx @wordpress/env stop     # WordPress stoppen
+colima stop                 # Docker-Runtime stoppen (optional)
 ```
 
-Alternativ: Ordner `project-prepper/` in eine bestehende WP-Installation unter `wp-content/plugins/` kopieren (oder symlinken) und aktivieren.
+Nützlich beim Entwickeln (Code-Änderungen wirken sofort, der Ordner ist gemountet):
+
+```bash
+npx @wordpress/env run cli wp plugin list
+npx @wordpress/env run cli wp db query "SHOW TABLES LIKE '%pp\_%'"
+npx @wordpress/env destroy  # komplett zurücksetzen (frische DB)
+```
+
+## ZIP-Export für echte WordPress-Installationen
+
+```bash
+../build.sh                 # → ../dist/project-prepper-{version}.zip
+```
+
+Das ZIP unter **WP-Admin → Plugins → Installieren → Plugin hochladen** einspielen und aktivieren — Tabellen werden bei Aktivierung automatisch angelegt. Enthält nur Laufzeit-Dateien (ohne `.wp-env.json`, Dev-README, build-Script).
 
 ## Noch offen (v1.0-Scope)
 

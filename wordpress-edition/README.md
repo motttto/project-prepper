@@ -45,7 +45,8 @@ git checkout main
 - [x] **Entscheidung Produktform: Option A — WordPress-Plugin-Neuentwicklung** (2026-06-11)
 - [x] Branch `wordpress-edition` für die WordPress-Entwicklung angelegt (GitHub)
 - [x] Plugin-Grundgerüst (2026-06-11, `wordpress-edition/plugin/project-prepper/`): Schema (6 `pp_*`-Tabellen), Capabilities/Rollen, Services (Nummernkreise, Verfügbarkeit, Verleih-Status-Maschine, Activity-Log), REST-API (`project-prepper/v1`), Admin-UI (Inventar/Verleih/Kategorien, Vanilla JS ohne Build-Step)
-- [ ] Test in echter WordPress-Instanz (wp-env braucht Docker, siehe `plugin/project-prepper/README.md`)
+- [x] Test in echter WordPress-Instanz (2026-06-11, wp-env via Colima): Aktivierung, Tabellen, Vertical Slice (Kategorie → Artikel LIC-0001 → Verleih V-2026-0001 → Verfügbarkeit/Überbuchung/Status-Flow), REST-Auth (401 ohne Login), Admin-UI-Auslieferung — alles grün
+- [x] ZIP-Export für echte WP-Installationen (`plugin/build.sh` → `plugin/dist/project-prepper-{version}.zip`)
 - [ ] MVP-Module ausbauen (Excel-Import/-Export, PDF-Dokumente, Einzelstücke-UI, E-Mail, iCal)
 - [ ] Englische Übersetzung + readme.txt für wordpress.org
 - [ ] Demo-Site + Lizenzmodell (Freemius/EDD)
