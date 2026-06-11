@@ -19,6 +19,7 @@ class Notifications {
 	public static function init(): void {
 		add_action( 'pp_rental_status_changed', [ self::class, 'on_rental_status_changed' ], 10, 3 );
 		add_action( 'pp_rental_created', [ self::class, 'on_rental_created' ], 10, 1 );
+		add_action( 'pp_inquiry_created', [ self::class, 'on_inquiry_created' ], 10, 1 );
 	}
 
 	public static function default_templates(): array {
@@ -34,6 +35,10 @@ class Notifications {
 			'rental_returned' => [
 				'subject' => 'Rückgabe bestätigt — {{rental_number}}',
 				'body'    => "Hallo {{borrower_name}},\n\ndie Rückgabe zu {{rental_number}} ist bestätigt. Danke!\n\nViele Grüße\n{{site_name}}",
+			],
+			'inquiry_received' => [
+				'subject' => 'Neue Anfrage von {{name}} — {{site_name}}',
+				'body'    => "Neue Anfrage über die Website:\n\nName: {{name}}\nE-Mail: {{email}}\nTelefon: {{phone}}\nZeitraum: {{date_from}} bis {{date_to}}\n\nGewünschtes Equipment:\n{{items}}\n\nNachricht:\n{{message}}\n\n→ Bearbeiten: {{admin_url}}",
 			],
 		];
 	}
@@ -56,6 +61,39 @@ class Notifications {
 
 	public static function on_rental_created( int $rental_id ): void {
 		self::send_for_rental( $rental_id, 'rental_reserved' );
+	}
+
+	public static function on_inquiry_created( int $inquiry_id ): void {
+		if ( ! self::enabled() ) {
+			return;
+		}
+		$inquiry = \ProjectPrepper\Services\Inquiries::get( $inquiry_id );
+		if ( ! $inquiry ) {
+			return;
+		}
+		$template = self::templates()['inquiry_received'];
+
+		$item_lines = array_map( static function ( $line ) {
+			return sprintf( '- %s× %s', $line['quantity'] ?? 1, $line['name'] ?? ( '#' . ( $line['item_id'] ?? '?' ) ) );
+		}, $inquiry->items );
+
+		$vars = [
+			'name'      => $inquiry->name,
+			'email'     => $inquiry->email ?: '—',
+			'phone'     => $inquiry->phone ?: '—',
+			'date_from' => $inquiry->date_from ? mysql2date( 'd.m.Y', $inquiry->date_from ) : '—',
+			'date_to'   => $inquiry->date_to ? mysql2date( 'd.m.Y', $inquiry->date_to ) : '—',
+			'items'     => $item_lines ? implode( "\n", $item_lines ) : '—',
+			'message'   => $inquiry->message ?: '—',
+			'site_name' => get_bloginfo( 'name' ),
+			'admin_url' => admin_url( 'admin.php?page=pp-inquiries' ),
+		];
+
+		wp_mail(
+			get_option( 'admin_email' ),
+			self::render( $template['subject'], $vars ),
+			self::render( $template['body'], $vars )
+		);
 	}
 
 	public static function on_rental_status_changed( int $rental_id, string $from, string $to ): void {

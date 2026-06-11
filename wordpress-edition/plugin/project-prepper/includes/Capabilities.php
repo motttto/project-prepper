@@ -15,6 +15,8 @@ class Capabilities {
 	const EDIT_INVENTORY  = 'pp_inventory_edit';
 	const VIEW_RENTALS    = 'pp_rentals_view';
 	const EDIT_RENTALS    = 'pp_rentals_edit';
+	const VIEW_INQUIRIES  = 'pp_inquiries_view';
+	const EDIT_INQUIRIES  = 'pp_inquiries_edit';
 	const IMPORT_EXPORT   = 'pp_import_export';
 	const MANAGE_SETTINGS = 'pp_settings_manage';
 
@@ -24,6 +26,8 @@ class Capabilities {
 			self::EDIT_INVENTORY,
 			self::VIEW_RENTALS,
 			self::EDIT_RENTALS,
+			self::VIEW_INQUIRIES,
+			self::EDIT_INQUIRIES,
 			self::IMPORT_EXPORT,
 			self::MANAGE_SETTINGS,
 		];
@@ -41,20 +45,27 @@ class Capabilities {
 		}
 
 		// Manager: alles außer Einstellungen (≈ App-Rolle "Manager").
+		// remove_role vor add_role, damit Cap-Erweiterungen bei Updates greifen
+		// (add_role ist no-op, wenn die Rolle schon existiert).
+		remove_role( 'pp_manager' );
 		add_role( 'pp_manager', __( 'Prepper Manager', 'project-prepper' ), [
 			'read'                => true,
 			self::VIEW_INVENTORY  => true,
 			self::EDIT_INVENTORY  => true,
 			self::VIEW_RENTALS    => true,
 			self::EDIT_RENTALS    => true,
+			self::VIEW_INQUIRIES  => true,
+			self::EDIT_INQUIRIES  => true,
 			self::IMPORT_EXPORT   => true,
 		] );
 
 		// Member: nur lesen (≈ App-Rolle "Member" mit View-Permissions).
+		remove_role( 'pp_member' );
 		add_role( 'pp_member', __( 'Prepper Mitglied', 'project-prepper' ), [
 			'read'               => true,
 			self::VIEW_INVENTORY => true,
 			self::VIEW_RENTALS   => true,
+			self::VIEW_INQUIRIES => true,
 		] );
 	}
 

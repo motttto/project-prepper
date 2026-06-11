@@ -888,6 +888,67 @@
 		load();
 	}
 
+	/* ================= Seite: Anfragen ================= */
+
+	function renderInquiries() {
+		root.innerHTML = "";
+		var INQUIRY_STATUS = { new: "Neu", contacted: "Kontaktiert", closed: "Abgeschlossen" };
+		var INQUIRY_ACTIONS = { new: ["contacted", "closed"], contacted: ["closed"], closed: [] };
+		var listBox = el("div");
+
+		function load() {
+			api("/inquiries").then(function (inquiries) {
+				listBox.innerHTML = "";
+				var table = el("table", { class: "pp-table" });
+				table.appendChild(el("thead", {
+					html: "<tr><th>Datum</th><th>Name</th><th>Kontakt</th><th>Zeitraum</th><th>Equipment</th><th>Nachricht</th><th>Status</th><th></th></tr>"
+				}));
+				var tbody = el("tbody");
+				inquiries.forEach(function (inquiry) {
+					var actions = el("td");
+					if (ppConfig.canEdit.inquiries) {
+						(INQUIRY_ACTIONS[inquiry.status] || []).forEach(function (next) {
+							actions.appendChild(el("button", {
+								class: "pp-btn pp-btn-sm", text: INQUIRY_STATUS[next], style: "margin-right:4px",
+								onclick: function () {
+									api("/inquiries/" + inquiry.id + "/status", { method: "POST", body: JSON.stringify({ status: next }) })
+										.then(load).catch(function (e) { toast(e.message, "error"); });
+								}
+							}));
+						});
+						actions.appendChild(el("button", {
+							class: "pp-link pp-link-danger", text: "löschen",
+							onclick: function () {
+								if (!confirm("Anfrage von \"" + inquiry.name + "\" löschen?")) return;
+								api("/inquiries/" + inquiry.id, { method: "DELETE" }).then(load);
+							}
+						}));
+					}
+					var contact = [inquiry.email, inquiry.phone].filter(Boolean).join(" · ") || "—";
+					var range = inquiry.date_from ? dateDe(inquiry.date_from) + " – " + dateDe(inquiry.date_to) : "—";
+					var equipment = (inquiry.items || []).map(function (line) { return line.name; }).join(", ") || "—";
+					var badgeClass = { new: "reserved", contacted: "active", closed: "returned" }[inquiry.status] || inquiry.status;
+					tbody.appendChild(el("tr", null, [
+						el("td", { text: dateDe(inquiry.created_at) }),
+						el("td", { text: inquiry.name }),
+						el("td", { text: contact }),
+						el("td", { text: range }),
+						el("td", { text: equipment }),
+						el("td", { text: inquiry.message ? (inquiry.message.length > 80 ? inquiry.message.slice(0, 80) + "…" : inquiry.message) : "—" }),
+						el("td", null, [el("span", { class: "pp-badge pp-badge-" + badgeClass, text: INQUIRY_STATUS[inquiry.status] || inquiry.status })]),
+						actions
+					]));
+				});
+				if (!inquiries.length) tbody.appendChild(el("tr", { html: '<td colspan="8" class="pp-muted">Noch keine Anfragen. Das Formular kommt per Shortcode [pp_request_form] auf jede Seite.</td>' }));
+				table.appendChild(tbody);
+				listBox.appendChild(el("div", { class: "pp-table-wrap" }, [table]));
+			}).catch(function (e) { toast(e.message, "error"); });
+		}
+
+		root.appendChild(listBox);
+		load();
+	}
+
 	/* ================= Seite: Einstellungen ================= */
 
 	function renderSettings() {
@@ -984,6 +1045,7 @@
 
 	if (page === "categories") renderCategories();
 	else if (page === "rentals") renderRentals();
+	else if (page === "inquiries") renderInquiries();
 	else if (page === "settings") renderSettings();
 	else renderInventory();
 })();

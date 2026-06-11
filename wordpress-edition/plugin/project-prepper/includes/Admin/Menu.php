@@ -49,6 +49,15 @@ class Menu {
 
 		add_submenu_page(
 			'project-prepper',
+			__( 'Anfragen', 'project-prepper' ),
+			__( 'Anfragen', 'project-prepper' ),
+			Capabilities::VIEW_INQUIRIES,
+			'pp-inquiries',
+			[ self::class, 'render_inquiries' ]
+		);
+
+		add_submenu_page(
+			'project-prepper',
 			__( 'Kategorien', 'project-prepper' ),
 			__( 'Kategorien', 'project-prepper' ),
 			Capabilities::EDIT_INVENTORY,
@@ -80,6 +89,7 @@ class Menu {
 			'canEdit' => [
 				'inventory'    => current_user_can( Capabilities::EDIT_INVENTORY ),
 				'rentals'      => current_user_can( Capabilities::EDIT_RENTALS ),
+				'inquiries'    => current_user_can( Capabilities::EDIT_INQUIRIES ),
 				'importExport' => current_user_can( Capabilities::IMPORT_EXPORT ),
 				'settings'     => current_user_can( Capabilities::MANAGE_SETTINGS ),
 			],
@@ -100,5 +110,9 @@ class Menu {
 
 	public static function render_settings(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Einstellungen', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="settings"></div></div>';
+	}
+
+	public static function render_inquiries(): void {
+		echo '<div class="wrap"><h1>' . esc_html__( 'Anfragen', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="inquiries"></div></div>';
 	}
 }

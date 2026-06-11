@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.2.0';
+	const VERSION    = '0.3.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	public static function table( string $name ): string {
@@ -30,6 +30,7 @@ class Schema {
 		$rentals    = self::table( 'rentals' );
 		$lines      = self::table( 'rental_items' );
 		$log        = self::table( 'activity_log' );
+		$inquiries  = self::table( 'inquiries' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -132,6 +133,23 @@ class Schema {
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			KEY entity (entity_type,entity_id),
+			KEY created_at (created_at)
+		) {$charset};" );
+
+		dbDelta( "CREATE TABLE {$inquiries} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			name varchar(190) NOT NULL,
+			email varchar(190) NOT NULL DEFAULT '',
+			phone varchar(64) NOT NULL DEFAULT '',
+			message text,
+			date_from date DEFAULT NULL,
+			date_to date DEFAULT NULL,
+			items longtext,
+			status varchar(20) NOT NULL DEFAULT 'new',
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY status (status),
 			KEY created_at (created_at)
 		) {$charset};" );
 

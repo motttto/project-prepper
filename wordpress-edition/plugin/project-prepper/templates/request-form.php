@@ -1,0 +1,72 @@
+<?php
+/**
+ * Template: Anfrage-Formular — [pp_request_form]
+ * Überschreibbar via {theme}/project-prepper/request-form.php
+ *
+ * @var array $items    Equipment zur Auswahl (leer wenn show_items="no")
+ * @var bool  $success
+ * @var bool  $error
+ */
+
+defined( 'ABSPATH' ) || exit;
+?>
+<div class="pp-front">
+	<?php if ( $success ) : ?>
+		<div class="pp-front-notice pp-front-notice-ok"><?php esc_html_e( 'Danke! Deine Anfrage ist eingegangen — wir melden uns.', 'project-prepper' ); ?></div>
+	<?php elseif ( $error ) : ?>
+		<div class="pp-front-notice pp-front-notice-warn"><?php esc_html_e( 'Das hat leider nicht geklappt. Bitte Pflichtfelder prüfen und erneut senden.', 'project-prepper' ); ?></div>
+	<?php endif; ?>
+
+	<?php if ( ! $success ) : ?>
+	<form class="pp-front-form pp-front-request" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<input type="hidden" name="action" value="pp_inquiry">
+		<?php wp_nonce_field( 'pp_inquiry', 'pp_nonce' ); ?>
+		<!-- Honeypot (für Menschen unsichtbar, Bots füllen es aus) -->
+		<input type="text" name="pp_website" value="" class="pp-front-hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+
+		<div class="pp-front-form-grid">
+			<label class="pp-front-field">
+				<span><?php esc_html_e( 'Name *', 'project-prepper' ); ?></span>
+				<input type="text" name="pp_name" required>
+			</label>
+			<label class="pp-front-field">
+				<span><?php esc_html_e( 'E-Mail *', 'project-prepper' ); ?></span>
+				<input type="email" name="pp_email" required>
+			</label>
+			<label class="pp-front-field">
+				<span><?php esc_html_e( 'Telefon', 'project-prepper' ); ?></span>
+				<input type="tel" name="pp_phone">
+			</label>
+			<label class="pp-front-field">
+				<span><?php esc_html_e( 'Von', 'project-prepper' ); ?></span>
+				<input type="date" name="pp_from">
+			</label>
+			<label class="pp-front-field">
+				<span><?php esc_html_e( 'Bis', 'project-prepper' ); ?></span>
+				<input type="date" name="pp_to">
+			</label>
+		</div>
+
+		<?php if ( $items ) : ?>
+			<fieldset class="pp-front-items">
+				<legend><?php esc_html_e( 'Gewünschtes Equipment', 'project-prepper' ); ?></legend>
+				<div class="pp-front-items-grid">
+					<?php foreach ( $items as $item ) : ?>
+						<label class="pp-front-check">
+							<input type="checkbox" name="pp_items[]" value="<?php echo esc_attr( $item['id'] ); ?>">
+							<span><?php echo esc_html( $item['name'] ); ?></span>
+						</label>
+					<?php endforeach; ?>
+				</div>
+			</fieldset>
+		<?php endif; ?>
+
+		<label class="pp-front-field">
+			<span><?php esc_html_e( 'Nachricht', 'project-prepper' ); ?></span>
+			<textarea name="pp_message" rows="4"></textarea>
+		</label>
+
+		<button type="submit" class="pp-front-btn pp-front-btn-primary"><?php esc_html_e( 'Anfrage senden', 'project-prepper' ); ?></button>
+	</form>
+	<?php endif; ?>
+</div>

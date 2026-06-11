@@ -21,6 +21,8 @@ class Plugin {
 
 		Email\Notifications::init();
 		Privacy::init();
+		Frontend\Shortcodes::init();
+		Frontend\Blocks::init();
 
 		if ( is_admin() ) {
 			Admin\Menu::init();
@@ -33,6 +35,7 @@ class Plugin {
 		( new Rest\UnitsController() )->register_routes();
 		( new Rest\MediaController() )->register_routes();
 		( new Rest\RentalsController() )->register_routes();
+		( new Rest\InquiriesController() )->register_routes();
 		( new Rest\ImportExportController() )->register_routes();
 		( new Rest\CalendarController() )->register_routes();
 		( new Rest\SettingsController() )->register_routes();

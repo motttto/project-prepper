@@ -73,10 +73,19 @@ Das ZIP unter **WP-Admin → Plugins → Installieren → Plugin hochladen** ein
 - [x] Einstellungs-Seite (E-Mail, Templates, iCal-Token, Daten-Löschung bei Uninstall)
 - [x] Admin-UI im Look der Live-App (Design-Tokens aus `globals.css`: Indigo-Palette, Light/Dark, KPI-Karten, Kategorie-Pills, Detail-Modals, Badges, Toasts)
 
+## Stand v0.3.0 — Frontend + Anfragen (Back- und Frontend zusammen)
+
+- [x] **Shortcodes**: `[pp_inventory category="" show_rates="yes" search="yes"]` (Karten-Grid, Whitelist-Felder — kein Kaufpreis/Seriennummer im HTML), `[pp_availability item=""]` (GET-Formular, Server-seitige Prüfung), `[pp_request_form show_items="yes"]` (Nonce + Honeypot, POST via admin-post.php)
+- [x] **Gutenberg-Blöcke** als Wrapper (PP: Equipment-Liste / Verfügbarkeits-Check / Anfrage-Formular) mit ServerSideRender + Inspector-Einstellungen, kein Build-Step
+- [x] **Templates** im Theme überschreibbar: `{theme}/project-prepper/{inventory-list|availability|request-form}.php`
+- [x] **Anfragen-Backend** (§11 light): `pp_inquiries`-Tabelle, Status-Pipeline (Neu→Kontaktiert→Abgeschlossen), Admin-Seite „Anfragen", Caps `pp_inquiries_view/edit`, E-Mail an Betreiber bei neuer Anfrage (`inquiry_received`-Template)
+- [x] **Frontend-CSS** mit denselben Design-Tokens (Indigo, Light/Dark via `prefers-color-scheme`)
+
 ## Noch offen
 
 - [ ] Echtes XLSX statt CSV (SheetJS client-seitig oder PhpSpreadsheet)
 - [ ] Verleih bearbeiten (Diff-Logik §9.4) — aktuell nur anlegen/Status/löschen
 - [ ] Freigabe-Logik pro Position (§9.2/9.3 — braucht Multi-Owner, kommt mit Gruppen-Modul)
-- [ ] Gutenberg-Blöcke / Frontend-Ausgabe (Inventarliste, Anfrage-Formular)
+- [ ] Artikel-Detailseite im Frontend (Rewrite `/equipment/{nummer}`)
+- [ ] Anfrage → Verleih konvertieren (Pipeline-Übergang wie App §11)
 - [ ] i18n: Strings sind de-Default; en_US-Übersetzung für den Verkauf

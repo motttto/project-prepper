@@ -48,6 +48,7 @@ git checkout main
 - [x] Test in echter WordPress-Instanz (2026-06-11, wp-env via Colima): Aktivierung, Tabellen, Vertical Slice (Kategorie → Artikel LIC-0001 → Verleih V-2026-0001 → Verfügbarkeit/Überbuchung/Status-Flow), REST-Auth (401 ohne Login), Admin-UI-Auslieferung — alles grün
 - [x] ZIP-Export für echte WP-Installationen (`plugin/build.sh` → `plugin/dist/project-prepper-{version}.zip`)
 - [x] MVP-Module ausgebaut (v0.2.0, 2026-06-11): alle Inventar-Felder der App, Foto/PDF-Upload, Einzelstücke-UI, CSV-Import/-Export mit Mapping-Editor, Abrechnung (USt §9.4), E-Mail-Benachrichtigungen, iCal-Feed, DSGVO-Hooks, Einstellungen — Admin-UI im Design der Live-App (Indigo-Palette, Light/Dark)
-- [ ] XLSX statt CSV, Verleih-Bearbeiten, Gutenberg-Blöcke (siehe `plugin/project-prepper/README.md`)
+- [x] Frontend v0.3.0 (2026-06-11): Shortcodes + Gutenberg-Blöcke (Equipment-Liste, Verfügbarkeits-Check, Anfrage-Formular) + Anfragen-Backend mit Admin-Pipeline — Back- und Frontend zusammen
+- [ ] XLSX statt CSV, Verleih-Bearbeiten, Artikel-Detailseite, Anfrage→Verleih (siehe `plugin/project-prepper/README.md`)
 - [ ] Englische Übersetzung + readme.txt für wordpress.org
 - [ ] Demo-Site + Lizenzmodell (Freemius/EDD)
