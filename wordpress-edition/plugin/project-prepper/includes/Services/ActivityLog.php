@@ -25,7 +25,8 @@ class ActivityLog {
 	public static function recent( int $limit = 50 ): array {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare(
-			'SELECT * FROM ' . Schema::table( 'activity_log' ) . ' ORDER BY id DESC LIMIT %d',
+			'SELECT * FROM %i ORDER BY id DESC LIMIT %d',
+			Schema::table( 'activity_log' ),
 			$limit
 		) ) ?: [];
 	}

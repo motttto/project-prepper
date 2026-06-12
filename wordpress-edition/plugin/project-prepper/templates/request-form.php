@@ -51,7 +51,7 @@ defined( 'ABSPATH' ) || exit;
 			<fieldset class="pp-front-items">
 				<legend><?php esc_html_e( 'Requested equipment', 'project-prepper' ); ?></legend>
 				<div class="pp-front-items-grid">
-					<?php foreach ( $items as $item ) : ?>
+					<?php foreach ( $items as $item ) : // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals -- Template läuft im Methoden-Scope, keine echte Globale. ?>
 						<label class="pp-front-check">
 							<input type="checkbox" name="pp_items[]" value="<?php echo esc_attr( $item['id'] ); ?>">
 							<span><?php echo esc_html( $item['name'] ); ?></span>

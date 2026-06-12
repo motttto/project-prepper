@@ -15,7 +15,9 @@ class Plugin {
 			Capabilities::install();
 		}
 
-		load_plugin_textdomain( 'project-prepper', false, dirname( plugin_basename( PP_PLUGIN_FILE ) ) . '/languages' );
+		// Gebündelte Übersetzungen aus languages/ laden — nötig, solange das Plugin
+		// nicht auf wordpress.org gehostet ist (keine automatischen Language Packs).
+		load_plugin_textdomain( 'project-prepper', false, dirname( plugin_basename( PP_PLUGIN_FILE ) ) . '/languages' ); // phpcs:ignore PluginCheck.CodeAnalysis.DiscouragedFunctions.load_plugin_textdomainFound
 
 		add_action( 'rest_api_init', [ self::class, 'register_rest_routes' ] );
 

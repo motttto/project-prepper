@@ -2,9 +2,9 @@
 Contributors: motttto
 Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
-Tested up to: 6.8
+Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.8.0
+Stable tag: 0.8.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -64,6 +64,11 @@ for the XLSX import/export in the admin. SheetJS CE is licensed under the Apache
 (https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
 
 == Changelog ==
+
+= 0.8.1 =
+* Plugin Check compliance: all database queries use %i identifier placeholders with $wpdb->prepare()
+* All request parameters are unslashed and sanitized before use
+* "Tested up to" bumped to WordPress 7.0
 
 = 0.8.0 =
 * Internationalization: all source strings are now in English; a complete German (de_DE) translation is bundled (admin UI, frontend, emails, blocks)

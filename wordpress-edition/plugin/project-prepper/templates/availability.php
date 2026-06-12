@@ -20,7 +20,7 @@ defined( 'ABSPATH' ) || exit;
 				<span><?php esc_html_e( 'Equipment', 'project-prepper' ); ?></span>
 				<select name="pp_item" required>
 					<option value=""><?php esc_html_e( '— select —', 'project-prepper' ); ?></option>
-					<?php foreach ( $items as $item ) : ?>
+					<?php foreach ( $items as $item ) : // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals -- Template läuft im Methoden-Scope, keine echte Globale. ?>
 						<option value="<?php echo esc_attr( $item['id'] ); ?>" <?php selected( $item_id, $item['id'] ); ?>><?php echo esc_html( $item['name'] ); ?></option>
 					<?php endforeach; ?>
 				</select>

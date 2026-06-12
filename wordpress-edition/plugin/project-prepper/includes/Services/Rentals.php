@@ -34,20 +34,22 @@ class Rentals {
 			$params[] = $args['status'];
 		}
 
-		$sql = "SELECT r.*, (SELECT COUNT(*) FROM {$lines} ri WHERE ri.rental_id = r.id) AS item_count
-				FROM {$rentals} r
-				WHERE " . implode( ' AND ', $where ) . '
-				ORDER BY r.date_from DESC, r.id DESC';
-		if ( $params ) {
-			$sql = $wpdb->prepare( $sql, $params );
-		}
-		return $wpdb->get_results( $sql ) ?: [];
+		array_unshift( $params, $lines, $rentals );
+		$sql = $wpdb->prepare(
+			'SELECT r.*, (SELECT COUNT(*) FROM %i ri WHERE ri.rental_id = r.id) AS item_count
+			 FROM %i r
+			 WHERE ' . implode( ' AND ', $where ) . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- WHERE-Bedingungen sind statische Strings mit Platzhaltern.
+			' ORDER BY r.date_from DESC, r.id DESC',
+			$params
+		);
+		return $wpdb->get_results( $sql ) ?: []; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql ist oben via prepare() aufgebaut.
 	}
 
 	public static function get( int $id ): ?object {
 		global $wpdb;
 		$rental = $wpdb->get_row( $wpdb->prepare(
-			'SELECT * FROM ' . Schema::table( 'rentals' ) . ' WHERE id = %d',
+			'SELECT * FROM %i WHERE id = %d',
+			Schema::table( 'rentals' ),
 			$id
 		) );
 		if ( ! $rental ) {
@@ -55,10 +57,12 @@ class Rentals {
 		}
 		$rental->items = $wpdb->get_results( $wpdb->prepare(
 			'SELECT ri.*, i.name AS item_name, i.inventory_number
-			 FROM ' . Schema::table( 'rental_items' ) . ' ri
-			 LEFT JOIN ' . Schema::table( 'items' ) . ' i ON i.id = ri.item_id
+			 FROM %i ri
+			 LEFT JOIN %i i ON i.id = ri.item_id
 			 WHERE ri.rental_id = %d
 			 ORDER BY ri.id ASC',
+			Schema::table( 'rental_items' ),
+			Schema::table( 'items' ),
 			$id
 		) ) ?: [];
 		$rental->billing = self::billing( $rental );

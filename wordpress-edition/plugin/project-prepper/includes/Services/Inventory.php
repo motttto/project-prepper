@@ -38,13 +38,13 @@ class Inventory {
 		global $wpdb;
 		self::maybe_seed_categories();
 		return $wpdb->get_results(
-			'SELECT * FROM ' . Schema::table( 'categories' ) . ' ORDER BY sort_order ASC, name ASC'
+			$wpdb->prepare( 'SELECT * FROM %i ORDER BY sort_order ASC, name ASC', Schema::table( 'categories' ) )
 		) ?: [];
 	}
 
 	private static function maybe_seed_categories(): void {
 		global $wpdb;
-		$count = (int) $wpdb->get_var( 'SELECT COUNT(*) FROM ' . Schema::table( 'categories' ) );
+		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Schema::table( 'categories' ) ) );
 		if ( $count > 0 ) {
 			return;
 		}
@@ -144,7 +144,8 @@ class Inventory {
 		$today   = current_time( 'Y-m-d' );
 
 		$where  = [ '1=1' ];
-		// Die ersten beiden Platzhalter gehören zum out_now-Subquery (heutiges Datum).
+		// Platzhalter-Reihenfolge: erst die 4 Tabellennamen (%i, werden unten
+		// vorangestellt), dann die beiden Datums-%s des out_now-Subquery, dann WHERE.
 		$params = [ $today, $today ];
 
 		if ( ! empty( $args['search'] ) ) {
@@ -169,32 +170,36 @@ class Inventory {
 
 		// out_now = heute unterwegs (Summe Mengen aus überlappenden reserved/active-Verleihen),
 		// als ein Subquery-JOIN berechnet — kein N+1, nichts gespeichert.
-		$sql = "SELECT i.*, c.name AS category_name, c.icon AS category_icon,
+		array_unshift( $params, $items, $cats, $lines, $rentals );
+		$sql = $wpdb->prepare(
+			"SELECT i.*, c.name AS category_name, c.icon AS category_icon,
 					COALESCE(o.out_now, 0) AS out_now
-				FROM {$items} i
-				LEFT JOIN {$cats} c ON c.id = i.category_id
+				FROM %i i
+				LEFT JOIN %i c ON c.id = i.category_id
 				LEFT JOIN (
 					SELECT ri.item_id, SUM(ri.quantity) AS out_now
-					FROM {$lines} ri
-					INNER JOIN {$rentals} r ON r.id = ri.rental_id
+					FROM %i ri
+					INNER JOIN %i r ON r.id = ri.rental_id
 					WHERE r.status IN ('reserved', 'active')
 					  AND r.date_from <= %s AND r.date_to >= %s
 					GROUP BY ri.item_id
 				) o ON o.item_id = i.id
-				WHERE " . implode( ' AND ', $where ) . '
-				ORDER BY i.inventory_number ASC';
-
-		$sql = $wpdb->prepare( $sql, $params );
-		return array_map( [ self::class, 'decode_item' ], $wpdb->get_results( $sql ) ?: [] );
+				WHERE " . implode( ' AND ', $where ) . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- WHERE-Bedingungen sind statische Strings mit Platzhaltern.
+				' ORDER BY i.inventory_number ASC',
+			$params
+		);
+		return array_map( [ self::class, 'decode_item' ], $wpdb->get_results( $sql ) ?: [] ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql ist oben via prepare() aufgebaut.
 	}
 
 	public static function get_item( int $id ): ?object {
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare(
 			'SELECT i.*, c.name AS category_name, c.icon AS category_icon
-			 FROM ' . Schema::table( 'items' ) . ' i
-			 LEFT JOIN ' . Schema::table( 'categories' ) . ' c ON c.id = i.category_id
+			 FROM %i i
+			 LEFT JOIN %i c ON c.id = i.category_id
 			 WHERE i.id = %d',
+			Schema::table( 'items' ),
+			Schema::table( 'categories' ),
 			$id
 		) );
 		return $row ? self::decode_item( $row ) : null;
@@ -207,9 +212,11 @@ class Inventory {
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare(
 			'SELECT i.*, c.name AS category_name, c.icon AS category_icon
-			 FROM ' . Schema::table( 'items' ) . ' i
-			 LEFT JOIN ' . Schema::table( 'categories' ) . ' c ON c.id = i.category_id
+			 FROM %i i
+			 LEFT JOIN %i c ON c.id = i.category_id
 			 WHERE i.inventory_number = %s',
+			Schema::table( 'items' ),
+			Schema::table( 'categories' ),
 			$inventory_number
 		) );
 		return $row ? self::decode_item( $row ) : null;
@@ -370,20 +377,23 @@ class Inventory {
 
 		$out_today = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT COALESCE(SUM(ri.quantity), 0)
-			 FROM {$lines} ri
-			 INNER JOIN {$rentals} r ON r.id = ri.rental_id
+			 FROM %i ri
+			 INNER JOIN %i r ON r.id = ri.rental_id
 			 WHERE r.status IN ('reserved', 'active')
 			   AND r.date_from <= %s AND r.date_to >= %s",
+			$lines,
+			$rentals,
 			$today,
 			$today
 		) );
 
-		$row = $wpdb->get_row(
-			"SELECT COUNT(*) AS item_count,
+		$row = $wpdb->get_row( $wpdb->prepare(
+			'SELECT COUNT(*) AS item_count,
 					COALESCE(SUM(quantity), 0) AS total_pieces,
 					COALESCE(SUM(quantity * COALESCE(cost_per_day, 0)), 0) AS daily_value
-			 FROM {$items}"
-		);
+			 FROM %i',
+			$items
+		) );
 
 		return [
 			'item_count'   => (int) $row->item_count,

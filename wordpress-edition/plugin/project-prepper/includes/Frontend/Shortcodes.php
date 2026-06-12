@@ -87,7 +87,7 @@ class Shortcodes {
 			}
 		}
 
-		$search = 'yes' === $atts['search'] ? sanitize_text_field( (string) ( $_GET['pp_q'] ?? '' ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
+		$search = 'yes' === $atts['search'] ? sanitize_text_field( wp_unslash( (string) ( $_GET['pp_q'] ?? '' ) ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification
 
 		$items = Inventory::items( array_filter( [
 			'category_id' => $category_id,
@@ -132,9 +132,9 @@ class Shortcodes {
 		], $atts, 'pp_availability' );
 
 		// phpcs:disable WordPress.Security.NonceVerification -- reines Lese-Formular (GET)
-		$item_id = (int) ( $atts['item'] ?: ( $_GET['pp_item'] ?? 0 ) );
-		$from    = sanitize_text_field( (string) ( $_GET['pp_from'] ?? '' ) );
-		$to      = sanitize_text_field( (string) ( $_GET['pp_to'] ?? '' ) );
+		$item_id = (int) ( $atts['item'] ?: absint( wp_unslash( $_GET['pp_item'] ?? 0 ) ) );
+		$from    = sanitize_text_field( wp_unslash( (string) ( $_GET['pp_from'] ?? '' ) ) );
+		$to      = sanitize_text_field( wp_unslash( (string) ( $_GET['pp_to'] ?? '' ) ) );
 		// phpcs:enable
 
 		$result = null;
@@ -169,7 +169,7 @@ class Shortcodes {
 			'show_all'   => 'no',
 		], $atts, 'pp_request_form' );
 
-		$state = sanitize_text_field( (string) ( $_GET['pp_inquiry'] ?? '' ) ); // phpcs:ignore WordPress.Security.NonceVerification
+		$state = sanitize_text_field( wp_unslash( (string) ( $_GET['pp_inquiry'] ?? '' ) ) ); // phpcs:ignore WordPress.Security.NonceVerification
 
 		return self::render_template( 'request-form.php', [
 			'items'   => 'yes' === $atts['show_items'] ? array_map(
@@ -202,12 +202,12 @@ class Shortcodes {
 		}
 
 		$result = Inquiries::create( [
-			'name'      => sanitize_text_field( (string) ( $_POST['pp_name'] ?? '' ) ),
-			'email'     => sanitize_email( (string) ( $_POST['pp_email'] ?? '' ) ),
-			'phone'     => sanitize_text_field( (string) ( $_POST['pp_phone'] ?? '' ) ),
-			'message'   => sanitize_textarea_field( (string) ( $_POST['pp_message'] ?? '' ) ),
-			'date_from' => self::valid_date( (string) ( $_POST['pp_from'] ?? '' ) ),
-			'date_to'   => self::valid_date( (string) ( $_POST['pp_to'] ?? '' ) ),
+			'name'      => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+			'email'     => sanitize_email( wp_unslash( (string) ( $_POST['pp_email'] ?? '' ) ) ),
+			'phone'     => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_phone'] ?? '' ) ) ),
+			'message'   => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_message'] ?? '' ) ) ),
+			'date_from' => self::valid_date( sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ) ),
+			'date_to'   => self::valid_date( sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ) ),
 			'items'     => $items,
 		] );
 

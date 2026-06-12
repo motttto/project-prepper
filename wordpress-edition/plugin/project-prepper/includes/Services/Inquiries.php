@@ -34,17 +34,19 @@ class Inquiries {
 			$where[]  = 'status = %s';
 			$params[] = $args['status'];
 		}
-		$sql = 'SELECT * FROM ' . Schema::table( 'inquiries' ) . ' WHERE ' . implode( ' AND ', $where ) . ' ORDER BY id DESC';
-		if ( $params ) {
-			$sql = $wpdb->prepare( $sql, $params );
-		}
-		return array_map( [ self::class, 'decode' ], $wpdb->get_results( $sql ) ?: [] );
+		array_unshift( $params, Schema::table( 'inquiries' ) );
+		$sql = $wpdb->prepare(
+			'SELECT * FROM %i WHERE ' . implode( ' AND ', $where ) . ' ORDER BY id DESC', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- WHERE-Bedingungen sind statische Strings mit Platzhaltern.
+			$params
+		);
+		return array_map( [ self::class, 'decode' ], $wpdb->get_results( $sql ) ?: [] ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql ist oben via prepare() aufgebaut.
 	}
 
 	public static function get( int $id ): ?object {
 		global $wpdb;
 		$row = $wpdb->get_row( $wpdb->prepare(
-			'SELECT * FROM ' . Schema::table( 'inquiries' ) . ' WHERE id = %d',
+			'SELECT * FROM %i WHERE id = %d',
+			Schema::table( 'inquiries' ),
 			$id
 		) );
 		return $row ? self::decode( $row ) : null;

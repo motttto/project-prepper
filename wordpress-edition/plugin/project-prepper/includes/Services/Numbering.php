@@ -21,7 +21,8 @@ class Numbering {
 		$prefix = self::FALLBACK_PREFIX;
 		if ( $category_id ) {
 			$cat = $wpdb->get_row( $wpdb->prepare(
-				'SELECT prefix FROM ' . Schema::table( 'categories' ) . ' WHERE id = %d',
+				'SELECT prefix FROM %i WHERE id = %d',
+				Schema::table( 'categories' ),
 				$category_id
 			) );
 			if ( $cat && $cat->prefix !== '' ) {
@@ -32,8 +33,9 @@ class Numbering {
 		$like = $wpdb->esc_like( $prefix . '-' ) . '%';
 		$max  = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT MAX(CAST(SUBSTRING_INDEX(inventory_number, '-', -1) AS UNSIGNED))
-			 FROM " . Schema::table( 'items' ) . '
-			 WHERE inventory_number LIKE %s',
+			 FROM %i
+			 WHERE inventory_number LIKE %s",
+			Schema::table( 'items' ),
 			$like
 		) );
 
@@ -47,8 +49,9 @@ class Numbering {
 		$like = $wpdb->esc_like( 'V-' . $year . '-' ) . '%';
 		$max  = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT MAX(CAST(SUBSTRING_INDEX(rental_number, '-', -1) AS UNSIGNED))
-			 FROM " . Schema::table( 'rentals' ) . '
-			 WHERE rental_number LIKE %s',
+			 FROM %i
+			 WHERE rental_number LIKE %s",
+			Schema::table( 'rentals' ),
 			$like
 		) );
 

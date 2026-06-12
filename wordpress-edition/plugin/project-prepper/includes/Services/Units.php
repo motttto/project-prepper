@@ -14,7 +14,8 @@ class Units {
 	public static function for_item( int $item_id ): array {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare(
-			'SELECT * FROM ' . Schema::table( 'units' ) . ' WHERE item_id = %d ORDER BY unit_number ASC',
+			'SELECT * FROM %i WHERE item_id = %d ORDER BY unit_number ASC',
+			Schema::table( 'units' ),
 			$item_id
 		) ) ?: [];
 	}
@@ -23,7 +24,8 @@ class Units {
 		global $wpdb;
 
 		$next = (int) $wpdb->get_var( $wpdb->prepare(
-			'SELECT COALESCE(MAX(unit_number), 0) + 1 FROM ' . Schema::table( 'units' ) . ' WHERE item_id = %d',
+			'SELECT COALESCE(MAX(unit_number), 0) + 1 FROM %i WHERE item_id = %d',
+			Schema::table( 'units' ),
 			$item_id
 		) );
 

@@ -24,7 +24,7 @@ defined( 'ABSPATH' ) || exit;
 		<p class="pp-front-empty"><?php esc_html_e( 'No equipment found.', 'project-prepper' ); ?></p>
 	<?php else : ?>
 		<div class="pp-front-grid">
-			<?php foreach ( $items as $item ) : ?>
+			<?php foreach ( $items as $item ) : // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals -- Template läuft im Methoden-Scope, keine echte Globale. ?>
 				<div class="pp-front-card">
 					<a class="pp-front-card-media" href="<?php echo esc_url( $item['detail_url'] ); ?>">
 						<?php if ( $item['image_url'] ) : ?>

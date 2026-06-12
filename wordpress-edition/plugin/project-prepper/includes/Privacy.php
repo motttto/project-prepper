@@ -36,7 +36,8 @@ class Privacy {
 	public static function export_rentals( string $email, int $page = 1 ): array {
 		global $wpdb;
 		$rentals = $wpdb->get_results( $wpdb->prepare(
-			'SELECT * FROM ' . Schema::table( 'rentals' ) . ' WHERE borrower_email = %s ORDER BY id ASC',
+			'SELECT * FROM %i WHERE borrower_email = %s ORDER BY id ASC',
+			Schema::table( 'rentals' ),
 			$email
 		) ) ?: [];
 
@@ -64,16 +65,18 @@ class Privacy {
 	public static function erase_rentals( string $email, int $page = 1 ): array {
 		global $wpdb;
 		$count = (int) $wpdb->get_var( $wpdb->prepare(
-			'SELECT COUNT(*) FROM ' . Schema::table( 'rentals' ) . ' WHERE borrower_email = %s',
+			'SELECT COUNT(*) FROM %i WHERE borrower_email = %s',
+			Schema::table( 'rentals' ),
 			$email
 		) );
 
 		if ( $count > 0 ) {
 			// Anonymisieren statt löschen — die Verleih-Historie (Zahlen) bleibt erhalten.
 			$wpdb->query( $wpdb->prepare(
-				'UPDATE ' . Schema::table( 'rentals' ) . "
+				"UPDATE %i
 				 SET borrower_name = %s, borrower_email = '', borrower_phone = '', borrower_address = '', notes = ''
 				 WHERE borrower_email = %s",
+				Schema::table( 'rentals' ),
 				__( 'Anonymized (GDPR)', 'project-prepper' ),
 				$email
 			) );

@@ -176,13 +176,15 @@ class Schema {
 
 		if ( version_compare( $from, '0.2.0', '<' ) ) {
 			// Zustands-Enum an die App angleichen (§8.1): used→fair, defect→broken.
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery -- einmalige Daten-Migration auf Plugin-eigenen Tabellen, Caching nicht anwendbar.
 			$items = self::table( 'items' );
-			$wpdb->query( "UPDATE {$items} SET item_condition = 'fair' WHERE item_condition = 'used'" );
-			$wpdb->query( "UPDATE {$items} SET item_condition = 'broken' WHERE item_condition = 'defect'" );
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET item_condition = %s WHERE item_condition = %s', $items, 'fair', 'used' ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET item_condition = %s WHERE item_condition = %s', $items, 'broken', 'defect' ) );
 
 			$units = self::table( 'units' );
-			$wpdb->query( "UPDATE {$units} SET unit_condition = 'fair' WHERE unit_condition = 'used'" );
-			$wpdb->query( "UPDATE {$units} SET unit_condition = 'broken' WHERE unit_condition = 'defect'" );
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET unit_condition = %s WHERE unit_condition = %s', $units, 'fair', 'used' ) );
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET unit_condition = %s WHERE unit_condition = %s', $units, 'broken', 'defect' ) );
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery
 		}
 	}
 }

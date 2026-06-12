@@ -28,14 +28,16 @@ class Availability {
 		}
 
 		$booked = (int) $wpdb->get_var( $wpdb->prepare(
-			'SELECT COALESCE(SUM(ri.quantity), 0)
-			 FROM ' . Schema::table( 'rental_items' ) . ' ri
-			 INNER JOIN ' . Schema::table( 'rentals' ) . " r ON r.id = ri.rental_id
+			"SELECT COALESCE(SUM(ri.quantity), 0)
+			 FROM %i ri
+			 INNER JOIN %i r ON r.id = ri.rental_id
 			 WHERE ri.item_id = %d
 			   AND r.id != %d
 			   AND r.status IN ('reserved', 'active')
 			   AND r.date_from <= %s
 			   AND r.date_to >= %s",
+			Schema::table( 'rental_items' ),
+			Schema::table( 'rentals' ),
 			$item_id,
 			$exclude_rental_id,
 			$to,

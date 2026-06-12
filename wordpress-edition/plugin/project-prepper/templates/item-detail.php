@@ -15,7 +15,7 @@ defined( 'ABSPATH' ) || exit;
 
 // Block-Themes (FSE) haben kein header.php — eigene Seiten-Hülle mit den
 // Header-/Footer-Template-Parts des Themes; klassische Themes via get_header().
-$pp_block_theme = function_exists( 'wp_is_block_theme' ) && wp_is_block_theme();
+$pp_block_theme = function_exists( 'wp_is_block_theme' ) && wp_is_block_theme(); // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals -- Template läuft im Funktions-Scope, keine echte Globale.
 if ( $pp_block_theme ) {
 	?>
 	<!DOCTYPE html>
