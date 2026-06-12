@@ -296,3 +296,75 @@
 	height: 1px;
 	overflow: hidden;
 }
+
+/* ---------- Artikel-Detailseite (/equipment-item/{nummer}) ---------- */
+
+.pp-front-card-link {
+	color: inherit;
+	text-decoration: none;
+}
+
+.pp-front-card-link:hover { color: var(--pp-primary); }
+
+a.pp-front-card-media { text-decoration: none; }
+
+.pp-front-detail {
+	display: grid;
+	grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+	gap: 32px;
+	max-width: 960px;
+	margin: 32px auto;
+	padding: 0 16px;
+}
+
+@media (max-width: 700px) {
+	.pp-front-detail { grid-template-columns: 1fr; }
+}
+
+.pp-front-detail-media {
+	background: var(--pp-muted);
+	border: 1px solid var(--pp-border);
+	border-radius: var(--pp-radius);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 260px;
+	overflow: hidden;
+}
+
+.pp-front-detail-media img {
+	width: 100%;
+	height: auto;
+	display: block;
+	object-fit: contain;
+}
+
+.pp-front-detail-media .pp-front-card-icon { font-size: 64px; }
+
+.pp-front-detail-body {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.pp-front-detail-title {
+	margin: 0;
+	font-size: 28px;
+	font-weight: 700;
+	line-height: 1.2;
+}
+
+.pp-front-detail-subtitle {
+	margin: 8px 0 0;
+	font-size: 16px;
+	font-weight: 600;
+}
+
+.pp-front-detail-text {
+	margin: 0;
+	font-size: 14px;
+	color: var(--pp-muted-foreground);
+	line-height: 1.6;
+}
+
+.pp-front-detail .pp-front-card-rate { margin-top: 8px; font-size: 20px; }

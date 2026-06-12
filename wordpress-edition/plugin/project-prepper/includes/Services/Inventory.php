@@ -2,6 +2,7 @@
 namespace ProjectPrepper\Services;
 
 use ProjectPrepper\Schema;
+use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -12,6 +13,10 @@ class Inventory {
 
 	// Zustands-Enum wie in der App (Dok 01 §8.1).
 	const CONDITIONS = [ 'new', 'good', 'fair', 'poor', 'broken', 'retired' ];
+
+	// Eigentums-/Abschreibungs-Enums (§8.7 — reine Dokumentation, keine Buchung).
+	const OWNERSHIP_TYPES      = [ '', 'own', 'loaned', 'funded', 'other' ];
+	const DEPRECIATION_METHODS = [ '', 'linear', 'degressive', 'none' ];
 
 	// Default-Kategorien (Auto-Seed bei leerer Tabelle, wie App §8.3).
 	const DEFAULT_CATEGORIES = [
@@ -89,6 +94,45 @@ class Inventory {
 		return false !== $wpdb->delete( Schema::table( 'categories' ), [ 'id' => $id ], [ '%d' ] );
 	}
 
+	/**
+	 * Kategorien zusammenführen (Pendant zur App-Migration 097):
+	 * alle Artikel der Quelle auf das Ziel umhängen, Quelle löschen.
+	 *
+	 * @return array|WP_Error [ 'moved' => n, 'target_id' => … ]
+	 */
+	public static function merge_categories( int $source_id, int $target_id ) {
+		global $wpdb;
+
+		if ( $source_id === $target_id ) {
+			return new WP_Error( 'pp_merge_self', __( 'Quelle und Ziel sind identisch.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		$cats   = Schema::table( 'categories' );
+		$source = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$cats} WHERE id = %d", $source_id ) );
+		$target = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$cats} WHERE id = %d", $target_id ) );
+		if ( ! $source || ! $target ) {
+			return new WP_Error( 'pp_not_found', __( 'Kategorie nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+
+		$moved = $wpdb->update(
+			Schema::table( 'items' ),
+			[ 'category_id' => $target_id ],
+			[ 'category_id' => $source_id ],
+			[ '%d' ],
+			[ '%d' ]
+		);
+		$wpdb->delete( $cats, [ 'id' => $source_id ], [ '%d' ] );
+
+		ActivityLog::log( 'category_merged', 'category', $target_id, [
+			'source_id'   => $source_id,
+			'source_name' => $source->name,
+			'target_name' => $target->name,
+			'moved'       => (int) $moved,
+		] );
+
+		return [ 'moved' => (int) $moved, 'target_id' => $target_id ];
+	}
+
 	/* ---------- Artikel ---------- */
 
 	public static function items( array $args = [] ): array {
@@ -156,6 +200,21 @@ class Inventory {
 		return $row ? self::decode_item( $row ) : null;
 	}
 
+	/**
+	 * Artikel über die Inventarnummer finden (öffentliche Detailseite).
+	 */
+	public static function get_item_by_number( string $inventory_number ): ?object {
+		global $wpdb;
+		$row = $wpdb->get_row( $wpdb->prepare(
+			'SELECT i.*, c.name AS category_name, c.icon AS category_icon
+			 FROM ' . Schema::table( 'items' ) . ' i
+			 LEFT JOIN ' . Schema::table( 'categories' ) . ' c ON c.id = i.category_id
+			 WHERE i.inventory_number = %s',
+			$inventory_number
+		) );
+		return $row ? self::decode_item( $row ) : null;
+	}
+
 	public static function create_item( array $data ): int {
 		global $wpdb;
 
@@ -186,6 +245,12 @@ class Inventory {
 			'accessories'      => $data['accessories'] ?? '',
 			'manufacturer_url' => $data['manufacturer_url'] ?? '',
 			'manual_url'       => $data['manual_url'] ?? '',
+			// Eigentum & Abschreibung (§8.7 — reine Dokumentation)
+			'ownership_type'      => in_array( $data['ownership_type'] ?? '', self::OWNERSHIP_TYPES, true ) ? ( $data['ownership_type'] ?? '' ) : '',
+			'funding_source'      => $data['funding_source'] ?? '',
+			'depreciation_method' => in_array( $data['depreciation_method'] ?? '', self::DEPRECIATION_METHODS, true ) ? ( $data['depreciation_method'] ?? '' ) : '',
+			'depreciation_years'  => isset( $data['depreciation_years'] ) && '' !== $data['depreciation_years'] ? (int) $data['depreciation_years'] : null,
+			'residual_value'      => self::dec( $data, 'residual_value' ),
 			'image_id'         => ! empty( $data['image_id'] ) ? (int) $data['image_id'] : null,
 			'document_ids'     => wp_json_encode( $data['document_ids'] ?? [] ),
 			'notes'            => $data['notes'] ?? '',
@@ -225,6 +290,7 @@ class Inventory {
 			'accessories'      => '%s',
 			'manufacturer_url' => '%s',
 			'manual_url'       => '%s',
+			'funding_source'   => '%s',
 			'image_id'         => '%d',
 			'notes'            => '%s',
 		];
@@ -240,6 +306,22 @@ class Inventory {
 		if ( array_key_exists( 'condition', $data ) && in_array( $data['condition'], self::CONDITIONS, true ) ) {
 			$fields['item_condition'] = $data['condition'];
 			$formats[]                = '%s';
+		}
+		if ( array_key_exists( 'ownership_type', $data ) && in_array( $data['ownership_type'], self::OWNERSHIP_TYPES, true ) ) {
+			$fields['ownership_type'] = $data['ownership_type'];
+			$formats[]                = '%s';
+		}
+		if ( array_key_exists( 'depreciation_method', $data ) && in_array( $data['depreciation_method'], self::DEPRECIATION_METHODS, true ) ) {
+			$fields['depreciation_method'] = $data['depreciation_method'];
+			$formats[]                     = '%s';
+		}
+		if ( array_key_exists( 'depreciation_years', $data ) ) {
+			$fields['depreciation_years'] = '' === $data['depreciation_years'] || null === $data['depreciation_years'] ? null : (int) $data['depreciation_years'];
+			$formats[]                    = '%d';
+		}
+		if ( array_key_exists( 'residual_value', $data ) ) {
+			$fields['residual_value'] = '' === $data['residual_value'] || null === $data['residual_value'] ? null : (float) $data['residual_value'];
+			$formats[]                = '%f';
 		}
 		if ( array_key_exists( 'tags', $data ) ) {
 			$fields['tags'] = wp_json_encode( (array) $data['tags'] );

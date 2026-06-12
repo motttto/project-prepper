@@ -114,6 +114,7 @@ class Shortcodes {
 			'cost_per_day'  => $item->cost_per_day,
 			'image_url'     => $item->image_url,
 			'tags'          => (array) $item->tags,
+			'detail_url'    => ItemDetail::url( $item->inventory_number ),
 		];
 	}
 

@@ -26,15 +26,15 @@ defined( 'ABSPATH' ) || exit;
 		<div class="pp-front-grid">
 			<?php foreach ( $items as $item ) : ?>
 				<div class="pp-front-card">
-					<div class="pp-front-card-media">
+					<a class="pp-front-card-media" href="<?php echo esc_url( $item['detail_url'] ); ?>">
 						<?php if ( $item['image_url'] ) : ?>
 							<img src="<?php echo esc_url( $item['image_url'] ); ?>" alt="<?php echo esc_attr( $item['name'] ); ?>" loading="lazy">
 						<?php else : ?>
 							<span class="pp-front-card-icon"><?php echo esc_html( $item['category_icon'] ?: '📦' ); ?></span>
 						<?php endif; ?>
-					</div>
+					</a>
 					<div class="pp-front-card-body">
-						<h3 class="pp-front-card-title"><?php echo esc_html( $item['name'] ); ?></h3>
+						<h3 class="pp-front-card-title"><a class="pp-front-card-link" href="<?php echo esc_url( $item['detail_url'] ); ?>"><?php echo esc_html( $item['name'] ); ?></a></h3>
 						<div class="pp-front-card-meta">
 							<?php if ( $item['category_name'] ) : ?>
 								<span class="pp-front-chip"><?php echo esc_html( trim( ( $item['category_icon'] ? $item['category_icon'] . ' ' : '' ) . $item['category_name'] ) ); ?></span>

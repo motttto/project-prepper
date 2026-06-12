@@ -71,7 +71,10 @@ class InquiriesController extends BaseController {
 		if ( ! in_array( $status, Inquiries::STATUSES, true ) ) {
 			return new WP_Error( 'pp_invalid_status', __( 'Ungültiger Status.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
-		Inquiries::set_status( (int) $request['id'], $status );
+		$result = Inquiries::set_status( (int) $request['id'], $status );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
 		return new WP_REST_Response( Inquiries::get( (int) $request['id'] ) );
 	}
 

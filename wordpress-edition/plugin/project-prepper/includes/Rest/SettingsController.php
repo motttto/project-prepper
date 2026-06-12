@@ -47,6 +47,9 @@ class SettingsController extends BaseController {
 		if ( array_key_exists( 'delete_data_on_uninstall', $json ) ) {
 			update_option( 'pp_delete_data_on_uninstall', (bool) $json['delete_data_on_uninstall'] );
 		}
+		if ( array_key_exists( 'public_show_rates', $json ) ) {
+			update_option( 'pp_public_show_rates', (bool) $json['public_show_rates'] );
+		}
 		if ( array_key_exists( 'email_templates', $json ) && is_array( $json['email_templates'] ) ) {
 			$clean    = [];
 			$defaults = Notifications::default_templates();
@@ -75,6 +78,7 @@ class SettingsController extends BaseController {
 			'email_notifications'      => Notifications::enabled(),
 			'email_templates'          => Notifications::templates(),
 			'delete_data_on_uninstall' => (bool) get_option( 'pp_delete_data_on_uninstall', false ),
+			'public_show_rates'        => (bool) get_option( 'pp_public_show_rates', false ),
 			'ical_url'                 => rest_url( self::REST_NAMESPACE . '/calendar.ics' ) . '?token=' . CalendarController::token(),
 		];
 	}

@@ -23,6 +23,7 @@ class Plugin {
 		Privacy::init();
 		Frontend\Shortcodes::init();
 		Frontend\Blocks::init();
+		Frontend\ItemDetail::init();
 
 		if ( is_admin() ) {
 			Admin\Menu::init();

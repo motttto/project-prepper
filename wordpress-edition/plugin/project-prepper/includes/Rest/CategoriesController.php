@@ -37,6 +37,25 @@ class CategoriesController extends BaseController {
 				'permission_callback' => $this->require_cap( Capabilities::EDIT_INVENTORY ),
 			],
 		] );
+
+		// Zusammenführen: alle Artikel → Ziel-Kategorie, Quelle wird gelöscht (App-Pendant: Migration 097).
+		register_rest_route( self::REST_NAMESPACE, '/categories/(?P<id>\d+)/merge', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'merge' ],
+			'permission_callback' => $this->require_cap( Capabilities::EDIT_INVENTORY ),
+		] );
+	}
+
+	public function merge( WP_REST_Request $request ) {
+		$target_id = (int) ( ( $request->get_json_params() ?: [] )['target_id'] ?? 0 );
+		if ( $target_id < 1 ) {
+			return new WP_Error( 'pp_missing_target', __( 'Ziel-Kategorie fehlt.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$result = Inventory::merge_categories( (int) $request['id'], $target_id );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( $result );
 	}
 
 	public function index(): WP_REST_Response {

@@ -125,6 +125,7 @@ class ItemsController extends BaseController {
 		$json = $request->get_json_params() ?: [];
 		$data = $this->sanitize_text_fields( $json, [
 			'inventory_number', 'name', 'manufacturer', 'model', 'serial_number', 'condition', 'location', 'purchase_date', 'dimensions',
+			'ownership_type', 'funding_source', 'depreciation_method',
 		] );
 
 		foreach ( [ 'manufacturer_url', 'manual_url' ] as $key ) {
@@ -142,10 +143,12 @@ class ItemsController extends BaseController {
 				$data[ $key ] = (int) $json[ $key ];
 			}
 		}
-		if ( array_key_exists( 'power_watts', $json ) ) {
-			$data['power_watts'] = '' === $json['power_watts'] ? '' : (int) $json['power_watts'];
+		foreach ( [ 'power_watts', 'depreciation_years' ] as $key ) {
+			if ( array_key_exists( $key, $json ) ) {
+				$data[ $key ] = '' === $json[ $key ] || null === $json[ $key ] ? '' : (int) $json[ $key ];
+			}
 		}
-		foreach ( [ 'cost_per_day', 'purchase_price', 'current_value' ] as $key ) {
+		foreach ( [ 'cost_per_day', 'purchase_price', 'current_value', 'residual_value' ] as $key ) {
 			if ( array_key_exists( $key, $json ) ) {
 				$data[ $key ] = '' === $json[ $key ] ? '' : (float) $json[ $key ];
 			}

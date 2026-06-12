@@ -193,6 +193,24 @@
 					if (item.out_now > 0) {
 						nameCell.appendChild(el("span", { class: "pp-badge pp-badge-active pp-badge-out", text: item.out_now + " unterwegs" }));
 					}
+					// Doku-Spalte: 1 PDF → direkt öffnen, mehrere → Detail-Modal (wie App, Commit e9fe5b8).
+					var docsCell = el("td");
+					var docs = item.documents || [];
+					if (docs.length === 1) {
+						docsCell.appendChild(el("a", {
+							class: "pp-link", href: docs[0].url, target: "_blank", rel: "noopener noreferrer",
+							text: "PDF anzeigen", title: "PDF anzeigen",
+							onclick: function (e) { e.stopPropagation(); }
+						}));
+					} else if (docs.length > 1) {
+						docsCell.appendChild(el("button", {
+							class: "pp-link", type: "button",
+							text: "PDFs (" + docs.length + ")", title: "Dokumente anzeigen",
+							onclick: function (e) { e.stopPropagation(); openItemModal(item.id); }
+						}));
+					} else {
+						docsCell.textContent = "—";
+					}
 					var row = el("tr", { class: "pp-clickable", onclick: function () { openItemModal(item.id); } }, [
 						el("td", null, [thumb]),
 						el("td", null, [el("code", { text: item.inventory_number })]),
@@ -202,7 +220,7 @@
 						el("td", null, [badge(item.condition, CONDITIONS)]),
 						el("td", { text: money(item.cost_per_day) }),
 						el("td", { text: item.location || "—" }),
-						el("td", { text: item.documents && item.documents.length ? item.documents.length + " PDF" : "—" })
+						docsCell
 					]);
 					tbody.appendChild(row);
 				});
@@ -248,6 +266,20 @@
 				f.description = el("textarea", { rows: "2" }); f.description.value = item.description || "";
 				f.accessories = el("textarea", { rows: "2" }); f.accessories.value = item.accessories || "";
 				f.notes = el("textarea", { rows: "2" }); f.notes.value = item.notes || "";
+				// Eigentum & Abschreibung (§8.7 — reine Dokumentation, keine Buchung)
+				var OWNERSHIP_TYPES = { "": "—", own: "Eigen", loaned: "Geliehen", funded: "Gefördert", other: "Sonstig" };
+				var DEPRECIATION_METHODS = { "": "—", linear: "Linear", degressive: "Degressiv", none: "Keine" };
+				f.ownershipType = el("select", null, Object.keys(OWNERSHIP_TYPES).map(function (key) {
+					return el("option", { value: key, text: OWNERSHIP_TYPES[key] });
+				}));
+				f.ownershipType.value = item.ownership_type || "";
+				f.fundingSource = el("input", { type: "text", value: item.funding_source || "", placeholder: "z. B. Förderprogramm, Spende" });
+				f.depreciationMethod = el("select", null, Object.keys(DEPRECIATION_METHODS).map(function (key) {
+					return el("option", { value: key, text: DEPRECIATION_METHODS[key] });
+				}));
+				f.depreciationMethod.value = item.depreciation_method || "";
+				f.depreciationYears = el("input", { type: "number", min: "1", max: "30", placeholder: "7", value: item.depreciation_years || "" });
+				f.residualValue = el("input", { type: "number", step: "0.01", min: "0", value: item.residual_value === null || item.residual_value === undefined ? "" : item.residual_value });
 
 				var body = el("div", null, [
 					el("div", { class: "pp-modal-grid" }, [
@@ -263,6 +295,14 @@
 						el("div", { class: "pp-modal-grid" }, [
 							field("Beschreibung", f.description), field("Zubehör", f.accessories),
 							field("Tags", f.tags), field("Notizen", f.notes)
+						])
+					]),
+					el("div", { class: "pp-modal-section", "data-section": "ownership" }, [
+						el("h3", { text: "Eigentum & Abschreibung" }),
+						el("div", { class: "pp-modal-grid" }, [
+							field("Eigentum", f.ownershipType), field("Finanzierungsquelle", f.fundingSource),
+							field("Abschreibung", f.depreciationMethod), field("Nutzungsdauer (Jahre)", f.depreciationYears),
+							field("Restwert €", f.residualValue)
 						])
 					])
 				]);
@@ -409,6 +449,11 @@
 										power_watts: f.powerWatts.value,
 										manufacturer_url: f.manufacturerUrl.value.trim(),
 										manual_url: f.manualUrl.value.trim(),
+										ownership_type: f.ownershipType.value,
+										funding_source: f.fundingSource.value.trim(),
+										depreciation_method: f.depreciationMethod.value,
+										depreciation_years: f.depreciationYears.value,
+										residual_value: f.residualValue.value,
 										tags: f.tags.value.split(",").map(function (t) { return t.trim(); }).filter(Boolean),
 										description: f.description.value,
 										accessories: f.accessories.value,
@@ -1069,6 +1114,45 @@
 		root.innerHTML = "";
 		var listBox = el("div");
 
+		// Zusammenführen (App-Pendant: Migration 097): Items → Ziel, Quelle wird gelöscht.
+		function openMergeModal(cat, cats) {
+			var targets = cats.filter(function (c) { return c.id !== cat.id; });
+			if (!targets.length) { toast("Keine andere Kategorie als Ziel vorhanden.", "error"); return; }
+
+			var targetSelect = el("select", null, targets.map(function (c) {
+				return el("option", { value: c.id, text: (c.icon ? c.icon + " " : "") + c.name });
+			}));
+			var info = el("p", { class: "pp-muted", text: "Artikel werden gezählt …" });
+			api("/items?category_id=" + cat.id).then(function (items) {
+				info.textContent = items.length + ' Artikel werden in die Ziel-Kategorie verschoben, danach wird "' + cat.name + '" gelöscht.';
+			}).catch(function () { info.textContent = 'Alle Artikel werden in die Ziel-Kategorie verschoben, danach wird "' + cat.name + '" gelöscht.'; });
+
+			var body = el("div", null, [
+				field('Ziel-Kategorie für "' + cat.name + '"', targetSelect),
+				info
+			]);
+			var close;
+			var footer = el("div", { class: "pp-modal-footer" }, [
+				el("span"),
+				el("div", { class: "pp-right" }, [
+					el("button", { class: "pp-btn", text: "Abbrechen", onclick: function () { close(); } }),
+					el("button", {
+						class: "pp-btn pp-btn-primary", text: "Zusammenführen",
+						onclick: function () {
+							api("/categories/" + cat.id + "/merge", {
+								method: "POST",
+								body: JSON.stringify({ target_id: parseInt(targetSelect.value, 10) })
+							}).then(function (result) {
+								toast(result.moved + " Artikel verschoben, Kategorie gelöscht.");
+								close(); load();
+							}).catch(function (e) { toast(e.message, "error"); });
+						}
+					})
+				])
+			]);
+			close = openModal("Kategorie zusammenführen", body, footer);
+		}
+
 		function load() {
 			api("/categories").then(function (cats) {
 				listBox.innerHTML = "";
@@ -1091,13 +1175,19 @@
 						el("td", null, [icon]),
 						el("td", null, [name]),
 						el("td", null, [prefix]),
-						el("td", null, [el("button", {
-							class: "pp-link pp-link-danger", text: "löschen",
-							onclick: function () {
-								if (!confirm('Kategorie "' + cat.name + '" löschen? Artikel bleiben erhalten.')) return;
-								api("/categories/" + cat.id, { method: "DELETE" }).then(load).catch(function (e) { toast(e.message, "error"); });
-							}
-						})])
+						el("td", null, [
+							el("button", {
+								class: "pp-link", text: "Zusammenführen…", style: "margin-right:12px",
+								onclick: function () { openMergeModal(cat, cats); }
+							}),
+							el("button", {
+								class: "pp-link pp-link-danger", text: "löschen",
+								onclick: function () {
+									if (!confirm('Kategorie "' + cat.name + '" löschen? Artikel bleiben erhalten.')) return;
+									api("/categories/" + cat.id, { method: "DELETE" }).then(load).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						])
 					]));
 				});
 				table.appendChild(tbody);
@@ -1133,9 +1223,12 @@
 
 	function renderInquiries() {
 		root.innerHTML = "";
-		var INQUIRY_STATUS = { new: "Neu", contacted: "Kontaktiert", closed: "Abgeschlossen" };
-		var INQUIRY_ACTIONS = { new: ["contacted", "closed"], contacted: ["closed"], closed: [] };
-		var INQUIRY_BADGE = { new: "reserved", contacted: "active", closed: "returned" };
+		// Pipeline wie die App (§11): new → contacted → offer → won | lost.
+		// 'closed' bleibt als Legacy-Endstatus lesbar (Bestandsdaten vor v0.7.0).
+		var INQUIRY_STATUS = { new: "Neu", contacted: "Kontaktiert", offer: "Angebot", won: "Gewonnen", lost: "Verloren", closed: "Abgeschlossen" };
+		var INQUIRY_ACTIONS = { new: ["contacted", "offer", "won", "lost"], contacted: ["offer", "won", "lost"], offer: ["won", "lost"], won: [], lost: [], closed: [] };
+		var INQUIRY_BADGE = { new: "reserved", contacted: "active", offer: "offer", won: "returned", lost: "cancelled", closed: "returned" };
+		var INQUIRY_END_STATES = ["won", "lost", "closed"];
 		var listBox = el("div");
 
 		function inquiryBadge(status) {
@@ -1147,12 +1240,12 @@
 			var box = el("span");
 			if (!ppConfig.canEdit.inquiries) return box;
 			// Anfrage → Verleih (braucht beide Edit-Caps; ohne Zeitraum deaktiviert).
-			if (ppConfig.canEdit.rentals && inquiry.status !== "closed") {
+			if (ppConfig.canEdit.rentals && INQUIRY_END_STATES.indexOf(inquiry.status) === -1) {
 				var convertBtn = el("button", {
 					class: "pp-btn pp-btn-primary" + (small ? " pp-btn-sm" : ""), text: "In Verleih übernehmen", style: "margin-right:4px",
 					onclick: function (e) {
 						e.stopPropagation();
-						if (!confirm('Anfrage von "' + inquiry.name + '" in einen Verleih übernehmen? Die Anfrage wird abgeschlossen.')) return;
+						if (!confirm('Anfrage von "' + inquiry.name + '" in einen Verleih übernehmen? Die Anfrage wird als gewonnen markiert.')) return;
 						api("/inquiries/" + inquiry.id + "/convert", { method: "POST" }).then(function (rental) {
 							toast("Verleih " + rental.rental_number + " angelegt.");
 							done();
@@ -1317,6 +1410,7 @@
 						body: JSON.stringify({
 							email_notifications: emailToggle.checked,
 							delete_data_on_uninstall: deleteToggle.checked,
+							public_show_rates: ratesToggle.checked,
 							email_templates: templates
 						})
 					}).then(function () { toast("Einstellungen gespeichert."); }).catch(function (e) { toast(e.message, "error"); });
@@ -1354,6 +1448,15 @@
 						}
 					})
 				])
+			]));
+
+			// Öffentliches Frontend
+			var ratesToggle = el("input", { type: "checkbox" });
+			ratesToggle.checked = settings.public_show_rates;
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: "Öffentliches Frontend" }),
+				el("label", { class: "pp-toggle" }, [ratesToggle, el("span", { text: "Tagessätze öffentlich zeigen (Artikel-Detailseite /equipment-item/…)" })]),
+				el("div", { class: "pp-muted", style: "margin-top:6px", text: "Die Inventar-Karten verlinken auf eine öffentliche Detailseite pro Artikel. Kaufpreis und Seriennummer sind dort nie sichtbar." })
 			]));
 
 			// Daten

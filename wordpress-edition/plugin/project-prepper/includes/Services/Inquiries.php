@@ -12,7 +12,19 @@ defined( 'ABSPATH' ) || exit;
  */
 class Inquiries {
 
-	const STATUSES = [ 'new', 'contacted', 'closed' ];
+	// Pipeline wie die App (§11): new → contacted → offer → won | lost.
+	// 'closed' bleibt als Legacy-Wert gültig (Bestandsdaten vor v0.7.0), ist aber Endstatus.
+	const STATUSES = [ 'new', 'contacted', 'offer', 'won', 'lost', 'closed' ];
+
+	// Erlaubte Status-Übergänge — won/lost/closed sind Endstati.
+	const TRANSITIONS = [
+		'new'       => [ 'contacted', 'offer', 'won', 'lost' ],
+		'contacted' => [ 'offer', 'won', 'lost' ],
+		'offer'     => [ 'won', 'lost' ],
+		'won'       => [],
+		'lost'      => [],
+		'closed'    => [],
+	];
 
 	public static function all( array $args = [] ): array {
 		global $wpdb;
@@ -79,7 +91,7 @@ class Inquiries {
 	 *
 	 * Übernimmt Name/E-Mail/Telefon/Zeitraum/Items in einen neuen Verleih
 	 * (Status reserved, Tagessatz pro Position aus dem Artikel-Stammdatensatz),
-	 * setzt die Anfrage auf closed und verlinkt beides im Activity-Log.
+	 * setzt die Anfrage auf won und verlinkt beides im Activity-Log.
 	 *
 	 * @return int|WP_Error Neue Verleih-ID.
 	 */
@@ -88,7 +100,7 @@ class Inquiries {
 		if ( ! $inquiry ) {
 			return new WP_Error( 'pp_not_found', __( 'Anfrage nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
-		if ( 'closed' === $inquiry->status ) {
+		if ( in_array( $inquiry->status, [ 'won', 'lost', 'closed' ], true ) ) {
 			return new WP_Error( 'pp_already_closed', __( 'Anfrage ist bereits abgeschlossen.', 'project-prepper' ), [ 'status' => 409 ] );
 		}
 		if ( empty( $inquiry->date_from ) || empty( $inquiry->date_to ) ) {
@@ -131,7 +143,7 @@ class Inquiries {
 			return $rental_id;
 		}
 
-		self::set_status( $id, 'closed' );
+		self::set_status( $id, 'won' );
 		ActivityLog::log( 'inquiry_converted', 'inquiry', $id, [ 'rental_id' => $rental_id ] );
 
 		/**
@@ -142,10 +154,27 @@ class Inquiries {
 		return $rental_id;
 	}
 
-	public static function set_status( int $id, string $status ): bool {
+	/**
+	 * Status setzen — nur erlaubte Übergänge (TRANSITIONS).
+	 *
+	 * @return bool|WP_Error true bei Erfolg, WP_Error bei ungültigem Übergang.
+	 */
+	public static function set_status( int $id, string $status ) {
 		global $wpdb;
 		if ( ! in_array( $status, self::STATUSES, true ) ) {
-			return false;
+			return new WP_Error( 'pp_invalid_status', __( 'Ungültiger Status.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$inquiry = self::get( $id );
+		if ( ! $inquiry ) {
+			return new WP_Error( 'pp_not_found', __( 'Anfrage nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		if ( ! in_array( $status, self::TRANSITIONS[ $inquiry->status ] ?? [], true ) ) {
+			return new WP_Error(
+				'pp_invalid_transition',
+				/* translators: 1: aktueller Status, 2: Ziel-Status */
+				sprintf( __( 'Statuswechsel %1$s → %2$s ist nicht erlaubt.', 'project-prepper' ), $inquiry->status, $status ),
+				[ 'status' => 409 ]
+			);
 		}
 		$ok = false !== $wpdb->update(
 			Schema::table( 'inquiries' ),
@@ -155,7 +184,7 @@ class Inquiries {
 			[ '%d' ]
 		);
 		if ( $ok ) {
-			ActivityLog::log( 'inquiry_status_changed', 'inquiry', $id, [ 'to' => $status ] );
+			ActivityLog::log( 'inquiry_status_changed', 'inquiry', $id, [ 'from' => $inquiry->status, 'to' => $status ] );
 		}
 		return $ok;
 	}

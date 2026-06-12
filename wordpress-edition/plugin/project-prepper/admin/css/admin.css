@@ -344,6 +344,8 @@
 .pp-badge-active { background: var(--pp-info-light); color: var(--pp-info); }
 .pp-badge-returned { background: var(--pp-success-light); color: var(--pp-success); }
 .pp-badge-cancelled { background: var(--pp-muted); color: var(--pp-muted-foreground); }
+/* Anfragen-Pipeline: "Angebot" in Primaerfarbe (App: offer_sent); Gewonnen/Verloren nutzen returned/cancelled. */
+.pp-badge-offer { background: var(--pp-primary-light); color: var(--pp-primary); }
 
 .pp-badge-new { background: var(--pp-success-light); color: var(--pp-success); }
 .pp-badge-good { background: var(--pp-info-light); color: var(--pp-info); }

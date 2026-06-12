@@ -11,8 +11,12 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.3.0';
+	const VERSION    = '0.4.0';
 	const OPTION_KEY = 'pp_schema_version';
+
+	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
+	// (Artikel-Detailseite /equipment-item/{nummer}) — Abbau in Frontend\ItemDetail.
+	const FLUSH_FLAG = 'pp_flush_rewrite_pending';
 
 	public static function table( string $name ): string {
 		global $wpdb;
@@ -65,6 +69,11 @@ class Schema {
 			accessories text,
 			manufacturer_url varchar(255) NOT NULL DEFAULT '',
 			manual_url varchar(255) NOT NULL DEFAULT '',
+			ownership_type varchar(40) NOT NULL DEFAULT '',
+			funding_source varchar(190) NOT NULL DEFAULT '',
+			depreciation_method varchar(20) NOT NULL DEFAULT '',
+			depreciation_years int(11) DEFAULT NULL,
+			residual_value decimal(10,2) DEFAULT NULL,
 			image_id bigint(20) unsigned DEFAULT NULL,
 			document_ids longtext,
 			notes text,
@@ -155,6 +164,7 @@ class Schema {
 
 		self::upgrade_data();
 		update_option( self::OPTION_KEY, self::VERSION );
+		update_option( self::FLUSH_FLAG, 1 );
 	}
 
 	/**

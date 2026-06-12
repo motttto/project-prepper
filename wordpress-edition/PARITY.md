@@ -1,14 +1,14 @@
 # Parity-Matrix — Live-App ↔ WordPress-Edition
 
-> Stand: 2026-06-12, Plugin v0.6.0, nach Lauf 3
+> Stand: 2026-06-12, Plugin v0.7.0, nach Lauf 4
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
-> **🎯 MVP-Parität erreicht (Lauf 3):** Im MVP-Scope (Inventar, Verleih, Anfragen, E-Mail,
-> Kalender-Feed, Einstellungen, DSGVO) sind keine A- oder B-Lücken mehr offen. Übrig sind nur
-> C-Lücken (Kosmetik/Komfort) und die blockierten Multi-Owner-Punkte. Weitere Läufe nur noch
-> auf expliziten Wunsch (C-Lücken oder v1.x-Module laut MVP-Schnitt Dok 02 §4).
+> **🎯 MVP-Parität erreicht (Lauf 3), C-Lücken geschlossen (Lauf 4):** Im MVP-Scope (Inventar,
+> Verleih, Anfragen, E-Mail, Kalender-Feed, Einstellungen, DSGVO) sind keine A-, B- oder
+> C-Lücken mehr offen. Übrig sind nur die blockierten Multi-Owner-Punkte. Weitere Läufe nur
+> noch auf expliziten Wunsch (v1.x-Module laut MVP-Schnitt Dok 02 §4).
 
-## Inventar (Parität: ~90 %)
+## Inventar (Parität: ~95 %)
 
 | App-Feature (Quelle) | WP-Status | Lücke | Prio |
 |---|---|---|---|
@@ -16,11 +16,11 @@
 | Alle Artikel-Felder inkl. SN/Maße/Watt/URLs (§8.1) | ✅ v0.2.0 | — | — |
 | Foto + PDFs im Detail-Modal (§8.1) | ✅ v0.2.0 | — | — |
 | Foto + PDFs direkt im **Anlege-Formular** (Commit 60eb81b) | ✅ v0.5.0 | — (POST /items, danach Media-Endpoints; Upload-Fehler als Toast, Artikel bleibt angelegt) | — |
-| "PDF anzeigen"-Link in der **Liste** (Commit e9fe5b8) | ❌ | nur Zähler "n PDF" | C |
+| "PDF anzeigen"-Link in der **Liste** (Commit e9fe5b8) | ✅ v0.7.0 | — (1 PDF → direkter Link target=_blank, mehrere → "PDFs (n)" öffnet Detail-Modal; stopPropagation gegen Zeilen-Klick) | — |
 | Filter "Ausgeliehen" (§8.5, aggregiert aus Rentals) | ✅ v0.5.0 | — (out_now als Subquery-JOIN, Toggle-Pill + Badge "n unterwegs", REST ?out_only=1) | — |
 | Einzelstücke (§8.4) | ✅ v0.2.0 | — | — |
-| Abschreibungs-/Eigentums-Felder (§8.7: ownership_type, funding_source, depreciation_*) | ❌ | Spalten + UI fehlen | C |
-| Kategorien-Merge (Migration 097) | ❌ | nur Löschen (Items → ohne Kategorie) | C |
+| Abschreibungs-/Eigentums-Felder (§8.7: ownership_type, funding_source, depreciation_*) | ✅ v0.7.0 | — (Schema 0.4.0, 5 Spalten; Modal-Sektion "Eigentum & Abschreibung"; bewusst NICHT in Export/Import — 19-Spalten-Parität zur App bleibt) | — |
+| Kategorien-Merge (Migration 097) | ✅ v0.7.0 | — (POST /categories/{id}/merge; Button "Zusammenführen…" + Modal mit Ziel-Select und Item-Anzahl; Activity-Log category_merged) | — |
 | Excel **XLSX** Import/Export (§8.6) | ✅ v0.6.0 | — (SheetJS CE 0.20.3 lokal gebündelt, Export mit aktuellen Filtern als inventar-JJJJ-MM-TT.xlsx, Import .xlsx/.xls über denselben Mapping-Editor, Datums-Zellen → JJJJ-MM-TT; CSV bleibt als Fallback) | — |
 
 ## Verleih (Parität: ~85 %)
@@ -34,12 +34,12 @@
 | Freigabe-Logik pro Position (§9.2/9.3, approval_status) | ❌ | braucht Multi-Owner | blockiert |
 | "Mein Equipment unterwegs" (§9.3) | ❌ | braucht Multi-Owner | blockiert |
 
-## Anfragen (Parität: ~85 %)
+## Anfragen (Parität: ~90 %)
 
 | App-Feature (Quelle) | WP-Status | Lücke | Prio |
 |---|---|---|---|
 | Öffentliches Formular → Pipeline (§11) | ✅ v0.3.0 | — | — |
-| Status-Pipeline der App (new→contacted→offer→won/lost) | ⚠️ | WP nur new/contacted/closed | C |
+| Status-Pipeline der App (new→contacted→offer→won/lost) | ✅ v0.7.0 | — (Transitions serverseitig erzwungen, won/lost/closed = Endstati; 'closed' bleibt als Legacy-Wert lesbar; Konvertieren setzt 'won') | — |
 | Anfrage-**Detail** (App: inquiries/[id]) | ✅ v0.5.0 | — (Zeile klickbar, Modal mit allen Feldern, mailto-Link, voller Nachricht, Equipment-Liste, Status-/Konvertieren-/Löschen-Aktionen) | — |
 | **Anfrage → Verleih konvertieren** (§11 Konvertierung) | ✅ v0.4.0 | — (Button im Admin, beide Edit-Caps nötig, ohne Zeitraum deaktiviert; Anfrage → closed, Verlinkung im Activity-Log) | — |
 
@@ -49,7 +49,7 @@
 |---|---|---|---|
 | [pp_inventory], [pp_availability], [pp_request_form] + Blöcke | ✅ v0.3.0 | — | — |
 | Defekte/ausgemusterte Artikel öffentlich ausblenden | ✅ v0.4.0 | — (`show_all="yes"` bzw. Block-Toggle übersteuert) | — |
-| Artikel-Detailseite (/equipment/{nummer}) | ❌ | fehlt | C |
+| Artikel-Detailseite (/equipment-item/{nummer}) | ✅ v0.7.0 | — (Rewrite-Endpoint + Theme-überschreibbares Template, Block- und Classic-Theme-tauglich; Whitelist-Felder, Tagessatz nur mit Option pp_public_show_rates; broken/retired → 404 außer mit pp_inventory_view; Karten verlinken) | — |
 
 ## E-Mail / Kalender / DSGVO / Einstellungen (Parität: ~85 %)
 
@@ -58,7 +58,7 @@
 | Editierbare Templates mit {{vars}} (§16) | ✅ v0.2.0 | — | — |
 | iCal-Feed Token (§13) | ✅ v0.2.0 | CalDAV bewusst nicht portiert (Dok 02) | — |
 | DSGVO Export/Löschung (§17) | ✅ v0.2.0 | — | — |
-| SMTP-Konfiguration pro Betreiber (§16) | ⚠️ | wp_mail nutzt Server-Mail; Hinweis auf WP-Mail-SMTP-Plugin genügt vorerst | C |
+| SMTP-Konfiguration pro Betreiber (§16) | ⚠️ entschieden | wp_mail nutzt Server-Mail; SMTP via Standard-Plugins (z. B. WP Mail SMTP) — bewusst nicht selbst gebaut (WordPress-üblich) | — |
 
 ## Nicht begonnen (v1.x/v2.x laut MVP-Schnitt Dok 02 §4 — erst nach MVP-Parität)
 
@@ -67,16 +67,12 @@ Gruppen + Voting, Vereinbarungen + Gewinnverteilung, Sharing/Erträge, Aktivitä
 
 ## Nächster Lauf
 
-**MVP-Parität erreicht: keine A/B-Lücken mehr offen.** Weitere Läufe nur auf expliziten Wunsch.
-Falls C-Lücken angegangen werden sollen, in dieser Reihenfolge:
+*(leer — keine offenen Aufgaben im MVP-Scope)*
 
-- [ ] C: "PDF anzeigen"-Link in der Inventar-**Liste** (Commit e9fe5b8 der App) — statt nur Zähler "n PDF"
-- [ ] C: Artikel-Detailseite im öffentlichen Frontend (/equipment/{nummer}) — Whitelist-Felder beachten
-- [ ] C: Status-Pipeline der Anfragen erweitern (new→contacted→offer→won/lost wie die App, statt new/contacted/closed)
-- [ ] C: Abschreibungs-/Eigentums-Felder (§8.7: ownership_type, funding_source, depreciation_*)
-- [ ] C: Kategorien-Merge (Migration 097) — statt nur Löschen
-
-Alternativ: v1.x-Module laut MVP-Schnitt (Projekte, Kosten, Dashboard, Umfragen, Telegram, Team-/Rollen-UI).
+**C-Lücken geschlossen (Lauf 4).** Nächster Schritt ist eine Produktentscheidung:
+entweder **v1.x-Module** laut MVP-Schnitt Dok 02 §4 (Projekte, Kosten-Übersicht, Dashboard,
+Umfragen, Telegram, Team-/Rollen-UI) **oder Release-Vorbereitung** (en_US-i18n /
+Übersetzungs-Setup, wordpress.org-Submission, Demo-Site).
 
 ## Blockiert / Entscheidungen
 
@@ -84,6 +80,7 @@ Alternativ: v1.x-Module laut MVP-Schnitt (Projekte, Kosten, Dashboard, Umfragen,
 
 ## Log
 
+- Lauf 4 (2026-06-12, v0.7.0): **C-Lücken-Sammel-Lauf — alle 5 verbliebenen C-Lücken geschlossen.** (1) "PDF anzeigen" in der Inventar-Liste: Doku-Spalte rendert bei genau 1 Dokument einen direkten Link (target=_blank, rel=noopener, stopPropagation), bei mehreren den Button "PDFs (n)" → öffnet das Detail-Modal (App-Verhalten aus Commit e9fe5b8). (2) Öffentliche Artikel-Detailseite `/equipment-item/{nummer}`: Rewrite-Rule + query_var in neuem `Frontend\ItemDetail`, einmaliger Rewrite-Flush nach Schema-Upgrade via Option-Flag (`pp_flush_rewrite_pending`, gesetzt in `Schema::migrate()`); `pre_handle_404`-Filter verhindert den WP-404 bei sichtbaren Artikeln; Template `templates/item-detail.php` rendert die komplette Seite und unterstützt Block-Themes (eigene Hülle mit `block_template_part('header'/'footer')` + manuellem `<title>`, da TT5 kein title-tag-Support hat) wie Classic-Themes (get_header/get_footer); Whitelist-Felder (kein Kaufpreis/SN/Notizen), Tagessatz nur bei neuer Option `pp_public_show_rates` (Checkbox in Einstellungen → "Öffentliches Frontend"); broken/retired → 404 außer eingeloggt mit `pp_inventory_view`; Inventar-Karten (Bild + Titel) verlinken auf die Detailseite; Achtung: Inventarnummer kommt URL-codiert aus der Rewrite-Rule → `rawurldecode()` (Umlaut-Prefixe wie BÜH). (3) Anfragen-Pipeline new→contacted→offer→won/lost mit serverseitig erzwungenen TRANSITIONS (`set_status` gibt WP_Error 409 bei ungültigem Übergang), 'closed' bleibt Legacy-Endstatus; `convert_to_rental` setzt 'won' und blockiert won/lost/closed; Admin-Badges: offer=Primärfarbe (wie App offer_sent), won=success, lost=muted. (4) Schema 0.4.0: `ownership_type`/`funding_source`/`depreciation_method`/`depreciation_years`/`residual_value` auf pp_items, Enum-Validierung im Service (own/loaned/funded/other bzw. linear/degressive/none — die App-Enums organization/member/shared passen nicht aufs Single-Owner-WP), Modal-Sektion "Eigentum & Abschreibung", bewusst nicht in Export/Import. (5) Kategorien-Merge: `Inventory::merge_categories()` + `POST /categories/{id}/merge` (400 bei self, 404 unbekannt), Admin-Modal mit Ziel-Select + Item-Anzahl, Activity-Log `category_merged`. Tests grün: php -l/node --check; wp-eval (Felder speichern/lesen inkl. ''→NULL und Enum-Abwehr, Merge verschiebt 2 Items + löscht Quelle, offer→won ok / won→contacted → pp_invalid_transition, convert → won + Doppel-Convert 409); REST (merge 200/401/400, PUT items mit allen 5 Feldern, Settings-Toggle); Frontend-curl (Detailseite 200 mit Titel-Tag, SN/Kaufpreis nie im HTML, Tagessatz nur mit Option, BÜH-0001 anonym 404 / eingeloggt 200, Karten-Links auf /equipment/); UI via Chrome (PDF-Link + "PDFs (2)"-Button, Abschreibungs-Sektion im Modal, Merge-Modal mit Anzahl, Pipeline-Buttons + Badge-Wechsel Neu→Angebot→Gewonnen, Settings-Checkbox speichert).
 - Lauf 3 (2026-06-12, v0.6.0): **XLSX-Import/-Export via SheetJS — MVP-Parität erreicht** (letzte B-Lücke geschlossen). SheetJS Community Edition 0.20.3 (Apache-2.0) als `admin/js/vendor/xlsx.full.min.js` lokal gebündelt (kein CDN, wordpress.org-tauglich; Credits-Abschnitt in readme.txt), in Menu.php als Dependency von `pp-admin` enqueued. Export-Button "Export" erzeugt client-seitig `inventar-JJJJ-MM-TT.xlsx` (Sheet "Inventar", 19 Spalten + deutsche Header identisch zu EXPORT_COLUMNS des CSV-Endpoints, Zustands-Labels, Tags kommasepariert) aus `GET /items` mit den aktiven Such-/Kategorie-/Ausgeliehen-Filtern; CSV-Export bleibt als zweiter Button (jetzt ebenfalls mit out_only-Filter + Datum im Dateinamen). Import-Modal akzeptiert zusätzlich .xlsx/.xls: ArrayBuffer → `XLSX.read(cellDates:true)` → erstes Sheet → `sheet_to_json(header:1)`, Datums-Zellen als JJJJ-MM-TT normalisiert, danach derselbe Mapping-Editor + `POST /import` wie bei CSV. Nebenbei behoben: Server-Import verwarf `purchase_date` (jetzt inkl. TT.MM.JJJJ-Parsing). Tests grün: node --check + php -l; Node-Roundtrip mit der gebündelten Lib (deutsche Header + 2 Zeilen, "defekt"/"2,50" exakt zurück); REST-E2E per curl (Import 2 Zeilen → DB: broken/2.50/2024-03-15, Kategorie auto-angelegt; danach via DELETE entfernt); CSV-Export weiter 200 mit BOM + Content-Disposition; UI via Chrome (XLSX 0.20.3 in der Seiten-World definiert — Achtung: AppleScript-JS läuft in isolierter World, Page-Globals nur via injiziertem Inline-Script + DOM-Attribut prüfbar; Export/CSV-Export/Import-Buttons da, Import-Modal mit .xlsx im accept; In-Browser-Roundtrip write(array)→read mit Date-Zelle → "2024-03-15").
 - Vor Lauf 1 (2026-06-11): Matrix initial erstellt aus v0.3.0-Stand + Funktionsmapping.
 - Lauf 2 (2026-06-12, v0.5.0): Inventar-Filter "Ausgeliehen" (`Inventory::items()` mit `out_now` als aggregiertem Subquery-JOIN über reserved/active-Rentals des heutigen Tags — kein N+1; REST `GET /items?out_only=1`; Toggle-Pill neben den Kategorie-Pills + Badge "n unterwegs" in der Liste). Anfrage-Detail-Modal (REST `GET /inquiries/{id}`; Tabellenzeile klickbar, Modal mit allen Feldern, E-Mail als mailto-Link, vollständiger Nachricht, Equipment-Liste, Status-Aktionen + "In Verleih übernehmen" + Löschen im Footer; Aktionen in Zeile und Modal aus gemeinsamer `inquiryActions()`-Funktion). Foto + PDFs direkt im Inventar-Anlege-Formular (erst `POST /items`, dann sequentiell `POST /items/{id}/image` + `/documents`; Upload-Fehler als Toast, Artikel bleibt angelegt, Inputs werden geleert). Schema unverändert (0.3.0). Tests grün: php -l + node --check, wp-eval (Test-Verleih über heute → out_now=2 / out_only liefert genau das Item → nach Storno wieder 0), REST via App-Password (out_only 200/401, inquiries/1 mit items-Array, inquiries/999 → 404), Medien-Flow per curl (PNG + PDF hoch- und wieder runtergeladen/gelöscht, image_url/documents korrekt), UI via Chrome (Ausgeliehen-Pill + Foto/PDF-Inputs vorhanden, Toggle filtert, Anfrage-Modal mit allen Sektionen, Aktions-Buttons je nach Status, Rentals-Seite rendert).
