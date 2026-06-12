@@ -507,27 +507,65 @@
 
 		/* ----- Export / Import (§8.6) ----- */
 
+		// Export-Spalten = EXPORT_COLUMNS des CSV-Endpoints (ImportExportController), 19 Spalten, deutsche Header.
+		var EXPORT_COLUMNS = [
+			["inventory_number", "Inventarnummer"], ["name", "Name"], ["category_name", "Kategorie"],
+			["description", "Beschreibung"], ["manufacturer", "Hersteller"], ["model", "Modell"],
+			["serial_number", "Seriennummer"], ["quantity", "Menge"], ["condition", "Zustand"],
+			["location", "Lagerort"], ["cost_per_day", "Tagessatz"], ["purchase_price", "Kaufpreis"],
+			["purchase_date", "Kaufdatum"], ["current_value", "Aktueller Wert"], ["dimensions", "Maße"],
+			["power_watts", "Leistung (W)"], ["accessories", "Zubehör"], ["tags", "Tags"], ["notes", "Notizen"]
+		];
+		var CONDITION_EXPORT_LABELS = { new: "Neu", good: "Gut", fair: "Gebraucht", poor: "Schlecht", broken: "Defekt", retired: "Ausgemustert" };
+
+		function currentFilterParams() {
+			var params = [];
+			if (search.value.trim()) params.push("search=" + encodeURIComponent(search.value.trim()));
+			if (activeCategory) params.push("category_id=" + activeCategory);
+			if (outOnly) params.push("out_only=1");
+			return params;
+		}
+
+		function exportXlsx() {
+			var params = currentFilterParams();
+			api("/items" + (params.length ? "?" + params.join("&") : "")).then(function (items) {
+				var headers = EXPORT_COLUMNS.map(function (col) { return col[1]; });
+				var rows = items.map(function (item) {
+					return EXPORT_COLUMNS.map(function (col) {
+						var key = col[0];
+						if (key === "condition") return CONDITION_EXPORT_LABELS[item.condition] || item.condition || "";
+						if (key === "tags") return (item.tags || []).join(", ");
+						var value = item[key];
+						return value === null || typeof value === "undefined" ? "" : value;
+					});
+				});
+				var ws = XLSX.utils.aoa_to_sheet([headers].concat(rows));
+				var wb = XLSX.utils.book_new();
+				XLSX.utils.book_append_sheet(wb, ws, "Inventar");
+				XLSX.writeFile(wb, "inventar-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+			}).catch(function (e) { toast(e.message, "error"); });
+		}
+
 		var toolbar = el("div", { class: "pp-toolbar" }, [search]);
 		if (ppConfig.canEdit.importExport) {
+			toolbar.appendChild(el("button", { class: "pp-btn", text: "Export", onclick: exportXlsx }));
 			toolbar.appendChild(el("button", {
-				class: "pp-btn", text: "Export CSV",
+				class: "pp-btn pp-btn-sm", text: "CSV-Export",
 				onclick: function () {
-					var params = [];
-					if (search.value.trim()) params.push("search=" + encodeURIComponent(search.value.trim()));
-					if (activeCategory) params.push("category_id=" + activeCategory);
+					var params = currentFilterParams();
 					fetch(ppConfig.restUrl + "/export" + (params.length ? "?" + params.join("&") : ""), {
 						headers: { "X-WP-Nonce": ppConfig.nonce }
 					}).then(function (res) {
 						if (!res.ok) throw new Error("Export fehlgeschlagen");
 						return res.blob();
 					}).then(function (blob) {
-						var a = el("a", { href: URL.createObjectURL(blob), download: "inventar.csv" });
+						var a = el("a", { href: URL.createObjectURL(blob), download: "inventar-" + new Date().toISOString().slice(0, 10) + ".csv" });
 						a.click();
 						URL.revokeObjectURL(a.href);
 					}).catch(function (e) { toast(e.message, "error"); });
 				}
 			}));
-			toolbar.appendChild(el("button", { class: "pp-btn", text: "Import CSV", onclick: openImportModal }));
+			toolbar.appendChild(el("button", { class: "pp-btn", text: "Import", onclick: openImportModal }));
 		}
 
 		function openImportModal() {
@@ -549,21 +587,33 @@
 			];
 
 			var body = el("div");
-			var fileInput = el("input", { type: "file", accept: ".csv,text/csv" });
-			body.appendChild(el("div", { class: "pp-field" }, [el("label", { text: "CSV-Datei (Semikolon oder Komma, erste Zeile = Überschriften)" }), fileInput]));
+			var fileInput = el("input", {
+				type: "file",
+				accept: ".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
+			});
+			body.appendChild(el("div", { class: "pp-field" }, [el("label", { text: "Datei (.xlsx, .xls oder .csv — erste Zeile = Überschriften)" }), fileInput]));
 			var stage = el("div");
 			body.appendChild(stage);
 			var close = openModal("Inventar importieren", body);
 
 			fileInput.addEventListener("change", function () {
 				if (!fileInput.files.length) return;
+				var file = fileInput.files[0];
+				var isExcel = /\.xlsx?$/i.test(file.name);
 				var reader = new FileReader();
 				reader.onload = function () {
-					var rows = parseCsv(String(reader.result));
+					var rows;
+					try {
+						rows = isExcel ? parseXlsx(reader.result) : parseCsv(String(reader.result));
+					} catch (e) {
+						toast("Datei konnte nicht gelesen werden: " + e.message, "error");
+						return;
+					}
 					if (rows.length < 2) { toast("Datei enthält keine Datenzeilen.", "error"); return; }
 					showMapping(rows[0], rows.slice(1));
 				};
-				reader.readAsText(fileInput.files[0], "utf-8");
+				if (isExcel) reader.readAsArrayBuffer(file);
+				else reader.readAsText(file, "utf-8");
 			});
 
 			function showMapping(headers, dataRows) {
@@ -619,6 +669,25 @@
 				stage.appendChild(el("div", { class: "pp-row", style: "margin-top:12px" }, [importBtn]));
 				stage.appendChild(result);
 			}
+		}
+
+		// XLSX/XLS → Zeilen-Arrays (SheetJS, erstes Sheet). Datums-Zellen werden als YYYY-MM-DD normalisiert.
+		function parseXlsx(arrayBuffer) {
+			var wb = XLSX.read(new Uint8Array(arrayBuffer), { type: "array", cellDates: true });
+			var ws = wb.Sheets[wb.SheetNames[0]];
+			if (!ws) return [];
+			var raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: "" });
+			function pad2(n) { return n < 10 ? "0" + n : String(n); }
+			return raw.map(function (row) {
+				return row.map(function (cell) {
+					if (cell instanceof Date) {
+						return cell.getFullYear() + "-" + pad2(cell.getMonth() + 1) + "-" + pad2(cell.getDate());
+					}
+					return cell === null || typeof cell === "undefined" ? "" : String(cell);
+				});
+			}).filter(function (row) {
+				return row.some(function (cell) { return cell.trim() !== ""; });
+			});
 		}
 
 		function parseCsv(text) {

@@ -81,7 +81,9 @@ class Menu {
 		}
 
 		wp_enqueue_style( 'pp-admin', PP_PLUGIN_URL . 'admin/css/admin.css', [], PP_VERSION );
-		wp_enqueue_script( 'pp-admin', PP_PLUGIN_URL . 'admin/js/admin.js', [], PP_VERSION, true );
+		// SheetJS Community Edition (Apache-2.0) — XLSX-Import/-Export client-seitig, lokal gebündelt (kein CDN).
+		wp_enqueue_script( 'pp-xlsx', PP_PLUGIN_URL . 'admin/js/vendor/xlsx.full.min.js', [], '0.20.3', true );
+		wp_enqueue_script( 'pp-admin', PP_PLUGIN_URL . 'admin/js/admin.js', [ 'pp-xlsx' ], PP_VERSION, true );
 
 		wp_localize_script( 'pp-admin', 'ppConfig', [
 			'restUrl' => esc_url_raw( rest_url( 'project-prepper/v1' ) ),

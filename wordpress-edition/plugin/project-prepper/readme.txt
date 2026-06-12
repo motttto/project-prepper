@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, verleih, inventar
 Requires at least: 6.4
 Tested up to: 6.8
 Requires PHP: 8.0
-Stable tag: 0.5.0
+Stable tag: 0.6.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -31,7 +31,19 @@ Zielgruppe: Veranstaltungstechnik-Crews, Vereine, Verleiher, Werkstätten und Ma
 2. Plugin aktivieren — die Datenbank-Tabellen werden automatisch angelegt.
 3. Menüpunkt "Project Prepper" im Admin öffnen.
 
+== Credits ==
+
+Dieses Plugin bündelt die SheetJS Community Edition (https://sheetjs.com, Datei `admin/js/vendor/xlsx.full.min.js`)
+für den XLSX-Import/-Export im Admin. SheetJS CE ist lizenziert unter der Apache License 2.0
+(https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
+
 == Changelog ==
+
+= 0.6.0 =
+* Excel-Import/-Export im XLSX-Format (SheetJS, lokal gebündelt — kein CDN): Export-Button erzeugt inventar-JJJJ-MM-TT.xlsx mit den aktuellen Filtern, CSV-Export bleibt als zweiter Button erhalten
+* Import-Dialog akzeptiert zusätzlich .xlsx/.xls — gleiche Spalten-Zuordnung wie beim CSV-Import, Datums-Zellen werden automatisch als JJJJ-MM-TT übernommen
+* Import übernimmt jetzt auch das Kaufdatum (wurde bisher ignoriert), auch im Format TT.MM.JJJJ
+* CSV-Export berücksichtigt den Filter "Ausgeliehen"
 
 = 0.5.0 =
 * Foto und PDF-Dokumente direkt beim Anlegen eines Artikels hochladen

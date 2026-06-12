@@ -86,6 +86,7 @@ class ImportExportController extends BaseController {
 		$items = Inventory::items( [
 			'search'      => sanitize_text_field( (string) $request->get_param( 'search' ) ),
 			'category_id' => (int) $request->get_param( 'category_id' ),
+			'out_only'    => rest_sanitize_boolean( $request->get_param( 'out_only' ) ),
 		] );
 
 		$out = fopen( 'php://output', 'w' );
@@ -161,6 +162,7 @@ class ImportExportController extends BaseController {
 					'location'         => sanitize_text_field( (string) ( $row['location'] ?? '' ) ),
 					'cost_per_day'     => self::num( $row['cost_per_day'] ?? '' ),
 					'purchase_price'   => self::num( $row['purchase_price'] ?? '' ),
+					'purchase_date'    => self::date( $row['purchase_date'] ?? '' ),
 					'current_value'    => self::num( $row['current_value'] ?? '' ),
 					'dimensions'       => sanitize_text_field( (string) ( $row['dimensions'] ?? '' ) ),
 					'power_watts'      => '' !== trim( (string) ( $row['power_watts'] ?? '' ) ) ? (int) $row['power_watts'] : '',
@@ -186,5 +188,17 @@ class ImportExportController extends BaseController {
 	private static function num( $value ): string {
 		$value = str_replace( ',', '.', trim( (string) $value ) );
 		return '' === $value || ! is_numeric( $value ) ? '' : $value;
+	}
+
+	// "15.03.2024" oder "2024-03-15(…)" → "2024-03-15"; alles andere → '' (wird zu NULL).
+	private static function date( $value ): string {
+		$value = trim( (string) $value );
+		if ( preg_match( '/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/', $value, $m ) ) {
+			return sprintf( '%04d-%02d-%02d', $m[3], $m[2], $m[1] );
+		}
+		if ( preg_match( '/^\d{4}-\d{2}-\d{2}/', $value ) ) {
+			return substr( $value, 0, 10 );
+		}
+		return '';
 	}
 }
