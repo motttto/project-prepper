@@ -61,7 +61,7 @@ class InquiriesController extends BaseController {
 	public function show( WP_REST_Request $request ) {
 		$inquiry = Inquiries::get( (int) $request['id'] );
 		if ( ! $inquiry ) {
-			return new WP_Error( 'pp_not_found', __( 'Anfrage nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Inquiry not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		return new WP_REST_Response( $inquiry );
 	}
@@ -69,7 +69,7 @@ class InquiriesController extends BaseController {
 	public function set_status( WP_REST_Request $request ) {
 		$status = sanitize_text_field( (string) ( $request->get_json_params()['status'] ?? '' ) );
 		if ( ! in_array( $status, Inquiries::STATUSES, true ) ) {
-			return new WP_Error( 'pp_invalid_status', __( 'Ungültiger Status.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_invalid_status', __( 'Invalid status.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		$result = Inquiries::set_status( (int) $request['id'], $status );
 		if ( is_wp_error( $result ) ) {

@@ -64,7 +64,7 @@ if ( $pp_block_theme ) {
 		<?php endif; ?>
 
 		<?php if ( $item['accessories'] ) : ?>
-			<h2 class="pp-front-detail-subtitle"><?php esc_html_e( 'Zubehör', 'project-prepper' ); ?></h2>
+			<h2 class="pp-front-detail-subtitle"><?php esc_html_e( 'Accessories', 'project-prepper' ); ?></h2>
 			<p class="pp-front-detail-text"><?php echo nl2br( esc_html( $item['accessories'] ) ); ?></p>
 		<?php endif; ?>
 
@@ -77,7 +77,7 @@ if ( $pp_block_theme ) {
 		<?php endif; ?>
 
 		<?php if ( null !== $item['cost_per_day'] && '' !== $item['cost_per_day'] ) : ?>
-			<div class="pp-front-card-rate"><?php echo esc_html( number_format_i18n( (float) $item['cost_per_day'], 2 ) ); ?> € <span><?php esc_html_e( '/ Tag', 'project-prepper' ); ?></span></div>
+			<div class="pp-front-card-rate"><?php echo esc_html( number_format_i18n( (float) $item['cost_per_day'], 2 ) ); ?> € <span><?php esc_html_e( '/ day', 'project-prepper' ); ?></span></div>
 		<?php endif; ?>
 	</div>
 </div>

@@ -61,7 +61,7 @@ class Capabilities {
 
 		// Member: nur lesen (≈ App-Rolle "Member" mit View-Permissions).
 		remove_role( 'pp_member' );
-		add_role( 'pp_member', __( 'Prepper Mitglied', 'project-prepper' ), [
+		add_role( 'pp_member', __( 'Prepper Member', 'project-prepper' ), [
 			'read'               => true,
 			self::VIEW_INVENTORY => true,
 			self::VIEW_RENTALS   => true,

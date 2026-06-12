@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
 			<label class="pp-front-field">
 				<span><?php esc_html_e( 'Equipment', 'project-prepper' ); ?></span>
 				<select name="pp_item" required>
-					<option value=""><?php esc_html_e( '— wählen —', 'project-prepper' ); ?></option>
+					<option value=""><?php esc_html_e( '— select —', 'project-prepper' ); ?></option>
 					<?php foreach ( $items as $item ) : ?>
 						<option value="<?php echo esc_attr( $item['id'] ); ?>" <?php selected( $item_id, $item['id'] ); ?>><?php echo esc_html( $item['name'] ); ?></option>
 					<?php endforeach; ?>
@@ -30,27 +30,27 @@ defined( 'ABSPATH' ) || exit;
 		<?php endif; ?>
 
 		<label class="pp-front-field">
-			<span><?php esc_html_e( 'Von', 'project-prepper' ); ?></span>
+			<span><?php esc_html_e( 'From', 'project-prepper' ); ?></span>
 			<input type="date" name="pp_from" value="<?php echo esc_attr( $from ); ?>" required>
 		</label>
 		<label class="pp-front-field">
-			<span><?php esc_html_e( 'Bis', 'project-prepper' ); ?></span>
+			<span><?php esc_html_e( 'To', 'project-prepper' ); ?></span>
 			<input type="date" name="pp_to" value="<?php echo esc_attr( $to ); ?>" required>
 		</label>
-		<button type="submit" class="pp-front-btn pp-front-btn-primary"><?php esc_html_e( 'Verfügbarkeit prüfen', 'project-prepper' ); ?></button>
+		<button type="submit" class="pp-front-btn pp-front-btn-primary"><?php esc_html_e( 'Check availability', 'project-prepper' ); ?></button>
 	</form>
 
 	<?php if ( null !== $result ) : ?>
 		<div class="pp-front-notice <?php echo $result['available'] > 0 ? 'pp-front-notice-ok' : 'pp-front-notice-warn'; ?>">
 			<?php if ( $result['available'] > 0 ) : ?>
 				<?php
-				/* translators: 1: Artikelname, 2: Anzahl */
-				printf( esc_html__( '"%1$s" ist im gewählten Zeitraum %2$d× verfügbar.', 'project-prepper' ), esc_html( $result['item_name'] ), (int) $result['available'] );
+				/* translators: 1: item name, 2: available quantity */
+				printf( esc_html__( '"%1$s" is available %2$d× in the selected period.', 'project-prepper' ), esc_html( $result['item_name'] ), (int) $result['available'] );
 				?>
 			<?php else : ?>
 				<?php
-				/* translators: %s: Artikelname */
-				printf( esc_html__( '"%s" ist im gewählten Zeitraum leider nicht verfügbar.', 'project-prepper' ), esc_html( $result['item_name'] ) );
+				/* translators: %s: item name */
+				printf( esc_html__( 'Unfortunately, "%s" is not available in the selected period.', 'project-prepper' ), esc_html( $result['item_name'] ) );
 				?>
 			<?php endif; ?>
 		</div>

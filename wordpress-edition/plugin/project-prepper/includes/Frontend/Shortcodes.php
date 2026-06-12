@@ -21,14 +21,19 @@ defined( 'ABSPATH' ) || exit;
  */
 class Shortcodes {
 
-	const CONDITION_LABELS = [
-		'new'     => 'Neu',
-		'good'    => 'Gut',
-		'fair'    => 'Gebraucht',
-		'poor'    => 'Schlecht',
-		'broken'  => 'Defekt',
-		'retired' => 'Ausgemustert',
-	];
+	/**
+	 * Öffentliche Zustands-Labels — Methode statt const, damit __() greift.
+	 */
+	public static function condition_labels(): array {
+		return [
+			'new'     => __( 'New', 'project-prepper' ),
+			'good'    => __( 'Good', 'project-prepper' ),
+			'fair'    => __( 'Used', 'project-prepper' ),
+			'poor'    => __( 'Poor', 'project-prepper' ),
+			'broken'  => __( 'Broken', 'project-prepper' ),
+			'retired' => __( 'Retired', 'project-prepper' ),
+		];
+	}
 
 	public static function init(): void {
 		add_shortcode( 'pp_inventory', [ self::class, 'inventory' ] );
@@ -95,7 +100,7 @@ class Shortcodes {
 			'show_rates'       => 'yes' === $atts['show_rates'],
 			'show_search'      => 'yes' === $atts['search'],
 			'search_value'     => $search,
-			'condition_labels' => self::CONDITION_LABELS,
+			'condition_labels' => self::condition_labels(),
 		] );
 	}
 

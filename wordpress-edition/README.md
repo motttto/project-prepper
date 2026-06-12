@@ -49,6 +49,6 @@ git checkout main
 - [x] ZIP-Export für echte WP-Installationen (`plugin/build.sh` → `plugin/dist/project-prepper-{version}.zip`)
 - [x] MVP-Module ausgebaut (v0.2.0, 2026-06-11): alle Inventar-Felder der App, Foto/PDF-Upload, Einzelstücke-UI, CSV-Import/-Export mit Mapping-Editor, Abrechnung (USt §9.4), E-Mail-Benachrichtigungen, iCal-Feed, DSGVO-Hooks, Einstellungen — Admin-UI im Design der Live-App (Indigo-Palette, Light/Dark)
 - [x] Frontend v0.3.0 (2026-06-11): Shortcodes + Gutenberg-Blöcke (Equipment-Liste, Verfügbarkeits-Check, Anfrage-Formular) + Anfragen-Backend mit Admin-Pipeline — Back- und Frontend zusammen
-- [ ] XLSX statt CSV, Verleih-Bearbeiten, Artikel-Detailseite, Anfrage→Verleih (siehe `plugin/project-prepper/README.md`)
-- [ ] Englische Übersetzung + readme.txt für wordpress.org
+- [x] Parity-Läufe 1–4 (v0.4.0–v0.7.0, 2026-06-11/12): XLSX-Import/-Export, Verleih bearbeiten, Anfrage→Verleih, Anfragen-Pipeline, Artikel-Detailseite, Kategorien-Merge, Eigentum & Abschreibung — MVP-Parität erreicht (siehe `PARITY.md`)
+- [x] Internationalisierung für wordpress.org (v0.8.0, 2026-06-12): Quell-Strings englisch (PHP + JS via wp.i18n), vollständige de_DE-Übersetzung mitgeliefert (.po/.mo/JSON — deutsche Installationen sehen die bisherigen Texte), readme.txt englisch
 - [ ] Demo-Site + Lizenzmodell (Freemius/EDD)

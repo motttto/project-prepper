@@ -103,13 +103,13 @@ class Rentals {
 		global $wpdb;
 
 		if ( empty( $data['borrower_name'] ) ) {
-			return new WP_Error( 'pp_missing_borrower', __( 'Name des Leihers fehlt.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_missing_borrower', __( 'Borrower name is required.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		if ( ! Availability::is_valid_range( $data['date_from'] ?? '', $data['date_to'] ?? '' ) ) {
-			return new WP_Error( 'pp_invalid_dates', __( 'Ungültiger Zeitraum.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_invalid_dates', __( 'Invalid date range.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		if ( ! $items ) {
-			return new WP_Error( 'pp_no_items', __( 'Mindestens eine Position erforderlich.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_no_items', __( 'At least one line item is required.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
 		// Verfügbarkeits-Guard über alle Positionen (gleiche Items zusammenzählen).
@@ -118,7 +118,7 @@ class Rentals {
 			$item_id = (int) ( $line['item_id'] ?? 0 );
 			$qty     = max( 1, (int) ( $line['quantity'] ?? 1 ) );
 			if ( ! $item_id ) {
-				return new WP_Error( 'pp_invalid_line', __( 'Ungültige Position.', 'project-prepper' ), [ 'status' => 400 ] );
+				return new WP_Error( 'pp_invalid_line', __( 'Invalid line item.', 'project-prepper' ), [ 'status' => 400 ] );
 			}
 			$wanted[ $item_id ] = ( $wanted[ $item_id ] ?? 0 ) + $qty;
 		}
@@ -129,8 +129,8 @@ class Rentals {
 				return new WP_Error(
 					'pp_not_available',
 					sprintf(
-						/* translators: 1: Artikelname, 2: verfügbare Menge */
-						__( '"%1$s" ist im Zeitraum nur %2$d× verfügbar.', 'project-prepper' ),
+						/* translators: 1: item name, 2: available quantity */
+						__( '"%1$s" is only available %2$d× in this period.', 'project-prepper' ),
 						$item ? $item->name : "#{$item_id}",
 						$available
 					),
@@ -202,24 +202,24 @@ class Rentals {
 
 		$rental = self::get( $id );
 		if ( ! $rental ) {
-			return new WP_Error( 'pp_not_found', __( 'Verleih nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Rental not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		if ( ! in_array( $rental->status, [ 'reserved', 'active' ], true ) ) {
 			return new WP_Error(
 				'pp_locked',
-				__( 'Nur reservierte oder aktive Verleihe können bearbeitet werden.', 'project-prepper' ),
+				__( 'Only reserved or active rentals can be edited.', 'project-prepper' ),
 				[ 'status' => 409 ]
 			);
 		}
 		if ( array_key_exists( 'borrower_name', $data ) && '' === trim( (string) $data['borrower_name'] ) ) {
-			return new WP_Error( 'pp_missing_borrower', __( 'Name des Leihers fehlt.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_missing_borrower', __( 'Borrower name is required.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
 		// Effektiver Zeitraum = neue Werte, Fallback auf Bestand.
 		$date_from = ! empty( $data['date_from'] ) ? $data['date_from'] : $rental->date_from;
 		$date_to   = ! empty( $data['date_to'] ) ? $data['date_to'] : $rental->date_to;
 		if ( ! Availability::is_valid_range( $date_from, $date_to ) ) {
-			return new WP_Error( 'pp_invalid_dates', __( 'Ungültiger Zeitraum.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_invalid_dates', __( 'Invalid date range.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
 		// Effektive Positionen = neue Liste, Fallback auf Bestand.
@@ -229,7 +229,7 @@ class Rentals {
 			}, $rental->items );
 		} else {
 			if ( ! $items ) {
-				return new WP_Error( 'pp_no_items', __( 'Mindestens eine Position erforderlich.', 'project-prepper' ), [ 'status' => 400 ] );
+				return new WP_Error( 'pp_no_items', __( 'At least one line item is required.', 'project-prepper' ), [ 'status' => 400 ] );
 			}
 			$effective = $items;
 		}
@@ -240,7 +240,7 @@ class Rentals {
 			$item_id = (int) ( $line['item_id'] ?? 0 );
 			$qty     = max( 1, (int) ( $line['quantity'] ?? 1 ) );
 			if ( ! $item_id ) {
-				return new WP_Error( 'pp_invalid_line', __( 'Ungültige Position.', 'project-prepper' ), [ 'status' => 400 ] );
+				return new WP_Error( 'pp_invalid_line', __( 'Invalid line item.', 'project-prepper' ), [ 'status' => 400 ] );
 			}
 			$wanted[ $item_id ] = ( $wanted[ $item_id ] ?? 0 ) + $qty;
 		}
@@ -251,8 +251,8 @@ class Rentals {
 				return new WP_Error(
 					'pp_not_available',
 					sprintf(
-						/* translators: 1: Artikelname, 2: verfügbare Menge */
-						__( '"%1$s" ist im Zeitraum nur %2$d× verfügbar.', 'project-prepper' ),
+						/* translators: 1: item name, 2: available quantity */
+						__( '"%1$s" is only available %2$d× in this period.', 'project-prepper' ),
 						$item ? $item->name : "#{$item_id}",
 						$available
 					),
@@ -328,14 +328,14 @@ class Rentals {
 
 		$rental = self::get( $id );
 		if ( ! $rental ) {
-			return new WP_Error( 'pp_not_found', __( 'Verleih nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Rental not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		if ( ! in_array( $status, self::TRANSITIONS[ $rental->status ] ?? [], true ) ) {
 			return new WP_Error(
 				'pp_invalid_transition',
 				sprintf(
-					/* translators: 1: aktueller Status, 2: Zielstatus */
-					__( 'Statuswechsel von "%1$s" zu "%2$s" ist nicht erlaubt.', 'project-prepper' ),
+					/* translators: 1: current status, 2: target status */
+					__( 'Status change from "%1$s" to "%2$s" is not allowed.', 'project-prepper' ),
 					$rental->status,
 					$status
 				),

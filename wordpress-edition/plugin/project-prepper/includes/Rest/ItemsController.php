@@ -72,7 +72,7 @@ class ItemsController extends BaseController {
 	public function show( WP_REST_Request $request ) {
 		$item = Inventory::get_item( (int) $request['id'] );
 		if ( ! $item ) {
-			return new WP_Error( 'pp_not_found', __( 'Artikel nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		return new WP_REST_Response( $item );
 	}
@@ -80,7 +80,7 @@ class ItemsController extends BaseController {
 	public function create( WP_REST_Request $request ) {
 		$data = $this->payload( $request );
 		if ( empty( $data['name'] ) ) {
-			return new WP_Error( 'pp_missing_name', __( 'Name fehlt.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_missing_name', __( 'Name is required.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		$id = Inventory::create_item( $data );
 		return new WP_REST_Response( Inventory::get_item( $id ), 201 );
@@ -89,7 +89,7 @@ class ItemsController extends BaseController {
 	public function update( WP_REST_Request $request ) {
 		$id = (int) $request['id'];
 		if ( ! Inventory::get_item( $id ) ) {
-			return new WP_Error( 'pp_not_found', __( 'Artikel nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		Inventory::update_item( $id, $this->payload( $request ) );
 		return new WP_REST_Response( Inventory::get_item( $id ) );
@@ -108,7 +108,7 @@ class ItemsController extends BaseController {
 		$from = sanitize_text_field( (string) $request->get_param( 'from' ) );
 		$to   = sanitize_text_field( (string) $request->get_param( 'to' ) );
 		if ( ! Availability::is_valid_range( $from, $to ) ) {
-			return new WP_Error( 'pp_invalid_dates', __( 'Ungültiger Zeitraum.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_invalid_dates', __( 'Invalid date range.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		return new WP_REST_Response( [
 			'item_id'   => (int) $request['id'],

@@ -46,7 +46,7 @@ class UnitsController extends BaseController {
 	public function index( WP_REST_Request $request ) {
 		$item_id = (int) $request['item_id'];
 		if ( ! Inventory::get_item( $item_id ) ) {
-			return new WP_Error( 'pp_not_found', __( 'Artikel nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		return new WP_REST_Response( Units::for_item( $item_id ) );
 	}
@@ -55,10 +55,10 @@ class UnitsController extends BaseController {
 		$item_id = (int) $request['item_id'];
 		$item    = Inventory::get_item( $item_id );
 		if ( ! $item ) {
-			return new WP_Error( 'pp_not_found', __( 'Artikel nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		if ( count( Units::for_item( $item_id ) ) >= (int) $item->quantity ) {
-			return new WP_Error( 'pp_units_full', __( 'Es gibt bereits ein Einzelstück für jedes Stück der Menge.', 'project-prepper' ), [ 'status' => 409 ] );
+			return new WP_Error( 'pp_units_full', __( 'There is already a unit for every piece of the quantity.', 'project-prepper' ), [ 'status' => 409 ] );
 		}
 		$json = $request->get_json_params() ?: [];
 		Units::create( $item_id, [

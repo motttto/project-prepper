@@ -59,7 +59,7 @@ class RentalsController extends BaseController {
 	public function show( WP_REST_Request $request ) {
 		$rental = Rentals::get( (int) $request['id'] );
 		if ( ! $rental ) {
-			return new WP_Error( 'pp_not_found', __( 'Verleih nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Rental not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		return new WP_REST_Response( $rental );
 	}
@@ -117,7 +117,7 @@ class RentalsController extends BaseController {
 	public function set_status( WP_REST_Request $request ) {
 		$status = sanitize_text_field( (string) ( $request->get_json_params()['status'] ?? '' ) );
 		if ( ! in_array( $status, Rentals::STATUSES, true ) ) {
-			return new WP_Error( 'pp_invalid_status', __( 'Ungültiger Status.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_invalid_status', __( 'Invalid status.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		$result = Rentals::set_status( (int) $request['id'], $status );
 		if ( is_wp_error( $result ) ) {

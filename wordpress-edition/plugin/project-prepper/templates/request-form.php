@@ -12,9 +12,9 @@ defined( 'ABSPATH' ) || exit;
 ?>
 <div class="pp-front">
 	<?php if ( $success ) : ?>
-		<div class="pp-front-notice pp-front-notice-ok"><?php esc_html_e( 'Danke! Deine Anfrage ist eingegangen — wir melden uns.', 'project-prepper' ); ?></div>
+		<div class="pp-front-notice pp-front-notice-ok"><?php esc_html_e( 'Thank you! Your inquiry has been received — we will get back to you.', 'project-prepper' ); ?></div>
 	<?php elseif ( $error ) : ?>
-		<div class="pp-front-notice pp-front-notice-warn"><?php esc_html_e( 'Das hat leider nicht geklappt. Bitte Pflichtfelder prüfen und erneut senden.', 'project-prepper' ); ?></div>
+		<div class="pp-front-notice pp-front-notice-warn"><?php esc_html_e( 'Unfortunately, that did not work. Please check the required fields and try again.', 'project-prepper' ); ?></div>
 	<?php endif; ?>
 
 	<?php if ( ! $success ) : ?>
@@ -30,26 +30,26 @@ defined( 'ABSPATH' ) || exit;
 				<input type="text" name="pp_name" required>
 			</label>
 			<label class="pp-front-field">
-				<span><?php esc_html_e( 'E-Mail *', 'project-prepper' ); ?></span>
+				<span><?php esc_html_e( 'Email *', 'project-prepper' ); ?></span>
 				<input type="email" name="pp_email" required>
 			</label>
 			<label class="pp-front-field">
-				<span><?php esc_html_e( 'Telefon', 'project-prepper' ); ?></span>
+				<span><?php esc_html_e( 'Phone', 'project-prepper' ); ?></span>
 				<input type="tel" name="pp_phone">
 			</label>
 			<label class="pp-front-field">
-				<span><?php esc_html_e( 'Von', 'project-prepper' ); ?></span>
+				<span><?php esc_html_e( 'From', 'project-prepper' ); ?></span>
 				<input type="date" name="pp_from">
 			</label>
 			<label class="pp-front-field">
-				<span><?php esc_html_e( 'Bis', 'project-prepper' ); ?></span>
+				<span><?php esc_html_e( 'To', 'project-prepper' ); ?></span>
 				<input type="date" name="pp_to">
 			</label>
 		</div>
 
 		<?php if ( $items ) : ?>
 			<fieldset class="pp-front-items">
-				<legend><?php esc_html_e( 'Gewünschtes Equipment', 'project-prepper' ); ?></legend>
+				<legend><?php esc_html_e( 'Requested equipment', 'project-prepper' ); ?></legend>
 				<div class="pp-front-items-grid">
 					<?php foreach ( $items as $item ) : ?>
 						<label class="pp-front-check">
@@ -62,11 +62,11 @@ defined( 'ABSPATH' ) || exit;
 		<?php endif; ?>
 
 		<label class="pp-front-field">
-			<span><?php esc_html_e( 'Nachricht', 'project-prepper' ); ?></span>
+			<span><?php esc_html_e( 'Message', 'project-prepper' ); ?></span>
 			<textarea name="pp_message" rows="4"></textarea>
 		</label>
 
-		<button type="submit" class="pp-front-btn pp-front-btn-primary"><?php esc_html_e( 'Anfrage senden', 'project-prepper' ); ?></button>
+		<button type="submit" class="pp-front-btn pp-front-btn-primary"><?php esc_html_e( 'Send inquiry', 'project-prepper' ); ?></button>
 	</form>
 	<?php endif; ?>
 </div>

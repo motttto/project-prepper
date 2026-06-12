@@ -19,7 +19,7 @@ class Privacy {
 
 	public static function register_exporter( array $exporters ): array {
 		$exporters['project-prepper-rentals'] = [
-			'exporter_friendly_name' => __( 'Project Prepper — Verleihdaten', 'project-prepper' ),
+			'exporter_friendly_name' => __( 'Project Prepper — Rental Data', 'project-prepper' ),
 			'callback'               => [ self::class, 'export_rentals' ],
 		];
 		return $exporters;
@@ -27,7 +27,7 @@ class Privacy {
 
 	public static function register_eraser( array $erasers ): array {
 		$erasers['project-prepper-rentals'] = [
-			'eraser_friendly_name' => __( 'Project Prepper — Verleihdaten', 'project-prepper' ),
+			'eraser_friendly_name' => __( 'Project Prepper — Rental Data', 'project-prepper' ),
 			'callback'             => [ self::class, 'erase_rentals' ],
 		];
 		return $erasers;
@@ -44,15 +44,15 @@ class Privacy {
 		foreach ( $rentals as $rental ) {
 			$export_items[] = [
 				'group_id'    => 'pp_rentals',
-				'group_label' => __( 'Verleihvorgänge', 'project-prepper' ),
+				'group_label' => __( 'Rental transactions', 'project-prepper' ),
 				'item_id'     => 'pp-rental-' . $rental->id,
 				'data'        => [
-					[ 'name' => __( 'Verleihnummer', 'project-prepper' ), 'value' => $rental->rental_number ],
+					[ 'name' => __( 'Rental number', 'project-prepper' ), 'value' => $rental->rental_number ],
 					[ 'name' => __( 'Name', 'project-prepper' ), 'value' => $rental->borrower_name ],
-					[ 'name' => __( 'E-Mail', 'project-prepper' ), 'value' => $rental->borrower_email ],
-					[ 'name' => __( 'Telefon', 'project-prepper' ), 'value' => $rental->borrower_phone ],
-					[ 'name' => __( 'Adresse', 'project-prepper' ), 'value' => $rental->borrower_address ?? '' ],
-					[ 'name' => __( 'Zeitraum', 'project-prepper' ), 'value' => $rental->date_from . ' – ' . $rental->date_to ],
+					[ 'name' => __( 'Email', 'project-prepper' ), 'value' => $rental->borrower_email ],
+					[ 'name' => __( 'Phone', 'project-prepper' ), 'value' => $rental->borrower_phone ],
+					[ 'name' => __( 'Address', 'project-prepper' ), 'value' => $rental->borrower_address ?? '' ],
+					[ 'name' => __( 'Period', 'project-prepper' ), 'value' => $rental->date_from . ' – ' . $rental->date_to ],
 					[ 'name' => __( 'Status', 'project-prepper' ), 'value' => $rental->status ],
 				],
 			];
@@ -74,7 +74,7 @@ class Privacy {
 				'UPDATE ' . Schema::table( 'rentals' ) . "
 				 SET borrower_name = %s, borrower_email = '', borrower_phone = '', borrower_address = '', notes = ''
 				 WHERE borrower_email = %s",
-				__( 'Anonymisiert (DSGVO)', 'project-prepper' ),
+				__( 'Anonymized (GDPR)', 'project-prepper' ),
 				$email
 			) );
 			ActivityLog::log( 'gdpr_erasure', 'rental', null, [ 'count' => $count ] );
@@ -84,7 +84,8 @@ class Privacy {
 			'items_removed'  => $count > 0,
 			'items_retained' => false,
 			'messages'       => $count > 0
-				? [ sprintf( __( '%d Verleihvorgänge anonymisiert.', 'project-prepper' ), $count ) ]
+				/* translators: %d: number of anonymized rentals */
+				? [ sprintf( __( '%d rentals anonymized.', 'project-prepper' ), $count ) ]
 				: [],
 			'done'           => true,
 		];

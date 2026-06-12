@@ -49,7 +49,7 @@ class CategoriesController extends BaseController {
 	public function merge( WP_REST_Request $request ) {
 		$target_id = (int) ( ( $request->get_json_params() ?: [] )['target_id'] ?? 0 );
 		if ( $target_id < 1 ) {
-			return new WP_Error( 'pp_missing_target', __( 'Ziel-Kategorie fehlt.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_missing_target', __( 'Target category is missing.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		$result = Inventory::merge_categories( (int) $request['id'], $target_id );
 		if ( is_wp_error( $result ) ) {
@@ -65,7 +65,7 @@ class CategoriesController extends BaseController {
 	public function create( WP_REST_Request $request ) {
 		$data = $this->sanitize_text_fields( $request->get_json_params() ?: [], [ 'name', 'icon', 'prefix' ] );
 		if ( empty( $data['name'] ) ) {
-			return new WP_Error( 'pp_missing_name', __( 'Name fehlt.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_missing_name', __( 'Name is required.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		$data['sort_order'] = (int) ( $request['sort_order'] ?? 0 );
 		$id = Inventory::create_category( $data );

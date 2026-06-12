@@ -31,8 +31,8 @@ class Menu {
 
 		add_submenu_page(
 			'project-prepper',
-			__( 'Inventar', 'project-prepper' ),
-			__( 'Inventar', 'project-prepper' ),
+			__( 'Inventory', 'project-prepper' ),
+			__( 'Inventory', 'project-prepper' ),
 			Capabilities::VIEW_INVENTORY,
 			'project-prepper',
 			[ self::class, 'render_inventory' ]
@@ -40,8 +40,8 @@ class Menu {
 
 		add_submenu_page(
 			'project-prepper',
-			__( 'Verleih', 'project-prepper' ),
-			__( 'Verleih', 'project-prepper' ),
+			__( 'Rentals', 'project-prepper' ),
+			__( 'Rentals', 'project-prepper' ),
 			Capabilities::VIEW_RENTALS,
 			'pp-rentals',
 			[ self::class, 'render_rentals' ]
@@ -49,8 +49,8 @@ class Menu {
 
 		add_submenu_page(
 			'project-prepper',
-			__( 'Anfragen', 'project-prepper' ),
-			__( 'Anfragen', 'project-prepper' ),
+			__( 'Inquiries', 'project-prepper' ),
+			__( 'Inquiries', 'project-prepper' ),
 			Capabilities::VIEW_INQUIRIES,
 			'pp-inquiries',
 			[ self::class, 'render_inquiries' ]
@@ -58,8 +58,8 @@ class Menu {
 
 		add_submenu_page(
 			'project-prepper',
-			__( 'Kategorien', 'project-prepper' ),
-			__( 'Kategorien', 'project-prepper' ),
+			__( 'Categories', 'project-prepper' ),
+			__( 'Categories', 'project-prepper' ),
 			Capabilities::EDIT_INVENTORY,
 			'pp-categories',
 			[ self::class, 'render_categories' ]
@@ -67,8 +67,8 @@ class Menu {
 
 		add_submenu_page(
 			'project-prepper',
-			__( 'Einstellungen', 'project-prepper' ),
-			__( 'Einstellungen', 'project-prepper' ),
+			__( 'Settings', 'project-prepper' ),
+			__( 'Settings', 'project-prepper' ),
 			Capabilities::MANAGE_SETTINGS,
 			'pp-settings',
 			[ self::class, 'render_settings' ]
@@ -83,7 +83,8 @@ class Menu {
 		wp_enqueue_style( 'pp-admin', PP_PLUGIN_URL . 'admin/css/admin.css', [], PP_VERSION );
 		// SheetJS Community Edition (Apache-2.0) — XLSX-Import/-Export client-seitig, lokal gebündelt (kein CDN).
 		wp_enqueue_script( 'pp-xlsx', PP_PLUGIN_URL . 'admin/js/vendor/xlsx.full.min.js', [], '0.20.3', true );
-		wp_enqueue_script( 'pp-admin', PP_PLUGIN_URL . 'admin/js/admin.js', [ 'pp-xlsx' ], PP_VERSION, true );
+		wp_enqueue_script( 'pp-admin', PP_PLUGIN_URL . 'admin/js/admin.js', [ 'pp-xlsx', 'wp-i18n' ], PP_VERSION, true );
+		wp_set_script_translations( 'pp-admin', 'project-prepper', PP_PLUGIN_DIR . 'languages' );
 
 		wp_localize_script( 'pp-admin', 'ppConfig', [
 			'restUrl' => esc_url_raw( rest_url( 'project-prepper/v1' ) ),
@@ -99,22 +100,22 @@ class Menu {
 	}
 
 	public static function render_inventory(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Inventar', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="inventory"></div></div>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Inventory', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="inventory"></div></div>';
 	}
 
 	public static function render_rentals(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Verleih', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="rentals"></div></div>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Rentals', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="rentals"></div></div>';
 	}
 
 	public static function render_categories(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Kategorien', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="categories"></div></div>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Categories', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="categories"></div></div>';
 	}
 
 	public static function render_settings(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Einstellungen', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="settings"></div></div>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Settings', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="settings"></div></div>';
 	}
 
 	public static function render_inquiries(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Anfragen', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="inquiries"></div></div>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Inquiries', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="inquiries"></div></div>';
 	}
 }

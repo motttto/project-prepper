@@ -70,6 +70,7 @@ class Blocks {
 			PP_VERSION,
 			true
 		);
+		wp_set_script_translations( 'pp-blocks-editor', 'project-prepper', PP_PLUGIN_DIR . 'languages' );
 		wp_enqueue_style( 'pp-frontend', PP_PLUGIN_URL . 'assets/css/frontend.css', [], PP_VERSION );
 	}
 }

@@ -6,6 +6,10 @@
 (function () {
 	"use strict";
 
+	var __ = wp.i18n.__;
+	var _x = wp.i18n._x;
+	var sprintf = wp.i18n.sprintf;
+
 	var root = document.getElementById("pp-admin");
 	if (!root || typeof ppConfig === "undefined") return;
 
@@ -34,7 +38,7 @@
 
 	function handleResponse(res) {
 		return res.json().then(function (body) {
-			if (!res.ok) throw new Error(body && body.message ? body.message : "Fehler " + res.status);
+			if (!res.ok) throw new Error(body && body.message ? body.message : __("Error", "project-prepper") + " " + res.status);
 			return body;
 		});
 	}
@@ -102,9 +106,9 @@
 		return parts[2] + "." + parts[1] + "." + parts[0];
 	}
 
-	var CONDITIONS = { new: "Neu", good: "Gut", fair: "Gebraucht", poor: "Schlecht", broken: "Defekt", retired: "Ausgemustert" };
-	var STATUS_LABELS = { reserved: "Reserviert", active: "Verliehen", returned: "Zurückgegeben", cancelled: "Storniert" };
-	var STATUS_ACTIONS = { active: "Ausgeben", returned: "Rücknahme", cancelled: "Stornieren" };
+	var CONDITIONS = { new: __("New", "project-prepper"), good: __("Good", "project-prepper"), fair: __("Used", "project-prepper"), poor: __("Poor", "project-prepper"), broken: __("Broken", "project-prepper"), retired: __("Retired", "project-prepper") };
+	var STATUS_LABELS = { reserved: __("Reserved", "project-prepper"), active: __("On loan", "project-prepper"), returned: __("Returned", "project-prepper"), cancelled: __("Cancelled", "project-prepper") };
+	var STATUS_ACTIONS = { active: __("Hand out", "project-prepper"), returned: __("Take back", "project-prepper"), cancelled: _x("Cancel", "rental status action", "project-prepper") };
 	var TRANSITIONS = { reserved: ["active", "returned", "cancelled"], active: ["returned", "cancelled"] };
 
 	function badge(value, labels) {
@@ -134,16 +138,16 @@
 		var kpiBox = el("div", { class: "pp-kpis" });
 		var pillBox = el("div", { class: "pp-pills" });
 		var listBox = el("div");
-		var search = el("input", { type: "search", class: "pp-search", placeholder: "Suchen: Name, Nummer, Hersteller, Seriennummer, Tags …" });
+		var search = el("input", { type: "search", class: "pp-search", placeholder: __("Search: name, number, manufacturer, serial number, tags …", "project-prepper") });
 
 		function loadStats() {
 			api("/stats").then(function (s) {
 				kpiBox.innerHTML = "";
 				[
-					{ value: s.item_count, label: "Artikel" },
-					{ value: s.total_pieces, label: "Teile gesamt" },
-					{ value: s.out_today, label: "Heute unterwegs" },
-					{ value: money(s.daily_value), label: "Tageswert Inventar" }
+					{ value: s.item_count, label: __("Items", "project-prepper") },
+					{ value: s.total_pieces, label: __("Total pieces", "project-prepper") },
+					{ value: s.out_today, label: __("Out today", "project-prepper") },
+					{ value: money(s.daily_value), label: __("Daily inventory value", "project-prepper") }
 				].forEach(function (kpi) {
 					kpiBox.appendChild(el("div", { class: "pp-kpi" }, [
 						el("div", { class: "pp-kpi-value", text: String(kpi.value) }),
@@ -158,10 +162,10 @@
 			// Toggle "Ausgeliehen" (§8.5) — Artikel, die heute in reserved/active-Verleihen stecken.
 			pillBox.appendChild(el("button", {
 				class: "pp-pill pp-pill-out" + (outOnly ? " is-active" : ""),
-				text: "Ausgeliehen",
+				text: __("Out now", "project-prepper"),
 				onclick: function () { outOnly = !outOnly; renderPills(); loadItems(); }
 			}));
-			var all = el("button", { class: "pp-pill" + (activeCategory === "" ? " is-active" : ""), text: "Alle", onclick: function () { activeCategory = ""; renderPills(); loadItems(); } });
+			var all = el("button", { class: "pp-pill" + (activeCategory === "" ? " is-active" : ""), text: __("All", "project-prepper"), onclick: function () { activeCategory = ""; renderPills(); loadItems(); } });
 			pillBox.appendChild(all);
 			categories.forEach(function (cat) {
 				pillBox.appendChild(el("button", {
@@ -181,7 +185,7 @@
 				listBox.innerHTML = "";
 				var table = el("table", { class: "pp-table" });
 				table.appendChild(el("thead", {
-					html: "<tr><th></th><th>Nummer</th><th>Name</th><th>Kategorie</th><th>Menge</th><th>Zustand</th><th>Tagessatz</th><th>Lagerort</th><th>Doku</th></tr>"
+					html: "<tr><th></th><th>" + __("Number", "project-prepper") + "</th><th>" + __("Name", "project-prepper") + "</th><th>" + __("Category", "project-prepper") + "</th><th>" + __("Quantity", "project-prepper") + "</th><th>" + __("Condition", "project-prepper") + "</th><th>" + __("Daily rate", "project-prepper") + "</th><th>" + __("Location", "project-prepper") + "</th><th>" + __("Docs", "project-prepper") + "</th></tr>"
 				}));
 				var tbody = el("tbody");
 				items.forEach(function (item) {
@@ -191,7 +195,7 @@
 					// Badge "n unterwegs" wenn der Artikel heute in Verleihen steckt.
 					var nameCell = el("td", null, [el("span", { text: item.name })]);
 					if (item.out_now > 0) {
-						nameCell.appendChild(el("span", { class: "pp-badge pp-badge-active pp-badge-out", text: item.out_now + " unterwegs" }));
+						nameCell.appendChild(el("span", { class: "pp-badge pp-badge-active pp-badge-out", text: item.out_now + " " + __("on loan", "project-prepper") }));
 					}
 					// Doku-Spalte: 1 PDF → direkt öffnen, mehrere → Detail-Modal (wie App, Commit e9fe5b8).
 					var docsCell = el("td");
@@ -199,13 +203,13 @@
 					if (docs.length === 1) {
 						docsCell.appendChild(el("a", {
 							class: "pp-link", href: docs[0].url, target: "_blank", rel: "noopener noreferrer",
-							text: "PDF anzeigen", title: "PDF anzeigen",
+							text: __("View PDF", "project-prepper"), title: __("View PDF", "project-prepper"),
 							onclick: function (e) { e.stopPropagation(); }
 						}));
 					} else if (docs.length > 1) {
 						docsCell.appendChild(el("button", {
 							class: "pp-link", type: "button",
-							text: "PDFs (" + docs.length + ")", title: "Dokumente anzeigen",
+							text: "PDFs (" + docs.length + ")", title: __("View documents", "project-prepper"),
 							onclick: function (e) { e.stopPropagation(); openItemModal(item.id); }
 						}));
 					} else {
@@ -224,7 +228,7 @@
 					]);
 					tbody.appendChild(row);
 				});
-				if (!items.length) tbody.appendChild(el("tr", { html: '<td colspan="9" class="pp-muted">Keine Artikel gefunden.</td>' }));
+				if (!items.length) tbody.appendChild(el("tr", { html: '<td colspan="9" class="pp-muted">' + __("No items found.", "project-prepper") + "</td>" }));
 				table.appendChild(tbody);
 				listBox.appendChild(el("div", { class: "pp-table-wrap" }, [table]));
 			}).catch(function (e) { toast(e.message, "error"); });
@@ -244,7 +248,7 @@
 			api("/items/" + itemId).then(function (item) {
 				var f = {};
 				f.name = el("input", { type: "text", value: item.name || "" });
-				f.category = el("select", null, [el("option", { value: "", text: "— Kategorie —" })].concat(categories.map(function (cat) {
+				f.category = el("select", null, [el("option", { value: "", text: __("— category —", "project-prepper") })].concat(categories.map(function (cat) {
 					return el("option", { value: cat.id, text: cat.name });
 				})));
 				f.category.value = item.category_id || "";
@@ -262,18 +266,18 @@
 				f.powerWatts = el("input", { type: "number", value: item.power_watts || "" });
 				f.manufacturerUrl = el("input", { type: "url", value: item.manufacturer_url || "" });
 				f.manualUrl = el("input", { type: "url", value: item.manual_url || "" });
-				f.tags = el("input", { type: "text", value: (item.tags || []).join(", "), placeholder: "Komma-getrennt" });
+				f.tags = el("input", { type: "text", value: (item.tags || []).join(", "), placeholder: __("Comma-separated", "project-prepper") });
 				f.description = el("textarea", { rows: "2" }); f.description.value = item.description || "";
 				f.accessories = el("textarea", { rows: "2" }); f.accessories.value = item.accessories || "";
 				f.notes = el("textarea", { rows: "2" }); f.notes.value = item.notes || "";
 				// Eigentum & Abschreibung (§8.7 — reine Dokumentation, keine Buchung)
-				var OWNERSHIP_TYPES = { "": "—", own: "Eigen", loaned: "Geliehen", funded: "Gefördert", other: "Sonstig" };
-				var DEPRECIATION_METHODS = { "": "—", linear: "Linear", degressive: "Degressiv", none: "Keine" };
+				var OWNERSHIP_TYPES = { "": "—", own: __("Own", "project-prepper"), loaned: __("Loaned", "project-prepper"), funded: __("Funded", "project-prepper"), other: __("Other", "project-prepper") };
+				var DEPRECIATION_METHODS = { "": "—", linear: __("Linear", "project-prepper"), degressive: __("Declining balance", "project-prepper"), none: __("None", "project-prepper") };
 				f.ownershipType = el("select", null, Object.keys(OWNERSHIP_TYPES).map(function (key) {
 					return el("option", { value: key, text: OWNERSHIP_TYPES[key] });
 				}));
 				f.ownershipType.value = item.ownership_type || "";
-				f.fundingSource = el("input", { type: "text", value: item.funding_source || "", placeholder: "z. B. Förderprogramm, Spende" });
+				f.fundingSource = el("input", { type: "text", value: item.funding_source || "", placeholder: __("e.g. funding program, donation", "project-prepper") });
 				f.depreciationMethod = el("select", null, Object.keys(DEPRECIATION_METHODS).map(function (key) {
 					return el("option", { value: key, text: DEPRECIATION_METHODS[key] });
 				}));
@@ -283,26 +287,26 @@
 
 				var body = el("div", null, [
 					el("div", { class: "pp-modal-grid" }, [
-						field("Name *", f.name), field("Kategorie", f.category), field("Menge", f.quantity),
-						field("Zustand", f.condition), field("Lagerort", f.location), field("Hersteller", f.manufacturer),
-						field("Modell", f.model), field("Seriennummer", f.serial), field("Tagessatz €", f.costPerDay),
-						field("Kaufpreis €", f.purchasePrice), field("Kaufdatum", f.purchaseDate), field("Aktueller Wert €", f.currentValue),
-						field("Maße", f.dimensions), field("Leistung (W)", f.powerWatts),
-						field("Hersteller-URL", f.manufacturerUrl), field("Manual-URL", f.manualUrl)
+						field(__("Name *", "project-prepper"), f.name), field(__("Category", "project-prepper"), f.category), field(__("Quantity", "project-prepper"), f.quantity),
+						field(__("Condition", "project-prepper"), f.condition), field(__("Location", "project-prepper"), f.location), field(__("Manufacturer", "project-prepper"), f.manufacturer),
+						field(__("Model", "project-prepper"), f.model), field(__("Serial number", "project-prepper"), f.serial), field(__("Daily rate €", "project-prepper"), f.costPerDay),
+						field(__("Purchase price €", "project-prepper"), f.purchasePrice), field(__("Purchase date", "project-prepper"), f.purchaseDate), field(__("Current value €", "project-prepper"), f.currentValue),
+						field(__("Dimensions", "project-prepper"), f.dimensions), field(__("Power (W)", "project-prepper"), f.powerWatts),
+						field(__("Manufacturer URL", "project-prepper"), f.manufacturerUrl), field(__("Manual URL", "project-prepper"), f.manualUrl)
 					]),
 					el("div", { class: "pp-modal-section" }, [
-						el("h3", { text: "Texte" }),
+						el("h3", { text: __("Texts", "project-prepper") }),
 						el("div", { class: "pp-modal-grid" }, [
-							field("Beschreibung", f.description), field("Zubehör", f.accessories),
-							field("Tags", f.tags), field("Notizen", f.notes)
+							field(__("Description", "project-prepper"), f.description), field(__("Accessories", "project-prepper"), f.accessories),
+							field(__("Tags", "project-prepper"), f.tags), field(__("Notes", "project-prepper"), f.notes)
 						])
 					]),
 					el("div", { class: "pp-modal-section", "data-section": "ownership" }, [
-						el("h3", { text: "Eigentum & Abschreibung" }),
+						el("h3", { text: __("Ownership & depreciation", "project-prepper") }),
 						el("div", { class: "pp-modal-grid" }, [
-							field("Eigentum", f.ownershipType), field("Finanzierungsquelle", f.fundingSource),
-							field("Abschreibung", f.depreciationMethod), field("Nutzungsdauer (Jahre)", f.depreciationYears),
-							field("Restwert €", f.residualValue)
+							field(__("Ownership", "project-prepper"), f.ownershipType), field(__("Funding source", "project-prepper"), f.fundingSource),
+							field(__("Depreciation", "project-prepper"), f.depreciationMethod), field(__("Useful life (years)", "project-prepper"), f.depreciationYears),
+							field(__("Residual value €", "project-prepper"), f.residualValue)
 						])
 					])
 				]);
@@ -311,13 +315,13 @@
 				var photoSection = el("div", { class: "pp-modal-section" });
 				function renderPhoto(current) {
 					photoSection.innerHTML = "";
-					photoSection.appendChild(el("h3", { text: "Foto" }));
+					photoSection.appendChild(el("h3", { text: __("Photo", "project-prepper") }));
 					if (current.image_url) photoSection.appendChild(el("img", { class: "pp-item-photo", src: current.image_url, alt: "" }));
 					var fileInput = el("input", { type: "file", accept: "image/*" });
 					fileInput.addEventListener("change", function () {
 						if (!fileInput.files.length) return;
 						apiUpload("/items/" + itemId + "/image", fileInput.files[0]).then(function (updated) {
-							toast("Foto gespeichert.");
+							toast(__("Photo saved.", "project-prepper"));
 							renderPhoto(updated);
 							loadItems();
 						}).catch(function (e) { toast(e.message, "error"); });
@@ -325,7 +329,7 @@
 					var row = el("div", { class: "pp-row" }, [fileInput]);
 					if (current.image_url) {
 						row.appendChild(el("button", {
-							class: "pp-link pp-link-danger", text: "Foto entfernen",
+							class: "pp-link pp-link-danger", text: __("Remove photo", "project-prepper"),
 							onclick: function () {
 								api("/items/" + itemId + "/image", { method: "DELETE" }).then(function (updated) {
 									renderPhoto(updated); loadItems();
@@ -342,14 +346,14 @@
 				var docsSection = el("div", { class: "pp-modal-section" });
 				function renderDocs(current) {
 					docsSection.innerHTML = "";
-					docsSection.appendChild(el("h3", { text: "PDF-Dokumente" }));
+					docsSection.appendChild(el("h3", { text: __("PDF documents", "project-prepper") }));
 					var list = el("ul", { class: "pp-lines" });
 					(current.documents || []).forEach(function (doc) {
 						list.appendChild(el("li", null, [
-							el("a", { href: doc.url, target: "_blank", text: doc.title || "Dokument", class: "pp-link" }),
+							el("a", { href: doc.url, target: "_blank", text: doc.title || __("Document", "project-prepper"), class: "pp-link" }),
 							el("span", { class: "pp-spacer" }),
 							el("button", {
-								class: "pp-link pp-link-danger", text: "entfernen",
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"),
 								onclick: function () {
 									api("/items/" + itemId + "/documents/" + doc.id, { method: "DELETE" }).then(function (updated) {
 										renderDocs(updated); loadItems();
@@ -358,13 +362,13 @@
 							})
 						]));
 					});
-					if (!(current.documents || []).length) list.appendChild(el("li", { class: "pp-muted", text: "Keine Dokumente." }));
+					if (!(current.documents || []).length) list.appendChild(el("li", { class: "pp-muted", text: __("No documents.", "project-prepper") }));
 					docsSection.appendChild(list);
 					var fileInput = el("input", { type: "file", accept: "application/pdf" });
 					fileInput.addEventListener("change", function () {
 						if (!fileInput.files.length) return;
 						apiUpload("/items/" + itemId + "/documents", fileInput.files[0]).then(function (updated) {
-							toast("PDF hochgeladen.");
+							toast(__("PDF uploaded.", "project-prepper"));
 							renderDocs(updated); loadItems();
 						}).catch(function (e) { toast(e.message, "error"); });
 					});
@@ -378,14 +382,14 @@
 				function renderUnits() {
 					api("/items/" + itemId + "/units").then(function (units) {
 						unitsSection.innerHTML = "";
-						unitsSection.appendChild(el("h3", { text: "Einzelstücke (" + units.length + "/" + item.quantity + ")" }));
+						unitsSection.appendChild(el("h3", { text: __("Units", "project-prepper") + " (" + units.length + "/" + item.quantity + ")" }));
 						var list = el("ul", { class: "pp-lines" });
 						units.forEach(function (unit) {
 							var cond = conditionSelect(unit.unit_condition);
 							cond.addEventListener("change", function () {
 								api("/units/" + unit.id, { method: "PUT", body: JSON.stringify({ condition: cond.value }) });
 							});
-							var notes = el("input", { type: "text", value: unit.notes || "", placeholder: "Notizen" });
+							var notes = el("input", { type: "text", value: unit.notes || "", placeholder: __("Notes", "project-prepper") });
 							notes.addEventListener("change", function () {
 								api("/units/" + unit.id, { method: "PUT", body: JSON.stringify({ notes: notes.value }) });
 							});
@@ -393,16 +397,16 @@
 								el("code", { text: "#" + unit.unit_number }),
 								cond, notes,
 								el("button", {
-									class: "pp-link pp-link-danger", text: "löschen",
+									class: "pp-link pp-link-danger", text: __("delete", "project-prepper"),
 									onclick: function () { api("/units/" + unit.id, { method: "DELETE" }).then(renderUnits); }
 								})
 							]));
 						});
-						if (!units.length) list.appendChild(el("li", { class: "pp-muted", text: "Kein Einzelstück-Tracking." }));
+						if (!units.length) list.appendChild(el("li", { class: "pp-muted", text: __("No unit tracking.", "project-prepper") }));
 						unitsSection.appendChild(list);
 						if (units.length < item.quantity) {
 							unitsSection.appendChild(el("button", {
-								class: "pp-btn pp-btn-sm", text: "+ Einzelstück",
+								class: "pp-btn pp-btn-sm", text: __("+ Unit", "project-prepper"),
 								onclick: function () {
 									api("/items/" + itemId + "/units", { method: "POST", body: JSON.stringify({}) })
 										.then(renderUnits).catch(function (e) { toast(e.message, "error"); });
@@ -417,18 +421,19 @@
 				var close;
 				var footer = el("div", { class: "pp-modal-footer" }, [
 					el("button", {
-						class: "pp-btn pp-btn-danger", text: "Artikel löschen",
+						class: "pp-btn pp-btn-danger", text: __("Delete item", "project-prepper"),
 						onclick: function () {
-							if (!confirm('Artikel "' + item.name + '" löschen?')) return;
+							/* translators: %s: item name */
+							if (!confirm(sprintf(__('Delete item "%s"?', "project-prepper"), item.name))) return;
 							api("/items/" + itemId, { method: "DELETE" }).then(function () {
-								toast("Artikel gelöscht."); close(); loadItems(); loadStats();
+								toast(__("Item deleted.", "project-prepper")); close(); loadItems(); loadStats();
 							});
 						}
 					}),
 					el("div", { class: "pp-right" }, [
-						el("button", { class: "pp-btn", text: "Schließen", onclick: function () { close(); } }),
+						el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } }),
 						el("button", {
-							class: "pp-btn pp-btn-primary", text: "Speichern",
+							class: "pp-btn pp-btn-primary", text: __("Save", "project-prepper"),
 							onclick: function () {
 								api("/items/" + itemId, {
 									method: "PUT",
@@ -460,7 +465,7 @@
 										notes: f.notes.value
 									})
 								}).then(function () {
-									toast("Gespeichert."); close(); loadItems(); loadStats();
+									toast(__("Saved.", "project-prepper")); close(); loadItems(); loadStats();
 								}).catch(function (e) { toast(e.message, "error"); });
 							}
 						})
@@ -474,12 +479,12 @@
 
 		var createCard = null;
 		if (ppConfig.canEdit.inventory) {
-			var cName = el("input", { type: "text", placeholder: "Name *", class: "pp-input-lg" });
+			var cName = el("input", { type: "text", placeholder: __("Name *", "project-prepper"), class: "pp-input-lg" });
 			var cCat = el("select", { class: "pp-input-md" });
 			var cQty = el("input", { type: "number", value: "1", min: "1", class: "pp-input-sm" });
 			var cCondition = conditionSelect("good"); cCondition.classList.add("pp-input-sm");
-			var cRate = el("input", { type: "number", step: "0.01", placeholder: "Tagessatz €", class: "pp-input-sm" });
-			var cLocation = el("input", { type: "text", placeholder: "Lagerort", class: "pp-input-md" });
+			var cRate = el("input", { type: "number", step: "0.01", placeholder: __("Daily rate €", "project-prepper"), class: "pp-input-sm" });
+			var cLocation = el("input", { type: "text", placeholder: __("Location", "project-prepper"), class: "pp-input-md" });
 			// Foto + PDFs direkt beim Anlegen (wie App, Commit 60eb81b):
 			// erst POST /items, danach die Media-Endpoints mit der neuen Artikel-ID.
 			var cPhoto = el("input", { type: "file", accept: "image/*" });
@@ -492,7 +497,7 @@
 					chain = chain.then(function () {
 						return apiUpload("/items/" + itemId + "/image", photoFile);
 					}).catch(function (e) {
-						toast("Foto-Upload fehlgeschlagen: " + e.message, "error");
+						toast(__("Photo upload failed:", "project-prepper") + " " + e.message, "error");
 					});
 				}
 				// PDFs sequentiell hochladen (Dokumentliste wird serverseitig fortgeschrieben).
@@ -500,14 +505,15 @@
 					chain = chain.then(function () {
 						return apiUpload("/items/" + itemId + "/documents", file);
 					}).catch(function (e) {
-						toast('PDF "' + file.name + '" fehlgeschlagen: ' + e.message, "error");
+						/* translators: 1: file name, 2: error message */
+						toast(sprintf(__('PDF "%1$s" failed: %2$s', "project-prepper"), file.name, e.message), "error");
 					});
 				});
 				return chain;
 			}
 
 			createCard = el("div", { class: "pp-card" }, [
-				el("h2", { text: "Neuer Artikel" }),
+				el("h2", { text: __("New item", "project-prepper") }),
 				el("form", {
 					onsubmit: function (e) {
 						e.preventDefault();
@@ -523,7 +529,8 @@
 								location: cLocation.value.trim()
 							})
 						}).then(function (item) {
-							toast("Artikel " + item.inventory_number + " angelegt.");
+							/* translators: %s: inventory number */
+							toast(sprintf(__("Item %s created.", "project-prepper"), item.inventory_number));
 							// Artikel bleibt auch bei Upload-Fehlern angelegt.
 							uploadCreateMedia(item.id).then(function () {
 								cPhoto.value = ""; cPdfs.value = "";
@@ -535,15 +542,15 @@
 				}, [
 					el("div", { class: "pp-row" }, [cName, cCat, cQty, cCondition, cRate, cLocation]),
 					el("div", { class: "pp-row" }, [
-						field("Foto", cPhoto),
-						field("PDF-Dokumente", cPdfs),
-						el("button", { class: "pp-btn pp-btn-primary", text: "Anlegen" })
+						field(__("Photo", "project-prepper"), cPhoto),
+						field(__("PDF documents", "project-prepper"), cPdfs),
+						el("button", { class: "pp-btn pp-btn-primary", text: __("Create", "project-prepper") })
 					])
 				])
 			]);
 			loadCategories(function () {
 				cCat.innerHTML = "";
-				cCat.appendChild(el("option", { value: "", text: "— Kategorie —" }));
+				cCat.appendChild(el("option", { value: "", text: __("— category —", "project-prepper") }));
 				categories.forEach(function (cat) { cCat.appendChild(el("option", { value: cat.id, text: cat.name })); });
 			});
 		} else {
@@ -554,14 +561,14 @@
 
 		// Export-Spalten = EXPORT_COLUMNS des CSV-Endpoints (ImportExportController), 19 Spalten, deutsche Header.
 		var EXPORT_COLUMNS = [
-			["inventory_number", "Inventarnummer"], ["name", "Name"], ["category_name", "Kategorie"],
-			["description", "Beschreibung"], ["manufacturer", "Hersteller"], ["model", "Modell"],
-			["serial_number", "Seriennummer"], ["quantity", "Menge"], ["condition", "Zustand"],
-			["location", "Lagerort"], ["cost_per_day", "Tagessatz"], ["purchase_price", "Kaufpreis"],
-			["purchase_date", "Kaufdatum"], ["current_value", "Aktueller Wert"], ["dimensions", "Maße"],
-			["power_watts", "Leistung (W)"], ["accessories", "Zubehör"], ["tags", "Tags"], ["notes", "Notizen"]
+			["inventory_number", __("Inventory number", "project-prepper")], ["name", __("Name", "project-prepper")], ["category_name", __("Category", "project-prepper")],
+			["description", __("Description", "project-prepper")], ["manufacturer", __("Manufacturer", "project-prepper")], ["model", __("Model", "project-prepper")],
+			["serial_number", __("Serial number", "project-prepper")], ["quantity", __("Quantity", "project-prepper")], ["condition", __("Condition", "project-prepper")],
+			["location", __("Location", "project-prepper")], ["cost_per_day", __("Daily rate", "project-prepper")], ["purchase_price", __("Purchase price", "project-prepper")],
+			["purchase_date", __("Purchase date", "project-prepper")], ["current_value", __("Current value", "project-prepper")], ["dimensions", __("Dimensions", "project-prepper")],
+			["power_watts", __("Power (W)", "project-prepper")], ["accessories", __("Accessories", "project-prepper")], ["tags", __("Tags", "project-prepper")], ["notes", __("Notes", "project-prepper")]
 		];
-		var CONDITION_EXPORT_LABELS = { new: "Neu", good: "Gut", fair: "Gebraucht", poor: "Schlecht", broken: "Defekt", retired: "Ausgemustert" };
+		var CONDITION_EXPORT_LABELS = CONDITIONS;
 
 		function currentFilterParams() {
 			var params = [];
@@ -586,49 +593,49 @@
 				});
 				var ws = XLSX.utils.aoa_to_sheet([headers].concat(rows));
 				var wb = XLSX.utils.book_new();
-				XLSX.utils.book_append_sheet(wb, ws, "Inventar");
-				XLSX.writeFile(wb, "inventar-" + new Date().toISOString().slice(0, 10) + ".xlsx");
+				XLSX.utils.book_append_sheet(wb, ws, __("Inventory", "project-prepper"));
+				XLSX.writeFile(wb, __("inventory", "project-prepper") + "-" + new Date().toISOString().slice(0, 10) + ".xlsx");
 			}).catch(function (e) { toast(e.message, "error"); });
 		}
 
 		var toolbar = el("div", { class: "pp-toolbar" }, [search]);
 		if (ppConfig.canEdit.importExport) {
-			toolbar.appendChild(el("button", { class: "pp-btn", text: "Export", onclick: exportXlsx }));
+			toolbar.appendChild(el("button", { class: "pp-btn", text: __("Export", "project-prepper"), onclick: exportXlsx }));
 			toolbar.appendChild(el("button", {
-				class: "pp-btn pp-btn-sm", text: "CSV-Export",
+				class: "pp-btn pp-btn-sm", text: __("CSV export", "project-prepper"),
 				onclick: function () {
 					var params = currentFilterParams();
 					fetch(ppConfig.restUrl + "/export" + (params.length ? "?" + params.join("&") : ""), {
 						headers: { "X-WP-Nonce": ppConfig.nonce }
 					}).then(function (res) {
-						if (!res.ok) throw new Error("Export fehlgeschlagen");
+						if (!res.ok) throw new Error(__("Export failed", "project-prepper"));
 						return res.blob();
 					}).then(function (blob) {
-						var a = el("a", { href: URL.createObjectURL(blob), download: "inventar-" + new Date().toISOString().slice(0, 10) + ".csv" });
+						var a = el("a", { href: URL.createObjectURL(blob), download: __("inventory", "project-prepper") + "-" + new Date().toISOString().slice(0, 10) + ".csv" });
 						a.click();
 						URL.revokeObjectURL(a.href);
 					}).catch(function (e) { toast(e.message, "error"); });
 				}
 			}));
-			toolbar.appendChild(el("button", { class: "pp-btn", text: "Import", onclick: openImportModal }));
+			toolbar.appendChild(el("button", { class: "pp-btn", text: __("Import", "project-prepper"), onclick: openImportModal }));
 		}
 
 		function openImportModal() {
 			var FIELD_OPTIONS = {
-				"": "— ignorieren —", inventory_number: "Inventarnummer", name: "Name", category: "Kategorie",
-				description: "Beschreibung", manufacturer: "Hersteller", model: "Modell", serial_number: "Seriennummer",
-				quantity: "Menge", condition: "Zustand", location: "Lagerort", cost_per_day: "Tagessatz",
-				purchase_price: "Kaufpreis", purchase_date: "Kaufdatum", current_value: "Aktueller Wert",
-				dimensions: "Maße", power_watts: "Leistung (W)", accessories: "Zubehör", tags: "Tags", notes: "Notizen"
+				"": __("— ignore —", "project-prepper"), inventory_number: __("Inventory number", "project-prepper"), name: __("Name", "project-prepper"), category: __("Category", "project-prepper"),
+				description: __("Description", "project-prepper"), manufacturer: __("Manufacturer", "project-prepper"), model: __("Model", "project-prepper"), serial_number: __("Serial number", "project-prepper"),
+				quantity: __("Quantity", "project-prepper"), condition: __("Condition", "project-prepper"), location: __("Location", "project-prepper"), cost_per_day: __("Daily rate", "project-prepper"),
+				purchase_price: __("Purchase price", "project-prepper"), purchase_date: __("Purchase date", "project-prepper"), current_value: __("Current value", "project-prepper"),
+				dimensions: __("Dimensions", "project-prepper"), power_watts: __("Power (W)", "project-prepper"), accessories: __("Accessories", "project-prepper"), tags: __("Tags", "project-prepper"), notes: __("Notes", "project-prepper")
 			};
 			var AUTO_MAP = [
-				[/inventar|nummer/i, "inventory_number"], [/^name|bezeichnung|artikel/i, "name"], [/kategorie/i, "category"],
-				[/beschreibung/i, "description"], [/hersteller$/i, "manufacturer"], [/modell|typ/i, "model"],
-				[/serie/i, "serial_number"], [/menge|anzahl|stück/i, "quantity"], [/zustand/i, "condition"],
-				[/lager|ort/i, "location"], [/tagessatz|tagespreis|miete/i, "cost_per_day"], [/kaufpreis/i, "purchase_price"],
-				[/kaufdatum/i, "purchase_date"], [/wert/i, "current_value"], [/maße|abmessung/i, "dimensions"],
-				[/leistung|watt/i, "power_watts"], [/zubehör/i, "accessories"], [/tags|schlagwort/i, "tags"],
-				[/notiz|bemerkung/i, "notes"]
+				[/inventar|inventory|^nummer$|^number$/i, "inventory_number"], [/^name|bezeichnung|artikel|^item/i, "name"], [/kategorie|category/i, "category"],
+				[/beschreibung|description/i, "description"], [/hersteller$|manufacturer$/i, "manufacturer"], [/modell|typ|model|type/i, "model"],
+				[/serie|serial/i, "serial_number"], [/menge|anzahl|stück|quantity|qty/i, "quantity"], [/zustand|condition/i, "condition"],
+				[/lager|ort|location/i, "location"], [/tagessatz|tagespreis|miete|daily/i, "cost_per_day"], [/kaufpreis|purchase price/i, "purchase_price"],
+				[/kaufdatum|purchase date/i, "purchase_date"], [/wert|value/i, "current_value"], [/maße|abmessung|dimension/i, "dimensions"],
+				[/leistung|watt|power/i, "power_watts"], [/zubehör|accessor/i, "accessories"], [/tags|schlagwort/i, "tags"],
+				[/notiz|bemerkung|note/i, "notes"]
 			];
 
 			var body = el("div");
@@ -636,10 +643,10 @@
 				type: "file",
 				accept: ".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv"
 			});
-			body.appendChild(el("div", { class: "pp-field" }, [el("label", { text: "Datei (.xlsx, .xls oder .csv — erste Zeile = Überschriften)" }), fileInput]));
+			body.appendChild(el("div", { class: "pp-field" }, [el("label", { text: __("File (.xlsx, .xls or .csv — first row = headers)", "project-prepper") }), fileInput]));
 			var stage = el("div");
 			body.appendChild(stage);
-			var close = openModal("Inventar importieren", body);
+			var close = openModal(__("Import inventory", "project-prepper"), body);
 
 			fileInput.addEventListener("change", function () {
 				if (!fileInput.files.length) return;
@@ -651,10 +658,10 @@
 					try {
 						rows = isExcel ? parseXlsx(reader.result) : parseCsv(String(reader.result));
 					} catch (e) {
-						toast("Datei konnte nicht gelesen werden: " + e.message, "error");
+						toast(__("Could not read file:", "project-prepper") + " " + e.message, "error");
 						return;
 					}
-					if (rows.length < 2) { toast("Datei enthält keine Datenzeilen.", "error"); return; }
+					if (rows.length < 2) { toast(__("File contains no data rows.", "project-prepper"), "error"); return; }
 					showMapping(rows[0], rows.slice(1));
 				};
 				if (isExcel) reader.readAsArrayBuffer(file);
@@ -683,11 +690,13 @@
 				});
 				table.appendChild(tbody);
 				stage.appendChild(el("div", { class: "pp-modal-section" }, [
-					el("h3", { text: "Spalten zuordnen (Vorschau: erste 5 Zeilen von " + dataRows.length + ")" }),
+					/* translators: %d: number of data rows */
+					el("h3", { text: sprintf(__("Map columns (preview: first 5 of %d rows)", "project-prepper"), dataRows.length) }),
 					el("div", { class: "pp-import-preview" }, [el("div", { class: "pp-table-wrap" }, [table])])
 				]));
 
-				var importBtn = el("button", { class: "pp-btn pp-btn-primary", text: dataRows.length + " Zeilen importieren" });
+				/* translators: %d: number of data rows */
+				var importBtn = el("button", { class: "pp-btn pp-btn-primary", text: sprintf(__("Import %d rows", "project-prepper"), dataRows.length) });
 				var result = el("div", { class: "pp-import-errors" });
 				importBtn.addEventListener("click", function () {
 					var mapped = dataRows.map(function (row) {
@@ -699,10 +708,17 @@
 					}).filter(function (obj) { return Object.keys(obj).length; });
 					importBtn.disabled = true;
 					api("/import", { method: "POST", body: JSON.stringify({ rows: mapped }) }).then(function (res) {
-						toast(res.created + " Artikel importiert" + (res.errors.length ? ", " + res.errors.length + " Fehler" : "") + ".");
+						/* translators: %d: number of imported items */
+						var importedMsg = sprintf(__("%d items imported", "project-prepper"), res.created);
+						if (res.errors.length) {
+							/* translators: %d: number of failed rows */
+							importedMsg += ", " + sprintf(__("%d errors", "project-prepper"), res.errors.length);
+						}
+						toast(importedMsg + ".");
 						result.innerHTML = "";
 						res.errors.forEach(function (err) {
-							result.appendChild(el("div", { text: "Zeile " + err.row + ": " + err.message }));
+							/* translators: %d: row number */
+							result.appendChild(el("div", { text: sprintf(__("Row %d:", "project-prepper"), err.row) + " " + err.message }));
 						});
 						loadItems(); loadStats(); loadCategories();
 						if (!res.errors.length) close();
@@ -783,7 +799,7 @@
 				listBox.innerHTML = "";
 				var table = el("table", { class: "pp-table" });
 				table.appendChild(el("thead", {
-					html: "<tr><th>Nummer</th><th>Leiher</th><th>Von</th><th>Bis</th><th>Positionen</th><th>Gebühr</th><th>Status</th><th></th></tr>"
+					html: "<tr><th>" + __("Number", "project-prepper") + "</th><th>" + __("Borrower", "project-prepper") + "</th><th>" + __("From", "project-prepper") + "</th><th>" + __("To", "project-prepper") + "</th><th>" + __("Line items", "project-prepper") + "</th><th>" + __("Fee", "project-prepper") + "</th><th>" + __("Status", "project-prepper") + "</th><th></th></tr>"
 				}));
 				var tbody = el("tbody");
 				rentals.forEach(function (rental) {
@@ -810,7 +826,7 @@
 						actions
 					]));
 				});
-				if (!rentals.length) tbody.appendChild(el("tr", { html: '<td colspan="8" class="pp-muted">Noch keine Verleihe.</td>' }));
+				if (!rentals.length) tbody.appendChild(el("tr", { html: '<td colspan="8" class="pp-muted">' + __("No rentals yet.", "project-prepper") + "</td>" }));
 				table.appendChild(tbody);
 				listBox.appendChild(el("div", { class: "pp-table-wrap" }, [table]));
 			}).catch(function (e) { toast(e.message, "error"); });
@@ -844,9 +860,9 @@
 				if (!editable) f.notes.disabled = true;
 
 				var info = el("div", { class: "pp-modal-grid" }, [
-					field("Leiher *", f.name), field("E-Mail", f.email), field("Telefon", f.phone), field("Adresse", f.address),
-					field("Von", f.from), field("Bis", f.to),
-					field("Gebühr €", f.fee), field("Kaution €", f.deposit), field("USt %", f.vat), field("Notizen", f.notes)
+					field(__("Borrower *", "project-prepper"), f.name), field(__("Email", "project-prepper"), f.email), field(__("Phone", "project-prepper"), f.phone), field(__("Address", "project-prepper"), f.address),
+					field(__("From", "project-prepper"), f.from), field(__("To", "project-prepper"), f.to),
+					field(__("Fee €", "project-prepper"), f.fee), field(__("Deposit €", "project-prepper"), f.deposit), field(__("VAT %", "project-prepper"), f.vat), field(__("Notes", "project-prepper"), f.notes)
 				]);
 
 				// Positionen — als editierbare Zeilen (Menge + Tagessatz), per id für den Server-Diff.
@@ -869,41 +885,41 @@
 							lineList.appendChild(el("li", null, [
 								el("code", { text: line.code }),
 								el("span", { text: line.name + " × " + line.quantity }),
-								el("span", { class: "pp-muted", text: line.daily_rate ? money(line.daily_rate) + "/Tag" : "" })
+								el("span", { class: "pp-muted", text: line.daily_rate ? money(line.daily_rate) + "/" + __("day", "project-prepper") : "" })
 							]));
 							return;
 						}
-						var qty = el("input", { type: "number", min: "1", value: line.quantity, class: "pp-input-sm", title: "Menge" });
+						var qty = el("input", { type: "number", min: "1", value: line.quantity, class: "pp-input-sm", title: __("Quantity", "project-prepper") });
 						qty.addEventListener("change", function () { line.quantity = parseInt(qty.value, 10) || 1; });
-						var rate = el("input", { type: "number", step: "0.01", value: line.daily_rate === null || line.daily_rate === undefined ? "" : line.daily_rate, class: "pp-input-sm", placeholder: "Tagessatz €", title: "Tagessatz €" });
+						var rate = el("input", { type: "number", step: "0.01", value: line.daily_rate === null || line.daily_rate === undefined ? "" : line.daily_rate, class: "pp-input-sm", placeholder: __("Daily rate €", "project-prepper"), title: __("Daily rate €", "project-prepper") });
 						rate.addEventListener("change", function () { line.daily_rate = rate.value; });
 						lineList.appendChild(el("li", null, [
 							el("code", { text: line.code }),
 							el("span", { text: line.name }),
 							qty, rate,
 							el("button", {
-								class: "pp-link pp-link-danger", text: "entfernen", type: "button",
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
 								onclick: function () { editLines.splice(index, 1); renderModalLines(); }
 							})
 						]));
 					});
-					if (!editLines.length) lineList.appendChild(el("li", { class: "pp-muted", text: "Keine Positionen." }));
+					if (!editLines.length) lineList.appendChild(el("li", { class: "pp-muted", text: __("No line items.", "project-prepper") }));
 				}
 				renderModalLines();
 
-				var linesSection = el("div", { class: "pp-modal-section" }, [el("h3", { text: "Positionen" }), lineList]);
+				var linesSection = el("div", { class: "pp-modal-section" }, [el("h3", { text: __("Line items", "project-prepper") }), lineList]);
 				if (editable) {
 					var addItem = el("select", { class: "pp-input-lg" });
-					addItem.appendChild(el("option", { value: "", text: "— Artikel wählen —" }));
+					addItem.appendChild(el("option", { value: "", text: __("— select item —", "project-prepper") }));
 					items.forEach(function (item) {
 						addItem.appendChild(el("option", { value: item.id, text: item.inventory_number + " — " + item.name }));
 					});
-					var addQty = el("input", { type: "number", value: "1", min: "1", class: "pp-input-sm", title: "Menge" });
-					var addRate = el("input", { type: "number", step: "0.01", placeholder: "Tagessatz €", class: "pp-input-sm", title: "Tagessatz €" });
+					var addQty = el("input", { type: "number", value: "1", min: "1", class: "pp-input-sm", title: __("Quantity", "project-prepper") });
+					var addRate = el("input", { type: "number", step: "0.01", placeholder: __("Daily rate €", "project-prepper"), class: "pp-input-sm", title: __("Daily rate €", "project-prepper") });
 					linesSection.appendChild(el("div", { class: "pp-row" }, [
 						addItem, addQty, addRate,
 						el("button", {
-							class: "pp-btn pp-btn-sm", text: "+ Position", type: "button",
+							class: "pp-btn pp-btn-sm", text: __("+ Line item", "project-prepper"), type: "button",
 							onclick: function () {
 								if (!addItem.value) return;
 								var item = items.find(function (it) { return it.id == addItem.value; });
@@ -922,26 +938,28 @@
 				}
 
 				var b = rental.billing || {};
+				/* translators: %d: number of days */
+				var daysText = sprintf(__("%d days", "project-prepper"), b.days || 0);
 				var billing = el("dl", { class: "pp-billing" }, [
-					el("dt", { text: "Zeitraum" }), el("dd", { text: (b.days || 0) + " Tage" }),
-					el("dt", { text: "Netto" }), el("dd", { text: money(b.net) }),
-					el("dt", { text: "USt (" + (b.vat_rate || 19) + " %)" }), el("dd", { text: money(b.vat) }),
-					el("dt", { class: "pp-billing-total", text: "Brutto" }), el("dd", { class: "pp-billing-total", text: money(b.gross) }),
-					el("dt", { text: "Kaution (durchlaufend)" }), el("dd", { text: money(b.deposit) })
+					el("dt", { text: __("Period", "project-prepper") }), el("dd", { text: daysText }),
+					el("dt", { text: __("Net", "project-prepper") }), el("dd", { text: money(b.net) }),
+					el("dt", { text: __("VAT", "project-prepper") + " (" + (b.vat_rate || 19) + " %)" }), el("dd", { text: money(b.vat) }),
+					el("dt", { class: "pp-billing-total", text: __("Gross", "project-prepper") }), el("dd", { class: "pp-billing-total", text: money(b.gross) }),
+					el("dt", { text: __("Deposit (pass-through)", "project-prepper") }), el("dd", { text: money(b.deposit) })
 				]);
 
 				var body = el("div", null, [
 					el("div", { class: "pp-row" }, [badge(rental.status, STATUS_LABELS)]),
 					info,
 					linesSection,
-					el("div", { class: "pp-modal-section" }, [el("h3", { text: "Abrechnung" }), billing])
+					el("div", { class: "pp-modal-section" }, [el("h3", { text: __("Billing", "project-prepper") }), billing])
 				]);
 
 				var close;
-				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: "Schließen", onclick: function () { close(); } })]);
+				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);
 				if (editable) {
 					footerButtons.insertBefore(el("button", {
-						class: "pp-btn pp-btn-primary", text: "Speichern",
+						class: "pp-btn pp-btn-primary", text: __("Save", "project-prepper"),
 						onclick: function () {
 							api("/rentals/" + rentalId, {
 								method: "PUT",
@@ -961,7 +979,7 @@
 									})
 								})
 							}).then(function () {
-								toast("Gespeichert."); close(); load();
+								toast(__("Saved.", "project-prepper")); close(); load();
 							}).catch(function (e) { toast(e.message, "error"); });
 						}
 					}), footerButtons.firstChild);
@@ -978,9 +996,10 @@
 				});
 				var footer = el("div", { class: "pp-modal-footer" }, [
 					ppConfig.canEdit.rentals ? el("button", {
-						class: "pp-btn pp-btn-danger", text: "Löschen",
+						class: "pp-btn pp-btn-danger", text: __("Delete", "project-prepper"),
 						onclick: function () {
-							if (!confirm("Verleih " + rental.rental_number + " löschen?")) return;
+							/* translators: %s: rental number */
+							if (!confirm(sprintf(__("Delete rental %s?", "project-prepper"), rental.rental_number))) return;
 							api("/rentals/" + rentalId, { method: "DELETE" }).then(function () { close(); load(); });
 						}
 					}) : el("span"),
@@ -993,19 +1012,19 @@
 		/* ----- Neuer Verleih ----- */
 
 		if (ppConfig.canEdit.rentals) {
-			var fBorrower = el("input", { type: "text", placeholder: "Name *", class: "pp-input-md" });
-			var fEmail = el("input", { type: "email", placeholder: "E-Mail", class: "pp-input-md" });
-			var fPhone = el("input", { type: "text", placeholder: "Telefon", class: "pp-input-sm" });
-			var fAddress = el("input", { type: "text", placeholder: "Adresse", class: "pp-input-lg" });
+			var fBorrower = el("input", { type: "text", placeholder: __("Name *", "project-prepper"), class: "pp-input-md" });
+			var fEmail = el("input", { type: "email", placeholder: __("Email", "project-prepper"), class: "pp-input-md" });
+			var fPhone = el("input", { type: "text", placeholder: __("Phone", "project-prepper"), class: "pp-input-sm" });
+			var fAddress = el("input", { type: "text", placeholder: __("Address", "project-prepper"), class: "pp-input-lg" });
 			var fFrom = el("input", { type: "date" });
 			var fTo = el("input", { type: "date" });
-			var fFee = el("input", { type: "number", step: "0.01", placeholder: "Gebühr €", class: "pp-input-sm" });
-			var fDeposit = el("input", { type: "number", step: "0.01", placeholder: "Kaution €", class: "pp-input-sm" });
-			var fVat = el("input", { type: "number", step: "0.1", value: "19", class: "pp-input-sm", title: "USt %" });
+			var fFee = el("input", { type: "number", step: "0.01", placeholder: __("Fee €", "project-prepper"), class: "pp-input-sm" });
+			var fDeposit = el("input", { type: "number", step: "0.01", placeholder: __("Deposit €", "project-prepper"), class: "pp-input-sm" });
+			var fVat = el("input", { type: "number", step: "0.1", value: "19", class: "pp-input-sm", title: __("VAT %", "project-prepper") });
 
 			var fItem = el("select", { class: "pp-input-lg" });
 			var fItemQty = el("input", { type: "number", value: "1", min: "1", class: "pp-input-sm" });
-			var fItemRate = el("input", { type: "number", step: "0.01", placeholder: "Tagessatz €", class: "pp-input-sm" });
+			var fItemRate = el("input", { type: "number", step: "0.01", placeholder: __("Daily rate €", "project-prepper"), class: "pp-input-sm" });
 			var availInfo = el("span");
 			var linesView = el("ul", { class: "pp-lines" });
 
@@ -1016,9 +1035,9 @@
 					linesView.appendChild(el("li", null, [
 						el("code", { text: item ? item.inventory_number : "#" + line.item_id }),
 						el("span", { text: (item ? item.name : "") + " × " + line.quantity }),
-						el("span", { class: "pp-muted", text: line.daily_rate ? money(line.daily_rate) + "/Tag" : "" }),
+						el("span", { class: "pp-muted", text: line.daily_rate ? money(line.daily_rate) + "/" + __("day", "project-prepper") : "" }),
 						el("button", {
-							class: "pp-link pp-link-danger", text: "entfernen",
+							class: "pp-link pp-link-danger", text: __("remove", "project-prepper"),
 							onclick: function (e) { e.preventDefault(); lines.splice(index, 1); refreshLines(); }
 						})
 					]));
@@ -1030,7 +1049,7 @@
 				availInfo.className = "";
 				if (!fItem.value || !fFrom.value || !fTo.value) return;
 				api("/items/" + fItem.value + "/availability?from=" + fFrom.value + "&to=" + fTo.value).then(function (result) {
-					availInfo.textContent = result.available + "× verfügbar";
+					availInfo.textContent = result.available + "× " + __("available", "project-prepper");
 					availInfo.className = result.available > 0 ? "pp-avail-ok" : "pp-avail-none";
 				}).catch(function () {});
 			};
@@ -1060,7 +1079,8 @@
 							items: lines
 						})
 					}).then(function (rental) {
-						toast("Verleih " + rental.rental_number + " angelegt.");
+						/* translators: %s: rental number */
+						toast(sprintf(__("Rental %s created.", "project-prepper"), rental.rental_number));
 						lines = []; refreshLines();
 						fBorrower.value = fEmail.value = fPhone.value = fAddress.value = fFee.value = fDeposit.value = "";
 						load();
@@ -1068,15 +1088,15 @@
 				}
 			}, [
 				el("div", { class: "pp-row" }, [
-					field("Leiher *", fBorrower), field("E-Mail", fEmail), field("Telefon", fPhone), field("Adresse", fAddress)
+					field(__("Borrower *", "project-prepper"), fBorrower), field(__("Email", "project-prepper"), fEmail), field(__("Phone", "project-prepper"), fPhone), field(__("Address", "project-prepper"), fAddress)
 				]),
 				el("div", { class: "pp-row" }, [
-					field("Von", fFrom), field("Bis", fTo), field("Gebühr €", fFee), field("Kaution €", fDeposit), field("USt %", fVat)
+					field(__("From", "project-prepper"), fFrom), field(__("To", "project-prepper"), fTo), field(__("Fee €", "project-prepper"), fFee), field(__("Deposit €", "project-prepper"), fDeposit), field(__("VAT %", "project-prepper"), fVat)
 				]),
 				el("div", { class: "pp-row" }, [
-					field("Artikel", fItem), field("Menge", fItemQty), field("Tagessatz €", fItemRate),
+					field(__("Item", "project-prepper"), fItem), field(__("Quantity", "project-prepper"), fItemQty), field(__("Daily rate €", "project-prepper"), fItemRate),
 					el("button", {
-						class: "pp-btn", text: "+ Position", type: "button",
+						class: "pp-btn", text: __("+ Line item", "project-prepper"), type: "button",
 						onclick: function () {
 							if (!fItem.value) return;
 							lines.push({ item_id: parseInt(fItem.value, 10), quantity: parseInt(fItemQty.value, 10) || 1, daily_rate: fItemRate.value });
@@ -1087,19 +1107,19 @@
 					availInfo
 				]),
 				linesView,
-				el("button", { class: "pp-btn pp-btn-primary", text: "Verleih anlegen" })
+				el("button", { class: "pp-btn pp-btn-primary", text: __("Create rental", "project-prepper") })
 			]);
 
 			api("/items").then(function (result) {
 				items = result;
 				fItem.innerHTML = "";
-				fItem.appendChild(el("option", { value: "", text: "— Artikel wählen —" }));
+				fItem.appendChild(el("option", { value: "", text: __("— select item —", "project-prepper") }));
 				items.forEach(function (item) {
 					fItem.appendChild(el("option", { value: item.id, text: item.inventory_number + " — " + item.name }));
 				});
 			});
 
-			root.appendChild(el("div", { class: "pp-card" }, [el("h2", { text: "Neuer Verleih" }), form]));
+			root.appendChild(el("div", { class: "pp-card" }, [el("h2", { text: __("New rental", "project-prepper") }), form]));
 		} else {
 			api("/items").then(function (result) { items = result; });
 		}
@@ -1117,47 +1137,53 @@
 		// Zusammenführen (App-Pendant: Migration 097): Items → Ziel, Quelle wird gelöscht.
 		function openMergeModal(cat, cats) {
 			var targets = cats.filter(function (c) { return c.id !== cat.id; });
-			if (!targets.length) { toast("Keine andere Kategorie als Ziel vorhanden.", "error"); return; }
+			if (!targets.length) { toast(__("No other category available as target.", "project-prepper"), "error"); return; }
 
 			var targetSelect = el("select", null, targets.map(function (c) {
 				return el("option", { value: c.id, text: (c.icon ? c.icon + " " : "") + c.name });
 			}));
-			var info = el("p", { class: "pp-muted", text: "Artikel werden gezählt …" });
+			var info = el("p", { class: "pp-muted", text: __("Counting items …", "project-prepper") });
 			api("/items?category_id=" + cat.id).then(function (items) {
-				info.textContent = items.length + ' Artikel werden in die Ziel-Kategorie verschoben, danach wird "' + cat.name + '" gelöscht.';
-			}).catch(function () { info.textContent = 'Alle Artikel werden in die Ziel-Kategorie verschoben, danach wird "' + cat.name + '" gelöscht.'; });
+				/* translators: 1: number of items, 2: category name */
+				info.textContent = sprintf(__('%1$d items will be moved to the target category, then "%2$s" will be deleted.', "project-prepper"), items.length, cat.name);
+			}).catch(function () {
+				/* translators: %s: category name */
+				info.textContent = sprintf(__('All items will be moved to the target category, then "%s" will be deleted.', "project-prepper"), cat.name);
+			});
 
 			var body = el("div", null, [
-				field('Ziel-Kategorie für "' + cat.name + '"', targetSelect),
+				/* translators: %s: category name */
+				field(sprintf(__('Target category for "%s"', "project-prepper"), cat.name), targetSelect),
 				info
 			]);
 			var close;
 			var footer = el("div", { class: "pp-modal-footer" }, [
 				el("span"),
 				el("div", { class: "pp-right" }, [
-					el("button", { class: "pp-btn", text: "Abbrechen", onclick: function () { close(); } }),
+					el("button", { class: "pp-btn", text: __("Cancel", "project-prepper"), onclick: function () { close(); } }),
 					el("button", {
-						class: "pp-btn pp-btn-primary", text: "Zusammenführen",
+						class: "pp-btn pp-btn-primary", text: __("Merge", "project-prepper"),
 						onclick: function () {
 							api("/categories/" + cat.id + "/merge", {
 								method: "POST",
 								body: JSON.stringify({ target_id: parseInt(targetSelect.value, 10) })
 							}).then(function (result) {
-								toast(result.moved + " Artikel verschoben, Kategorie gelöscht.");
+								/* translators: %d: number of moved items */
+								toast(sprintf(__("%d items moved, category deleted.", "project-prepper"), result.moved));
 								close(); load();
 							}).catch(function (e) { toast(e.message, "error"); });
 						}
 					})
 				])
 			]);
-			close = openModal("Kategorie zusammenführen", body, footer);
+			close = openModal(__("Merge category", "project-prepper"), body, footer);
 		}
 
 		function load() {
 			api("/categories").then(function (cats) {
 				listBox.innerHTML = "";
 				var table = el("table", { class: "pp-table" });
-				table.appendChild(el("thead", { html: "<tr><th>Icon</th><th>Name</th><th>Prefix</th><th></th></tr>" }));
+				table.appendChild(el("thead", { html: "<tr><th>" + __("Icon", "project-prepper") + "</th><th>" + __("Name", "project-prepper") + "</th><th>" + __("Prefix", "project-prepper") + "</th><th></th></tr>" }));
 				var tbody = el("tbody");
 				cats.forEach(function (cat) {
 					var icon = el("input", { type: "text", value: cat.icon || "", class: "pp-input-sm" });
@@ -1168,7 +1194,7 @@
 							api("/categories/" + cat.id, {
 								method: "PUT",
 								body: JSON.stringify({ name: name.value.trim(), icon: icon.value.trim(), prefix: prefix.value.trim() })
-							}).then(function () { toast("Gespeichert."); }).catch(function (e) { toast(e.message, "error"); });
+							}).then(function () { toast(__("Saved.", "project-prepper")); }).catch(function (e) { toast(e.message, "error"); });
 						});
 					});
 					tbody.appendChild(el("tr", null, [
@@ -1177,13 +1203,14 @@
 						el("td", null, [prefix]),
 						el("td", null, [
 							el("button", {
-								class: "pp-link", text: "Zusammenführen…", style: "margin-right:12px",
+								class: "pp-link", text: __("Merge…", "project-prepper"), style: "margin-right:12px",
 								onclick: function () { openMergeModal(cat, cats); }
 							}),
 							el("button", {
-								class: "pp-link pp-link-danger", text: "löschen",
+								class: "pp-link pp-link-danger", text: __("delete", "project-prepper"),
 								onclick: function () {
-									if (!confirm('Kategorie "' + cat.name + '" löschen? Artikel bleiben erhalten.')) return;
+									/* translators: %s: category name */
+									if (!confirm(sprintf(__('Delete category "%s"? Items will be kept.', "project-prepper"), cat.name))) return;
 									api("/categories/" + cat.id, { method: "DELETE" }).then(load).catch(function (e) { toast(e.message, "error"); });
 								}
 							})
@@ -1195,11 +1222,11 @@
 			}).catch(function (e) { toast(e.message, "error"); });
 		}
 
-		var nName = el("input", { type: "text", placeholder: "Name *", class: "pp-input-md" });
-		var nIcon = el("input", { type: "text", placeholder: "Icon (Emoji)", class: "pp-input-sm" });
-		var nPrefix = el("input", { type: "text", placeholder: "Prefix", class: "pp-input-sm" });
+		var nName = el("input", { type: "text", placeholder: __("Name *", "project-prepper"), class: "pp-input-md" });
+		var nIcon = el("input", { type: "text", placeholder: __("Icon (emoji)", "project-prepper"), class: "pp-input-sm" });
+		var nPrefix = el("input", { type: "text", placeholder: __("Prefix", "project-prepper"), class: "pp-input-sm" });
 		root.appendChild(el("div", { class: "pp-card" }, [
-			el("h2", { text: "Neue Kategorie" }),
+			el("h2", { text: __("New category", "project-prepper") }),
 			el("form", {
 				class: "pp-row",
 				onsubmit: function (e) {
@@ -1210,10 +1237,10 @@
 						body: JSON.stringify({ name: nName.value.trim(), icon: nIcon.value.trim(), prefix: nPrefix.value.trim() })
 					}).then(function () {
 						nName.value = nIcon.value = nPrefix.value = "";
-						toast("Kategorie angelegt."); load();
+						toast(__("Category created.", "project-prepper")); load();
 					}).catch(function (e2) { toast(e2.message, "error"); });
 				}
-			}, [nName, nIcon, nPrefix, el("button", { class: "pp-btn pp-btn-primary", text: "Anlegen" })])
+			}, [nName, nIcon, nPrefix, el("button", { class: "pp-btn pp-btn-primary", text: __("Create", "project-prepper") })])
 		]));
 		root.appendChild(listBox);
 		load();
@@ -1225,7 +1252,7 @@
 		root.innerHTML = "";
 		// Pipeline wie die App (§11): new → contacted → offer → won | lost.
 		// 'closed' bleibt als Legacy-Endstatus lesbar (Bestandsdaten vor v0.7.0).
-		var INQUIRY_STATUS = { new: "Neu", contacted: "Kontaktiert", offer: "Angebot", won: "Gewonnen", lost: "Verloren", closed: "Abgeschlossen" };
+		var INQUIRY_STATUS = { new: __("New", "project-prepper"), contacted: __("Contacted", "project-prepper"), offer: __("Offer", "project-prepper"), won: __("Won", "project-prepper"), lost: __("Lost", "project-prepper"), closed: __("Closed", "project-prepper") };
 		var INQUIRY_ACTIONS = { new: ["contacted", "offer", "won", "lost"], contacted: ["offer", "won", "lost"], offer: ["won", "lost"], won: [], lost: [], closed: [] };
 		var INQUIRY_BADGE = { new: "reserved", contacted: "active", offer: "offer", won: "returned", lost: "cancelled", closed: "returned" };
 		var INQUIRY_END_STATES = ["won", "lost", "closed"];
@@ -1242,19 +1269,21 @@
 			// Anfrage → Verleih (braucht beide Edit-Caps; ohne Zeitraum deaktiviert).
 			if (ppConfig.canEdit.rentals && INQUIRY_END_STATES.indexOf(inquiry.status) === -1) {
 				var convertBtn = el("button", {
-					class: "pp-btn pp-btn-primary" + (small ? " pp-btn-sm" : ""), text: "In Verleih übernehmen", style: "margin-right:4px",
+					class: "pp-btn pp-btn-primary" + (small ? " pp-btn-sm" : ""), text: __("Convert to rental", "project-prepper"), style: "margin-right:4px",
 					onclick: function (e) {
 						e.stopPropagation();
-						if (!confirm('Anfrage von "' + inquiry.name + '" in einen Verleih übernehmen? Die Anfrage wird als gewonnen markiert.')) return;
+						/* translators: %s: name of the person who sent the inquiry */
+						if (!confirm(sprintf(__('Convert the inquiry from "%s" into a rental? The inquiry will be marked as won.', "project-prepper"), inquiry.name))) return;
 						api("/inquiries/" + inquiry.id + "/convert", { method: "POST" }).then(function (rental) {
-							toast("Verleih " + rental.rental_number + " angelegt.");
+							/* translators: %s: rental number */
+							toast(sprintf(__("Rental %s created.", "project-prepper"), rental.rental_number));
 							done();
 						}).catch(function (err) { toast(err.message, "error"); });
 					}
 				});
 				if (!inquiry.date_from || !inquiry.date_to) {
 					convertBtn.disabled = true;
-					convertBtn.title = "Zeitraum fehlt — Konvertierung nicht möglich";
+					convertBtn.title = __("Date range missing — cannot convert", "project-prepper");
 				}
 				box.appendChild(convertBtn);
 			}
@@ -1269,10 +1298,11 @@
 				}));
 			});
 			box.appendChild(el("button", {
-				class: "pp-link pp-link-danger", text: "löschen",
+				class: "pp-link pp-link-danger", text: __("delete", "project-prepper"),
 				onclick: function (e) {
 					e.stopPropagation();
-					if (!confirm("Anfrage von \"" + inquiry.name + "\" löschen?")) return;
+					/* translators: %s: name of the person who sent the inquiry */
+					if (!confirm(sprintf(__('Delete the inquiry from "%s"?', "project-prepper"), inquiry.name))) return;
 					api("/inquiries/" + inquiry.id, { method: "DELETE" }).then(done);
 				}
 			}));
@@ -1298,18 +1328,18 @@
 				var body = el("div", null, [
 					el("div", { class: "pp-row" }, [inquiryBadge(inquiry.status)]),
 					el("div", { class: "pp-modal-grid" }, [
-						dd("Name", inquiry.name),
-						dd("E-Mail", emailNode),
-						dd("Telefon", inquiry.phone),
-						dd("Zeitraum", range),
-						dd("Eingegangen am", dateDe(inquiry.created_at))
+						dd(__("Name", "project-prepper"), inquiry.name),
+						dd(__("Email", "project-prepper"), emailNode),
+						dd(__("Phone", "project-prepper"), inquiry.phone),
+						dd(__("Period", "project-prepper"), range),
+						dd(__("Received on", "project-prepper"), dateDe(inquiry.created_at))
 					])
 				]);
 
 				// Vollständige Nachricht
 				var messageNode = el("div", { class: "pp-inquiry-message", text: inquiry.message || "—" });
 				body.appendChild(el("div", { class: "pp-modal-section" }, [
-					el("h3", { text: "Nachricht" }),
+					el("h3", { text: __("Message", "project-prepper") }),
 					messageNode
 				]));
 
@@ -1317,12 +1347,13 @@
 				var itemList = el("ul", { class: "pp-lines" });
 				(inquiry.items || []).forEach(function (line) {
 					itemList.appendChild(el("li", null, [
-						el("span", { text: (line.name || "Artikel #" + line.item_id) + " × " + (line.quantity || 1) })
+						/* translators: %d: item ID */
+						el("span", { text: (line.name || sprintf(__("Item #%d", "project-prepper"), line.item_id)) + " × " + (line.quantity || 1) })
 					]));
 				});
-				if (!(inquiry.items || []).length) itemList.appendChild(el("li", { class: "pp-muted", text: "Kein Equipment angefragt." }));
+				if (!(inquiry.items || []).length) itemList.appendChild(el("li", { class: "pp-muted", text: __("No equipment requested.", "project-prepper") }));
 				body.appendChild(el("div", { class: "pp-modal-section" }, [
-					el("h3", { text: "Equipment" }),
+					el("h3", { text: __("Equipment", "project-prepper") }),
 					itemList
 				]));
 
@@ -1330,10 +1361,11 @@
 				var footer = el("div", { class: "pp-modal-footer" }, [
 					inquiryActions(inquiry, false, function () { close(); load(); }),
 					el("div", { class: "pp-right" }, [
-						el("button", { class: "pp-btn", text: "Schließen", onclick: function () { close(); } })
+						el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })
 					])
 				]);
-				close = openModal("Anfrage von " + inquiry.name, body, footer);
+				/* translators: %s: name of the person who sent the inquiry */
+				close = openModal(sprintf(__("Inquiry from %s", "project-prepper"), inquiry.name), body, footer);
 			}).catch(function (e) { toast(e.message, "error"); });
 		}
 
@@ -1342,7 +1374,7 @@
 				listBox.innerHTML = "";
 				var table = el("table", { class: "pp-table" });
 				table.appendChild(el("thead", {
-					html: "<tr><th>Datum</th><th>Name</th><th>Kontakt</th><th>Zeitraum</th><th>Equipment</th><th>Nachricht</th><th>Status</th><th></th></tr>"
+					html: "<tr><th>" + __("Date", "project-prepper") + "</th><th>" + __("Name", "project-prepper") + "</th><th>" + __("Contact", "project-prepper") + "</th><th>" + __("Period", "project-prepper") + "</th><th>" + __("Equipment", "project-prepper") + "</th><th>" + __("Message", "project-prepper") + "</th><th>" + __("Status", "project-prepper") + "</th><th></th></tr>"
 				}));
 				var tbody = el("tbody");
 				inquiries.forEach(function (inquiry) {
@@ -1360,7 +1392,7 @@
 						el("td", null, [inquiryActions(inquiry, true, load)])
 					]));
 				});
-				if (!inquiries.length) tbody.appendChild(el("tr", { html: '<td colspan="8" class="pp-muted">Noch keine Anfragen. Das Formular kommt per Shortcode [pp_request_form] auf jede Seite.</td>' }));
+				if (!inquiries.length) tbody.appendChild(el("tr", { html: '<td colspan="8" class="pp-muted">' + __("No inquiries yet. Add the form to any page with the [pp_request_form] shortcode.", "project-prepper") + "</td>" }));
 				table.appendChild(tbody);
 				listBox.appendChild(el("div", { class: "pp-table-wrap" }, [table]));
 			}).catch(function (e) { toast(e.message, "error"); });
@@ -1382,9 +1414,9 @@
 			emailToggle.checked = settings.email_notifications;
 			var templateInputs = {};
 			var TEMPLATE_LABELS = {
-				rental_reserved: "Reservierung bestätigt",
-				rental_active: "Equipment ausgegeben",
-				rental_returned: "Rückgabe bestätigt"
+				rental_reserved: __("Reservation confirmed", "project-prepper"),
+				rental_active: __("Equipment handed out", "project-prepper"),
+				rental_returned: __("Return confirmed", "project-prepper")
 			};
 			var templateFields = Object.keys(TEMPLATE_LABELS).map(function (key) {
 				var subject = el("input", { type: "text", value: settings.email_templates[key].subject, style: "width:100%" });
@@ -1393,13 +1425,13 @@
 				templateInputs[key] = { subject: subject, body: bodyArea };
 				return el("div", { class: "pp-modal-section" }, [
 					el("h3", { text: TEMPLATE_LABELS[key] }),
-					field("Betreff", subject),
-					field("Text", bodyArea)
+					field(__("Subject", "project-prepper"), subject),
+					field(__("Text", "project-prepper"), bodyArea)
 				]);
 			});
 
 			var saveBtn = el("button", {
-				class: "pp-btn pp-btn-primary", text: "Speichern",
+				class: "pp-btn pp-btn-primary", text: __("Save", "project-prepper"),
 				onclick: function () {
 					var templates = {};
 					Object.keys(templateInputs).forEach(function (key) {
@@ -1413,37 +1445,37 @@
 							public_show_rates: ratesToggle.checked,
 							email_templates: templates
 						})
-					}).then(function () { toast("Einstellungen gespeichert."); }).catch(function (e) { toast(e.message, "error"); });
+					}).then(function () { toast(__("Settings saved.", "project-prepper")); }).catch(function (e) { toast(e.message, "error"); });
 				}
 			});
 
 			root.appendChild(el("div", { class: "pp-card" }, [
-				el("h2", { text: "E-Mail-Benachrichtigungen" }),
-				el("label", { class: "pp-toggle" }, [emailToggle, el("span", { text: "E-Mails an Leiher senden (Reservierung, Ausgabe, Rückgabe)" })]),
-				el("div", { class: "pp-muted", style: "margin-top:6px", text: "Platzhalter: {{borrower_name}}, {{rental_number}}, {{date_from}}, {{date_to}}, {{items}}, {{site_name}}" })
+				el("h2", { text: __("Email notifications", "project-prepper") }),
+				el("label", { class: "pp-toggle" }, [emailToggle, el("span", { text: __("Send emails to borrowers (reservation, handout, return)", "project-prepper") })]),
+				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("Placeholders:", "project-prepper") + " {{borrower_name}}, {{rental_number}}, {{date_from}}, {{date_to}}, {{items}}, {{site_name}}" })
 			].concat(templateFields)));
 
 			// iCal
 			var icalUrl = el("code", { class: "pp-ical-url", text: settings.ical_url });
 			root.appendChild(el("div", { class: "pp-card" }, [
-				el("h2", { text: "Kalender-Feed (iCal)" }),
-				el("div", { class: "pp-muted", text: "Read-only Feed aller reservierten/aktiven Verleihe — in Apple/Google/Outlook abonnierbar." }),
+				el("h2", { text: __("Calendar feed (iCal)", "project-prepper") }),
+				el("div", { class: "pp-muted", text: __("Read-only feed of all reserved/active rentals — subscribe in Apple/Google/Outlook.", "project-prepper") }),
 				icalUrl,
 				el("div", { class: "pp-row", style: "margin-top:8px" }, [
 					el("button", {
-						class: "pp-btn pp-btn-sm", text: "URL kopieren",
+						class: "pp-btn pp-btn-sm", text: __("Copy URL", "project-prepper"),
 						onclick: function () {
-							navigator.clipboard.writeText(settings.ical_url).then(function () { toast("Kopiert."); });
+							navigator.clipboard.writeText(settings.ical_url).then(function () { toast(__("Copied.", "project-prepper")); });
 						}
 					}),
 					el("button", {
-						class: "pp-btn pp-btn-sm", text: "Token erneuern",
+						class: "pp-btn pp-btn-sm", text: __("Regenerate token", "project-prepper"),
 						onclick: function () {
-							if (!confirm("Token erneuern? Bestehende Kalender-Abos verlieren den Zugriff.")) return;
+							if (!confirm(__("Regenerate token? Existing calendar subscriptions will lose access.", "project-prepper"))) return;
 							api("/settings/regenerate-ical-token", { method: "POST" }).then(function (updated) {
 								settings.ical_url = updated.ical_url;
 								icalUrl.textContent = updated.ical_url;
-								toast("Token erneuert.");
+								toast(__("Token regenerated.", "project-prepper"));
 							});
 						}
 					})
@@ -1454,18 +1486,18 @@
 			var ratesToggle = el("input", { type: "checkbox" });
 			ratesToggle.checked = settings.public_show_rates;
 			root.appendChild(el("div", { class: "pp-card" }, [
-				el("h2", { text: "Öffentliches Frontend" }),
-				el("label", { class: "pp-toggle" }, [ratesToggle, el("span", { text: "Tagessätze öffentlich zeigen (Artikel-Detailseite /equipment-item/…)" })]),
-				el("div", { class: "pp-muted", style: "margin-top:6px", text: "Die Inventar-Karten verlinken auf eine öffentliche Detailseite pro Artikel. Kaufpreis und Seriennummer sind dort nie sichtbar." })
+				el("h2", { text: __("Public frontend", "project-prepper") }),
+				el("label", { class: "pp-toggle" }, [ratesToggle, el("span", { text: __("Show daily rates publicly (item detail page /equipment-item/…)", "project-prepper") })]),
+				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("Inventory cards link to a public detail page per item. Purchase price and serial number are never shown there.", "project-prepper") })
 			]));
 
 			// Daten
 			var deleteToggle = el("input", { type: "checkbox" });
 			deleteToggle.checked = settings.delete_data_on_uninstall;
 			root.appendChild(el("div", { class: "pp-card" }, [
-				el("h2", { text: "Daten" }),
-				el("label", { class: "pp-toggle" }, [deleteToggle, el("span", { text: "Alle Plugin-Daten beim Deinstallieren löschen" })]),
-				el("div", { class: "pp-muted", style: "margin-top:6px", text: "DSGVO: Export & Anonymisierung von Leiher-Daten über Werkzeuge → Personenbezogene Daten (Suche per E-Mail-Adresse)." })
+				el("h2", { text: __("Data", "project-prepper") }),
+				el("label", { class: "pp-toggle" }, [deleteToggle, el("span", { text: __("Delete all plugin data on uninstall", "project-prepper") })]),
+				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("GDPR: export & anonymization of borrower data via Tools → Personal Data (search by email address).", "project-prepper") })
 			]));
 
 			root.appendChild(el("div", { class: "pp-row" }, [saveBtn]));

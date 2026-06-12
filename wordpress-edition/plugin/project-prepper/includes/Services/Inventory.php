@@ -104,14 +104,14 @@ class Inventory {
 		global $wpdb;
 
 		if ( $source_id === $target_id ) {
-			return new WP_Error( 'pp_merge_self', __( 'Quelle und Ziel sind identisch.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_merge_self', __( 'Source and target are identical.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
 		$cats   = Schema::table( 'categories' );
 		$source = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$cats} WHERE id = %d", $source_id ) );
 		$target = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$cats} WHERE id = %d", $target_id ) );
 		if ( ! $source || ! $target ) {
-			return new WP_Error( 'pp_not_found', __( 'Kategorie nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Category not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 
 		$moved = $wpdb->update(

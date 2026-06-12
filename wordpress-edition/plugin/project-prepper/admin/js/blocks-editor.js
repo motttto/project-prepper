@@ -5,6 +5,7 @@
 (function (wp) {
 	"use strict";
 
+	var __ = wp.i18n.__;
 	var el = wp.element.createElement;
 	var registerBlockType = wp.blocks.registerBlockType;
 	var InspectorControls = wp.blockEditor.InspectorControls;
@@ -14,21 +15,21 @@
 	var ToggleControl = wp.components.ToggleControl;
 
 	function inspector(children) {
-		return el(InspectorControls, {}, el(PanelBody, { title: "Einstellungen", initialOpen: true }, children));
+		return el(InspectorControls, {}, el(PanelBody, { title: __("Settings", "project-prepper"), initialOpen: true }, children));
 	}
 
 	function showAllToggle(props) {
 		return el(ToggleControl, {
 			key: "showAll",
-			label: "Auch defekte/ausgemusterte zeigen",
+			label: __("Also show broken/retired items", "project-prepper"),
 			checked: props.attributes.showAll,
 			onChange: function (v) { props.setAttributes({ showAll: v }); }
 		});
 	}
 
 	registerBlockType("project-prepper/inventory", {
-		title: "PP: Equipment-Liste",
-		description: "Öffentliche Inventarliste aus Project Prepper.",
+		title: __("PP: Equipment list", "project-prepper"),
+		description: __("Public inventory list from Project Prepper.", "project-prepper"),
 		icon: "archive",
 		category: "widgets",
 		attributes: {
@@ -42,19 +43,19 @@
 				inspector([
 					el(TextControl, {
 						key: "category",
-						label: "Kategorie (Name oder Prefix, leer = alle)",
+						label: __("Category (name or prefix, empty = all)", "project-prepper"),
 						value: props.attributes.category,
 						onChange: function (v) { props.setAttributes({ category: v }); }
 					}),
 					el(ToggleControl, {
 						key: "rates",
-						label: "Tagessätze anzeigen",
+						label: __("Show daily rates", "project-prepper"),
 						checked: props.attributes.showRates,
 						onChange: function (v) { props.setAttributes({ showRates: v }); }
 					}),
 					el(ToggleControl, {
 						key: "search",
-						label: "Suchfeld anzeigen",
+						label: __("Show search field", "project-prepper"),
 						checked: props.attributes.search,
 						onChange: function (v) { props.setAttributes({ search: v }); }
 					}),
@@ -67,8 +68,8 @@
 	});
 
 	registerBlockType("project-prepper/availability", {
-		title: "PP: Verfügbarkeits-Check",
-		description: "Verfügbarkeit eines Artikels für einen Zeitraum prüfen.",
+		title: __("PP: Availability check", "project-prepper"),
+		description: __("Check the availability of an item for a date range.", "project-prepper"),
 		icon: "calendar-alt",
 		category: "widgets",
 		attributes: {
@@ -80,7 +81,7 @@
 				inspector([
 					el(TextControl, {
 						key: "item",
-						label: "Artikel-ID (leer = Auswahlfeld)",
+						label: __("Item ID (empty = select field)", "project-prepper"),
 						value: props.attributes.item,
 						onChange: function (v) { props.setAttributes({ item: v }); }
 					}),
@@ -93,8 +94,8 @@
 	});
 
 	registerBlockType("project-prepper/request-form", {
-		title: "PP: Anfrage-Formular",
-		description: "Leih-/Projektanfrage-Formular für Besucher.",
+		title: __("PP: Request form", "project-prepper"),
+		description: __("Rental/project request form for visitors.", "project-prepper"),
 		icon: "email",
 		category: "widgets",
 		attributes: {
@@ -106,7 +107,7 @@
 				inspector([
 					el(ToggleControl, {
 						key: "items",
-						label: "Equipment-Auswahl anzeigen",
+						label: __("Show equipment selection", "project-prepper"),
 						checked: props.attributes.showItems,
 						onChange: function (v) { props.setAttributes({ showItems: v }); }
 					}),

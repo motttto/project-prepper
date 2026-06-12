@@ -123,7 +123,7 @@ class ItemDetail {
 			// Tagessatz nur, wenn öffentlich freigegeben (Einstellungen).
 			'cost_per_day'     => get_option( 'pp_public_show_rates', false ) ? $row->cost_per_day : null,
 		];
-		$condition_labels = Shortcodes::CONDITION_LABELS;
+		$condition_labels = Shortcodes::condition_labels();
 
 		include $template;
 		exit;

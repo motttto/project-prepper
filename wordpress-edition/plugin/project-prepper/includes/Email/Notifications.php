@@ -8,7 +8,7 @@ defined( 'ABSPATH' ) || exit;
 /**
  * E-Mail-Benachrichtigungen (§16) — wp_mail + editierbare Templates mit {{vars}}.
  *
- * Templates liegen als Option pp_email_templates; Defaults auf Deutsch.
+ * Templates liegen als Option pp_email_templates; Defaults englisch, übersetzbar via __().
  * Abschaltbar über Option pp_email_notifications.
  */
 class Notifications {
@@ -25,20 +25,28 @@ class Notifications {
 	public static function default_templates(): array {
 		return [
 			'rental_reserved' => [
-				'subject' => 'Reservierung {{rental_number}} — {{site_name}}',
-				'body'    => "Hallo {{borrower_name}},\n\ndeine Reservierung {{rental_number}} ist eingetragen:\n\nZeitraum: {{date_from}} bis {{date_to}}\n\nPositionen:\n{{items}}\n\nViele Grüße\n{{site_name}}",
+				/* translators: Email subject. Keep the {{rental_number}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'Reservation {{rental_number}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello {{borrower_name}},\n\nyour reservation {{rental_number}} has been recorded:\n\nPeriod: {{date_from}} to {{date_to}}\n\nItems:\n{{items}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
 			'rental_active'   => [
-				'subject' => 'Equipment ausgegeben — {{rental_number}}',
-				'body'    => "Hallo {{borrower_name}},\n\ndas Equipment zu {{rental_number}} wurde ausgegeben.\n\nRückgabe bis: {{date_to}}\n\nPositionen:\n{{items}}\n\nViele Grüße\n{{site_name}}",
+				/* translators: Email subject. Keep the {{rental_number}} placeholder unchanged. */
+				'subject' => __( 'Equipment handed out — {{rental_number}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello {{borrower_name}},\n\nthe equipment for {{rental_number}} has been handed out.\n\nReturn by: {{date_to}}\n\nItems:\n{{items}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
 			'rental_returned' => [
-				'subject' => 'Rückgabe bestätigt — {{rental_number}}',
-				'body'    => "Hallo {{borrower_name}},\n\ndie Rückgabe zu {{rental_number}} ist bestätigt. Danke!\n\nViele Grüße\n{{site_name}}",
+				/* translators: Email subject. Keep the {{rental_number}} placeholder unchanged. */
+				'subject' => __( 'Return confirmed — {{rental_number}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello {{borrower_name}},\n\nthe return for {{rental_number}} has been confirmed. Thank you!\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
 			'inquiry_received' => [
-				'subject' => 'Neue Anfrage von {{name}} — {{site_name}}',
-				'body'    => "Neue Anfrage über die Website:\n\nName: {{name}}\nE-Mail: {{email}}\nTelefon: {{phone}}\nZeitraum: {{date_from}} bis {{date_to}}\n\nGewünschtes Equipment:\n{{items}}\n\nNachricht:\n{{message}}\n\n→ Bearbeiten: {{admin_url}}",
+				/* translators: Email subject. Keep the {{name}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'New inquiry from {{name}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "New inquiry via the website:\n\nName: {{name}}\nEmail: {{email}}\nPhone: {{phone}}\nPeriod: {{date_from}} to {{date_to}}\n\nRequested equipment:\n{{items}}\n\nMessage:\n{{message}}\n\n→ Manage: {{admin_url}}", 'project-prepper' ),
 			],
 		];
 	}

@@ -58,7 +58,7 @@ class Inquiries {
 		global $wpdb;
 
 		if ( empty( $data['name'] ) ) {
-			return new WP_Error( 'pp_missing_name', __( 'Name fehlt.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_missing_name', __( 'Name is required.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
 		$now = current_time( 'mysql' );
@@ -98,13 +98,13 @@ class Inquiries {
 	public static function convert_to_rental( int $id ) {
 		$inquiry = self::get( $id );
 		if ( ! $inquiry ) {
-			return new WP_Error( 'pp_not_found', __( 'Anfrage nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Inquiry not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		if ( in_array( $inquiry->status, [ 'won', 'lost', 'closed' ], true ) ) {
-			return new WP_Error( 'pp_already_closed', __( 'Anfrage ist bereits abgeschlossen.', 'project-prepper' ), [ 'status' => 409 ] );
+			return new WP_Error( 'pp_already_closed', __( 'Inquiry is already closed.', 'project-prepper' ), [ 'status' => 409 ] );
 		}
 		if ( empty( $inquiry->date_from ) || empty( $inquiry->date_to ) ) {
-			return new WP_Error( 'pp_missing_dates', __( 'Anfrage hat keinen Zeitraum — Konvertierung nicht möglich.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_missing_dates', __( 'Inquiry has no date range — cannot convert.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
 		// Items übernehmen — gelöschte Artikel überspringen, Tagessatz aus dem Artikel.
@@ -122,11 +122,11 @@ class Inquiries {
 			];
 		}
 		if ( ! $items ) {
-			return new WP_Error( 'pp_no_items', __( 'Anfrage enthält keine (gültigen) Artikel.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_no_items', __( 'Inquiry contains no (valid) items.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
-		/* translators: 1: Anfrage-ID, 2: Name */
-		$notes = sprintf( __( 'Aus Anfrage #%1$d (%2$s) übernommen.', 'project-prepper' ), $id, $inquiry->name );
+		/* translators: 1: inquiry ID, 2: name */
+		$notes = sprintf( __( 'Converted from inquiry #%1$d (%2$s).', 'project-prepper' ), $id, $inquiry->name );
 		if ( ! empty( $inquiry->message ) ) {
 			$notes .= "\n\n" . $inquiry->message;
 		}
@@ -162,17 +162,17 @@ class Inquiries {
 	public static function set_status( int $id, string $status ) {
 		global $wpdb;
 		if ( ! in_array( $status, self::STATUSES, true ) ) {
-			return new WP_Error( 'pp_invalid_status', __( 'Ungültiger Status.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_invalid_status', __( 'Invalid status.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		$inquiry = self::get( $id );
 		if ( ! $inquiry ) {
-			return new WP_Error( 'pp_not_found', __( 'Anfrage nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Inquiry not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		if ( ! in_array( $status, self::TRANSITIONS[ $inquiry->status ] ?? [], true ) ) {
 			return new WP_Error(
 				'pp_invalid_transition',
-				/* translators: 1: aktueller Status, 2: Ziel-Status */
-				sprintf( __( 'Statuswechsel %1$s → %2$s ist nicht erlaubt.', 'project-prepper' ), $inquiry->status, $status ),
+				/* translators: 1: current status, 2: target status */
+				sprintf( __( 'Status change %1$s → %2$s is not allowed.', 'project-prepper' ), $inquiry->status, $status ),
 				[ 'status' => 409 ]
 			);
 		}

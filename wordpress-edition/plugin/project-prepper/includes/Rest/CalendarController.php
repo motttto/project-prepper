@@ -43,7 +43,7 @@ class CalendarController extends BaseController {
 	public function feed( WP_REST_Request $request ) {
 		$token = (string) $request->get_param( 'token' );
 		if ( ! $token || ! hash_equals( self::token(), $token ) ) {
-			return new WP_Error( 'pp_invalid_token', __( 'Ungültiger Token.', 'project-prepper' ), [ 'status' => 401 ] );
+			return new WP_Error( 'pp_invalid_token', __( 'Invalid token.', 'project-prepper' ), [ 'status' => 401 ] );
 		}
 
 		$lines = [
@@ -51,7 +51,7 @@ class CalendarController extends BaseController {
 			'VERSION:2.0',
 			'PRODID:-//Project Prepper//Verleih//DE',
 			'CALSCALE:GREGORIAN',
-			'X-WR-CALNAME:' . $this->ical_escape( get_bloginfo( 'name' ) . ' — Verleih' ),
+			'X-WR-CALNAME:' . $this->ical_escape( get_bloginfo( 'name' ) . ' — ' . __( 'Rentals', 'project-prepper' ) ),
 		];
 
 		foreach ( Rentals::all() as $rental ) {

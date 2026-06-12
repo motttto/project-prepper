@@ -15,13 +15,13 @@ defined( 'ABSPATH' ) || exit;
 <div class="pp-front">
 	<?php if ( $show_search ) : ?>
 		<form class="pp-front-search" method="get" action="">
-			<input type="search" name="pp_q" value="<?php echo esc_attr( $search_value ); ?>" placeholder="<?php esc_attr_e( 'Equipment suchen …', 'project-prepper' ); ?>">
-			<button type="submit" class="pp-front-btn"><?php esc_html_e( 'Suchen', 'project-prepper' ); ?></button>
+			<input type="search" name="pp_q" value="<?php echo esc_attr( $search_value ); ?>" placeholder="<?php esc_attr_e( 'Search equipment …', 'project-prepper' ); ?>">
+			<button type="submit" class="pp-front-btn"><?php esc_html_e( 'Search', 'project-prepper' ); ?></button>
 		</form>
 	<?php endif; ?>
 
 	<?php if ( ! $items ) : ?>
-		<p class="pp-front-empty"><?php esc_html_e( 'Kein Equipment gefunden.', 'project-prepper' ); ?></p>
+		<p class="pp-front-empty"><?php esc_html_e( 'No equipment found.', 'project-prepper' ); ?></p>
 	<?php else : ?>
 		<div class="pp-front-grid">
 			<?php foreach ( $items as $item ) : ?>
@@ -48,7 +48,7 @@ defined( 'ABSPATH' ) || exit;
 							<p class="pp-front-card-text"><?php echo esc_html( wp_trim_words( $item['description'], 20 ) ); ?></p>
 						<?php endif; ?>
 						<?php if ( $show_rates && null !== $item['cost_per_day'] && '' !== $item['cost_per_day'] ) : ?>
-							<div class="pp-front-card-rate"><?php echo esc_html( number_format_i18n( (float) $item['cost_per_day'], 2 ) ); ?> € <span><?php esc_html_e( '/ Tag', 'project-prepper' ); ?></span></div>
+							<div class="pp-front-card-rate"><?php echo esc_html( number_format_i18n( (float) $item['cost_per_day'], 2 ) ); ?> € <span><?php esc_html_e( '/ day', 'project-prepper' ); ?></span></div>
 						<?php endif; ?>
 					</div>
 				</div>

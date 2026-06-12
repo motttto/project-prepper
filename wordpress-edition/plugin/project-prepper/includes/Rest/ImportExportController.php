@@ -18,27 +18,33 @@ defined( 'ABSPATH' ) || exit;
  */
 class ImportExportController extends BaseController {
 
-	const EXPORT_COLUMNS = [
-		'inventory_number' => 'Inventarnummer',
-		'name'             => 'Name',
-		'category_name'    => 'Kategorie',
-		'description'      => 'Beschreibung',
-		'manufacturer'     => 'Hersteller',
-		'model'            => 'Modell',
-		'serial_number'    => 'Seriennummer',
-		'quantity'         => 'Menge',
-		'condition'        => 'Zustand',
-		'location'         => 'Lagerort',
-		'cost_per_day'     => 'Tagessatz',
-		'purchase_price'   => 'Kaufpreis',
-		'purchase_date'    => 'Kaufdatum',
-		'current_value'    => 'Aktueller Wert',
-		'dimensions'       => 'Maße',
-		'power_watts'      => 'Leistung (W)',
-		'accessories'      => 'Zubehör',
-		'tags'             => 'Tags',
-		'notes'            => 'Notizen',
-	];
+	/**
+	 * Export-Spaltenköpfe (19 Spalten) — Methode statt const, damit __() greift.
+	 * de_DE liefert weiterhin die bisherigen deutschen Excel-Header.
+	 */
+	public static function export_columns(): array {
+		return [
+			'inventory_number' => __( 'Inventory number', 'project-prepper' ),
+			'name'             => __( 'Name', 'project-prepper' ),
+			'category_name'    => __( 'Category', 'project-prepper' ),
+			'description'      => __( 'Description', 'project-prepper' ),
+			'manufacturer'     => __( 'Manufacturer', 'project-prepper' ),
+			'model'            => __( 'Model', 'project-prepper' ),
+			'serial_number'    => __( 'Serial number', 'project-prepper' ),
+			'quantity'         => __( 'Quantity', 'project-prepper' ),
+			'condition'        => __( 'Condition', 'project-prepper' ),
+			'location'         => __( 'Location', 'project-prepper' ),
+			'cost_per_day'     => __( 'Daily rate', 'project-prepper' ),
+			'purchase_price'   => __( 'Purchase price', 'project-prepper' ),
+			'purchase_date'    => __( 'Purchase date', 'project-prepper' ),
+			'current_value'    => __( 'Current value', 'project-prepper' ),
+			'dimensions'       => __( 'Dimensions', 'project-prepper' ),
+			'power_watts'      => __( 'Power (W)', 'project-prepper' ),
+			'accessories'      => __( 'Accessories', 'project-prepper' ),
+			'tags'             => __( 'Tags', 'project-prepper' ),
+			'notes'            => __( 'Notes', 'project-prepper' ),
+		];
+	}
 
 	// Zustands-Mapping für den Import ("neu"→new, "defekt"→broken, … §8.6).
 	const CONDITION_MAP = [
@@ -59,14 +65,13 @@ class ImportExportController extends BaseController {
 		'retired'      => 'retired',
 	];
 
-	const CONDITION_LABELS = [
-		'new'     => 'Neu',
-		'good'    => 'Gut',
-		'fair'    => 'Gebraucht',
-		'poor'    => 'Schlecht',
-		'broken'  => 'Defekt',
-		'retired' => 'Ausgemustert',
-	];
+	/**
+	 * Zustands-Labels für den Export — Methode statt const, damit __() greift.
+	 * Gleiche Quell-Strings wie Shortcodes::condition_labels().
+	 */
+	public static function condition_labels(): array {
+		return \ProjectPrepper\Frontend\Shortcodes::condition_labels();
+	}
 
 	public function register_routes(): void {
 		register_rest_route( self::REST_NAMESPACE, '/export', [
@@ -91,15 +96,18 @@ class ImportExportController extends BaseController {
 
 		$out = fopen( 'php://output', 'w' );
 		header( 'Content-Type: text/csv; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename="inventar-' . current_time( 'Y-m-d' ) . '.csv"' );
+		/* translators: Export file name prefix — results in e.g. inventory-2026-06-12.csv */
+		header( 'Content-Disposition: attachment; filename="' . __( 'inventory', 'project-prepper' ) . '-' . current_time( 'Y-m-d' ) . '.csv"' );
 		echo "\xEF\xBB\xBF"; // BOM für Excel
 
-		fputcsv( $out, array_values( self::EXPORT_COLUMNS ), ';' );
+		$columns          = self::export_columns();
+		$condition_labels = self::condition_labels();
+		fputcsv( $out, array_values( $columns ), ';' );
 		foreach ( $items as $item ) {
 			$row = [];
-			foreach ( array_keys( self::EXPORT_COLUMNS ) as $key ) {
+			foreach ( array_keys( $columns ) as $key ) {
 				if ( 'condition' === $key ) {
-					$row[] = self::CONDITION_LABELS[ $item->condition ] ?? $item->condition;
+					$row[] = $condition_labels[ $item->condition ] ?? $item->condition;
 				} elseif ( 'tags' === $key ) {
 					$row[] = implode( ', ', (array) $item->tags );
 				} else {
@@ -129,7 +137,7 @@ class ImportExportController extends BaseController {
 			$row  = (array) $row;
 			$name = sanitize_text_field( (string) ( $row['name'] ?? '' ) );
 			if ( '' === $name ) {
-				$errors[] = [ 'row' => $index + 1, 'message' => __( 'Name fehlt.', 'project-prepper' ) ];
+				$errors[] = [ 'row' => $index + 1, 'message' => __( 'Name is required.', 'project-prepper' ) ];
 				continue;
 			}
 
@@ -173,7 +181,7 @@ class ImportExportController extends BaseController {
 				if ( $item_id ) {
 					$created++;
 				} else {
-					$errors[] = [ 'row' => $index + 1, 'message' => __( 'Konnte nicht angelegt werden (Inventarnummer bereits vergeben?).', 'project-prepper' ) ];
+					$errors[] = [ 'row' => $index + 1, 'message' => __( 'Could not be created (inventory number already taken?).', 'project-prepper' ) ];
 				}
 			} catch ( \Throwable $e ) {
 				$errors[] = [ 'row' => $index + 1, 'message' => $e->getMessage() ];

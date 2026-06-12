@@ -46,7 +46,7 @@ class MediaController extends BaseController {
 	public function upload_image( WP_REST_Request $request ) {
 		$item = Inventory::get_item( (int) $request['id'] );
 		if ( ! $item ) {
-			return new WP_Error( 'pp_not_found', __( 'Artikel nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 
 		$attachment_id = $this->handle_upload( $request, [ 'image/jpeg', 'image/png', 'image/webp', 'image/gif' ] );
@@ -66,7 +66,7 @@ class MediaController extends BaseController {
 	public function delete_image( WP_REST_Request $request ) {
 		$item = Inventory::get_item( (int) $request['id'] );
 		if ( ! $item ) {
-			return new WP_Error( 'pp_not_found', __( 'Artikel nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		if ( $item->image_id ) {
 			wp_delete_attachment( (int) $item->image_id, true );
@@ -78,12 +78,12 @@ class MediaController extends BaseController {
 	public function upload_document( WP_REST_Request $request ) {
 		$item = Inventory::get_item( (int) $request['id'] );
 		if ( ! $item ) {
-			return new WP_Error( 'pp_not_found', __( 'Artikel nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 
 		$files = $request->get_file_params();
 		if ( ! empty( $files['file']['size'] ) && $files['file']['size'] > self::MAX_DOCUMENT_BYTES ) {
-			return new WP_Error( 'pp_too_large', __( 'Datei zu groß (max. 20 MB).', 'project-prepper' ), [ 'status' => 413 ] );
+			return new WP_Error( 'pp_too_large', __( 'File too large (max. 20 MB).', 'project-prepper' ), [ 'status' => 413 ] );
 		}
 
 		$attachment_id = $this->handle_upload( $request, [ 'application/pdf' ] );
@@ -101,7 +101,7 @@ class MediaController extends BaseController {
 	public function delete_document( WP_REST_Request $request ) {
 		$item = Inventory::get_item( (int) $request['id'] );
 		if ( ! $item ) {
-			return new WP_Error( 'pp_not_found', __( 'Artikel nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		$doc_id = (int) $request['doc_id'];
 		$docs   = array_values( array_filter( array_map( 'intval', (array) $item->document_ids ), static function ( $id ) use ( $doc_id ) {
@@ -121,7 +121,7 @@ class MediaController extends BaseController {
 	private function handle_upload( WP_REST_Request $request, array $allowed_mimes ) {
 		$files = $request->get_file_params();
 		if ( empty( $files['file'] ) || ! empty( $files['file']['error'] ) ) {
-			return new WP_Error( 'pp_no_file', __( 'Keine Datei übermittelt.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_no_file', __( 'No file submitted.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
 		require_once ABSPATH . 'wp-admin/includes/file.php';
@@ -130,7 +130,7 @@ class MediaController extends BaseController {
 
 		$check = wp_check_filetype_and_ext( $files['file']['tmp_name'], $files['file']['name'] );
 		if ( empty( $check['type'] ) || ! in_array( $check['type'], $allowed_mimes, true ) ) {
-			return new WP_Error( 'pp_invalid_type', __( 'Dateityp nicht erlaubt.', 'project-prepper' ), [ 'status' => 415 ] );
+			return new WP_Error( 'pp_invalid_type', __( 'File type not allowed.', 'project-prepper' ), [ 'status' => 415 ] );
 		}
 
 		$attachment_id = media_handle_sideload( $files['file'] );
