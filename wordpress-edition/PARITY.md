@@ -1,18 +1,18 @@
 # Parity-Matrix — Live-App ↔ WordPress-Edition
 
-> Stand: 2026-06-11, Plugin v0.4.0, nach Lauf 1
+> Stand: 2026-06-12, Plugin v0.5.0, nach Lauf 2
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
-## Inventar (Parität: ~70 %)
+## Inventar (Parität: ~80 %)
 
 | App-Feature (Quelle) | WP-Status | Lücke | Prio |
 |---|---|---|---|
 | KPIs, Kategorie-Pills, Volltextsuche (§8.5) | ✅ v0.2.0 | — | — |
 | Alle Artikel-Felder inkl. SN/Maße/Watt/URLs (§8.1) | ✅ v0.2.0 | — | — |
 | Foto + PDFs im Detail-Modal (§8.1) | ✅ v0.2.0 | — | — |
-| Foto + PDFs direkt im **Anlege-Formular** (Commit 60eb81b) | ❌ | Anlegen nur mit Basis-Feldern | B |
+| Foto + PDFs direkt im **Anlege-Formular** (Commit 60eb81b) | ✅ v0.5.0 | — (POST /items, danach Media-Endpoints; Upload-Fehler als Toast, Artikel bleibt angelegt) | — |
 | "PDF anzeigen"-Link in der **Liste** (Commit e9fe5b8) | ❌ | nur Zähler "n PDF" | C |
-| Filter "Ausgeliehen" (§8.5, aggregiert aus Rentals) | ❌ | fehlt komplett | B |
+| Filter "Ausgeliehen" (§8.5, aggregiert aus Rentals) | ✅ v0.5.0 | — (out_now als Subquery-JOIN, Toggle-Pill + Badge "n unterwegs", REST ?out_only=1) | — |
 | Einzelstücke (§8.4) | ✅ v0.2.0 | — | — |
 | Abschreibungs-/Eigentums-Felder (§8.7: ownership_type, funding_source, depreciation_*) | ❌ | Spalten + UI fehlen | C |
 | Kategorien-Merge (Migration 097) | ❌ | nur Löschen (Items → ohne Kategorie) | C |
@@ -29,13 +29,13 @@
 | Freigabe-Logik pro Position (§9.2/9.3, approval_status) | ❌ | braucht Multi-Owner | blockiert |
 | "Mein Equipment unterwegs" (§9.3) | ❌ | braucht Multi-Owner | blockiert |
 
-## Anfragen (Parität: ~70 %)
+## Anfragen (Parität: ~85 %)
 
 | App-Feature (Quelle) | WP-Status | Lücke | Prio |
 |---|---|---|---|
 | Öffentliches Formular → Pipeline (§11) | ✅ v0.3.0 | — | — |
 | Status-Pipeline der App (new→contacted→offer→won/lost) | ⚠️ | WP nur new/contacted/closed | C |
-| Anfrage-**Detail** (App: inquiries/[id]) | ❌ | nur Tabellenzeile | B |
+| Anfrage-**Detail** (App: inquiries/[id]) | ✅ v0.5.0 | — (Zeile klickbar, Modal mit allen Feldern, mailto-Link, voller Nachricht, Equipment-Liste, Status-/Konvertieren-/Löschen-Aktionen) | — |
 | **Anfrage → Verleih konvertieren** (§11 Konvertierung) | ✅ v0.4.0 | — (Button im Admin, beide Edit-Caps nötig, ohne Zeitraum deaktiviert; Anfrage → closed, Verlinkung im Activity-Log) | — |
 
 ## Öffentliches Frontend (WP-only, kein App-Pendant — App ist komplett auth-geschützt)
@@ -62,9 +62,10 @@ Gruppen + Voting, Vereinbarungen + Gewinnverteilung, Sharing/Erträge, Aktivitä
 
 ## Nächster Lauf
 
-- [ ] B: Foto + PDFs direkt im Inventar-Anlege-Formular (Commit 60eb81b der App) — Admin-UI erweitern, Media-REST existiert bereits (`/items/{id}/image` + `/documents` nach dem Anlegen aufrufen)
-- [ ] B: Inventar-Filter "Ausgeliehen" (§8.5) — aggregiert aus reserved/active-Rentals, als Pill/Toggle neben den Kategorie-Pills; Backend: `Inventory::items()` um `out_today`-Flag/Filter ergänzen
-- [ ] B: Anfrage-Detail-Modal (App: inquiries/[id]) — Tabellenzeile klickbar, Modal mit allen Feldern, Items, Nachricht komplett, Status-Aktionen + Konvertieren-Button
+- [ ] B: Excel **XLSX** Import/Export (§8.6) — letzte B-Lücke im MVP-Scope. Empfehlung: SheetJS client-seitig im Admin (XLSX → JSON → bestehende REST-Endpoints bzw. JSON → XLSX-Download); die CSV-Endpoints bleiben als Fallback erhalten
+- [ ] C: "PDF anzeigen"-Link in der Inventar-**Liste** (Commit e9fe5b8 der App) — statt nur Zähler "n PDF"
+- [ ] C: Artikel-Detailseite im öffentlichen Frontend (/equipment/{nummer}) — Whitelist-Felder beachten
+- [ ] C: Status-Pipeline der Anfragen erweitern (new→contacted→offer→won/lost wie die App, statt new/contacted/closed)
 
 ## Blockiert / Entscheidungen
 
@@ -73,4 +74,5 @@ Gruppen + Voting, Vereinbarungen + Gewinnverteilung, Sharing/Erträge, Aktivitä
 ## Log
 
 - Vor Lauf 1 (2026-06-11): Matrix initial erstellt aus v0.3.0-Stand + Funktionsmapping.
+- Lauf 2 (2026-06-12, v0.5.0): Inventar-Filter "Ausgeliehen" (`Inventory::items()` mit `out_now` als aggregiertem Subquery-JOIN über reserved/active-Rentals des heutigen Tags — kein N+1; REST `GET /items?out_only=1`; Toggle-Pill neben den Kategorie-Pills + Badge "n unterwegs" in der Liste). Anfrage-Detail-Modal (REST `GET /inquiries/{id}`; Tabellenzeile klickbar, Modal mit allen Feldern, E-Mail als mailto-Link, vollständiger Nachricht, Equipment-Liste, Status-Aktionen + "In Verleih übernehmen" + Löschen im Footer; Aktionen in Zeile und Modal aus gemeinsamer `inquiryActions()`-Funktion). Foto + PDFs direkt im Inventar-Anlege-Formular (erst `POST /items`, dann sequentiell `POST /items/{id}/image` + `/documents`; Upload-Fehler als Toast, Artikel bleibt angelegt, Inputs werden geleert). Schema unverändert (0.3.0). Tests grün: php -l + node --check, wp-eval (Test-Verleih über heute → out_now=2 / out_only liefert genau das Item → nach Storno wieder 0), REST via App-Password (out_only 200/401, inquiries/1 mit items-Array, inquiries/999 → 404), Medien-Flow per curl (PNG + PDF hoch- und wieder runtergeladen/gelöscht, image_url/documents korrekt), UI via Chrome (Ausgeliehen-Pill + Foto/PDF-Inputs vorhanden, Toggle filtert, Anfrage-Modal mit allen Sektionen, Aktions-Buttons je nach Status, Rentals-Seite rendert).
 - Lauf 1 (2026-06-11, v0.4.0): Verleih bearbeiten (`Rentals::update()` mit Header- + Positions-Diff, Verfügbarkeit via exclude_rental_id, nur reserved/active; REST `PUT /rentals/{id}`; Detail-Modal editierbar inkl. Menge/Tagessatz pro Position + Position hinzufügen/entfernen). Tagessatz pro Position auch im Anlege-Formular (mit Vorschlag aus Artikel-Tagessatz). Anfrage → Verleih (`Inquiries::convert_to_rental()`, REST `POST /inquiries/{id}/convert` mit Doppel-Cap-Check, Button im Anfragen-Admin, ohne Zeitraum deaktiviert). Öffentliches Frontend blendet broken/retired aus (`usable_only` in `Inventory::items()`, `show_all`-Attribut auf allen 3 Shortcodes + Block-Toggle "Auch defekte/ausgemusterte zeigen"). Alle Tests grün (14 wp-eval-Service-Tests, REST-Tests inkl. 401/403/409, Frontend-HTML-Check, 5 Admin-Seiten). Schema unverändert (0.3.0).
