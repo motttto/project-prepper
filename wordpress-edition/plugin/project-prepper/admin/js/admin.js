@@ -130,6 +130,7 @@
 		root.innerHTML = "";
 		var categories = [];
 		var activeCategory = "";
+		var outOnly = false;
 		var kpiBox = el("div", { class: "pp-kpis" });
 		var pillBox = el("div", { class: "pp-pills" });
 		var listBox = el("div");
@@ -154,6 +155,12 @@
 
 		function renderPills() {
 			pillBox.innerHTML = "";
+			// Toggle "Ausgeliehen" (§8.5) — Artikel, die heute in reserved/active-Verleihen stecken.
+			pillBox.appendChild(el("button", {
+				class: "pp-pill pp-pill-out" + (outOnly ? " is-active" : ""),
+				text: "Ausgeliehen",
+				onclick: function () { outOnly = !outOnly; renderPills(); loadItems(); }
+			}));
 			var all = el("button", { class: "pp-pill" + (activeCategory === "" ? " is-active" : ""), text: "Alle", onclick: function () { activeCategory = ""; renderPills(); loadItems(); } });
 			pillBox.appendChild(all);
 			categories.forEach(function (cat) {
@@ -169,6 +176,7 @@
 			var params = [];
 			if (search.value.trim()) params.push("search=" + encodeURIComponent(search.value.trim()));
 			if (activeCategory) params.push("category_id=" + activeCategory);
+			if (outOnly) params.push("out_only=1");
 			api("/items" + (params.length ? "?" + params.join("&") : "")).then(function (items) {
 				listBox.innerHTML = "";
 				var table = el("table", { class: "pp-table" });
@@ -180,10 +188,15 @@
 					var thumb = item.image_url
 						? el("img", { class: "pp-thumb", src: item.image_url, alt: "" })
 						: el("div", { class: "pp-thumb-empty", text: item.category_icon || "📦" });
+					// Badge "n unterwegs" wenn der Artikel heute in Verleihen steckt.
+					var nameCell = el("td", null, [el("span", { text: item.name })]);
+					if (item.out_now > 0) {
+						nameCell.appendChild(el("span", { class: "pp-badge pp-badge-active pp-badge-out", text: item.out_now + " unterwegs" }));
+					}
 					var row = el("tr", { class: "pp-clickable", onclick: function () { openItemModal(item.id); } }, [
 						el("td", null, [thumb]),
 						el("td", null, [el("code", { text: item.inventory_number })]),
-						el("td", { text: item.name }),
+						nameCell,
 						el("td", { text: (item.category_icon ? item.category_icon + " " : "") + (item.category_name || "—") }),
 						el("td", { text: item.quantity }),
 						el("td", null, [badge(item.condition, CONDITIONS)]),
@@ -422,10 +435,35 @@
 			var cCondition = conditionSelect("good"); cCondition.classList.add("pp-input-sm");
 			var cRate = el("input", { type: "number", step: "0.01", placeholder: "Tagessatz €", class: "pp-input-sm" });
 			var cLocation = el("input", { type: "text", placeholder: "Lagerort", class: "pp-input-md" });
+			// Foto + PDFs direkt beim Anlegen (wie App, Commit 60eb81b):
+			// erst POST /items, danach die Media-Endpoints mit der neuen Artikel-ID.
+			var cPhoto = el("input", { type: "file", accept: "image/*" });
+			var cPdfs = el("input", { type: "file", accept: "application/pdf,.pdf", multiple: "multiple" });
+
+			function uploadCreateMedia(itemId) {
+				var chain = Promise.resolve();
+				if (cPhoto.files.length) {
+					var photoFile = cPhoto.files[0];
+					chain = chain.then(function () {
+						return apiUpload("/items/" + itemId + "/image", photoFile);
+					}).catch(function (e) {
+						toast("Foto-Upload fehlgeschlagen: " + e.message, "error");
+					});
+				}
+				// PDFs sequentiell hochladen (Dokumentliste wird serverseitig fortgeschrieben).
+				Array.prototype.slice.call(cPdfs.files).forEach(function (file) {
+					chain = chain.then(function () {
+						return apiUpload("/items/" + itemId + "/documents", file);
+					}).catch(function (e) {
+						toast('PDF "' + file.name + '" fehlgeschlagen: ' + e.message, "error");
+					});
+				});
+				return chain;
+			}
+
 			createCard = el("div", { class: "pp-card" }, [
 				el("h2", { text: "Neuer Artikel" }),
 				el("form", {
-					class: "pp-row",
 					onsubmit: function (e) {
 						e.preventDefault();
 						if (!cName.value.trim()) return;
@@ -441,11 +479,22 @@
 							})
 						}).then(function (item) {
 							toast("Artikel " + item.inventory_number + " angelegt.");
+							// Artikel bleibt auch bei Upload-Fehlern angelegt.
+							uploadCreateMedia(item.id).then(function () {
+								cPhoto.value = ""; cPdfs.value = "";
+								loadItems(); loadStats();
+							});
 							cName.value = cRate.value = cLocation.value = ""; cQty.value = "1";
-							loadItems(); loadStats();
 						}).catch(function (e2) { toast(e2.message, "error"); });
 					}
-				}, [cName, cCat, cQty, cCondition, cRate, cLocation, el("button", { class: "pp-btn pp-btn-primary", text: "Anlegen" })])
+				}, [
+					el("div", { class: "pp-row" }, [cName, cCat, cQty, cCondition, cRate, cLocation]),
+					el("div", { class: "pp-row" }, [
+						field("Foto", cPhoto),
+						field("PDF-Dokumente", cPdfs),
+						el("button", { class: "pp-btn pp-btn-primary", text: "Anlegen" })
+					])
+				])
 			]);
 			loadCategories(function () {
 				cCat.innerHTML = "";
@@ -1017,7 +1066,114 @@
 		root.innerHTML = "";
 		var INQUIRY_STATUS = { new: "Neu", contacted: "Kontaktiert", closed: "Abgeschlossen" };
 		var INQUIRY_ACTIONS = { new: ["contacted", "closed"], contacted: ["closed"], closed: [] };
+		var INQUIRY_BADGE = { new: "reserved", contacted: "active", closed: "returned" };
 		var listBox = el("div");
+
+		function inquiryBadge(status) {
+			return el("span", { class: "pp-badge pp-badge-" + (INQUIRY_BADGE[status] || status), text: INQUIRY_STATUS[status] || status });
+		}
+
+		// Aktions-Buttons (Konvertieren, Status, Löschen) — für Zeile UND Modal-Footer.
+		function inquiryActions(inquiry, small, done) {
+			var box = el("span");
+			if (!ppConfig.canEdit.inquiries) return box;
+			// Anfrage → Verleih (braucht beide Edit-Caps; ohne Zeitraum deaktiviert).
+			if (ppConfig.canEdit.rentals && inquiry.status !== "closed") {
+				var convertBtn = el("button", {
+					class: "pp-btn pp-btn-primary" + (small ? " pp-btn-sm" : ""), text: "In Verleih übernehmen", style: "margin-right:4px",
+					onclick: function (e) {
+						e.stopPropagation();
+						if (!confirm('Anfrage von "' + inquiry.name + '" in einen Verleih übernehmen? Die Anfrage wird abgeschlossen.')) return;
+						api("/inquiries/" + inquiry.id + "/convert", { method: "POST" }).then(function (rental) {
+							toast("Verleih " + rental.rental_number + " angelegt.");
+							done();
+						}).catch(function (err) { toast(err.message, "error"); });
+					}
+				});
+				if (!inquiry.date_from || !inquiry.date_to) {
+					convertBtn.disabled = true;
+					convertBtn.title = "Zeitraum fehlt — Konvertierung nicht möglich";
+				}
+				box.appendChild(convertBtn);
+			}
+			(INQUIRY_ACTIONS[inquiry.status] || []).forEach(function (next) {
+				box.appendChild(el("button", {
+					class: "pp-btn" + (small ? " pp-btn-sm" : ""), text: INQUIRY_STATUS[next], style: "margin-right:4px",
+					onclick: function (e) {
+						e.stopPropagation();
+						api("/inquiries/" + inquiry.id + "/status", { method: "POST", body: JSON.stringify({ status: next }) })
+							.then(done).catch(function (err) { toast(err.message, "error"); });
+					}
+				}));
+			});
+			box.appendChild(el("button", {
+				class: "pp-link pp-link-danger", text: "löschen",
+				onclick: function (e) {
+					e.stopPropagation();
+					if (!confirm("Anfrage von \"" + inquiry.name + "\" löschen?")) return;
+					api("/inquiries/" + inquiry.id, { method: "DELETE" }).then(done);
+				}
+			}));
+			return box;
+		}
+
+		/* ----- Detail-Modal (Pendant zu inquiries/[id] der App) ----- */
+
+		function openInquiryModal(inquiryId) {
+			api("/inquiries/" + inquiryId).then(function (inquiry) {
+				function dd(label, valueNode) {
+					return el("div", { class: "pp-field" }, [
+						el("label", { text: label }),
+						typeof valueNode === "string" ? el("div", { text: valueNode || "—" }) : valueNode
+					]);
+				}
+
+				var emailNode = inquiry.email
+					? el("a", { class: "pp-link", href: "mailto:" + inquiry.email, text: inquiry.email })
+					: el("div", { text: "—" });
+				var range = inquiry.date_from ? dateDe(inquiry.date_from) + " – " + dateDe(inquiry.date_to) : "—";
+
+				var body = el("div", null, [
+					el("div", { class: "pp-row" }, [inquiryBadge(inquiry.status)]),
+					el("div", { class: "pp-modal-grid" }, [
+						dd("Name", inquiry.name),
+						dd("E-Mail", emailNode),
+						dd("Telefon", inquiry.phone),
+						dd("Zeitraum", range),
+						dd("Eingegangen am", dateDe(inquiry.created_at))
+					])
+				]);
+
+				// Vollständige Nachricht
+				var messageNode = el("div", { class: "pp-inquiry-message", text: inquiry.message || "—" });
+				body.appendChild(el("div", { class: "pp-modal-section" }, [
+					el("h3", { text: "Nachricht" }),
+					messageNode
+				]));
+
+				// Equipment-Liste
+				var itemList = el("ul", { class: "pp-lines" });
+				(inquiry.items || []).forEach(function (line) {
+					itemList.appendChild(el("li", null, [
+						el("span", { text: (line.name || "Artikel #" + line.item_id) + " × " + (line.quantity || 1) })
+					]));
+				});
+				if (!(inquiry.items || []).length) itemList.appendChild(el("li", { class: "pp-muted", text: "Kein Equipment angefragt." }));
+				body.appendChild(el("div", { class: "pp-modal-section" }, [
+					el("h3", { text: "Equipment" }),
+					itemList
+				]));
+
+				var close;
+				var footer = el("div", { class: "pp-modal-footer" }, [
+					inquiryActions(inquiry, false, function () { close(); load(); }),
+					el("div", { class: "pp-right" }, [
+						el("button", { class: "pp-btn", text: "Schließen", onclick: function () { close(); } })
+					])
+				]);
+				close = openModal("Anfrage von " + inquiry.name, body, footer);
+			}).catch(function (e) { toast(e.message, "error"); });
+		}
 
 		function load() {
 			api("/inquiries").then(function (inquiries) {
@@ -1028,56 +1184,18 @@
 				}));
 				var tbody = el("tbody");
 				inquiries.forEach(function (inquiry) {
-					var actions = el("td");
-					if (ppConfig.canEdit.inquiries) {
-						// Anfrage → Verleih (braucht beide Edit-Caps; ohne Zeitraum deaktiviert).
-						if (ppConfig.canEdit.rentals && inquiry.status !== "closed") {
-							var convertBtn = el("button", {
-								class: "pp-btn pp-btn-sm pp-btn-primary", text: "In Verleih übernehmen", style: "margin-right:4px",
-								onclick: function () {
-									if (!confirm('Anfrage von "' + inquiry.name + '" in einen Verleih übernehmen? Die Anfrage wird abgeschlossen.')) return;
-									api("/inquiries/" + inquiry.id + "/convert", { method: "POST" }).then(function (rental) {
-										toast("Verleih " + rental.rental_number + " angelegt.");
-										load();
-									}).catch(function (e) { toast(e.message, "error"); });
-								}
-							});
-							if (!inquiry.date_from || !inquiry.date_to) {
-								convertBtn.disabled = true;
-								convertBtn.title = "Zeitraum fehlt — Konvertierung nicht möglich";
-							}
-							actions.appendChild(convertBtn);
-						}
-						(INQUIRY_ACTIONS[inquiry.status] || []).forEach(function (next) {
-							actions.appendChild(el("button", {
-								class: "pp-btn pp-btn-sm", text: INQUIRY_STATUS[next], style: "margin-right:4px",
-								onclick: function () {
-									api("/inquiries/" + inquiry.id + "/status", { method: "POST", body: JSON.stringify({ status: next }) })
-										.then(load).catch(function (e) { toast(e.message, "error"); });
-								}
-							}));
-						});
-						actions.appendChild(el("button", {
-							class: "pp-link pp-link-danger", text: "löschen",
-							onclick: function () {
-								if (!confirm("Anfrage von \"" + inquiry.name + "\" löschen?")) return;
-								api("/inquiries/" + inquiry.id, { method: "DELETE" }).then(load);
-							}
-						}));
-					}
 					var contact = [inquiry.email, inquiry.phone].filter(Boolean).join(" · ") || "—";
 					var range = inquiry.date_from ? dateDe(inquiry.date_from) + " – " + dateDe(inquiry.date_to) : "—";
 					var equipment = (inquiry.items || []).map(function (line) { return line.name; }).join(", ") || "—";
-					var badgeClass = { new: "reserved", contacted: "active", closed: "returned" }[inquiry.status] || inquiry.status;
-					tbody.appendChild(el("tr", null, [
+					tbody.appendChild(el("tr", { class: "pp-clickable", onclick: function () { openInquiryModal(inquiry.id); } }, [
 						el("td", { text: dateDe(inquiry.created_at) }),
 						el("td", { text: inquiry.name }),
 						el("td", { text: contact }),
 						el("td", { text: range }),
 						el("td", { text: equipment }),
 						el("td", { text: inquiry.message ? (inquiry.message.length > 80 ? inquiry.message.slice(0, 80) + "…" : inquiry.message) : "—" }),
-						el("td", null, [el("span", { class: "pp-badge pp-badge-" + badgeClass, text: INQUIRY_STATUS[inquiry.status] || inquiry.status })]),
-						actions
+						el("td", null, [inquiryBadge(inquiry.status)]),
+						el("td", null, [inquiryActions(inquiry, true, load)])
 					]));
 				});
 				if (!inquiries.length) tbody.appendChild(el("tr", { html: '<td colspan="8" class="pp-muted">Noch keine Anfragen. Das Formular kommt per Shortcode [pp_request_form] auf jede Seite.</td>' }));

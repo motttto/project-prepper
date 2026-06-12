@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, verleih, inventar
 Requires at least: 6.4
 Tested up to: 6.8
 Requires PHP: 8.0
-Stable tag: 0.4.0
+Stable tag: 0.5.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -32,6 +32,11 @@ Zielgruppe: Veranstaltungstechnik-Crews, Vereine, Verleiher, Werkstätten und Ma
 3. Menüpunkt "Project Prepper" im Admin öffnen.
 
 == Changelog ==
+
+= 0.5.0 =
+* Foto und PDF-Dokumente direkt beim Anlegen eines Artikels hochladen
+* Inventar-Filter "Ausgeliehen": Toggle neben den Kategorie-Pills, Badge "n unterwegs" in der Liste
+* Anfrage-Detail: Zeile klickbar, Modal mit allen Feldern, vollständiger Nachricht, Equipment-Liste und Aktionen
 
 = 0.4.0 =
 * Verleih bearbeiten: Header-Felder und Positionen (Menge, Tagessatz) nachträglich änderbar — mit Verfügbarkeitsprüfung

@@ -93,11 +93,15 @@ class Inventory {
 
 	public static function items( array $args = [] ): array {
 		global $wpdb;
-		$items = Schema::table( 'items' );
-		$cats  = Schema::table( 'categories' );
+		$items   = Schema::table( 'items' );
+		$cats    = Schema::table( 'categories' );
+		$lines   = Schema::table( 'rental_items' );
+		$rentals = Schema::table( 'rentals' );
+		$today   = current_time( 'Y-m-d' );
 
 		$where  = [ '1=1' ];
-		$params = [];
+		// Die ersten beiden Platzhalter gehören zum out_now-Subquery (heutiges Datum).
+		$params = [ $today, $today ];
 
 		if ( ! empty( $args['search'] ) ) {
 			// Volltextsuche über die wichtigsten Felder (§8.5).
@@ -114,16 +118,29 @@ class Inventory {
 			// Öffentliches Frontend: defekte/ausgemusterte Artikel ausblenden.
 			$where[] = "i.item_condition NOT IN ('broken', 'retired')";
 		}
+		if ( ! empty( $args['out_only'] ) ) {
+			// Filter "Ausgeliehen" (§8.5): nur Artikel, die heute unterwegs sind.
+			$where[] = 'COALESCE(o.out_now, 0) > 0';
+		}
 
-		$sql = "SELECT i.*, c.name AS category_name, c.icon AS category_icon
+		// out_now = heute unterwegs (Summe Mengen aus überlappenden reserved/active-Verleihen),
+		// als ein Subquery-JOIN berechnet — kein N+1, nichts gespeichert.
+		$sql = "SELECT i.*, c.name AS category_name, c.icon AS category_icon,
+					COALESCE(o.out_now, 0) AS out_now
 				FROM {$items} i
 				LEFT JOIN {$cats} c ON c.id = i.category_id
+				LEFT JOIN (
+					SELECT ri.item_id, SUM(ri.quantity) AS out_now
+					FROM {$lines} ri
+					INNER JOIN {$rentals} r ON r.id = ri.rental_id
+					WHERE r.status IN ('reserved', 'active')
+					  AND r.date_from <= %s AND r.date_to >= %s
+					GROUP BY ri.item_id
+				) o ON o.item_id = i.id
 				WHERE " . implode( ' AND ', $where ) . '
 				ORDER BY i.inventory_number ASC';
 
-		if ( $params ) {
-			$sql = $wpdb->prepare( $sql, $params );
-		}
+		$sql = $wpdb->prepare( $sql, $params );
 		return array_map( [ self::class, 'decode_item' ], $wpdb->get_results( $sql ) ?: [] );
 	}
 
@@ -301,6 +318,7 @@ class Inventory {
 	}
 
 	private static function decode_item( object $row ): object {
+		$row->out_now      = isset( $row->out_now ) ? (int) $row->out_now : 0;
 		$row->tags         = json_decode( $row->tags ?? '[]' ) ?: [];
 		$row->document_ids = json_decode( $row->document_ids ?? '[]' ) ?: [];
 		$row->condition    = $row->item_condition;

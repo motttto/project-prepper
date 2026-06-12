@@ -248,6 +248,19 @@
 	color: #fff;
 }
 
+/* Toggle "Ausgeliehen" — wie der Filter der App in Info-Farbe */
+.pp-pill-out {
+	border-color: var(--pp-info);
+	color: var(--pp-info);
+	margin-right: 8px;
+}
+
+.pp-pill-out.is-active {
+	background: var(--pp-info);
+	border-color: var(--pp-info);
+	color: #fff;
+}
+
 /* ---------- Tabellen ---------- */
 
 .pp-table-wrap {
@@ -338,6 +351,18 @@
 .pp-badge-poor { background: var(--pp-warning-light); color: var(--pp-warning); }
 .pp-badge-broken { background: var(--pp-destructive-light); color: var(--pp-destructive); }
 .pp-badge-retired { background: var(--pp-muted); color: var(--pp-muted-foreground); }
+
+/* "n unterwegs" neben dem Artikelnamen */
+.pp-badge-out { margin-left: 8px; }
+
+/* Vollständige Nachricht im Anfrage-Detail */
+.pp-inquiry-message {
+	white-space: pre-wrap;
+	background: var(--pp-muted);
+	border-radius: var(--pp-radius-sm);
+	padding: 10px 12px;
+	font-size: 13px;
+}
 
 .pp-avail-ok { color: var(--pp-success); font-size: 12px; font-weight: 500; }
 .pp-avail-none { color: var(--pp-destructive); font-size: 12px; font-weight: 500; }

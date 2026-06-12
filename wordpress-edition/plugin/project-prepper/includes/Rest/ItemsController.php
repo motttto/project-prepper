@@ -65,6 +65,7 @@ class ItemsController extends BaseController {
 		return new WP_REST_Response( Inventory::items( [
 			'search'      => sanitize_text_field( (string) $request->get_param( 'search' ) ),
 			'category_id' => (int) $request->get_param( 'category_id' ),
+			'out_only'    => rest_sanitize_boolean( $request->get_param( 'out_only' ) ),
 		] ) );
 	}
 

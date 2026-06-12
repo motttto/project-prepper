@@ -30,9 +30,16 @@ class InquiriesController extends BaseController {
 		] );
 
 		register_rest_route( self::REST_NAMESPACE, '/inquiries/(?P<id>\d+)', [
-			'methods'             => 'DELETE',
-			'callback'            => [ $this, 'delete' ],
-			'permission_callback' => $this->require_cap( Capabilities::EDIT_INQUIRIES ),
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'show' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_INQUIRIES ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'delete' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_INQUIRIES ),
+			],
 		] );
 
 		// Konvertierung legt einen Verleih an → braucht BEIDE Edit-Caps.
@@ -49,6 +56,14 @@ class InquiriesController extends BaseController {
 		return new WP_REST_Response( Inquiries::all( [
 			'status' => sanitize_text_field( (string) $request->get_param( 'status' ) ),
 		] ) );
+	}
+
+	public function show( WP_REST_Request $request ) {
+		$inquiry = Inquiries::get( (int) $request['id'] );
+		if ( ! $inquiry ) {
+			return new WP_Error( 'pp_not_found', __( 'Anfrage nicht gefunden.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( $inquiry );
 	}
 
 	public function set_status( WP_REST_Request $request ) {
