@@ -1,0 +1,245 @@
+# Copyright (C) 2026 motttto
+# This file is distributed under the GPLv2 or later.
+msgid ""
+msgstr ""
+"Project-Id-Version: Prepper Site 0.1.0\n"
+"Report-Msgid-Bugs-To: https://wordpress.org/support/theme/prepper-site\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"POT-Creation-Date: 2026-06-12T19:59:29+00:00\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"X-Generator: WP-CLI 2.12.0\n"
+"X-Domain: prepper-site\n"
+
+#. Theme Name of the theme
+#: style.css
+msgid "Prepper Site"
+msgstr ""
+
+#. Theme URI of the theme
+#: style.css
+msgid "https://project-prepper.dunkelstrom.net"
+msgstr ""
+
+#. Description of the theme
+#: style.css
+msgid "A complete rental-business website theme designed for the Project Prepper plugin — equipment list, availability check and request form out of the box. Block theme with full site editing support."
+msgstr ""
+
+#. Author of the theme
+#: style.css
+msgid "motttto"
+msgstr ""
+
+#: patterns/404-content.php
+msgctxt "Pattern title"
+msgid "404 content"
+msgstr ""
+
+#: patterns/404-content.php
+msgctxt "Pattern description"
+msgid "Headline, message and back-home button for the 404 template."
+msgstr ""
+
+#: patterns/404-content.php:13
+msgid "This page could not be found."
+msgstr ""
+
+#: patterns/404-content.php:18
+msgid "Back to the homepage"
+msgstr ""
+
+#: patterns/equipment-teaser.php
+msgctxt "Pattern title"
+msgid "Equipment teaser"
+msgstr ""
+
+#: patterns/equipment-teaser.php
+msgctxt "Pattern description"
+msgid "Equipment list from the Project Prepper plugin with a heading and a link to the full catalog."
+msgstr ""
+
+#: patterns/equipment-teaser.php:12
+msgid "Our equipment"
+msgstr ""
+
+#: patterns/features.php
+msgctxt "Pattern title"
+msgid "Features"
+msgstr ""
+
+#: patterns/features.php
+msgctxt "Pattern description"
+msgid "Three columns explaining how renting works."
+msgstr ""
+
+#: patterns/features.php:12
+msgid "How it works"
+msgstr ""
+
+#: patterns/features.php:22
+msgid "Browse the catalog"
+msgstr ""
+
+#: patterns/features.php:25
+msgid "Search our equipment by name, category or tags — with daily rates and live availability."
+msgstr ""
+
+#: patterns/features.php:35
+msgid "Send your request"
+msgstr ""
+
+#: patterns/features.php:38
+msgid "Pick the items and your rental period — we get back to you with a quote."
+msgstr ""
+
+#: patterns/features.php:48
+msgid "Pick up & play"
+msgstr ""
+
+#: patterns/features.php:51
+msgid "Collect your gear on the agreed date — checked, tested and ready to go."
+msgstr ""
+
+#: patterns/hero.php
+msgctxt "Pattern title"
+msgid "Hero"
+msgstr ""
+
+#: patterns/hero.php
+msgctxt "Pattern description"
+msgid "Dark hero section with headline, intro text and two call-to-action buttons."
+msgstr ""
+
+#: patterns/hero.php:14
+msgid "Rent professional event equipment"
+msgstr ""
+
+#: patterns/hero.php:17
+msgid "Lighting, sound and stage gear — check availability online and send your request in minutes."
+msgstr ""
+
+#: patterns/hero.php:22
+msgid "Browse equipment"
+msgstr ""
+
+#: patterns/hero.php:25
+#: patterns/request-cta.php:20
+msgid "Send a request"
+msgstr ""
+
+#: patterns/request-cta.php
+msgctxt "Pattern title"
+msgid "Request call-to-action"
+msgstr ""
+
+#: patterns/request-cta.php
+msgctxt "Pattern description"
+msgid "Indigo call-to-action band linking to the request form."
+msgstr ""
+
+#: patterns/request-cta.php:12
+msgid "Planning an event?"
+msgstr ""
+
+#: patterns/request-cta.php:15
+msgid "Tell us what you need and when — you will hear back from us within one business day."
+msgstr ""
+
+#: theme.json
+msgctxt "Color name"
+msgid "Base"
+msgstr ""
+
+#: theme.json
+msgctxt "Color name"
+msgid "Surface"
+msgstr ""
+
+#: theme.json
+msgctxt "Color name"
+msgid "Contrast"
+msgstr ""
+
+#: theme.json
+msgctxt "Color name"
+msgid "Primary"
+msgstr ""
+
+#: theme.json
+msgctxt "Color name"
+msgid "Primary Dark"
+msgstr ""
+
+#: theme.json
+msgctxt "Color name"
+msgid "Accent"
+msgstr ""
+
+#: theme.json
+msgctxt "Color name"
+msgid "Tint"
+msgstr ""
+
+#: theme.json
+msgctxt "Color name"
+msgid "Night"
+msgstr ""
+
+#: theme.json
+msgctxt "Color name"
+msgid "Muted"
+msgstr ""
+
+#: theme.json
+msgctxt "Gradient name"
+msgid "Hero"
+msgstr ""
+
+#: theme.json
+msgctxt "Font family name"
+msgid "System Sans"
+msgstr ""
+
+#: theme.json
+msgctxt "Font size name"
+msgid "Small"
+msgstr ""
+
+#: theme.json
+msgctxt "Font size name"
+msgid "Medium"
+msgstr ""
+
+#: theme.json
+msgctxt "Font size name"
+msgid "Large"
+msgstr ""
+
+#: theme.json
+msgctxt "Font size name"
+msgid "Extra Large"
+msgstr ""
+
+#: theme.json
+msgctxt "Font size name"
+msgid "Huge"
+msgstr ""
+
+#: theme.json
+msgctxt "Template part name"
+msgid "Header"
+msgstr ""
+
+#: theme.json
+msgctxt "Template part name"
+msgid "Footer"
+msgstr ""
+
+#: theme.json
+msgctxt "Custom template name"
+msgid "Page without title"
+msgstr ""

@@ -1,6 +1,11 @@
 {
 	"core": null,
 	"phpVersion": "8.2",
-	"plugins": [ "." ],
-	"testsEnvironment": false
+	"plugins": [
+		"."
+	],
+	"testsEnvironment": false,
+	"themes": [
+		"../../theme/prepper-site"
+	]
 }
