@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.8.1
+Stable tag: 0.8.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -57,6 +57,15 @@ Yes, optionally: borrowers receive confirmation emails on reservation, handout a
 
 Borrower data can be exported and anonymized via the WordPress core privacy tools (Tools → Export/Erase Personal Data, search by email address).
 
+== Screenshots ==
+
+1. Inventory admin: KPI cards, quick-add form, search, category filters and the item list with "on loan" badges.
+2. Rentals admin: create a rental with line items, hand out, take back or cancel — with status badges.
+3. Inquiry pipeline: requests from the public form move through New → Contacted → Offer → Won/Lost and convert into rentals with one click.
+4. Public equipment list via the [pp_inventory] shortcode or block — search, category badges and daily rates.
+5. Public request form via the [pp_request_form] shortcode or block — visitors pick equipment and a period.
+6. Public item detail page with description, tags, condition and (optionally) the daily rate.
+
 == Credits ==
 
 This plugin bundles the SheetJS Community Edition (https://sheetjs.com, file `admin/js/vendor/xlsx.full.min.js`)
@@ -64,6 +73,9 @@ for the XLSX import/export in the admin. SheetJS CE is licensed under the Apache
 (https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
 
 == Changelog ==
+
+= 0.8.2 =
+* Directory assets for wordpress.org (banner, icon, screenshots) and a Screenshots section in the readme
 
 = 0.8.1 =
 * Plugin Check compliance: all database queries use %i identifier placeholders with $wpdb->prepare()
