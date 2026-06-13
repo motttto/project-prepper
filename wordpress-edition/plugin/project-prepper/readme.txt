@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.13.1
+Stable tag: 0.14.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,6 +18,7 @@ Project Prepper manages equipment inventory and rentals directly in WordPress:
 * Categories with icon and prefix
 * Search and filters across name, number, manufacturer, tags
 * Projects: plan events with equipment bookings, a schedule, checklists, tasks, a cost breakdown with VAT, budget and revenue, materials, a team & contacts list and attached files from the media library — confirmed projects block inventory just like rentals
+* Groups: share projects with a team of WordPress users — group projects are only visible to their members, site-level projects keep working as before
 * Rental management: borrower, period, deposit, fee
 * Availability checks across overlapping rental and project booking periods
 * Status flow: Reserved → On loan → Returned (or Cancelled)
@@ -74,6 +75,14 @@ for the XLSX import/export in the admin. SheetJS CE is licensed under the Apache
 (https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
 
 == Changelog ==
+
+= 0.14.0 =
+* New Groups feature (foundation): create groups of WordPress users and assign a project to a group
+* Group projects are only visible to their members (and admins); site-level projects (no group) keep behaving exactly as before — the change is fully additive
+* New "Groups" admin page: list groups, create them, manage members (add site users as founder/member, remove; the last founder is protected)
+* New "Group" selector in the project detail and create form ("— site level —" by default)
+* New capability "pp_groups_manage" granted to Administrator and Prepper Manager
+* Deleting a group returns its projects to site level (projects are never deleted)
 
 = 0.13.1 =
 * Inventory item detail now lists the projects an item is booked in (name, status, quantity and period) — the named counterpart to the aggregated "out" badge

@@ -21,6 +21,9 @@ class Capabilities {
 	const EDIT_INQUIRIES  = 'pp_inquiries_edit';
 	const IMPORT_EXPORT   = 'pp_import_export';
 	const MANAGE_SETTINGS = 'pp_settings_manage';
+	// Gruppen-Overlay (v0.10.0): Gruppen anlegen/bearbeiten + Mitglieder verwalten.
+	// Gilt zugleich als Admin-Signal in den Gruppen-Zugriffs-Guards (Groups::is_admin).
+	const MANAGE_GROUPS   = 'pp_groups_manage';
 
 	public static function all(): array {
 		return [
@@ -34,6 +37,7 @@ class Capabilities {
 			self::EDIT_INQUIRIES,
 			self::IMPORT_EXPORT,
 			self::MANAGE_SETTINGS,
+			self::MANAGE_GROUPS,
 		];
 	}
 
@@ -63,6 +67,7 @@ class Capabilities {
 			self::VIEW_INQUIRIES  => true,
 			self::EDIT_INQUIRIES  => true,
 			self::IMPORT_EXPORT   => true,
+			self::MANAGE_GROUPS   => true,
 		] );
 
 		// Member: nur lesen (≈ App-Rolle "Member" mit View-Permissions).

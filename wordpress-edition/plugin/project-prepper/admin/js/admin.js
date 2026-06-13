@@ -1174,9 +1174,20 @@
 		var TASK_PRIORITY = { low: __("Low", "project-prepper"), normal: __("Normal", "project-prepper"), high: __("High", "project-prepper") };
 		var COST_CATEGORIES = { personnel: __("Personnel", "project-prepper"), material: __("Material", "project-prepper"), inventory: __("Inventory", "project-prepper"), external: __("External services", "project-prepper"), other: __("Other", "project-prepper") };
 		var items = [];
+		var groups = []; // Gruppen, die der User sehen darf (für die Gruppen-Auswahl).
 		var activeStatus = "";
 		var pillBox = el("div", { class: "pp-pills" });
 		var listBox = el("div");
+
+		// Gruppen-Select (owner_group_id) — „— site level —" als leerer Default.
+		function groupSelect(value) {
+			var select = el("select", null, [el("option", { value: "", text: __("— site level —", "project-prepper") })]);
+			groups.forEach(function (group) {
+				select.appendChild(el("option", { value: group.id, text: group.name }));
+			});
+			select.value = value ? String(value) : "";
+			return select;
+		}
 
 		function projectBadge(status) {
 			return el("span", { class: "pp-badge pp-badge-" + (PROJECT_BADGE[status] || status), text: PROJECT_STATUS[status] || status });
@@ -1257,8 +1268,10 @@
 					clientPhone: input("text", project.client_phone),
 					notes: el("textarea", { rows: "2" }),
 					budgetPlanned: input("number", project.budget_planned),
-					revenueActual: input("number", project.revenue_actual)
+					revenueActual: input("number", project.revenue_actual),
+					group: groupSelect(project.owner_group_id)
 				};
+				if (!editable) f.group.disabled = true;
 				f.budgetPlanned.setAttribute("step", "0.01");
 				f.budgetPlanned.setAttribute("min", "0");
 				f.revenueActual.setAttribute("step", "0.01");
@@ -1287,6 +1300,7 @@
 					field(__("Venue", "project-prepper"), f.venueName), field(__("Venue address", "project-prepper"), f.venueAddress),
 					field(__("Client", "project-prepper"), f.clientName), field(__("Email", "project-prepper"), f.clientEmail), field(__("Phone", "project-prepper"), f.clientPhone),
 					field(__("Budget (net)", "project-prepper"), f.budgetPlanned), field(__("Revenue (net)", "project-prepper"), f.revenueActual),
+					field(__("Group", "project-prepper"), f.group),
 					field(__("Notes", "project-prepper"), f.notes)
 				]);
 
@@ -1992,6 +2006,7 @@
 									client_phone: f.clientPhone.value.trim(),
 									budget_planned: f.budgetPlanned.value,
 									revenue_actual: f.revenueActual.value,
+									owner_group_id: f.group.value ? parseInt(f.group.value, 10) : 0,
 									notes: f.notes.value
 								})
 							}).then(function () {
@@ -2024,6 +2039,7 @@
 			var cTo = el("input", { type: "date", title: __("To", "project-prepper") });
 			var cVenue = el("input", { type: "text", placeholder: __("Venue", "project-prepper"), class: "pp-input-md" });
 			var cClient = el("input", { type: "text", placeholder: __("Client", "project-prepper"), class: "pp-input-md" });
+			var cGroup = groupSelect("");
 			root.appendChild(el("div", { class: "pp-card" }, [
 				el("h2", { text: __("New project", "project-prepper") }),
 				el("form", {
@@ -2038,12 +2054,13 @@
 								date_start: cFrom.value,
 								date_end: cTo.value,
 								venue_name: cVenue.value.trim(),
-								client_name: cClient.value.trim()
+								client_name: cClient.value.trim(),
+								owner_group_id: cGroup.value ? parseInt(cGroup.value, 10) : 0
 							})
 						}).then(function (project) {
 							/* translators: %s: project number */
 							toast(sprintf(__("Project %s created.", "project-prepper"), project.project_number));
-							cName.value = cVenue.value = cClient.value = ""; cFrom.value = cTo.value = ""; cStatus.value = "draft";
+							cName.value = cVenue.value = cClient.value = ""; cFrom.value = cTo.value = ""; cStatus.value = "draft"; cGroup.value = "";
 							load();
 						}).catch(function (e2) { toast(e2.message, "error"); });
 					}
@@ -2052,6 +2069,7 @@
 						field(__("Name *", "project-prepper"), cName), field(__("Status", "project-prepper"), cStatus),
 						field(__("From", "project-prepper"), cFrom), field(__("To", "project-prepper"), cTo),
 						field(__("Venue", "project-prepper"), cVenue), field(__("Client", "project-prepper"), cClient),
+						field(__("Group", "project-prepper"), cGroup),
 						el("button", { class: "pp-btn pp-btn-primary", text: __("Create project", "project-prepper") })
 					])
 				])
@@ -2059,6 +2077,18 @@
 		}
 
 		api("/items").then(function (result) { items = result; }).catch(function () {});
+		// Gruppen einmal laden (für die Gruppen-Auswahl). 403/leer → keine Gruppen.
+		// Das Anlege-Formular wird synchron gebaut, daher die Optionen nachziehen.
+		api("/groups").then(function (result) {
+			groups = result || [];
+			if (typeof cGroup !== "undefined" && cGroup) {
+				var keep = cGroup.value;
+				cGroup.innerHTML = "";
+				cGroup.appendChild(el("option", { value: "", text: __("— site level —", "project-prepper") }));
+				groups.forEach(function (group) { cGroup.appendChild(el("option", { value: group.id, text: group.name })); });
+				cGroup.value = keep;
+			}
+		}).catch(function () { groups = []; });
 
 		root.appendChild(pillBox);
 		root.appendChild(listBox);
@@ -2446,10 +2476,162 @@
 		}).catch(function (e) { toast(e.message, "error"); });
 	}
 
+	/* ================= Seite: Gruppen ================= */
+
+	function renderGroups() {
+		root.innerHTML = "";
+		var GROUP_ROLES = { founder: __("Founder", "project-prepper"), member: __("Member", "project-prepper") };
+		var siteUsers = [];
+		var listBox = el("div");
+
+		function load() {
+			api("/groups").then(function (groups) {
+				listBox.innerHTML = "";
+				var table = el("table", { class: "pp-table" });
+				table.appendChild(el("thead", {
+					html: "<tr><th>" + __("Name", "project-prepper") + "</th><th>" + __("Description", "project-prepper") + "</th><th>" + __("Members", "project-prepper") + "</th></tr>"
+				}));
+				var tbody = el("tbody");
+				groups.forEach(function (group) {
+					tbody.appendChild(el("tr", { class: "pp-clickable", onclick: function () { openGroupModal(group.id); } }, [
+						el("td", { text: group.name }),
+						el("td", { text: group.description || "—" }),
+						el("td", { text: group.member_count })
+					]));
+				});
+				if (!groups.length) tbody.appendChild(el("tr", { html: '<td colspan="3" class="pp-muted">' + __("No groups yet.", "project-prepper") + "</td>" }));
+				table.appendChild(tbody);
+				listBox.appendChild(el("div", { class: "pp-table-wrap" }, [table]));
+			}).catch(function (e) { toast(e.message, "error"); });
+		}
+
+		function openGroupModal(groupId) {
+			api("/groups/" + groupId).then(function (group) {
+				var nameInput = el("input", { type: "text", value: group.name });
+				var descInput = el("textarea", { rows: "2" });
+				descInput.value = group.description || "";
+
+				var info = el("div", { class: "pp-modal-grid" }, [
+					field(__("Group name", "project-prepper"), nameInput),
+					field(__("Description", "project-prepper"), descInput)
+				]);
+
+				// Mitglieder-Sektion.
+				var membersSection = el("div", { class: "pp-modal-section" });
+				function renderMembers() {
+					membersSection.innerHTML = "";
+					membersSection.appendChild(el("h3", { text: __("Members", "project-prepper") }));
+					var list = el("ul", { class: "pp-lines" });
+					(group.members || []).forEach(function (m) {
+						list.appendChild(el("li", null, [
+							el("span", { text: m.display_name }),
+							el("span", { class: "pp-muted", text: m.user_email || "" }),
+							el("span", { class: "pp-badge pp-badge-" + (m.member_role === "founder" ? "offer" : "draft"), text: GROUP_ROLES[m.member_role] || m.member_role }),
+							el("button", {
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/groups/" + groupId + "/members/" + m.user_id, { method: "DELETE" })
+										.then(function (updated) { group = updated; renderMembers(); load(); })
+										.catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					});
+					if (!(group.members || []).length) list.appendChild(el("li", { class: "pp-muted", text: __("No members.", "project-prepper") }));
+					membersSection.appendChild(list);
+
+					// Mitglied hinzufügen: WP-User-Select + Rolle.
+					var memberIds = (group.members || []).map(function (m) { return m.user_id; });
+					var userSelect = el("select", { class: "pp-input-lg" });
+					userSelect.appendChild(el("option", { value: "", text: __("— select user —", "project-prepper") }));
+					siteUsers.forEach(function (u) {
+						if (memberIds.indexOf(u.id) !== -1) return;
+						userSelect.appendChild(el("option", { value: u.id, text: u.display_name + (u.email ? " (" + u.email + ")" : "") }));
+					});
+					var roleSelect = el("select", null, Object.keys(GROUP_ROLES).map(function (key) {
+						return el("option", { value: key, text: GROUP_ROLES[key] });
+					}));
+					membersSection.appendChild(el("div", { class: "pp-row" }, [
+						userSelect, roleSelect,
+						el("button", {
+							class: "pp-btn pp-btn-sm", text: __("Add member", "project-prepper"), type: "button",
+							onclick: function () {
+								if (!userSelect.value) return;
+								api("/groups/" + groupId + "/members", {
+									method: "POST",
+									body: JSON.stringify({ user_id: parseInt(userSelect.value, 10), role: roleSelect.value })
+								}).then(function (updated) { group = updated; renderMembers(); load(); })
+									.catch(function (e) { toast(e.message, "error"); });
+							}
+						})
+					]));
+				}
+				renderMembers();
+
+				var body = el("div", null, [info, membersSection]);
+
+				var close;
+				var footerButtons = el("div", { class: "pp-right" }, [
+					el("button", {
+						class: "pp-btn pp-btn-primary", text: __("Save", "project-prepper"),
+						onclick: function () {
+							api("/groups/" + groupId, {
+								method: "PUT",
+								body: JSON.stringify({ name: nameInput.value.trim(), description: descInput.value })
+							}).then(function () { toast(__("Saved.", "project-prepper")); close(); load(); })
+								.catch(function (e) { toast(e.message, "error"); });
+						}
+					}),
+					el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })
+				]);
+				var footer = el("div", { class: "pp-modal-footer" }, [
+					el("button", {
+						class: "pp-btn pp-btn-danger", text: __("Delete group", "project-prepper"),
+						onclick: function () {
+							/* translators: %s: group name */
+							if (!confirm(sprintf(__('Delete group "%s"? Projects of this group return to site level.', "project-prepper"), group.name))) return;
+							api("/groups/" + groupId, { method: "DELETE" }).then(function () { close(); load(); }).catch(function (e) { toast(e.message, "error"); });
+						}
+					}),
+					footerButtons
+				]);
+				close = openModal(group.name, body, footer);
+			}).catch(function (e) { toast(e.message, "error"); });
+		}
+
+		// Neue Gruppe.
+		var gName = el("input", { type: "text", placeholder: __("Group name", "project-prepper"), class: "pp-input-lg" });
+		var gDesc = el("input", { type: "text", placeholder: __("Description", "project-prepper"), class: "pp-input-md" });
+		root.appendChild(el("div", { class: "pp-card" }, [
+			el("h2", { text: __("New group", "project-prepper") }),
+			el("form", {
+				onsubmit: function (e) {
+					e.preventDefault();
+					if (!gName.value.trim()) return;
+					api("/groups", { method: "POST", body: JSON.stringify({ name: gName.value.trim(), description: gDesc.value.trim() }) })
+						.then(function () { gName.value = ""; gDesc.value = ""; load(); })
+						.catch(function (e2) { toast(e2.message, "error"); });
+				}
+			}, [
+				el("div", { class: "pp-row" }, [
+					field(__("Group name", "project-prepper"), gName),
+					field(__("Description", "project-prepper"), gDesc),
+					el("button", { class: "pp-btn pp-btn-primary", text: __("Create group", "project-prepper") })
+				])
+			])
+		]));
+
+		api("/groups/site-users").then(function (users) { siteUsers = users; }).catch(function () {});
+
+		root.appendChild(listBox);
+		load();
+	}
+
 	/* ================= Routing ================= */
 
 	if (page === "categories") renderCategories();
 	else if (page === "projects") renderProjects();
+	else if (page === "groups") renderGroups();
 	else if (page === "rentals") renderRentals();
 	else if (page === "inquiries") renderInquiries();
 	else if (page === "settings") renderSettings();

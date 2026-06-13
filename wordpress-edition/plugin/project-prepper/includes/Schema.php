@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.9.0';
+	const VERSION    = '0.10.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -46,6 +46,8 @@ class Schema {
 		$p_team     = self::table( 'project_team' );
 		$p_contacts = self::table( 'project_contacts' );
 		$p_files    = self::table( 'project_files' );
+		$groups     = self::table( 'groups' );
+		$g_members  = self::table( 'group_members' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -190,13 +192,15 @@ class Schema {
 			notes text,
 			budget_planned decimal(10,2) DEFAULT NULL,
 			revenue_actual decimal(10,2) DEFAULT NULL,
+			owner_group_id bigint(20) unsigned DEFAULT NULL,
 			created_by bigint(20) unsigned DEFAULT NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY project_number (project_number),
 			KEY status (status),
-			KEY date_start (date_start)
+			KEY date_start (date_start),
+			KEY owner_group_id (owner_group_id)
 		) {$charset};" );
 
 		// Equipment-Buchungen pro Projekt (Pendant zu `bookings` der App).
@@ -343,6 +347,34 @@ class Schema {
 				PRIMARY KEY  (id),
 				KEY project_id (project_id),
 				KEY attachment_id (attachment_id)
+			) {$charset};" );
+
+			// Gruppen-Overlay (v0.10.0, Phase 1) — Pendant zu `groups` der App, aber
+			// stark vereinfacht: Gruppenmitglieder sind WP-Benutzer der Site, ein
+			// Projekt gehört optional einer Gruppe (sonst Site-Ebene). Siehe
+			// docs/03-GRUPPEN-ARCHITEKTUR.md. Rein additiv: owner_group_id auf
+			// pp_projects defaultet NULL → bestehendes Single-Site-Verhalten bleibt.
+			dbDelta( "CREATE TABLE {$groups} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				name varchar(190) NOT NULL,
+				slug varchar(190) NOT NULL,
+				description text,
+				created_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY slug (slug)
+			) {$charset};" );
+
+			// Mitgliedschaft: WP-User ↔ Gruppe, Rolle founder|member.
+			dbDelta( "CREATE TABLE {$g_members} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				group_id bigint(20) unsigned NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				member_role varchar(20) NOT NULL DEFAULT 'member',
+				joined_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY group_user (group_id,user_id),
+				KEY user_id (user_id)
 			) {$charset};" );
 
 		self::upgrade_data();

@@ -370,6 +370,11 @@ class ProjectsController extends BaseController {
 				$data[ $key ] = is_scalar( $json[ $key ] ) ? (string) $json[ $key ] : '';
 			}
 		}
+		// Gruppen-Zuordnung (v0.10.0) — leer/0 → NULL, sonst Gruppen-ID;
+		// der Service prüft Existenz + Mitgliedschaft/Admin-Recht.
+		if ( array_key_exists( 'owner_group_id', $json ) ) {
+			$data['owner_group_id'] = is_scalar( $json['owner_group_id'] ) ? (int) $json['owner_group_id'] : 0;
+		}
 		return $data;
 	}
 

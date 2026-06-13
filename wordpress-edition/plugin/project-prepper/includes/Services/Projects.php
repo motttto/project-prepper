@@ -38,6 +38,22 @@ class Projects {
 			$params[] = $args['status'];
 		}
 
+		// Gruppen-Zugriffsfilter (additiv, v0.10.0): Nicht-Admins sehen Projekte
+		// mit owner_group_id nur, wenn sie Mitglied der Gruppe sind; Site-Ebene
+		// (NULL) bleibt sichtbar (Cap-gesteuert wie bisher). Admins sehen alles.
+		// Ein WHERE, kein N+1. Default (alles NULL) bleibt damit unverändert.
+		$user_id = get_current_user_id();
+		if ( ! Groups::user_is_admin( $user_id ) ) {
+			$group_ids = Groups::user_group_ids( $user_id );
+			if ( $group_ids ) {
+				$placeholders = implode( ',', array_fill( 0, count( $group_ids ), '%d' ) );
+				$where[]      = '(p.owner_group_id IS NULL OR p.owner_group_id IN (' . $placeholders . '))';
+				$params       = array_merge( $params, $group_ids );
+			} else {
+				$where[] = 'p.owner_group_id IS NULL';
+			}
+		}
+
 		array_unshift( $params, $lines, $projects );
 		$sql = $wpdb->prepare(
 			'SELECT p.*, (SELECT COUNT(*) FROM %i pi WHERE pi.project_id = p.id) AS item_count
@@ -57,6 +73,12 @@ class Projects {
 			$id
 		) );
 		if ( ! $project ) {
+			return null;
+		}
+		// Gruppen-Zugriff (v0.10.0): Nicht-Mitglieder eines Gruppen-Projekts
+		// behandeln wir wie „nicht gefunden" (kein Leak). Site-Ebene + Admins
+		// unverändert. Default (owner_group_id NULL) → true → wie bisher.
+		if ( ! Groups::user_can_access_project( $project, get_current_user_id() ) ) {
 			return null;
 		}
 		$project->items        = self::items_for( $id );
@@ -97,6 +119,10 @@ class Projects {
 		if ( false === $revenue ) {
 			return new WP_Error( 'pp_invalid_amount', __( 'Invalid amount.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
+		$group = self::sanitize_owner_group( $data['owner_group_id'] ?? null );
+		if ( is_wp_error( $group ) ) {
+			return $group;
+		}
 
 		$now = current_time( 'mysql' );
 		$wpdb->insert( Schema::table( 'projects' ), [
@@ -113,6 +139,7 @@ class Projects {
 			'notes'          => $data['notes'] ?? '',
 			'budget_planned' => $budget,
 			'revenue_actual' => $revenue,
+			'owner_group_id' => $group,
 			'created_by'     => get_current_user_id() ?: null,
 			'created_at'     => $now,
 			'updated_at'     => $now,
@@ -180,6 +207,13 @@ class Projects {
 				}
 				$fields[ $money_key ] = $amount;
 			}
+		}
+		if ( array_key_exists( 'owner_group_id', $data ) ) {
+			$group = self::sanitize_owner_group( $data['owner_group_id'] );
+			if ( is_wp_error( $group ) ) {
+				return $group;
+			}
+			$fields['owner_group_id'] = $group;
 		}
 		$fields['updated_at'] = current_time( 'mysql' );
 		$wpdb->update( Schema::table( 'projects' ), $fields, [ 'id' => $id ] );
@@ -521,6 +555,31 @@ class Projects {
 			return false;
 		}
 		return round( $num, 2 );
+	}
+
+	/**
+	 * owner_group_id validieren (v0.10.0). Leer/0/null → NULL (Site-Ebene).
+	 * Gesetzt → muss eine existierende Gruppe sein, und der aktuelle User muss
+	 * sie zuweisen dürfen: Admin/Manager (pp_groups_manage) ODER aktives Mitglied
+	 * der Gruppe. Konservativ — verhindert, dass ein Nicht-Mitglied ein Projekt
+	 * einer fremden Gruppe „wegschiebt".
+	 *
+	 * @param mixed $value
+	 * @return int|null|WP_Error
+	 */
+	private static function sanitize_owner_group( $value ) {
+		$group_id = (int) $value;
+		if ( $group_id <= 0 ) {
+			return null;
+		}
+		if ( ! Groups::get( $group_id ) ) {
+			return new WP_Error( 'pp_invalid_group', __( 'Unknown group.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$user_id = get_current_user_id();
+		if ( ! Groups::user_is_admin( $user_id ) && ! Groups::is_member( $group_id, $user_id ) ) {
+			return new WP_Error( 'pp_forbidden_group', __( 'You are not a member of this group.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		return $group_id;
 	}
 
 	/**

@@ -49,6 +49,15 @@ class Menu {
 
 		add_submenu_page(
 			'project-prepper',
+			__( 'Groups', 'project-prepper' ),
+			__( 'Groups', 'project-prepper' ),
+			Capabilities::MANAGE_GROUPS,
+			'pp-groups',
+			[ self::class, 'render_groups' ]
+		);
+
+		add_submenu_page(
+			'project-prepper',
 			__( 'Rentals', 'project-prepper' ),
 			__( 'Rentals', 'project-prepper' ),
 			Capabilities::VIEW_RENTALS,
@@ -107,6 +116,7 @@ class Menu {
 				'inquiries'    => current_user_can( Capabilities::EDIT_INQUIRIES ),
 				'importExport' => current_user_can( Capabilities::IMPORT_EXPORT ),
 				'settings'     => current_user_can( Capabilities::MANAGE_SETTINGS ),
+				'groups'       => current_user_can( Capabilities::MANAGE_GROUPS ),
 			],
 		] );
 	}
@@ -117,6 +127,10 @@ class Menu {
 
 	public static function render_projects(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Projects', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="projects"></div></div>';
+	}
+
+	public static function render_groups(): void {
+		echo '<div class="wrap"><h1>' . esc_html__( 'Groups', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="groups"></div></div>';
 	}
 
 	public static function render_rentals(): void {
