@@ -53,7 +53,12 @@ Eine Installation = eine **Plattform/Architektur** (self-hosted, Datenhoheit, op
   - Portal „Mein Inventar": eigene Artikel **anlegen/bearbeiten/löschen** (Name, Kategorie, Menge, Zustand, Tagessatz, Beschreibung) und **mit Kollektiven teilen/zurücknehmen** (Chip-Toggle pro Gruppe).
   - Strikte per-User-Scoping-Guards (nur eigene Items sicht-/änderbar; Teilen nur mit eigenen Gruppen); Löschen entfernt auch die Freigaben. `Inventory::create_item/items()` um `owner_user_id` erweitert.
   - de_DE per POMO; Plugin Check 0 echte Errors; Lifecycle in wp-env getestet (anlegen/scope-guard/teilen/Liste-mit-Owner/Fremd-Gruppe-blockiert/zurücknehmen/ändern/löschen-mit-cascade) + Screenshot.
-- **Offen / als Nächstes:** Phase 4 (Stöbern & Leihen) — geteiltes Inventar des Kollektivs durchsuchen + Leih-Anfrage (`MemberInventory::items_shared_with_group()` liegt schon bereit).
+- **Phase 4 umgesetzt (Plugin v0.28.0 / Schema 0.19.0, 2026-06-14):**
+  - `Borrowing`-Service + Tabelle `pp_borrow_requests`. Nichtkommerziell (keine Gebühren).
+  - Portal: „In deinen Kollektiven verfügbar" (geteilte Items je Gruppe, Owner sichtbar) + **Leih-Anfrage** (Zeitraum + Nachricht); „Meine Leih-Anfragen" (abbrechen) und „Leih-Anfragen für deine Artikel" (annehmen/ablehnen/zurückgegeben). Status requested→approved|declined|cancelled→returned.
+  - Guards: nur im eigenen Kollektiv + nur dort geteilte Items, nie eigene; nur der Eigentümer entscheidet; Eigentümer/Leiher markieren Rückgabe.
+  - de_DE per POMO; Plugin Check 0 echte Errors; Leih-Lifecycle in wp-env getestet (Anfrage/Guards/Annahme/Listen/Rückgabe/eigenes-Item-blockiert) + Screenshot.
+- **Offen / als Nächstes:** Phase 5+ (Föderation — Instanz-Discovery via PLZ/Thema, weit später). Damit ist das **Member-Portal-Kernpaket (Phase 0–4) vollständig**: Plattform-Landing, Login, Kollektiv gründen/beitreten+Voting, eigenes Inventar+Teilen, Stöbern+Leihen. Sinnvolle Zwischenschritte vor Föderation: Sicherheits-Lauf (2FA/Härtung, [[grundkonzept]]-Backlog), Verfügbarkeits-/Überlappungsprüfung bei Leihen, E-Mail-Benachrichtigungen für Einladungen/Leih-Anfragen.
 
 ## Roadmap (gestuft, jede Phase testbar/ausrollbar)
 

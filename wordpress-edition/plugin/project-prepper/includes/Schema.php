@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.18.0';
+	const VERSION    = '0.19.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -60,6 +60,7 @@ class Schema {
 		$g_invites  = self::table( 'group_invitations' );
 		$g_inv_v    = self::table( 'group_invitation_votes' );
 		$item_share = self::table( 'item_group_shares' );
+		$borrows    = self::table( 'borrow_requests' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -612,6 +613,32 @@ class Schema {
 				PRIMARY KEY  (id),
 				UNIQUE KEY item_group (item_id,group_id),
 				KEY group_id (group_id)
+			) {$charset};" );
+
+			// Leih-Anfragen zwischen Mitgliedern (v0.19.0, Member-Portal Phase 4) —
+			// nichtkommerziell: ein Mitglied fragt ein im Kollektiv geteiltes Item
+			// für einen Zeitraum an, der Eigentümer (owner_id) entscheidet. KEINE
+			// Gebühren/Kaution. status: requested → approved | declined | cancelled
+			// → returned. decided_at/decided_by = Entscheidung des Eigentümers.
+			dbDelta( "CREATE TABLE {$borrows} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				item_id bigint(20) unsigned NOT NULL,
+				group_id bigint(20) unsigned NOT NULL,
+				requester_id bigint(20) unsigned NOT NULL,
+				owner_id bigint(20) unsigned DEFAULT NULL,
+				date_from date DEFAULT NULL,
+				date_to date DEFAULT NULL,
+				message text,
+				status varchar(20) NOT NULL DEFAULT 'requested',
+				created_at datetime NOT NULL,
+				decided_at datetime DEFAULT NULL,
+				decided_by bigint(20) unsigned DEFAULT NULL,
+				PRIMARY KEY  (id),
+				KEY item_id (item_id),
+				KEY group_id (group_id),
+				KEY requester_id (requester_id),
+				KEY owner_id (owner_id),
+				KEY status (status)
 			) {$charset};" );
 
 		self::upgrade_data();

@@ -6,6 +6,7 @@ use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance as Governance;
 use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Services\MemberInventory;
+use ProjectPrepper\Services\Borrowing;
 use WP_User;
 
 defined( 'ABSPATH' ) || exit;
@@ -164,6 +165,7 @@ class MemberPortal {
 
 		$do     = sanitize_key( wp_unslash( (string) ( $_POST['pp_do'] ?? '' ) ) );
 		$inv_id = (int) ( $_POST['pp_invitation'] ?? 0 );
+		$req_id = (int) ( $_POST['pp_request'] ?? 0 );
 		$grp_id = (int) ( $_POST['pp_group'] ?? 0 );
 		$result = new \WP_Error( 'pp_unknown', 'unknown' );
 		$ok_msg = 'ok';
@@ -216,6 +218,33 @@ class MemberPortal {
 				$result = MemberInventory::unshare( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ), $grp_id );
 				$ok_msg = 'item_unshared';
 				break;
+			case 'borrow_request':
+				$result = Borrowing::request(
+					get_current_user_id(),
+					(int) ( $_POST['pp_item'] ?? 0 ),
+					$grp_id,
+					sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
+					sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
+					sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_message'] ?? '' ) ) )
+				);
+				$ok_msg = 'borrow_requested';
+				break;
+			case 'borrow_approve':
+				$result = Borrowing::approve( get_current_user_id(), $req_id );
+				$ok_msg = 'borrow_decided';
+				break;
+			case 'borrow_decline':
+				$result = Borrowing::decline( get_current_user_id(), $req_id );
+				$ok_msg = 'borrow_decided';
+				break;
+			case 'borrow_cancel':
+				$result = Borrowing::cancel( get_current_user_id(), $req_id );
+				$ok_msg = 'borrow_cancelled';
+				break;
+			case 'borrow_return':
+				$result = Borrowing::mark_returned( get_current_user_id(), $req_id );
+				$ok_msg = 'borrow_returned';
+				break;
 		}
 
 		$msg = is_wp_error( $result ) ? 'error' : $ok_msg;
@@ -235,8 +264,12 @@ class MemberPortal {
 			'item_saved'    => [ 'ok', __( 'Item saved.', 'project-prepper' ) ],
 			'item_deleted'  => [ 'ok', __( 'Item deleted.', 'project-prepper' ) ],
 			'item_shared'   => [ 'ok', __( 'Item shared with the collective.', 'project-prepper' ) ],
-			'item_unshared' => [ 'ok', __( 'Item is no longer shared.', 'project-prepper' ) ],
-			'error'         => [ 'err', __( 'Something went wrong. Please try again.', 'project-prepper' ) ],
+			'item_unshared'    => [ 'ok', __( 'Item is no longer shared.', 'project-prepper' ) ],
+			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
+			'borrow_decided'   => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
+			'borrow_cancelled' => [ 'ok', __( 'Request cancelled.', 'project-prepper' ) ],
+			'borrow_returned'  => [ 'ok', __( 'Marked as returned.', 'project-prepper' ) ],
+			'error'            => [ 'err', __( 'Something went wrong. Please try again.', 'project-prepper' ) ],
 		];
 	}
 
@@ -344,6 +377,12 @@ class MemberPortal {
 			</section>
 
 			<?php self::render_my_inventory( $user, $groups ); ?>
+
+			<?php self::render_browse( $user, $groups ); ?>
+
+			<?php self::render_my_borrows( $user ); ?>
+
+			<?php self::render_incoming_borrows( $user ); ?>
 
 			<footer class="pp-portal__footer">
 				<a class="pp-portal__btn pp-portal__btn--ghost" href="<?php echo esc_url( wp_logout_url( self::portal_url() ) ); ?>"><?php esc_html_e( 'Sign out', 'project-prepper' ); ?></a>
@@ -618,5 +657,165 @@ class MemberPortal {
 			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save item', 'project-prepper' ); ?></button>
 		</form>
 		<?php
+	}
+
+	/* ---------- Stöbern & Leihen (Phase 4) ---------- */
+
+	/** @param array<object> $groups */
+	private static function render_browse( WP_User $user, array $groups ): void {
+		if ( ! $groups ) {
+			return;
+		}
+		$conditions = Shortcodes::condition_labels();
+		$any        = false;
+		ob_start();
+		foreach ( $groups as $group ) {
+			$items = Borrowing::browse( (int) $group->id );
+			if ( ! $items ) {
+				continue;
+			}
+			$any = true;
+			?>
+			<div class="pp-portal__collective">
+				<div class="pp-portal__collective-head">
+					<span class="pp-portal__group-name"><?php echo esc_html( $group->name ); ?></span>
+				</div>
+				<?php foreach ( $items as $item ) :
+					$is_mine = ( (int) ( $item->owner_user_id ?? 0 ) === (int) $user->ID ); ?>
+					<div class="pp-portal__browse-item">
+						<div class="pp-portal__item-head">
+							<span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span>
+							<span class="pp-portal__item-meta">
+								<?php
+								echo esc_html( $conditions[ $item->item_condition ] ?? $item->item_condition );
+								echo ' · ';
+								/* translators: %s: owner display name. */
+								printf( esc_html__( 'from %s', 'project-prepper' ), esc_html( $item->owner_name ) );
+								?>
+							</span>
+						</div>
+						<?php if ( $is_mine ) : ?>
+							<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Your item', 'project-prepper' ); ?></span>
+						<?php else : ?>
+							<details class="pp-portal__edit">
+								<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Borrow', 'project-prepper' ); ?></summary>
+								<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<?php self::action_fields( 'borrow_request' ); ?>
+									<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+									<input type="hidden" name="pp_group" value="<?php echo (int) $group->id; ?>">
+									<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+										<input type="date" name="pp_from" required>
+									</label>
+									<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+										<input type="date" name="pp_to" required>
+									</label>
+									<label><?php esc_html_e( 'Message (optional)', 'project-prepper' ); ?>
+										<textarea name="pp_message" rows="2"></textarea>
+									</label>
+									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Send request', 'project-prepper' ); ?></button>
+								</form>
+							</details>
+						<?php endif; ?>
+					</div>
+				<?php endforeach; ?>
+			</div>
+			<?php
+		}
+		$html = (string) ob_get_clean();
+		if ( ! $any ) {
+			return;
+		}
+		?>
+		<section class="pp-portal__section">
+			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Available in your collectives', 'project-prepper' ); ?></h3>
+			<?php echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- intern erzeugtes, bereits escaptes Markup. ?>
+		</section>
+		<?php
+	}
+
+	private static function render_my_borrows( WP_User $user ): void {
+		$requests = Borrowing::my_requests( (int) $user->ID );
+		if ( ! $requests ) {
+			return;
+		}
+		?>
+		<section class="pp-portal__section">
+			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'My borrow requests', 'project-prepper' ); ?></h3>
+			<?php foreach ( $requests as $r ) : ?>
+				<div class="pp-portal__invite">
+					<span class="pp-portal__group-name"><?php echo esc_html( $r->item_name ); ?></span>
+					<span class="pp-portal__item-meta"><?php echo esc_html( $r->date_from . ' – ' . $r->date_to ); ?></span>
+					<span class="pp-portal__tag <?php echo esc_attr( self::borrow_status_class( $r->status ) ); ?>"><?php echo esc_html( self::borrow_status_label( $r->status ) ); ?></span>
+					<?php if ( 'requested' === $r->status ) : ?>
+						<?php self::borrow_action_form( 'borrow_cancel', (int) $r->id, __( 'Cancel', 'project-prepper' ), true ); ?>
+					<?php elseif ( 'approved' === $r->status ) : ?>
+						<?php self::borrow_action_form( 'borrow_return', (int) $r->id, __( 'Mark returned', 'project-prepper' ), true ); ?>
+					<?php endif; ?>
+				</div>
+			<?php endforeach; ?>
+		</section>
+		<?php
+	}
+
+	private static function render_incoming_borrows( WP_User $user ): void {
+		$requests = Borrowing::incoming_requests( (int) $user->ID );
+		if ( ! $requests ) {
+			return;
+		}
+		?>
+		<section class="pp-portal__section">
+			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Borrow requests for your items', 'project-prepper' ); ?></h3>
+			<?php foreach ( $requests as $r ) : ?>
+				<div class="pp-portal__invite">
+					<span class="pp-portal__group-name"><?php echo esc_html( $r->item_name ); ?></span>
+					<span class="pp-portal__item-meta">
+						<?php
+						echo esc_html( $r->date_from . ' – ' . $r->date_to );
+						if ( '' !== (string) $r->counterpart_name ) {
+							echo ' · ' . esc_html( $r->counterpart_name );
+						}
+						?>
+					</span>
+					<span class="pp-portal__tag <?php echo esc_attr( self::borrow_status_class( $r->status ) ); ?>"><?php echo esc_html( self::borrow_status_label( $r->status ) ); ?></span>
+					<?php if ( '' !== trim( (string) $r->message ) ) : ?>
+						<p class="pp-portal__members" style="flex-basis:100%;margin:.3rem 0 0;"><?php echo esc_html( $r->message ); ?></p>
+					<?php endif; ?>
+					<div class="pp-portal__actions">
+						<?php if ( 'requested' === $r->status ) : ?>
+							<?php self::borrow_action_form( 'borrow_approve', (int) $r->id, __( 'Approve', 'project-prepper' ) ); ?>
+							<?php self::borrow_action_form( 'borrow_decline', (int) $r->id, __( 'Decline', 'project-prepper' ), true ); ?>
+						<?php elseif ( 'approved' === $r->status ) : ?>
+							<?php self::borrow_action_form( 'borrow_return', (int) $r->id, __( 'Mark returned', 'project-prepper' ), true ); ?>
+						<?php endif; ?>
+					</div>
+				</div>
+			<?php endforeach; ?>
+		</section>
+		<?php
+	}
+
+	private static function borrow_action_form( string $do, int $request_id, string $label, bool $ghost = false ): void {
+		?>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;">
+			<?php self::action_fields( $do ); ?>
+			<input type="hidden" name="pp_request" value="<?php echo (int) $request_id; ?>">
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm <?php echo $ghost ? 'pp-portal__btn--ghost' : ''; ?>"><?php echo esc_html( $label ); ?></button>
+		</form>
+		<?php
+	}
+
+	private static function borrow_status_label( string $status ): string {
+		$map = [
+			'requested' => __( 'Requested', 'project-prepper' ),
+			'approved'  => __( 'Approved', 'project-prepper' ),
+			'declined'  => __( 'Declined', 'project-prepper' ),
+			'cancelled' => __( 'Cancelled', 'project-prepper' ),
+			'returned'  => __( 'Returned', 'project-prepper' ),
+		];
+		return $map[ $status ] ?? $status;
+	}
+
+	private static function borrow_status_class( string $status ): string {
+		return in_array( $status, [ 'declined', 'cancelled' ], true ) ? 'pp-portal__tag--muted' : '';
 	}
 }

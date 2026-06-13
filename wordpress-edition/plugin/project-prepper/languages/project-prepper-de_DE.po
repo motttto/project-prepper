@@ -2950,3 +2950,78 @@ msgstr "Tagessatz (€, optional)"
 
 msgid "Save item"
 msgstr "Artikel speichern"
+
+msgid "You are not allowed to borrow."
+msgstr "Du darfst nicht ausleihen."
+
+msgid "You can only borrow within your own collectives."
+msgstr "Du kannst nur innerhalb deiner eigenen Kollektive ausleihen."
+
+msgid "This item is not shared with that collective."
+msgstr "Dieser Artikel ist nicht mit diesem Kollektiv geteilt."
+
+msgid "This is your own item."
+msgstr "Das ist dein eigener Artikel."
+
+msgid "Please choose a valid period."
+msgstr "Bitte wähle einen gültigen Zeitraum."
+
+msgid "Request not found."
+msgstr "Anfrage nicht gefunden."
+
+msgid "Only the item owner can decide this request."
+msgstr "Nur der Eigentümer kann über diese Anfrage entscheiden."
+
+msgid "This request is already resolved."
+msgstr "Diese Anfrage ist bereits abgeschlossen."
+
+msgid "You can only cancel your own requests."
+msgstr "Du kannst nur eigene Anfragen abbrechen."
+
+msgid "Only the owner or borrower can do this."
+msgstr "Nur Eigentümer oder Leiher können das tun."
+
+msgid "Only an active loan can be returned."
+msgstr "Nur eine aktive Leihe kann zurückgegeben werden."
+
+msgid "Borrow request sent to the owner."
+msgstr "Leih-Anfrage an den Eigentümer gesendet."
+
+msgid "Request updated."
+msgstr "Anfrage aktualisiert."
+
+msgid "Request cancelled."
+msgstr "Anfrage abgebrochen."
+
+msgid "Marked as returned."
+msgstr "Als zurückgegeben markiert."
+
+msgid "Available in your collectives"
+msgstr "In deinen Kollektiven verfügbar"
+
+msgid "from %s"
+msgstr "von %s"
+
+msgid "Your item"
+msgstr "Dein Artikel"
+
+msgid "Borrow"
+msgstr "Ausleihen"
+
+msgid "Message (optional)"
+msgstr "Nachricht (optional)"
+
+msgid "Send request"
+msgstr "Anfrage senden"
+
+msgid "My borrow requests"
+msgstr "Meine Leih-Anfragen"
+
+msgid "Mark returned"
+msgstr "Als zurückgegeben markieren"
+
+msgid "Borrow requests for your items"
+msgstr "Leih-Anfragen für deine Artikel"
+
+msgid "Requested"
+msgstr "Angefragt"

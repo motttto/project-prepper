@@ -761,3 +761,13 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-portal__add summary::-webkit-details-marker { display: none; }
 .pp-portal__edit[open], .pp-portal__add[open] { display: block; margin-top: .5rem; }
 .pp-portal__add { margin-top: .5rem; }
+
+/* Member-Portal Phase 4 — Stöbern & Leihen */
+.pp-portal__browse-item {
+	background: var(--pp-muted);
+	border-radius: 8px;
+	padding: .6rem .8rem;
+	margin-bottom: .4rem;
+}
+.pp-portal__browse-item .pp-portal__edit { margin-top: .4rem; }
+.pp-portal__invite .pp-portal__item-meta { margin-left: 0; }
