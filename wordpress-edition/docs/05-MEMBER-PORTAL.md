@@ -52,3 +52,30 @@ Eine Installation = eine **Plattform/Architektur** (self-hosted, Datenhoheit, op
 
 ## Status der bisherigen Arbeit (Einordnung)
 Plugin v0.24.0 hat: Inventar/Verleih/Anfragen/Projekte/Gruppen/Beschlüsse/Umfragen/Gewinn/Vereinbarung — aber **Admin-zentriert, site-weites Inventar**. Das bleibt als **Admin-/Kollektiv-Backend** wertvoll; das Member-Portal setzt **davor/darauf** (Frontend + per-User-Ownership). Kein Wegwerfen — Erweiterung.
+
+## Governance & Mechaniken (aus der Next.js-App verifiziert, 2026-06-14)
+
+### Gruppen-Beitritt = Mitglieder-Voting (App-Mechanik, deckt User-Vorgabe)
+Quelle: `supabase/migrations/072_voting_triggers.sql`.
+1. **Mitglied lädt ein** → `group_invitations` status `pending`.
+2. Eingeladener **akzeptiert** → wenn nur 1 aktives Mitglied (Gründer): sofort `approved` (Auto-Join); sonst `voting_in_progress`.
+3. Bestehende aktive Mitglieder stimmen (`group_invitation_votes`, approve/reject).
+4. Auflösung: **eine Ablehnung → rejected_by_member**; **alle aktiven Mitglieder approve (approvals ≥ total_active) → approved + Mitgliedschaft aktiv** → **Einstimmigkeit**.
+- **WP-Umsetzung (neu, Phase 2/3):** Mitglieder (nicht nur Admin) laden im Frontend ein; Gruppe stimmt ab (gleiche Einstimmigkeits-Logik wie der bereits gebaute Beschlüsse-Service); **Superadmin/wp-admin kann im Backend overrulen** (hart aufnehmen/entfernen, Voting übergehen). Aktuell ist Gruppen-/Mitglieder-Verwaltung nur admin-seitig → muss ins Frontend + User-darf-einladen.
+
+### Abstimmungen/Beschlüsse — bereits WP-konform
+Einstimmig (alle approve / eine reject) ODER Mehrheit (alle abgestimmt, approve>reject). In WP gebaut (Beschlüsse-Tab). ✓
+
+### Umfragen — bereits WP-konform
+Termin/Auswahl, Ja/Nein/Vielleicht pro Option. In WP gebaut (Umfragen-Tab). ✓
+
+### Gewinnverteilung — App reicher als aktuelle WP-Variante
+Quelle: `066_cooperation_agreements.sql` + `database.ts` (ProfitFormula).
+- Vereinbarung: `profit_formula` jsonb, `method` ∈ hours|inventory|capital|fixed|**mixed**; mixed-Default-Gewichte `{hours:0.5, inventory:0.3, capital:0.1, fixed:0.1}`. Plus `exit_rules` (forfeit_if_exit_before_event, inventory_return_window_days).
+- Beteiligten-Daten: `agreement_roles` (hourly_rate, hours_estimate, capital_contribution, fixed_amount) + `agreement_inventory_contributions` (daily_rate × quantity).
+- **System verteilt den Pool automatisch** je Dimension gewichtet → contribution-based, transparent.
+- **WP aktuell:** manuell Prozent/Fest (pp_project_profit_shares). Für App-Treue: **formelbasiertes Modell** (Dimensionen Stunden/Inventar/Kapital/Fix + Gewichte, Auto-Berechnung aus Beiträgen) als Erweiterung der Gewinn-Phase. → eigener späterer Lauf.
+
+### Konsequenz für die Roadmap
+- Phase 2 „Kollektiv gründen/​beitreten" wird zu **„Gründen + Einladen + Beitritts-Voting"** (Mitglieder laden ein, Gruppe stimmt ab, Superadmin-Override).
+- Gewinn-Phase (später) bekommt das **formelbasierte Verteilmodell** statt nur Prozent/Fest.
