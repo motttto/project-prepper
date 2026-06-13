@@ -1703,3 +1703,105 @@ msgstr "Equipment-Auswahl anzeigen"
 #~ msgstr ""
 #~ "Equipment-Inventar & Verleih für Teams — Kategorien mit Nummernkreisen, "
 #~ "Einzelstücke, Verfügbarkeitsprüfung und Verleih-Verwaltung."
+
+msgid "Cooperation agreement"
+msgstr "Kooperationsvereinbarung"
+
+msgid "Assign a group to set up an agreement."
+msgstr "Ordne erst eine Gruppe zu, um eine Vereinbarung zu erstellen."
+
+msgid "No agreement yet."
+msgstr "Noch keine Vereinbarung."
+
+msgid "Contract text"
+msgstr "Vertragstext"
+
+msgid "Create agreement"
+msgstr "Vereinbarung anlegen"
+
+msgid "Open for signing"
+msgstr "Zur Unterzeichnung freigeben"
+
+msgid "In signing"
+msgstr "In Unterzeichnung"
+
+msgid "Active"
+msgstr "Aktiv"
+
+msgid "Terminated"
+msgstr "Beendet"
+
+msgid "Version %d"
+msgstr "Version %d"
+
+msgid "Active since %s"
+msgstr "Aktiv seit %s"
+
+msgid "Signed %1$d of %2$d"
+msgstr "%1$d von %2$d unterschrieben"
+
+msgid "Sign"
+msgstr "Unterschreiben"
+
+msgid "Decline"
+msgstr "Ablehnen"
+
+msgid "Signed"
+msgstr "Unterschrieben"
+
+msgid "Declined"
+msgstr "Abgelehnt"
+
+msgid "Pending"
+msgstr "Ausstehend"
+
+msgid "No group members."
+msgstr "Keine Gruppenmitglieder."
+
+msgid "Revise"
+msgstr "Überarbeiten"
+
+msgid "Terminate"
+msgstr "Beenden"
+
+msgid "Revise this agreement? All signatures will be cleared."
+msgstr "Diese Vereinbarung überarbeiten? Alle Unterschriften werden verworfen."
+
+msgid "Terminate this agreement?"
+msgstr "Diese Vereinbarung beenden?"
+
+msgid "Delete this agreement and all signatures?"
+msgstr "Diese Vereinbarung samt aller Unterschriften löschen?"
+
+msgid "This project has no owning group. Assign a group first to set up an agreement."
+msgstr "Dieses Projekt hat keine Eigentümer-Gruppe. Ordne erst eine Gruppe zu, um eine Vereinbarung zu erstellen."
+
+msgid "This project already has an agreement."
+msgstr "Dieses Projekt hat bereits eine Vereinbarung."
+
+msgid "The agreement can only be edited while it is a draft."
+msgstr "Die Vereinbarung kann nur im Entwurf bearbeitet werden."
+
+msgid "Only the author or an admin may manage this agreement."
+msgstr "Nur die Erstellerin/der Ersteller oder eine Administratorin/ein Administrator darf diese Vereinbarung verwalten."
+
+msgid "Only a draft can be opened for signing."
+msgstr "Nur ein Entwurf kann zur Unterzeichnung freigegeben werden."
+
+msgid "Only an agreement in signing can be revised."
+msgstr "Nur eine Vereinbarung in Unterzeichnung kann überarbeitet werden."
+
+msgid "The agreement is already terminated."
+msgstr "Die Vereinbarung ist bereits beendet."
+
+msgid "Only the author or an admin may delete this agreement."
+msgstr "Nur die Erstellerin/der Ersteller oder eine Administratorin/ein Administrator darf diese Vereinbarung löschen."
+
+msgid "This agreement is not open for signing."
+msgstr "Diese Vereinbarung ist nicht zur Unterzeichnung freigegeben."
+
+msgid "Only members of the project group may sign."
+msgstr "Nur Mitglieder der Projektgruppe dürfen unterschreiben."
+
+msgid "Agreement not found."
+msgstr "Vereinbarung nicht gefunden."

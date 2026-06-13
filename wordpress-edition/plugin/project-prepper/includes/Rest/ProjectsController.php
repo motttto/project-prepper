@@ -2,6 +2,7 @@
 namespace ProjectPrepper\Rest;
 
 use ProjectPrepper\Capabilities;
+use ProjectPrepper\Services\Agreements;
 use ProjectPrepper\Services\Checklists;
 use ProjectPrepper\Services\Consumables;
 use ProjectPrepper\Services\Contacts;
@@ -339,6 +340,57 @@ class ProjectsController extends BaseController {
 				'callback'            => [ $this, 'remove_profit_share' ],
 				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
 			],
+		] );
+
+		// Kooperationsvereinbarung (Gruppen-Phase 5). Es gibt nur EINE pro Projekt
+		// → kein {agreement_id} in der Route; der Service löst project→agreement auf.
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/agreement', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'agreement' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'create_agreement' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_agreement' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_agreement' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/agreement/open', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'open_agreement' ],
+			'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+		] );
+
+		// Unterschreiben/Ablehnen erfordert NUR die View-Cap (signieren ist kein
+		// Bearbeiten); die Gruppenmitgliedschaft wird im Service erzwungen.
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/agreement/sign', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'sign_agreement' ],
+			'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/agreement/revise', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'revise_agreement' ],
+			'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/agreement/terminate', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'terminate_agreement' ],
+			'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
 		] );
 
 		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/checklists', [
@@ -1216,6 +1268,132 @@ class ProjectsController extends BaseController {
 		}
 		if ( array_key_exists( 'sort_order', $json ) ) {
 			$data['sort_order'] = (int) $json['sort_order'];
+		}
+		return $data;
+	}
+
+	/* ---------- Kooperationsvereinbarung (Gruppen-Phase 5) ---------- */
+
+	public function agreement( WP_REST_Request $request ) {
+		// Projects::get() liefert für Nicht-Gruppenmitglieder eines Gruppen-
+		// Projekts null → 404 (Gruppen-Zugriffsguard, kein Leak).
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( Agreements::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function create_agreement( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$result = Agreements::create( (int) $request['id'], $this->agreement_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Agreements::for_project( (int) $request['id'], get_current_user_id() ?: null ), 201 );
+	}
+
+	public function update_agreement( WP_REST_Request $request ) {
+		$agreement = $this->agreement_for_project( (int) $request['id'] );
+		if ( is_wp_error( $agreement ) ) {
+			return $agreement;
+		}
+		$result = Agreements::update( (int) $agreement->id, $this->agreement_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Agreements::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function open_agreement( WP_REST_Request $request ) {
+		$agreement = $this->agreement_for_project( (int) $request['id'] );
+		if ( is_wp_error( $agreement ) ) {
+			return $agreement;
+		}
+		$result = Agreements::open_for_signing( (int) $agreement->id, get_current_user_id() );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Agreements::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function sign_agreement( WP_REST_Request $request ) {
+		$agreement = $this->agreement_for_project( (int) $request['id'] );
+		if ( is_wp_error( $agreement ) ) {
+			return $agreement;
+		}
+		$action = sanitize_text_field( (string) ( $request->get_json_params()['action'] ?? 'sign' ) );
+		$result = 'decline' === $action
+			? Agreements::decline( (int) $agreement->id, get_current_user_id() )
+			: Agreements::sign( (int) $agreement->id, get_current_user_id() );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Agreements::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function revise_agreement( WP_REST_Request $request ) {
+		$agreement = $this->agreement_for_project( (int) $request['id'] );
+		if ( is_wp_error( $agreement ) ) {
+			return $agreement;
+		}
+		$result = Agreements::revise( (int) $agreement->id, get_current_user_id() );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Agreements::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function terminate_agreement( WP_REST_Request $request ) {
+		$agreement = $this->agreement_for_project( (int) $request['id'] );
+		if ( is_wp_error( $agreement ) ) {
+			return $agreement;
+		}
+		$result = Agreements::terminate( (int) $agreement->id, get_current_user_id() );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Agreements::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function remove_agreement( WP_REST_Request $request ) {
+		$agreement = $this->agreement_for_project( (int) $request['id'] );
+		if ( is_wp_error( $agreement ) ) {
+			return $agreement;
+		}
+		$result = Agreements::delete( (int) $agreement->id, get_current_user_id() );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Agreements::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	/**
+	 * Projekt-Zugriff prüfen (Gruppen-Guard aus Phase 1, 404 bei Fremd-/Nicht-
+	 * Gruppen-Projekt, kein Leak) UND die (einzige) Vereinbarung des Projekts
+	 * auflösen. 404 wenn keine existiert.
+	 *
+	 * @return object|WP_Error  Roh-Vereinbarung.
+	 */
+	private function agreement_for_project( int $project_id ) {
+		if ( ! Projects::get( $project_id ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$agreement = Agreements::for_project( $project_id );
+		if ( ! $agreement ) {
+			return new WP_Error( 'pp_not_found', __( 'Agreement not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return $agreement;
+	}
+
+	private function agreement_payload( array $json ): array {
+		$data = [];
+		if ( array_key_exists( 'title', $json ) ) {
+			$data['title'] = sanitize_text_field( (string) $json['title'] );
+		}
+		if ( array_key_exists( 'terms', $json ) ) {
+			$data['terms'] = sanitize_textarea_field( (string) $json['terms'] );
 		}
 		return $data;
 	}

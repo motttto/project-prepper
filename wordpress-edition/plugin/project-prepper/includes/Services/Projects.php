@@ -95,6 +95,7 @@ class Projects {
 		$project->decisions      = Decisions::for_project( $id, get_current_user_id() ?: null );
 		$project->profit_shares  = ProfitShares::for_project( $id );
 		$project->profit_summary = ProfitShares::summary( $id );
+		$project->agreement      = Agreements::for_project( $id, get_current_user_id() ?: null );
 		return $project;
 	}
 
@@ -306,6 +307,16 @@ class Projects {
 		$wpdb->delete( Schema::table( 'project_decisions' ), [ 'project_id' => $id ], [ '%d' ] );
 		// Gewinnverteilung (Phase 4) räumen.
 		$wpdb->delete( Schema::table( 'project_profit_shares' ), [ 'project_id' => $id ], [ '%d' ] );
+		// Kooperationsvereinbarung + Signaturen (Phase 5) räumen.
+		$agreement_ids = $wpdb->get_col( $wpdb->prepare(
+			'SELECT id FROM %i WHERE project_id = %d',
+			Schema::table( 'project_agreements' ),
+			$id
+		) );
+		foreach ( array_map( 'intval', $agreement_ids ) as $agreement_id ) {
+			$wpdb->delete( Schema::table( 'project_agreement_signatures' ), [ 'agreement_id' => $agreement_id ], [ '%d' ] );
+		}
+		$wpdb->delete( Schema::table( 'project_agreements' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_items' ), [ 'project_id' => $id ], [ '%d' ] );
 		$ok = false !== $wpdb->delete( Schema::table( 'projects' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {

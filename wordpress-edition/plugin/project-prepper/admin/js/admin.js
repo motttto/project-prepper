@@ -2349,7 +2349,176 @@
 				}
 				renderTeam();
 
-				var body = el("div", null, [statusRow, info, membersSection, decisionsSection, bookingsSection, costsSection, profitSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection]);
+				/* --- Kooperationsvereinbarung (Gruppen-Phase 5, Pendant zu
+				   tab-agreement / cooperation_agreements der App) --- Die formale
+				   Klammer über allem: ein Vertrags-Body (Freitext) + Signatur-
+				   Tracking je Gruppenmitglied. Daher ganz am Ende des Modals.
+				   Status-Maschine: Entwurf → In Unterzeichnung → Aktiv (alle
+				   unterschrieben) | Beendet. Sichtbarkeit „darf ich unterschreiben"
+				   + mein Status kommen aus dem Backend (can_sign/my_signature). */
+
+				var AGREEMENT_STATUS = { draft: __("Draft", "project-prepper"), signing: __("In signing", "project-prepper"), active: __("Active", "project-prepper"), terminated: __("Terminated", "project-prepper") };
+				var AGREEMENT_BADGE = { draft: "draft", signing: "reserved", active: "returned", terminated: "cancelled" };
+				var SIGNATURE_STATUS = { signed: __("Signed", "project-prepper"), declined: __("Declined", "project-prepper"), pending: __("Pending", "project-prepper") };
+
+				var agreementSection = el("div", { class: "pp-modal-section" });
+				function renderAgreement() {
+					agreementSection.innerHTML = "";
+					agreementSection.appendChild(el("h3", { text: __("Cooperation agreement", "project-prepper") }));
+
+					// Kein Gruppen-Projekt -> Hinweis, keine Vereinbarung.
+					if (!project.owner_group_id) {
+						agreementSection.appendChild(el("p", { class: "pp-muted", text: __("Assign a group to set up an agreement.", "project-prepper") }));
+						return;
+					}
+
+					var a = project.agreement;
+
+					// Noch keine Vereinbarung -> Anlege-Formular (nur editierbar).
+					if (!a) {
+						if (!editable) {
+							agreementSection.appendChild(el("p", { class: "pp-muted", text: __("No agreement yet.", "project-prepper") }));
+							return;
+						}
+						var nTitle = el("input", { type: "text", placeholder: __("Title", "project-prepper"), class: "pp-input-lg" });
+						var nTerms = el("textarea", { rows: "4", placeholder: __("Contract text", "project-prepper") });
+						agreementSection.appendChild(field(__("Title", "project-prepper"), nTitle));
+						agreementSection.appendChild(field(__("Contract text", "project-prepper"), nTerms));
+						agreementSection.appendChild(el("div", { class: "pp-row" }, [
+							el("button", {
+								class: "pp-btn pp-btn-sm", text: __("Create agreement", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/agreement", {
+										method: "POST",
+										body: JSON.stringify({ title: nTitle.value.trim(), terms: nTerms.value })
+									}).then(function () { reload(renderAgreement); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+						return;
+					}
+
+					// Kopfzeile: Status-Badge + Version.
+					agreementSection.appendChild(el("div", { class: "pp-decision-head" }, [
+						el("strong", { text: a.title || "—" }),
+						el("span", { class: "pp-badge pp-badge-" + (AGREEMENT_BADGE[a.status] || a.status), text: AGREEMENT_STATUS[a.status] || a.status }),
+						/* translators: %d: agreement version number */
+						el("span", { class: "pp-muted", text: sprintf(__("Version %d", "project-prepper"), a.version) })
+					]));
+
+					// Vertragstext: im Entwurf editierbar + speichern, sonst read-only.
+					if (a.status === "draft" && editable) {
+						var eTerms = el("textarea", { rows: "5" });
+						eTerms.value = a.terms || "";
+						agreementSection.appendChild(field(__("Contract text", "project-prepper"), eTerms));
+						agreementSection.appendChild(el("div", { class: "pp-row" }, [
+							el("button", {
+								class: "pp-btn pp-btn-sm", text: __("Save", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/agreement", {
+										method: "PUT", body: JSON.stringify({ title: a.title, terms: eTerms.value })
+									}).then(function () { reload(renderAgreement); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							}),
+							el("button", {
+								class: "pp-btn pp-btn-sm pp-btn-primary", text: __("Open for signing", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/agreement/open", { method: "POST" })
+										.then(function () { reload(renderAgreement); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					} else if (a.terms) {
+						agreementSection.appendChild(el("div", { class: "pp-agreement-terms", text: a.terms }));
+					}
+
+					// Aktiv seit ...
+					if (a.status === "active" && a.activated_at) {
+						/* translators: %s: activation date */
+						agreementSection.appendChild(el("p", { class: "pp-muted", text: sprintf(__("Active since %s", "project-prepper"), dateDe(a.activated_at)) }));
+					}
+
+					// Signatur-Soll: x von y unterschrieben (Text, keine Icons).
+					if (a.status === "signing" || a.status === "active") {
+						/* translators: 1: signed count, 2: total members */
+						var tallyTxt = sprintf(__("Signed %1$d of %2$d", "project-prepper"), a.signed_count, a.total_members);
+						agreementSection.appendChild(el("div", { class: "pp-decision-tally", text: tallyTxt }));
+					}
+
+					// Unterschreiben/Ablehnen für das aktuelle Gruppenmitglied
+					// (Backend liefert can_sign + my_signature).
+					if (a.can_sign) {
+						var signRow = el("div", { class: "pp-row" });
+						[["sign", __("Sign", "project-prepper")], ["decline", __("Decline", "project-prepper")]].forEach(function (pair) {
+							var mineSigned = (pair[0] === "sign" && a.my_signature === "signed");
+							var mineDeclined = (pair[0] === "decline" && a.my_signature === "declined");
+							signRow.appendChild(el("button", {
+								class: "pp-btn pp-btn-sm" + (mineSigned || mineDeclined ? " pp-btn-primary" : ""),
+								text: pair[1], type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/agreement/sign", {
+										method: "POST", body: JSON.stringify({ action: pair[0] })
+									}).then(function () { reload(renderAgreement); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							}));
+						});
+						agreementSection.appendChild(signRow);
+					}
+
+					// Signatur-Roster: je Gruppenmitglied Status + Datum.
+					if (a.status === "signing" || a.status === "active") {
+						var roster = el("ul", { class: "pp-lines" });
+						(a.signatures || []).forEach(function (s) {
+							var who = s.missing ? __("(removed user)", "project-prepper") : s.display_name;
+							var when = s.status === "signed" ? s.signed_at : (s.status === "declined" ? s.declined_at : "");
+							var label = (SIGNATURE_STATUS[s.status] || s.status) + (when ? " · " + dateDe(when) : "");
+							roster.appendChild(el("li", null, [
+								el("span", { text: who }),
+								el("span", { class: "pp-muted", text: label })
+							]));
+						});
+						if (!(a.signatures || []).length) roster.appendChild(el("li", { class: "pp-muted", text: __("No group members.", "project-prepper") }));
+						agreementSection.appendChild(roster);
+					}
+
+					// Verwaltungs-Aktionen (Ersteller/Admin prüft das Backend; wir
+					// zeigen sie editierbaren Nutzern, je nach Status).
+					if (editable) {
+						var actions = el("div", { class: "pp-row pp-decision-actions" });
+						if (a.status === "signing") {
+							actions.appendChild(el("button", {
+								class: "pp-link", text: __("Revise", "project-prepper"), type: "button",
+								onclick: function () {
+									if (!confirm(__("Revise this agreement? All signatures will be cleared.", "project-prepper"))) return;
+									api("/projects/" + projectId + "/agreement/revise", { method: "POST" })
+										.then(function () { reload(renderAgreement); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							}));
+						}
+						if (a.status !== "terminated") {
+							actions.appendChild(el("button", {
+								class: "pp-link", text: __("Terminate", "project-prepper"), type: "button",
+								onclick: function () {
+									if (!confirm(__("Terminate this agreement?", "project-prepper"))) return;
+									api("/projects/" + projectId + "/agreement/terminate", { method: "POST" })
+										.then(function () { reload(renderAgreement); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							}));
+						}
+						actions.appendChild(el("button", {
+							class: "pp-link pp-link-danger", text: __("delete", "project-prepper"), type: "button",
+							onclick: function () {
+								if (!confirm(__("Delete this agreement and all signatures?", "project-prepper"))) return;
+								api("/projects/" + projectId + "/agreement", { method: "DELETE" })
+									.then(function () { reload(renderAgreement); }).catch(function (e) { toast(e.message, "error"); });
+							}
+						}));
+						agreementSection.appendChild(actions);
+					}
+				}
+				renderAgreement();
+
+				var body = el("div", null, [statusRow, info, membersSection, decisionsSection, bookingsSection, costsSection, profitSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection, agreementSection]);
 
 				var close;
 				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);

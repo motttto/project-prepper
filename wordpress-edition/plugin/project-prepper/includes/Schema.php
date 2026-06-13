@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.13.0';
+	const VERSION    = '0.14.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -52,6 +52,8 @@ class Schema {
 		$p_decis    = self::table( 'project_decisions' );
 		$p_votes    = self::table( 'project_decision_votes' );
 		$p_shares   = self::table( 'project_profit_shares' );
+		$p_agree    = self::table( 'project_agreements' );
+		$p_agree_s  = self::table( 'project_agreement_signatures' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -459,6 +461,47 @@ class Schema {
 				PRIMARY KEY  (id),
 				KEY project_id (project_id),
 				UNIQUE KEY project_user (project_id,user_id)
+			) {$charset};" );
+
+			// Kooperationsvereinbarung pro Projekt (v0.14.0, Phase 5) — Pendant zu
+			// `cooperation_agreements` der App, vereinfacht: der Vertragsinhalt ist
+			// ein Freitext-Body (terms), KEINE strukturierten profit_formula/
+			// exit_rules-JSON (die Gewinnverteilung lebt bereits in Phase 4). Eine
+			// aktuelle Vereinbarung pro Projekt (UNIQUE project). status:
+			// draft|signing|active|terminated (kein `amended` der App — Überarbeiten
+			// erhöht version und löscht alte Signaturen). version steigt beim
+			// Überarbeiten. activated_at = Zeitpunkt der Aktivierung (alle
+			// Gruppenmitglieder unterschrieben). Siehe docs/03-GRUPPEN-ARCHITEKTUR.md
+			// §Phase 5.
+			dbDelta( "CREATE TABLE {$p_agree} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				project_id bigint(20) unsigned NOT NULL,
+				title varchar(190) NOT NULL DEFAULT '',
+				terms longtext,
+				status varchar(20) NOT NULL DEFAULT 'draft',
+				version int(11) NOT NULL DEFAULT 1,
+				created_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				activated_at datetime DEFAULT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY project (project_id)
+			) {$charset};" );
+
+			// Signaturen je Vereinbarung (Pendant zu `agreement_signatures`). Eine
+			// Zeile pro Gruppenmitglied (UNIQUE agreement_user) — Upsert. signed_at
+			// gesetzt = unterschrieben; declined_at gesetzt = abgelehnt (jeweils das
+			// andere Feld NULL). Beim Überarbeiten (revise) werden ALLE Zeilen
+			// gelöscht, da die alten Unterschriften für die neue Fassung ungültig
+			// sind.
+			dbDelta( "CREATE TABLE {$p_agree_s} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				agreement_id bigint(20) unsigned NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				signed_at datetime DEFAULT NULL,
+				declined_at datetime DEFAULT NULL,
+				PRIMARY KEY  (id),
+				KEY agreement_id (agreement_id),
+				UNIQUE KEY agreement_user (agreement_id,user_id)
 			) {$charset};" );
 
 		self::upgrade_data();

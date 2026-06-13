@@ -89,13 +89,13 @@
                 "Aktueller Wert"
             ],
             "Dimensions": [
-                "Ma\u00dfe"
+                "Maße"
             ],
             "Power (W)": [
                 "Leistung (W)"
             ],
             "Accessories": [
-                "Zubeh\u00f6r"
+                "Zubehör"
             ],
             "Tags": [
                 "Tags"
@@ -131,7 +131,7 @@
                 "Verliehen"
             ],
             "Returned": [
-                "Zur\u00fcckgegeben"
+                "Zurückgegeben"
             ],
             "Cancelled": [
                 "Storniert"
@@ -140,13 +140,13 @@
                 "Ausgeben"
             ],
             "Take back": [
-                "R\u00fccknahme"
+                "Rücknahme"
             ],
             "rental status action\u0004Cancel": [
                 "Stornieren"
             ],
-            "Search: name, number, manufacturer, serial number, tags \u2026": [
-                "Suchen: Name, Nummer, Hersteller, Seriennummer, Tags \u2026"
+            "Search: name, number, manufacturer, serial number, tags …": [
+                "Suchen: Name, Nummer, Hersteller, Seriennummer, Tags …"
             ],
             "Items": [
                 "Artikel"
@@ -184,8 +184,8 @@
             "No items found.": [
                 "Keine Artikel gefunden."
             ],
-            "\u2014 category \u2014": [
-                "\u2014 Kategorie \u2014"
+            "— category —": [
+                "— Kategorie —"
             ],
             "Comma-separated": [
                 "Komma-getrennt"
@@ -197,7 +197,7 @@
                 "Geliehen"
             ],
             "Funded": [
-                "Gef\u00f6rdert"
+                "Gefördert"
             ],
             "Other": [
                 "Sonstiges"
@@ -212,16 +212,16 @@
                 "Keine"
             ],
             "e.g. funding program, donation": [
-                "z. B. F\u00f6rderprogramm, Spende"
+                "z. B. Förderprogramm, Spende"
             ],
-            "Daily rate \u20ac": [
-                "Tagessatz \u20ac"
+            "Daily rate €": [
+                "Tagessatz €"
             ],
-            "Purchase price \u20ac": [
-                "Kaufpreis \u20ac"
+            "Purchase price €": [
+                "Kaufpreis €"
             ],
-            "Current value \u20ac": [
-                "Aktueller Wert \u20ac"
+            "Current value €": [
+                "Aktueller Wert €"
             ],
             "Manufacturer URL": [
                 "Hersteller-URL"
@@ -247,8 +247,8 @@
             "Useful life (years)": [
                 "Nutzungsdauer (Jahre)"
             ],
-            "Residual value \u20ac": [
-                "Restwert \u20ac"
+            "Residual value €": [
+                "Restwert €"
             ],
             "Photo": [
                 "Foto"
@@ -275,16 +275,16 @@
                 "PDF hochgeladen."
             ],
             "Units": [
-                "Einzelst\u00fccke"
+                "Einzelstücke"
             ],
             "delete": [
-                "l\u00f6schen"
+                "löschen"
             ],
             "No unit tracking.": [
-                "Kein Einzelst\u00fcck-Tracking."
+                "Kein Einzelstück-Tracking."
             ],
             "+ Unit": [
-                "+ Einzelst\u00fcck"
+                "+ Einzelstück"
             ],
             "Draft": [
                 "Entwurf"
@@ -293,7 +293,7 @@
                 "Geplant"
             ],
             "Confirmed": [
-                "Best\u00e4tigt"
+                "Bestätigt"
             ],
             "Running": [
                 "Laufend"
@@ -308,16 +308,16 @@
                 "kein Datum"
             ],
             "Delete item": [
-                "Artikel l\u00f6schen"
+                "Artikel löschen"
             ],
             "Delete item \"%s\"?": [
-                "Artikel \"%s\" l\u00f6schen?"
+                "Artikel \"%s\" löschen?"
             ],
             "Item deleted.": [
-                "Artikel gel\u00f6scht."
+                "Artikel gelöscht."
             ],
             "Close": [
-                "Schlie\u00dfen"
+                "Schließen"
             ],
             "Save": [
                 "Speichern"
@@ -352,11 +352,11 @@
             "Import": [
                 "Import"
             ],
-            "\u2014 ignore \u2014": [
-                "\u2014 ignorieren \u2014"
+            "— ignore —": [
+                "— ignorieren —"
             ],
-            "File (.xlsx, .xls or .csv \u2014 first row = headers)": [
-                "Datei (.xlsx, .xls oder .csv \u2014 erste Zeile = \u00dcberschriften)"
+            "File (.xlsx, .xls or .csv — first row = headers)": [
+                "Datei (.xlsx, .xls oder .csv — erste Zeile = Überschriften)"
             ],
             "Import inventory": [
                 "Inventar importieren"
@@ -365,7 +365,7 @@
                 "Datei konnte nicht gelesen werden:"
             ],
             "File contains no data rows.": [
-                "Datei enth\u00e4lt keine Datenzeilen."
+                "Datei enthält keine Datenzeilen."
             ],
             "Map columns (preview: first 5 of %d rows)": [
                 "Spalten zuordnen (Vorschau: erste 5 von %d Zeilen)"
@@ -389,7 +389,7 @@
                 "Positionen"
             ],
             "Fee": [
-                "Geb\u00fchr"
+                "Gebühr"
             ],
             "No rentals yet.": [
                 "Noch keine Verleihe."
@@ -397,11 +397,11 @@
             "Borrower *": [
                 "Leiher *"
             ],
-            "Fee \u20ac": [
-                "Geb\u00fchr \u20ac"
+            "Fee €": [
+                "Gebühr €"
             ],
-            "Deposit \u20ac": [
-                "Kaution \u20ac"
+            "Deposit €": [
+                "Kaution €"
             ],
             "VAT %": [
                 "MwSt %"
@@ -412,8 +412,8 @@
             "No line items.": [
                 "Keine Positionen."
             ],
-            "\u2014 select item \u2014": [
-                "\u2014 Artikel w\u00e4hlen \u2014"
+            "— select item —": [
+                "— Artikel wählen —"
             ],
             "+ Line item": [
                 "+ Position"
@@ -437,13 +437,13 @@
                 "Abrechnung"
             ],
             "Delete": [
-                "L\u00f6schen"
+                "Löschen"
             ],
             "Delete rental %s?": [
-                "Verleih %s l\u00f6schen?"
+                "Verleih %s löschen?"
             ],
             "available": [
-                "verf\u00fcgbar"
+                "verfügbar"
             ],
             "Rental %s created.": [
                 "Verleih %s angelegt."
@@ -481,8 +481,8 @@
             "External services": [
                 "Fremdleistung"
             ],
-            "\u2014 site level \u2014": [
-                "\u2014 Site-Ebene \u2014"
+            "— site level —": [
+                "— Site-Ebene —"
             ],
             "Venue": [
                 "Veranstaltungsort"
@@ -590,19 +590,19 @@
                 "Keine Dateien."
             ],
             "Add file": [
-                "Datei hinzuf\u00fcgen"
+                "Datei hinzufügen"
             ],
             "Media library is not available.": [
-                "Die Medienbibliothek ist nicht verf\u00fcgbar."
+                "Die Medienbibliothek ist nicht verfügbar."
             ],
             "Select files": [
-                "Dateien ausw\u00e4hlen"
+                "Dateien auswählen"
             ],
             "Schedule": [
                 "Zeitplan"
             ],
             "No schedule entries.": [
-                "Keine Zeitplan-Eintr\u00e4ge."
+                "Keine Zeitplan-Einträge."
             ],
             "Date": [
                 "Datum"
@@ -617,10 +617,10 @@
                 "Checklisten"
             ],
             "Delete checklist \"%s\"?": [
-                "Checkliste \"%s\" l\u00f6schen?"
+                "Checkliste \"%s\" löschen?"
             ],
             "No entries.": [
-                "Keine Eintr\u00e4ge."
+                "Keine Einträge."
             ],
             "New entry": [
                 "Neuer Eintrag"
@@ -638,13 +638,13 @@
                 "Aufgaben"
             ],
             "Change status": [
-                "Status \u00e4ndern"
+                "Status ändern"
             ],
             "Priority": [
-                "Priorit\u00e4t"
+                "Priorität"
             ],
             "Due date": [
-                "F\u00e4llig am"
+                "Fällig am"
             ],
             "No tasks.": [
                 "Keine Aufgaben."
@@ -659,7 +659,7 @@
                 "Beteiligte"
             ],
             "Assign a group to add members.": [
-                "Ordne erst eine Gruppe zu, um Beteiligte hinzuzuf\u00fcgen."
+                "Ordne erst eine Gruppe zu, um Beteiligte hinzuzufügen."
             ],
             "(removed user)": [
                 "(entfernter Benutzer)"
@@ -668,16 +668,16 @@
                 "Noch keine Beteiligten."
             ],
             "All group members are already listed.": [
-                "Alle Gruppenmitglieder sind bereits aufgef\u00fchrt."
+                "Alle Gruppenmitglieder sind bereits aufgeführt."
             ],
-            "\u2014 select group member \u2014": [
-                "\u2014 Gruppenmitglied w\u00e4hlen \u2014"
+            "— select group member —": [
+                "— Gruppenmitglied wählen —"
             ],
             "Role": [
                 "Rolle"
             ],
             "Add member": [
-                "Mitglied hinzuf\u00fcgen"
+                "Mitglied hinzufügen"
             ],
             "Approved": [
                 "Angenommen"
@@ -695,7 +695,7 @@
                 "Enthalten"
             ],
             "Decisions": [
-                "Beschl\u00fcsse"
+                "Beschlüsse"
             ],
             "Assign a group to hold votes.": [
                 "Ordne erst eine Gruppe zu, um abzustimmen."
@@ -706,20 +706,20 @@
             "Majority": [
                 "Mehrheit"
             ],
-            "Approve %1$d \u00b7 Reject %2$d \u00b7 Abstain %3$d of %4$d": [
-                "Zustimmung %1$d \u00b7 Ablehnung %2$d \u00b7 Enthaltung %3$d von %4$d"
+            "Approve %1$d · Reject %2$d · Abstain %3$d of %4$d": [
+                "Zustimmung %1$d · Ablehnung %2$d · Enthaltung %3$d von %4$d"
             ],
             "%d votes": [
                 "%d Stimmen"
             ],
             "Close this decision early?": [
-                "Diesen Beschluss vorzeitig schlie\u00dfen?"
+                "Diesen Beschluss vorzeitig schließen?"
             ],
             "Delete this decision and all votes?": [
-                "Diesen Beschluss und alle Stimmen l\u00f6schen?"
+                "Diesen Beschluss und alle Stimmen löschen?"
             ],
             "No decisions yet.": [
-                "Noch keine Beschl\u00fcsse."
+                "Noch keine Beschlüsse."
             ],
             "Requires unanimous": [
                 "Einstimmigkeit erforderlich"
@@ -755,10 +755,10 @@
                 "+ Kontakt"
             ],
             "Delete project": [
-                "Projekt l\u00f6schen"
+                "Projekt löschen"
             ],
             "Delete project \"%s\"? Bookings, checklists and tasks will be deleted too.": [
-                "Projekt \"%s\" l\u00f6schen? Buchungen, Checklisten und Aufgaben werden mit gel\u00f6scht."
+                "Projekt \"%s\" löschen? Buchungen, Checklisten und Aufgaben werden mit gelöscht."
             ],
             "New project": [
                 "Neues Projekt"
@@ -772,29 +772,29 @@
             "No other category available as target.": [
                 "Keine andere Kategorie als Ziel vorhanden."
             ],
-            "Counting items \u2026": [
-                "Artikel werden gez\u00e4hlt \u2026"
+            "Counting items …": [
+                "Artikel werden gezählt …"
             ],
             "%1$d items will be moved to the target category, then \"%2$s\" will be deleted.": [
-                "%1$d Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%2$s\" gel\u00f6scht."
+                "%1$d Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%2$s\" gelöscht."
             ],
             "All items will be moved to the target category, then \"%s\" will be deleted.": [
-                "Alle Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%s\" gel\u00f6scht."
+                "Alle Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%s\" gelöscht."
             ],
             "Target category for \"%s\"": [
-                "Ziel-Kategorie f\u00fcr \"%s\""
+                "Ziel-Kategorie für \"%s\""
             ],
             "Cancel": [
                 "Abbrechen"
             ],
             "Merge": [
-                "Zusammenf\u00fchren"
+                "Zusammenführen"
             ],
             "%d items moved, category deleted.": [
-                "%d Artikel verschoben, Kategorie gel\u00f6scht."
+                "%d Artikel verschoben, Kategorie gelöscht."
             ],
             "Merge category": [
-                "Kategorie zusammenf\u00fchren"
+                "Kategorie zusammenführen"
             ],
             "Icon": [
                 "Icon"
@@ -802,11 +802,11 @@
             "Prefix": [
                 "Prefix"
             ],
-            "Merge\u2026": [
-                "Zusammenf\u00fchren\u2026"
+            "Merge…": [
+                "Zusammenführen…"
             ],
             "Delete category \"%s\"? Items will be kept.": [
-                "Kategorie \"%s\" l\u00f6schen? Artikel bleiben erhalten."
+                "Kategorie \"%s\" löschen? Artikel bleiben erhalten."
             ],
             "Icon (emoji)": [
                 "Icon (Emoji)"
@@ -833,16 +833,16 @@
                 "Abgeschlossen"
             ],
             "Convert to rental": [
-                "In Verleih \u00fcbernehmen"
+                "In Verleih übernehmen"
             ],
             "Convert the inquiry from \"%s\" into a rental? The inquiry will be marked as won.": [
-                "Anfrage von \"%s\" in einen Verleih \u00fcbernehmen? Die Anfrage wird als gewonnen markiert."
+                "Anfrage von \"%s\" in einen Verleih übernehmen? Die Anfrage wird als gewonnen markiert."
             ],
-            "Date range missing \u2014 cannot convert": [
-                "Zeitraum fehlt \u2014 Konvertierung nicht m\u00f6glich"
+            "Date range missing — cannot convert": [
+                "Zeitraum fehlt — Konvertierung nicht möglich"
             ],
             "Delete the inquiry from \"%s\"?": [
-                "Anfrage von \"%s\" l\u00f6schen?"
+                "Anfrage von \"%s\" löschen?"
             ],
             "Received on": [
                 "Eingegangen am"
@@ -863,13 +863,13 @@
                 "Noch keine Anfragen. Das Formular kommt per Shortcode [pp_request_form] auf jede Seite."
             ],
             "Reservation confirmed": [
-                "Reservierung best\u00e4tigt"
+                "Reservierung bestätigt"
             ],
             "Equipment handed out": [
                 "Equipment ausgegeben"
             ],
             "Return confirmed": [
-                "R\u00fcckgabe best\u00e4tigt"
+                "Rückgabe bestätigt"
             ],
             "Subject": [
                 "Betreff"
@@ -884,7 +884,7 @@
                 "E-Mail-Benachrichtigungen"
             ],
             "Send emails to borrowers (reservation, handout, return)": [
-                "E-Mails an Leiher senden (Reservierung, Ausgabe, R\u00fcckgabe)"
+                "E-Mails an Leiher senden (Reservierung, Ausgabe, Rückgabe)"
             ],
             "Placeholders:": [
                 "Platzhalter:"
@@ -892,8 +892,8 @@
             "Calendar feed (iCal)": [
                 "Kalender-Feed (iCal)"
             ],
-            "Read-only feed of all reserved/active rentals \u2014 subscribe in Apple/Google/Outlook.": [
-                "Read-only Feed aller reservierten/aktiven Verleihe \u2014 in Apple/Google/Outlook abonnierbar."
+            "Read-only feed of all reserved/active rentals — subscribe in Apple/Google/Outlook.": [
+                "Read-only Feed aller reservierten/aktiven Verleihe — in Apple/Google/Outlook abonnierbar."
             ],
             "Copy URL": [
                 "URL kopieren"
@@ -911,25 +911,25 @@
                 "Token erneuert."
             ],
             "Public frontend": [
-                "\u00d6ffentliches Frontend"
+                "Öffentliches Frontend"
             ],
-            "Show daily rates publicly (item detail page /equipment-item/\u2026)": [
-                "Tagess\u00e4tze \u00f6ffentlich zeigen (Artikel-Detailseite /equipment-item/\u2026)"
+            "Show daily rates publicly (item detail page /equipment-item/…)": [
+                "Tagessätze öffentlich zeigen (Artikel-Detailseite /equipment-item/…)"
             ],
             "Inventory cards link to a public detail page per item. Purchase price and serial number are never shown there.": [
-                "Die Inventar-Karten verlinken auf eine \u00f6ffentliche Detailseite pro Artikel. Kaufpreis und Seriennummer sind dort nie sichtbar."
+                "Die Inventar-Karten verlinken auf eine öffentliche Detailseite pro Artikel. Kaufpreis und Seriennummer sind dort nie sichtbar."
             ],
             "Data": [
                 "Daten"
             ],
             "Delete all plugin data on uninstall": [
-                "Alle Plugin-Daten beim Deinstallieren l\u00f6schen"
+                "Alle Plugin-Daten beim Deinstallieren löschen"
             ],
-            "GDPR: export & anonymization of borrower data via Tools \u2192 Personal Data (search by email address).": [
-                "DSGVO: Export & Anonymisierung von Leiher-Daten \u00fcber Werkzeuge \u2192 Personenbezogene Daten (Suche per E-Mail-Adresse)."
+            "GDPR: export & anonymization of borrower data via Tools → Personal Data (search by email address).": [
+                "DSGVO: Export & Anonymisierung von Leiher-Daten über Werkzeuge → Personenbezogene Daten (Suche per E-Mail-Adresse)."
             ],
             "Founder": [
-                "Gr\u00fcnder"
+                "Gründer"
             ],
             "Member": [
                 "Mitglied"
@@ -946,14 +946,14 @@
             "No members.": [
                 "Keine Mitglieder."
             ],
-            "\u2014 select user \u2014": [
-                "\u2014 Benutzer w\u00e4hlen \u2014"
+            "— select user —": [
+                "— Benutzer wählen —"
             ],
             "Delete group": [
-                "Gruppe l\u00f6schen"
+                "Gruppe löschen"
             ],
             "Delete group \"%s\"? Projects of this group return to site level.": [
-                "Gruppe \u201e%s\u201c l\u00f6schen? Projekte dieser Gruppe fallen auf die Site-Ebene zur\u00fcck."
+                "Gruppe „%s“ löschen? Projekte dieser Gruppe fallen auf die Site-Ebene zurück."
             ],
             "New group": [
                 "Neue Gruppe"
@@ -971,7 +971,7 @@
                 "Gewinn-Pool"
             ],
             "Set project revenue to calculate amounts.": [
-                "Hinterlege den Umsatz, um Betr\u00e4ge zu berechnen."
+                "Hinterlege den Umsatz, um Beträge zu berechnen."
             ],
             "Participant": [
                 "Beteiligter"
@@ -995,13 +995,13 @@
                 "Nicht zugeteilt"
             ],
             "Over-allocated": [
-                "\u00dcberverteilt"
+                "Überverteilt"
             ],
             "All group members already have a share.": [
                 "Alle Gruppenmitglieder haben bereits einen Anteil."
             ],
             "Add share": [
-                "Anteil hinzuf\u00fcgen"
+                "Anteil hinzufügen"
             ],
             "Value": [
                 "Wert"
@@ -1011,6 +1011,75 @@
             ],
             "Fixed": [
                 "Fest"
+            ],
+            "Cooperation agreement": [
+                "Kooperationsvereinbarung"
+            ],
+            "Assign a group to set up an agreement.": [
+                "Ordne erst eine Gruppe zu, um eine Vereinbarung zu erstellen."
+            ],
+            "No agreement yet.": [
+                "Noch keine Vereinbarung."
+            ],
+            "Contract text": [
+                "Vertragstext"
+            ],
+            "Create agreement": [
+                "Vereinbarung anlegen"
+            ],
+            "Open for signing": [
+                "Zur Unterzeichnung freigeben"
+            ],
+            "In signing": [
+                "In Unterzeichnung"
+            ],
+            "Active": [
+                "Aktiv"
+            ],
+            "Terminated": [
+                "Beendet"
+            ],
+            "Version %d": [
+                "Version %d"
+            ],
+            "Active since %s": [
+                "Aktiv seit %s"
+            ],
+            "Signed %1$d of %2$d": [
+                "%1$d von %2$d unterschrieben"
+            ],
+            "Sign": [
+                "Unterschreiben"
+            ],
+            "Decline": [
+                "Ablehnen"
+            ],
+            "Signed": [
+                "Unterschrieben"
+            ],
+            "Declined": [
+                "Abgelehnt"
+            ],
+            "Pending": [
+                "Ausstehend"
+            ],
+            "No group members.": [
+                "Keine Gruppenmitglieder."
+            ],
+            "Revise": [
+                "Überarbeiten"
+            ],
+            "Terminate": [
+                "Beenden"
+            ],
+            "Revise this agreement? All signatures will be cleared.": [
+                "Diese Vereinbarung überarbeiten? Alle Unterschriften werden verworfen."
+            ],
+            "Terminate this agreement?": [
+                "Diese Vereinbarung beenden?"
+            ],
+            "Delete this agreement and all signatures?": [
+                "Diese Vereinbarung samt aller Unterschriften löschen?"
             ]
         }
     }

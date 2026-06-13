@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.17.0
+Stable tag: 0.18.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,7 +18,7 @@ Project Prepper manages equipment inventory and rentals directly in WordPress:
 * Categories with icon and prefix
 * Search and filters across name, number, manufacturer, tags
 * Projects: plan events with equipment bookings, a schedule, checklists, tasks, a cost breakdown with VAT, budget and revenue, materials, a team & contacts list and attached files from the media library — confirmed projects block inventory just like rentals
-* Groups: share projects with a team of WordPress users — group projects are only visible to their members, site-level projects keep working as before; list the project members (participants) from the owning group with a free-form role, hold decisions where group members vote (approve/reject/abstain) with majority or unanimous resolution, and distribute the project profit among members as percentage or fixed shares
+* Groups: share projects with a team of WordPress users — group projects are only visible to their members, site-level projects keep working as before; list the project members (participants) from the owning group with a free-form role, hold decisions where group members vote (approve/reject/abstain) with majority or unanimous resolution, distribute the project profit among members as percentage or fixed shares, and record a cooperation agreement with per-member signature tracking (draft → in signing → active once everyone has signed)
 * Rental management: borrower, period, deposit, fee
 * Availability checks across overlapping rental and project booking periods
 * Status flow: Reserved → On loan → Returned (or Cancelled)
@@ -75,6 +75,12 @@ for the XLSX import/export in the admin. SheetJS CE is licensed under the Apache
 (https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
 
 == Changelog ==
+
+= 0.18.0 =
+* New "Cooperation agreement" section in the project detail (group projects only): record a free-form contract and track each group member's signature
+* One agreement per project with a status flow: draft (freely editable) → in signing (the contract text is locked, members sign or decline) → active (set automatically once every active group member has signed) — and it can be terminated at any time
+* The signature roster shows every group member as signed (with date), declined or pending; a single decline prevents activation without resetting the agreement — the author or an admin then revises it (which clears all signatures and bumps the version) or terminates it
+* Signing requires only project view access plus group membership; the author or an admin manages the lifecycle (open, revise, terminate, delete) — non-members of a group project cannot see or sign it
 
 = 0.17.0 =
 * New "Profit sharing" section in the project detail (group projects only): distribute the project's profit pool among members of the owning group
