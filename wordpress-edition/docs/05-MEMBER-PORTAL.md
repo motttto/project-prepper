@@ -1,10 +1,11 @@
 # 05 — Member-Portal (Frontend-Self-Service) & Föderation
 
-> Architektur + Roadmap für die geklärte Vision (User 2026-06-13, siehe Memory
-> [[grundkonzept]]): jede WP-Instanz = ein Kollektiv; **Mitglieder loggen sich im
-> Frontend ein** (nicht wp-admin), besitzen **eigenes Inventar**, gründen/teilen in
-> Gruppen; nichtkommerzielles Ressourcen-Teilen; Fernziel **Föderation** mehrerer
-> Instanzen. Verbindlich vor weiterem Frontend-Bau.
+> Architektur + Roadmap für die geklärte Vision (User 2026-06-13/14, siehe Memory
+> [[grundkonzept]]): jede WP-Instanz = **Plattform**, auf der Single-User Kollektive
+> (= Gruppen) **selbst gründen/​beitreten**; **Mitglieder loggen sich im Frontend ein**
+> (nicht wp-admin), besitzen **eigenes Inventar**, teilen in Gruppen; Beitritt per
+> Mitglieder-Voting; nichtkommerzielles Ressourcen-Teilen; Fernziel **Föderation**.
+> Verbindlich vor weiterem Frontend-Bau.
 
 ## Leitprinzip (präzisiert 2026-06-13)
 Eine Installation = eine **Plattform/Architektur** (self-hosted, Datenhoheit, open source), auf der sich **mehrere Kollektive selbst bilden**. Ein **Kollektiv = eine vom User gegründete Gruppe** — die Instanz ist NICHT a priori einem Kollektiv zugeordnet; url.xyz ist der Startpunkt für Single-User, um ein Kollektiv zu gründen/​beizutreten. **Admin = Plattform-Betreiber** (stellt die Architektur, einziger mit wp-admin, Moderation). **Mitglieder erleben alles im Frontend** (Theme), kein wp-admin. → faktisch das **Multi-Tenant-Modell der App (User-First + selbst gegründete Gruppen), self-hosted** — es braucht eine vollwertige **Front-End-Mitglieder-App**.
@@ -24,7 +25,7 @@ Eine Installation = eine **Plattform/Architektur** (self-hosted, Datenhoheit, op
 ### 3. Front-End-Mitglieder-App (Theme + Plugin)
 - Auslieferung über das **Theme „Prepper Site"** (Seiten/Templates) + Plugin-**Shortcodes/Blöcke** für die App-Bereiche (z. B. `[pp_member_dashboard]`, `[pp_my_inventory]`, `[pp_my_groups]`, `[pp_browse]`).
 - Nutzt die **bestehende REST-API**, aber mit **per-User-Authorisierung in PHP** (jede Route prüft owner_user_id / Gruppen-Mitgliedschaft — kein RLS-Netz, Sicherheitsfläche sorgfältig).
-- Login/Registrierung im Frontend (WP-Auth, Custom-Login-Seiten; Registrierung nur per Einladung durch Admin).
+- Login/Registrierung im Frontend (WP-Auth, Custom-Login-Seiten; Registrierungs-Modus konfigurierbar, Default Admin-Freigabe — s. „Offene Detail-Entscheidungen").
 
 ### 4. Sharing-Modell (Kern der Vision)
 - Mitglied teilt **eigenes** Inventar in eine **Gruppe** (vorhandenes Gruppen-Overlay erweitern: Items mit owner_user_id, sichtbar/leihbar für Gruppenmitglieder).
