@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.8.0';
+	const VERSION    = '0.9.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -45,6 +45,7 @@ class Schema {
 		$p_consum   = self::table( 'project_consumables' );
 		$p_team     = self::table( 'project_team' );
 		$p_contacts = self::table( 'project_contacts' );
+		$p_files    = self::table( 'project_files' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -325,6 +326,23 @@ class Schema {
 				sort_order int(11) NOT NULL DEFAULT 0,
 				PRIMARY KEY  (id),
 				KEY project_id (project_id)
+			) {$charset};" );
+
+			// Datei-Verknüpfungen pro Projekt (Pendant zu `project_files` der App).
+			// Anders als die Listen-Tabs verweist jede Zeile auf ein WP-Attachment
+			// (Medienbibliothek) — URL/Dateiname/MIME kommen aus dem Attachment selbst.
+			// Detach löscht NUR diese Join-Zeile, nie das Medium.
+			dbDelta( "CREATE TABLE {$p_files} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				project_id bigint(20) unsigned NOT NULL,
+				attachment_id bigint(20) unsigned NOT NULL,
+				title varchar(190) NOT NULL DEFAULT '',
+				sort_order int(11) NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				created_by bigint(20) unsigned DEFAULT NULL,
+				PRIMARY KEY  (id),
+				KEY project_id (project_id),
+				KEY attachment_id (attachment_id)
 			) {$charset};" );
 
 		self::upgrade_data();

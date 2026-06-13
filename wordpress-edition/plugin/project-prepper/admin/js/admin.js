@@ -1541,6 +1541,80 @@
 				}
 				renderConsumables();
 
+				/* --- Dateien (Pendant zu tab-files der App) ---
+				   Direkt nach dem Material platziert: begleitende Dokumente
+				   (Grundrisse, Angebote, Pläne) zur Material-/Kostenplanung, vor
+				   den operativen Sektionen. Dateien hängen über die WP-Medien-
+				   bibliothek am Projekt (wp.media-Frame), nicht als Freitext. */
+
+				var filesSection = el("div", { class: "pp-modal-section" });
+				function renderFiles() {
+					filesSection.innerHTML = "";
+					filesSection.appendChild(el("h3", { text: __("Files", "project-prepper") }));
+					var list = el("ul", { class: "pp-lines" });
+					(project.files || []).forEach(function (f) {
+						var label;
+						if (f.missing) {
+							label = el("span", { class: "pp-muted", text: (f.title || f.filename || "#" + f.attachment_id) + " " + __("(file missing)", "project-prepper") });
+						} else {
+							label = el("a", { href: f.url, target: "_blank", rel: "noopener", text: f.title || f.filename || f.url });
+						}
+						var meta = el("span", { class: "pp-muted", text: f.mime || "" });
+						if (!editable) {
+							list.appendChild(el("li", null, [label, meta]));
+							return;
+						}
+						list.appendChild(el("li", null, [
+							label, meta,
+							el("button", {
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/files/" + f.id, { method: "DELETE" })
+										.then(function () { reload(renderFiles); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					});
+					if (!(project.files || []).length) list.appendChild(el("li", { class: "pp-muted", text: __("No files.", "project-prepper") }));
+					filesSection.appendChild(list);
+
+					if (!editable) return;
+					filesSection.appendChild(el("div", { class: "pp-row" }, [
+						el("button", {
+							class: "pp-btn pp-btn-sm", text: __("Add file", "project-prepper"), type: "button",
+							onclick: function () {
+								if (typeof wp === "undefined" || !wp.media) {
+									toast(__("Media library is not available.", "project-prepper"), "error");
+									return;
+								}
+								var frame = wp.media({
+									title: __("Select files", "project-prepper"),
+									multiple: true,
+									library: {},
+									button: { text: __("Add file", "project-prepper") }
+								});
+								frame.on("select", function () {
+									var selection = frame.state().get("selection").toJSON();
+									// Je gewähltem Attachment eine Verknüpfung anlegen (sequentiell),
+									// danach EINMAL neu laden.
+									var chain = Promise.resolve();
+									selection.forEach(function (att) {
+										chain = chain.then(function () {
+											return api("/projects/" + projectId + "/files", {
+												method: "POST",
+												body: JSON.stringify({ attachment_id: att.id })
+											});
+										}).catch(function (e) { toast(e.message, "error"); });
+									});
+									chain.then(function () { reload(renderFiles); });
+								});
+								frame.open();
+							}
+						})
+					]));
+				}
+				renderFiles();
+
 				/* --- Zeitplan --- */
 
 				var scheduleSection = el("div", { class: "pp-modal-section" });
@@ -1873,7 +1947,7 @@
 				}
 				renderTeam();
 
-				var body = el("div", null, [statusRow, info, bookingsSection, costsSection, consumablesSection, scheduleSection, checklistsSection, tasksSection, teamSection]);
+				var body = el("div", null, [statusRow, info, bookingsSection, costsSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection]);
 
 				var close;
 				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);

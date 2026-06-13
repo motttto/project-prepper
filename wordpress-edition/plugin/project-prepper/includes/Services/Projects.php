@@ -68,6 +68,7 @@ class Projects {
 		$project->consumables  = Consumables::for_project( $id );
 		$project->team         = Team::for_project( $id );
 		$project->contacts     = Contacts::for_project( $id );
+		$project->files        = Files::for_project( $id );
 		return $project;
 	}
 
@@ -252,6 +253,8 @@ class Projects {
 		$wpdb->delete( Schema::table( 'project_consumables' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_team' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_contacts' ), [ 'project_id' => $id ], [ '%d' ] );
+		// Nur die Datei-Verknüpfungen entfernen, nicht die Medien-Anhänge selbst.
+		$wpdb->delete( Schema::table( 'project_files' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_items' ), [ 'project_id' => $id ], [ '%d' ] );
 		$ok = false !== $wpdb->delete( Schema::table( 'projects' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {

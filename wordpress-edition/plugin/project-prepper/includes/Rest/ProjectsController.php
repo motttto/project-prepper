@@ -6,6 +6,7 @@ use ProjectPrepper\Services\Checklists;
 use ProjectPrepper\Services\Consumables;
 use ProjectPrepper\Services\Contacts;
 use ProjectPrepper\Services\Costs;
+use ProjectPrepper\Services\Files;
 use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\Schedule;
 use ProjectPrepper\Services\Tasks;
@@ -214,6 +215,32 @@ class ProjectsController extends BaseController {
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'remove_contact' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/files', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'files' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'add_file' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/files/(?P<file_id>\d+)', [
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_file' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_file' ],
 				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
 			],
 		] );
@@ -741,6 +768,76 @@ class ProjectsController extends BaseController {
 			$data['sort_order'] = (int) $json['sort_order'];
 		}
 		return $data;
+	}
+
+	/* ---------- Dateien ---------- */
+
+	public function files( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( Files::for_project( (int) $request['id'] ) );
+	}
+
+	public function add_file( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$json   = $request->get_json_params() ?: [];
+		$result = Files::attach(
+			(int) $request['id'],
+			(int) ( $json['attachment_id'] ?? 0 ),
+			isset( $json['title'] ) ? sanitize_text_field( (string) $json['title'] ) : ''
+		);
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Files::for_project( (int) $request['id'] ), 201 );
+	}
+
+	public function update_file( WP_REST_Request $request ) {
+		$owner = $this->file_link_in_project( (int) $request['id'], (int) $request['file_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$json = $request->get_json_params() ?: [];
+		$data = [];
+		if ( array_key_exists( 'title', $json ) ) {
+			$data['title'] = sanitize_text_field( (string) $json['title'] );
+		}
+		if ( array_key_exists( 'sort_order', $json ) ) {
+			$data['sort_order'] = (int) $json['sort_order'];
+		}
+		$result = Files::update( (int) $request['file_id'], $data );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Files::for_project( (int) $request['id'] ) );
+	}
+
+	public function remove_file( WP_REST_Request $request ) {
+		$owner = $this->file_link_in_project( (int) $request['id'], (int) $request['file_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Files::detach( (int) $request['file_id'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Files::for_project( (int) $request['id'] ) );
+	}
+
+	/**
+	 * Sicherstellen, dass die Verknüpfung zum Projekt der URL gehört (nested route).
+	 *
+	 * @return true|WP_Error
+	 */
+	private function file_link_in_project( int $project_id, int $file_id ) {
+		$entry = Files::get( $file_id );
+		if ( ! $entry || (int) $entry->project_id !== $project_id ) {
+			return new WP_Error( 'pp_not_found', __( 'File not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return true;
 	}
 
 	/* ---------- Checklisten ---------- */

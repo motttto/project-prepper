@@ -94,6 +94,8 @@ class Menu {
 		wp_enqueue_script( 'pp-xlsx', PP_PLUGIN_URL . 'admin/js/vendor/xlsx.full.min.js', [], '0.20.3', true );
 		wp_enqueue_script( 'pp-admin', PP_PLUGIN_URL . 'admin/js/admin.js', [ 'pp-xlsx', 'wp-i18n' ], PP_VERSION, true );
 		wp_set_script_translations( 'pp-admin', 'project-prepper', PP_PLUGIN_DIR . 'languages' );
+		// Medien-Frame (wp.media) für den Projekt-Dateien-Tab — nur auf den pp-Seiten.
+		wp_enqueue_media();
 
 		wp_localize_script( 'pp-admin', 'ppConfig', [
 			'restUrl' => esc_url_raw( rest_url( 'project-prepper/v1' ) ),
