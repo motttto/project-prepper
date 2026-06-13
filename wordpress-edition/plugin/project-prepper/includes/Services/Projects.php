@@ -40,7 +40,7 @@ class Projects {
 
 		array_unshift( $params, $lines, $projects );
 		$sql = $wpdb->prepare(
-			'SELECT p.*, (SELECT COALESCE(SUM(pi.quantity), 0) FROM %i pi WHERE pi.project_id = p.id) AS item_count
+			'SELECT p.*, (SELECT COUNT(*) FROM %i pi WHERE pi.project_id = p.id) AS item_count
 			 FROM %i p
 			 WHERE ' . implode( ' AND ', $where ) . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- WHERE-Bedingungen sind statische Strings mit Platzhaltern.
 			' ORDER BY p.date_start DESC, p.id DESC',
