@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.16.0';
+	const VERSION    = '0.17.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -57,6 +57,8 @@ class Schema {
 		$p_polls    = self::table( 'project_polls' );
 		$p_poll_o   = self::table( 'project_poll_options' );
 		$p_poll_v   = self::table( 'project_poll_votes' );
+		$g_invites  = self::table( 'group_invitations' );
+		$g_inv_v    = self::table( 'group_invitation_votes' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -558,6 +560,42 @@ class Schema {
 					KEY option_id (option_id),
 					UNIQUE KEY option_user (option_id,user_id)
 				) {$charset};" );
+
+			// Gruppen-Einladungen mit Beitritts-Voting (v0.17.0, Member-Portal Phase 2)
+			// — Pendant zu `group_invitations` der App (Migration 072). Ein Mitglied
+			// lädt per E-Mail ein; nimmt der/die Eingeladene an, stimmen die aktiven
+			// Mitglieder einstimmig ab. invited_user_id wird gesetzt, sobald ein
+			// WP-User mit der E-Mail existiert (beim Einladen oder bei Registrierung).
+			// status: pending → voting → approved | rejected | cancelled.
+			dbDelta( "CREATE TABLE {$g_invites} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				group_id bigint(20) unsigned NOT NULL,
+				invited_email varchar(190) NOT NULL DEFAULT '',
+				invited_user_id bigint(20) unsigned DEFAULT NULL,
+				invited_by bigint(20) unsigned DEFAULT NULL,
+				status varchar(20) NOT NULL DEFAULT 'pending',
+				created_at datetime NOT NULL,
+				resolved_at datetime DEFAULT NULL,
+				PRIMARY KEY  (id),
+				KEY group_id (group_id),
+				KEY invited_user_id (invited_user_id),
+				KEY status (status)
+			) {$charset};" );
+
+			// Stimmen je Einladung (Pendant zu `group_invitation_votes`). Eine Stimme
+			// pro aktivem Mitglied (UNIQUE invitation_user), Upsert. vote:
+			// approve|reject|abstain. Auflösung: eine Ablehnung → rejected; alle
+			// aktiven Mitglieder approve → approved (Einstimmigkeit).
+			dbDelta( "CREATE TABLE {$g_inv_v} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				invitation_id bigint(20) unsigned NOT NULL,
+				voter_id bigint(20) unsigned NOT NULL,
+				vote varchar(10) NOT NULL,
+				voted_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY invitation_id (invitation_id),
+				UNIQUE KEY invitation_user (invitation_id,voter_id)
+			) {$charset};" );
 
 		self::upgrade_data();
 		update_option( self::OPTION_KEY, self::VERSION );

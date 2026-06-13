@@ -24,6 +24,10 @@ class Capabilities {
 	// Gruppen-Overlay (v0.10.0): Gruppen anlegen/bearbeiten + Mitglieder verwalten.
 	// Gilt zugleich als Admin-Signal in den Gruppen-Zugriffs-Guards (Groups::is_admin).
 	const MANAGE_GROUPS   = 'pp_groups_manage';
+	// Member-Portal (v0.17.0): an Kollektiven teilnehmen (gründen, einladen,
+	// abstimmen, Einladungen annehmen) — Selbstbedienung im Frontend. Auch
+	// Mitglieder (pp_member) haben diese Cap, im Gegensatz zu MANAGE_GROUPS.
+	const COLLECTIVES     = 'pp_collectives';
 
 	public static function all(): array {
 		return [
@@ -38,6 +42,7 @@ class Capabilities {
 			self::IMPORT_EXPORT,
 			self::MANAGE_SETTINGS,
 			self::MANAGE_GROUPS,
+			self::COLLECTIVES,
 		];
 	}
 
@@ -68,9 +73,11 @@ class Capabilities {
 			self::EDIT_INQUIRIES  => true,
 			self::IMPORT_EXPORT   => true,
 			self::MANAGE_GROUPS   => true,
+			self::COLLECTIVES     => true,
 		] );
 
-		// Member: nur lesen (≈ App-Rolle "Member" mit View-Permissions).
+		// Member: nur lesen (≈ App-Rolle "Member" mit View-Permissions) + an
+		// Kollektiven teilnehmen (Member-Portal, Selbstbedienung im Frontend).
 		remove_role( 'pp_member' );
 		add_role( 'pp_member', __( 'Prepper Member', 'project-prepper' ), [
 			'read'               => true,
@@ -78,6 +85,7 @@ class Capabilities {
 			self::VIEW_PROJECTS  => true,
 			self::VIEW_RENTALS   => true,
 			self::VIEW_INQUIRIES => true,
+			self::COLLECTIVES    => true,
 		] );
 	}
 

@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-13T22:38:23+00:00\n"
+"POT-Creation-Date: 2026-06-13T22:51:44+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: project-prepper\n"
@@ -94,16 +94,16 @@ msgstr ""
 #. translators: %s = display name of the current user.
 #. translators: %s: member display name.
 #: includes/Admin/Menu.php:154
-#: includes/Frontend/MemberPortal.php:186
+#: includes/Frontend/MemberPortal.php:264
 #, php-format
 msgid "Hello %s"
 msgstr ""
 
-#: includes/Capabilities.php:59
+#: includes/Capabilities.php:64
 msgid "Prepper Manager"
 msgstr ""
 
-#: includes/Capabilities.php:75
+#: includes/Capabilities.php:82
 msgid "Prepper Member"
 msgstr ""
 
@@ -189,102 +189,192 @@ msgid ""
 "→ Manage: {{admin_url}}"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:128
+#: includes/Frontend/MemberPortal.php:136
 msgid "Member portal"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:154
+#: includes/Frontend/MemberPortal.php:207
+msgid "Collective founded. You are its founder."
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:208
+msgid "Invitation sent."
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:209
+msgid "Invitation accepted."
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:210
+msgid "Invitation declined."
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:211
+msgid "Invitation cancelled."
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:212
+msgid "Your vote was recorded."
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:213
+msgid "Something went wrong. Please try again."
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:232
 msgid "Member login"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:155
+#: includes/Frontend/MemberPortal.php:233
 msgid "Sign in to manage your inventory, your collectives and shared resources."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:159
+#: includes/Frontend/MemberPortal.php:237
 msgid "Email or username"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:160
+#: includes/Frontend/MemberPortal.php:238
 msgid "Password"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:161
+#: includes/Frontend/MemberPortal.php:239
 msgid "Sign in"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:166
+#: includes/Frontend/MemberPortal.php:244
 msgid "Access is by invitation only. Ask the platform operators to set up an account for you."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:168
+#: includes/Frontend/MemberPortal.php:246
 msgid "Forgot your password?"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:189
+#: includes/Frontend/MemberPortal.php:267
 msgid "Welcome to your collective platform."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:194
+#: includes/Frontend/MemberPortal.php:276
 msgid "You have management access to this platform."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:195
+#: includes/Frontend/MemberPortal.php:277
 msgid "Open admin area"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:200
+#: includes/Frontend/MemberPortal.php:284
 msgid "Your collectives"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:207
+#: includes/Frontend/MemberPortal.php:290
+msgid "You are not part of any collective yet. Found one below or accept an invitation to start sharing inventory."
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:295
+msgid "Found a collective"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:298
+msgid "Collective name"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:300
+msgid "Description (optional)"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:302
+msgid "Found collective"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:309
+msgid "My inventory"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:310
+msgid "Add your own equipment and share it with your collectives."
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:311
+msgid "Coming soon"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:317
+msgid "Sign out"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:359
+msgid "Your invitations"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:368
+msgid "Accept"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:373
+#: admin/js/admin.js:2654
+msgid "Decline"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:377
+msgid "Being voted on by the collective"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:381
+msgid "Withdraw"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:399
 #: admin/js/admin.js:3251
 msgid "Founder"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:209
+#: includes/Frontend/MemberPortal.php:401
 #: admin/js/admin.js:3251
 msgid "Member"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:215
-msgid "You are not part of any collective yet. Found one or join an existing collective to start sharing inventory."
+#: includes/Frontend/MemberPortal.php:417
+msgid "Waiting for acceptance"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:220
-msgid "What you can do here"
+#. translators: 1: approvals, 2: members needed.
+#: includes/Frontend/MemberPortal.php:422
+#, php-format
+msgid "%1$d / %2$d approvals"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:224
-msgid "Found a collective"
+#: includes/Frontend/MemberPortal.php:434
+#: admin/js/admin.js:2123
+msgid "Approve"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:225
-msgid "Start your own collective and invite others to share resources."
+#: includes/Frontend/MemberPortal.php:440
+#: admin/js/admin.js:2123
+msgid "Reject"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:228
-msgid "Join a collective"
+#: includes/Frontend/MemberPortal.php:448
+#: admin/js/admin.js:2903
+msgid "Cancel"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:229
-msgid "Get invited to an existing collective — the members decide together."
+#: includes/Frontend/MemberPortal.php:456
+msgid "Invite by email"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:232
-msgid "My inventory"
+#: includes/Frontend/MemberPortal.php:457
+msgid "Invite"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:233
-msgid "Add your own equipment and share it with your collectives."
+#: includes/Frontend/MemberPortal.php:465
+msgid "You approved"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:240
-msgid "Sign out"
+#: includes/Frontend/MemberPortal.php:466
+msgid "You rejected"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:253
-msgid "Coming soon"
+#: includes/Frontend/MemberPortal.php:467
+msgid "You abstained"
 msgstr ""
 
 #: includes/Frontend/Shortcodes.php:29
@@ -889,6 +979,7 @@ msgid "This decision is already closed."
 msgstr ""
 
 #: includes/Services/Decisions.php:220
+#: includes/Services/GroupGovernance.php:204
 #: includes/Services/Polls.php:232
 msgid "Invalid vote."
 msgstr ""
@@ -908,6 +999,61 @@ msgstr ""
 
 #: includes/Services/Files.php:86
 msgid "Invalid attachment."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:42
+msgid "You are not allowed to found a collective."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:60
+msgid "You are not allowed to invite members."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:63
+msgid "Only members of this collective can invite others."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:67
+msgid "Please enter a valid email address."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:75
+msgid "That person is already a member of this collective."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:87
+msgid "There is already an open invitation for this address."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:118
+msgid "This invitation can no longer be accepted."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:151
+#: includes/Services/GroupGovernance.php:174
+msgid "This invitation is already resolved."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:167
+#: includes/Services/GroupGovernance.php:193
+#: includes/Services/GroupGovernance.php:364
+msgid "Invitation not found."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:171
+msgid "Only members of this collective can cancel invitations."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:196
+msgid "This invitation is not open for voting."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:200
+msgid "Only members of this collective can vote."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:370
+msgid "This invitation is not addressed to you."
 msgstr ""
 
 #: includes/Services/Groups.php:95
@@ -2152,14 +2298,6 @@ msgid "Rejected"
 msgstr ""
 
 #: admin/js/admin.js:2123
-msgid "Approve"
-msgstr ""
-
-#: admin/js/admin.js:2123
-msgid "Reject"
-msgstr ""
-
-#: admin/js/admin.js:2123
 msgid "Abstain"
 msgstr ""
 
@@ -2390,10 +2528,6 @@ msgstr ""
 msgid "Sign"
 msgstr ""
 
-#: admin/js/admin.js:2654
-msgid "Decline"
-msgstr ""
-
 #: admin/js/admin.js:2682
 msgid "No group members."
 msgstr ""
@@ -2483,10 +2617,6 @@ msgstr ""
 #: admin/js/admin.js:2896
 #, js-format
 msgid "Target category for \"%s\""
-msgstr ""
-
-#: admin/js/admin.js:2903
-msgid "Cancel"
 msgstr ""
 
 #: admin/js/admin.js:2905

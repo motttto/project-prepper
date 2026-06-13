@@ -2794,3 +2794,108 @@ msgstr "Lege dein eigenes Equipment an und teile es mit deinen Kollektiven."
 
 msgid "Coming soon"
 msgstr "In Vorbereitung"
+
+msgid "You are not allowed to found a collective."
+msgstr "Du darfst kein Kollektiv gründen."
+
+msgid "You are not allowed to invite members."
+msgstr "Du darfst keine Mitglieder einladen."
+
+msgid "Only members of this collective can invite others."
+msgstr "Nur Mitglieder dieses Kollektivs können andere einladen."
+
+msgid "Please enter a valid email address."
+msgstr "Bitte gib eine gültige E-Mail-Adresse ein."
+
+msgid "That person is already a member of this collective."
+msgstr "Diese Person ist bereits Mitglied dieses Kollektivs."
+
+msgid "There is already an open invitation for this address."
+msgstr "Für diese Adresse gibt es bereits eine offene Einladung."
+
+msgid "This invitation can no longer be accepted."
+msgstr "Diese Einladung kann nicht mehr angenommen werden."
+
+msgid "This invitation is already resolved."
+msgstr "Diese Einladung ist bereits abgeschlossen."
+
+msgid "Only members of this collective can cancel invitations."
+msgstr "Nur Mitglieder dieses Kollektivs können Einladungen abbrechen."
+
+msgid "Invitation not found."
+msgstr "Einladung nicht gefunden."
+
+msgid "This invitation is not open for voting."
+msgstr "Über diese Einladung kann nicht abgestimmt werden."
+
+msgid "Only members of this collective can vote."
+msgstr "Nur Mitglieder dieses Kollektivs können abstimmen."
+
+msgid "This invitation is not addressed to you."
+msgstr "Diese Einladung ist nicht an dich gerichtet."
+
+msgid "Collective founded. You are its founder."
+msgstr "Kollektiv gegründet. Du bist Gründer."
+
+msgid "Invitation sent."
+msgstr "Einladung gesendet."
+
+msgid "Invitation accepted."
+msgstr "Einladung angenommen."
+
+msgid "Invitation declined."
+msgstr "Einladung abgelehnt."
+
+msgid "Invitation cancelled."
+msgstr "Einladung abgebrochen."
+
+msgid "Your vote was recorded."
+msgstr "Deine Stimme wurde gespeichert."
+
+msgid "Something went wrong. Please try again."
+msgstr "Etwas ist schiefgelaufen. Bitte versuche es erneut."
+
+msgid "Your invitations"
+msgstr "Deine Einladungen"
+
+msgid "Being voted on by the collective"
+msgstr "Das Kollektiv stimmt darüber ab"
+
+msgid "Accept"
+msgstr "Annehmen"
+
+msgid "Withdraw"
+msgstr "Zurückziehen"
+
+msgid "Waiting for acceptance"
+msgstr "Wartet auf Annahme"
+
+msgid "%1$d / %2$d approvals"
+msgstr "%1$d / %2$d Zustimmungen"
+
+msgid "Invite by email"
+msgstr "Per E-Mail einladen"
+
+msgid "Invite"
+msgstr "Einladen"
+
+msgid "Collective name"
+msgstr "Name des Kollektivs"
+
+msgid "Description (optional)"
+msgstr "Beschreibung (optional)"
+
+msgid "Found collective"
+msgstr "Kollektiv gründen"
+
+msgid "You are not part of any collective yet. Found one below or accept an invitation to start sharing inventory."
+msgstr "Du bist noch in keinem Kollektiv. Gründe unten eines oder nimm eine Einladung an, um Inventar zu teilen."
+
+msgid "You approved"
+msgstr "Du hast zugestimmt"
+
+msgid "You rejected"
+msgstr "Du hast abgelehnt"
+
+msgid "You abstained"
+msgstr "Du hast dich enthalten"

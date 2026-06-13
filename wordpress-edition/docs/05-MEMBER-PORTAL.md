@@ -42,7 +42,13 @@ Eine Installation = eine **Plattform/Architektur** (self-hosted, Datenhoheit, op
   - Front-End-Portal `[pp_member_portal]` (Auto-Seite „portal"): Login (WP-Auth) + Einladungs-Hinweis · für Mitglieder Begrüßung + eigene Kollektive + ehrliche „In Vorbereitung"-Kacheln (Gründen/Beitreten/Mein Inventar).
   - Einladungs-only by design (kein offenes Signup); security by design (Portal liest nur eigene Daten).
   - de_DE vollständig (POMO-kompiliert), Plugin Check sauber (nur dev-only `.wp-env.json` + erwarteter Stable-Tag, beide ok).
-- **Offen / als Nächstes:** Phase 2 (Gründen/Beitreten + Beitritts-Voting im Frontend) — die Portal-Kacheln aktivieren.
+- **Phase 2 umgesetzt (Plugin v0.26.0 / Schema 0.17.0, 2026-06-14):**
+  - `GroupGovernance`-Service + Tabellen `pp_group_invitations` / `pp_group_invitation_votes` (Pendant zu App-Migration 072).
+  - Frontend im Portal: **Kollektiv gründen** (Mitglied wird Gründer), **per E-Mail einladen**, **Einladungen annehmen/ablehnen**, **Beitritts-Voting** (Zustimmen/Ablehnen, Zähler `X/Y Zustimmungen`).
+  - **Einstimmigkeit** wie App: bei Annahme mit nur 1 aktivem Mitglied sofort Beitritt; sonst Voting, eine Ablehnung → rejected, alle approve → approved + Beitritt. E-Mail-Einladungen werden bei Registrierung verknüpft (`user_register`).
+  - **Superadmin/Admin-Override** bleibt das bestehende Add/Remove im Groups-Admin (umgeht Voting).
+  - Cap `pp_collectives` (auch Mitglieder); de_DE per POMO; Plugin Check 0 echte Errors; Voting-Lifecycle in wp-env getestet (Gründen/Auto-Join/Einstimmig/Ablehnung/Zugriffsschutz) + Screenshot.
+- **Offen / als Nächstes:** Phase 3 (Mein Inventar + Teilen im Frontend, nutzt `owner_user_id`) — die „Mein Inventar"-Kachel aktivieren.
 
 ## Roadmap (gestuft, jede Phase testbar/ausrollbar)
 

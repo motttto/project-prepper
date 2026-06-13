@@ -584,3 +584,104 @@ a.pp-front-card-media { text-decoration: none; }
 	padding-top: 1.5rem;
 	border-top: 1px solid var(--pp-border);
 }
+
+/* Member-Portal Phase 2 — Kollektiv-Selbstverwaltung */
+.pp-portal__notice {
+	border-radius: 10px;
+	padding: .7rem 1rem;
+	margin-bottom: 1.25rem;
+	font-size: .9rem;
+}
+.pp-portal__notice--ok {
+	background: var(--pp-success-light);
+	border: 1px solid #a7f3d0;
+	color: #065f46;
+}
+.pp-portal__notice--err {
+	background: var(--pp-destructive-light);
+	border: 1px solid #fecaca;
+	color: #991b1b;
+}
+.pp-portal__btn--sm {
+	padding: .35rem .75rem;
+	font-size: .85rem;
+}
+.pp-portal__form {
+	display: flex;
+	flex-direction: column;
+	gap: .4rem;
+	background: var(--pp-surface);
+	border: 1px solid var(--pp-border);
+	border-radius: var(--pp-radius);
+	padding: 1.1rem;
+	max-width: 480px;
+}
+.pp-portal__form label {
+	font-size: .85rem;
+	font-weight: 500;
+}
+.pp-portal__form input[type="text"],
+.pp-portal__form input[type="email"],
+.pp-portal__form textarea {
+	width: 100%;
+	padding: .5rem .65rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 8px;
+	font: inherit;
+	box-sizing: border-box;
+}
+.pp-portal__form button {
+	align-self: flex-start;
+	margin-top: .35rem;
+}
+.pp-portal__form--inline {
+	flex-direction: row;
+	align-items: center;
+	padding: .6rem;
+	margin-top: .75rem;
+	max-width: none;
+}
+.pp-portal__form--inline button { margin-top: 0; align-self: auto; }
+
+.pp-portal__invite {
+	display: flex;
+	align-items: center;
+	gap: .75rem;
+	flex-wrap: wrap;
+	background: var(--pp-surface);
+	border: 1px solid var(--pp-border);
+	border-radius: 10px;
+	padding: .7rem 1rem;
+	margin-bottom: .5rem;
+}
+.pp-portal__collective {
+	background: var(--pp-surface);
+	border: 1px solid var(--pp-border);
+	border-radius: var(--pp-radius);
+	padding: 1.1rem;
+	margin-bottom: 1rem;
+}
+.pp-portal__collective-head {
+	display: flex;
+	align-items: center;
+	gap: .6rem;
+	margin-bottom: .35rem;
+}
+.pp-portal__members {
+	font-size: .85rem;
+	color: var(--pp-muted-foreground);
+	margin: 0 0 .5rem;
+}
+.pp-portal__vote {
+	display: flex;
+	align-items: center;
+	gap: .6rem;
+	flex-wrap: wrap;
+	background: var(--pp-muted);
+	border-radius: 8px;
+	padding: .5rem .75rem;
+	margin-bottom: .4rem;
+}
+.pp-portal__vote-email { font-weight: 600; font-size: .9rem; }
+.pp-portal__actions { display: flex; gap: .4rem; flex-wrap: wrap; }
+.pp-portal__actions form { margin: 0; }
