@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.16.0
+Stable tag: 0.17.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -18,7 +18,7 @@ Project Prepper manages equipment inventory and rentals directly in WordPress:
 * Categories with icon and prefix
 * Search and filters across name, number, manufacturer, tags
 * Projects: plan events with equipment bookings, a schedule, checklists, tasks, a cost breakdown with VAT, budget and revenue, materials, a team & contacts list and attached files from the media library — confirmed projects block inventory just like rentals
-* Groups: share projects with a team of WordPress users — group projects are only visible to their members, site-level projects keep working as before; list the project members (participants) from the owning group with a free-form role, and hold decisions where group members vote (approve/reject/abstain) with majority or unanimous resolution
+* Groups: share projects with a team of WordPress users — group projects are only visible to their members, site-level projects keep working as before; list the project members (participants) from the owning group with a free-form role, hold decisions where group members vote (approve/reject/abstain) with majority or unanimous resolution, and distribute the project profit among members as percentage or fixed shares
 * Rental management: borrower, period, deposit, fee
 * Availability checks across overlapping rental and project booking periods
 * Status flow: Reserved → On loan → Returned (or Cancelled)
@@ -75,6 +75,13 @@ for the XLSX import/export in the admin. SheetJS CE is licensed under the Apache
 (https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
 
 == Changelog ==
+
+= 0.17.0 =
+* New "Profit sharing" section in the project detail (group projects only): distribute the project's profit pool among members of the owning group
+* The profit pool is the project profit from the Costs section (revenue minus actual non-excluded costs); each share is a percentage of that pool or a fixed amount
+* Per-row calculated amounts plus a summary block: allocated total, unallocated remainder and an over-allocation warning highlighted in red
+* When no revenue is set the pool is undefined: percentage rows show no amount yet, fixed amounts still count
+* Reading or editing profit shares requires project view/edit access plus group membership — non-members of a group project cannot see them
 
 = 0.16.0 =
 * New "Decisions" section in the project detail (group projects only): create decisions and let the active members of the owning group vote — approve, reject or abstain

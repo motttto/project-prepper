@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.12.0';
+	const VERSION    = '0.13.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -51,6 +51,7 @@ class Schema {
 		$p_members  = self::table( 'project_members' );
 		$p_decis    = self::table( 'project_decisions' );
 		$p_votes    = self::table( 'project_decision_votes' );
+		$p_shares   = self::table( 'project_profit_shares' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -434,6 +435,30 @@ class Schema {
 				PRIMARY KEY  (id),
 				KEY decision_id (decision_id),
 				UNIQUE KEY decision_user (decision_id,user_id)
+			) {$charset};" );
+
+			// Gewinnverteilung pro Projekt (v0.13.0, Phase 4) — Pendant zu
+			// `project_profit_shares` der App. Je Zeile ein WP-User (aus der
+			// besitzenden Gruppe) mit einem Anteil am Gewinn-Pool des Projekts
+			// (= Costs::summary.profit). share_type: percentage|fixed. Bei
+			// percentage ist share_value ein Prozentsatz auf den Pool, bei fixed
+			// ein fester Eurobetrag (pool-unabhängig). Der ShareType hourly der
+			// App entfällt bewusst — es gibt keine Stundenerfassung in der WP-
+			// Edition. Flaches Pool-Modell: Prozente beziehen sich auf den vollen
+			// Gewinn-Pool, NICHT auf den nach fixed verbleibenden Rest (wie die
+			// App über calculated_amount). Siehe docs/03-GRUPPEN-ARCHITEKTUR.md §Phase 4.
+			dbDelta( "CREATE TABLE {$p_shares} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				project_id bigint(20) unsigned NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				share_type varchar(20) NOT NULL DEFAULT 'percentage',
+				share_value decimal(12,2) NOT NULL DEFAULT 0,
+				note varchar(190) NOT NULL DEFAULT '',
+				sort_order int(11) NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY project_id (project_id),
+				UNIQUE KEY project_user (project_id,user_id)
 			) {$charset};" );
 
 		self::upgrade_data();

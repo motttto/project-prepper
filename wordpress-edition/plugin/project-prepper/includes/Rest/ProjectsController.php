@@ -8,6 +8,7 @@ use ProjectPrepper\Services\Contacts;
 use ProjectPrepper\Services\Costs;
 use ProjectPrepper\Services\Decisions;
 use ProjectPrepper\Services\Files;
+use ProjectPrepper\Services\ProfitShares;
 use ProjectPrepper\Services\ProjectMembers;
 use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\Schedule;
@@ -312,6 +313,32 @@ class ProjectsController extends BaseController {
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'cancel_decision' ],
 			'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/profit-shares', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'profit_shares' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'add_profit_share' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/profit-shares/(?P<share_id>\d+)', [
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_profit_share' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_profit_share' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
 		] );
 
 		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/checklists', [
@@ -1101,6 +1128,94 @@ class ProjectsController extends BaseController {
 		}
 		if ( array_key_exists( 'requires_unanimous', $json ) ) {
 			$data['requires_unanimous'] = ! empty( $json['requires_unanimous'] );
+		}
+		return $data;
+	}
+
+	/* ---------- Gewinnverteilung (Gruppen-Phase 4) ---------- */
+
+	public function profit_shares( WP_REST_Request $request ) {
+		// Projects::get() liefert für Nicht-Gruppenmitglieder eines Gruppen-
+		// Projekts null → 404 (Gruppen-Zugriffsguard, kein Leak).
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( [
+			'profit_shares'  => ProfitShares::for_project( (int) $request['id'] ),
+			'profit_summary' => ProfitShares::summary( (int) $request['id'] ),
+		] );
+	}
+
+	public function add_profit_share( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$json   = $request->get_json_params() ?: [];
+		$result = ProfitShares::add(
+			(int) $request['id'],
+			(int) ( $json['user_id'] ?? 0 ),
+			$this->profit_share_payload( $json )
+		);
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Projects::get( (int) $request['id'] ), 201 );
+	}
+
+	public function update_profit_share( WP_REST_Request $request ) {
+		$owner = $this->profit_share_in_project( (int) $request['id'], (int) $request['share_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = ProfitShares::update( (int) $request['share_id'], $this->profit_share_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Projects::get( (int) $request['id'] ) );
+	}
+
+	public function remove_profit_share( WP_REST_Request $request ) {
+		$owner = $this->profit_share_in_project( (int) $request['id'], (int) $request['share_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = ProfitShares::remove( (int) $request['share_id'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Projects::get( (int) $request['id'] ) );
+	}
+
+	/**
+	 * Sicherstellen, dass die Anteilszeile zum Projekt der URL gehört (nested
+	 * route) UND der Aufrufer auf das Projekt zugreifen darf (Gruppen-Guard aus
+	 * Phase 1). Reihenfolge: erst Projekt-Zugriff (404 bei Fremd-/Nicht-Gruppen-
+	 * Projekt, kein Leak), dann Zugehörigkeit der Anteils-Zeile.
+	 *
+	 * @return true|WP_Error
+	 */
+	private function profit_share_in_project( int $project_id, int $share_id ) {
+		if ( ! Projects::get( $project_id ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$entry = ProfitShares::get( $share_id );
+		if ( ! $entry || (int) $entry->project_id !== $project_id ) {
+			return new WP_Error( 'pp_not_found', __( 'Profit share not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return true;
+	}
+
+	private function profit_share_payload( array $json ): array {
+		$data = $this->sanitize_text_fields( $json, [ 'share_type' ] );
+		if ( array_key_exists( 'share_value', $json ) ) {
+			// Roh-Wert durchreichen ('' / null erlaubt); der Service validiert die Zahl.
+			$data['share_value'] = is_scalar( $json['share_value'] ) ? (string) $json['share_value'] : '';
+		}
+		if ( array_key_exists( 'note', $json ) ) {
+			$data['note'] = sanitize_text_field( (string) $json['note'] );
+		}
+		if ( array_key_exists( 'sort_order', $json ) ) {
+			$data['sort_order'] = (int) $json['sort_order'];
 		}
 		return $data;
 	}

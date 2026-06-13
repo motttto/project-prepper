@@ -1,7 +1,7 @@
 {
-    "translation-revision-date": "2026-06-12 12:00+0200",
-    "generator": "WP-CLI\/2.12.0",
-    "source": "admin\/js\/admin.js",
+    "translation-revision-date": "2026-06-13T13:51:31+00:00",
+    "generator": "WP-CLI/2.12.0",
+    "source": "admin/js/admin.js",
     "domain": "messages",
     "locale_data": {
         "messages": {
@@ -892,8 +892,8 @@
             "Calendar feed (iCal)": [
                 "Kalender-Feed (iCal)"
             ],
-            "Read-only feed of all reserved\/active rentals \u2014 subscribe in Apple\/Google\/Outlook.": [
-                "Read-only Feed aller reservierten\/aktiven Verleihe \u2014 in Apple\/Google\/Outlook abonnierbar."
+            "Read-only feed of all reserved/active rentals \u2014 subscribe in Apple/Google/Outlook.": [
+                "Read-only Feed aller reservierten/aktiven Verleihe \u2014 in Apple/Google/Outlook abonnierbar."
             ],
             "Copy URL": [
                 "URL kopieren"
@@ -913,8 +913,8 @@
             "Public frontend": [
                 "\u00d6ffentliches Frontend"
             ],
-            "Show daily rates publicly (item detail page \/equipment-item\/\u2026)": [
-                "Tagess\u00e4tze \u00f6ffentlich zeigen (Artikel-Detailseite \/equipment-item\/\u2026)"
+            "Show daily rates publicly (item detail page /equipment-item/\u2026)": [
+                "Tagess\u00e4tze \u00f6ffentlich zeigen (Artikel-Detailseite /equipment-item/\u2026)"
             ],
             "Inventory cards link to a public detail page per item. Purchase price and serial number are never shown there.": [
                 "Die Inventar-Karten verlinken auf eine \u00f6ffentliche Detailseite pro Artikel. Kaufpreis und Seriennummer sind dort nie sichtbar."
@@ -960,6 +960,57 @@
             ],
             "Create group": [
                 "Gruppe anlegen"
+            ],
+            "Profit sharing": [
+                "Gewinnverteilung"
+            ],
+            "Assign a group to distribute profit.": [
+                "Ordne erst eine Gruppe zu, um den Gewinn zu verteilen."
+            ],
+            "Profit pool": [
+                "Gewinn-Pool"
+            ],
+            "Set project revenue to calculate amounts.": [
+                "Hinterlege den Umsatz, um Betr\u00e4ge zu berechnen."
+            ],
+            "Participant": [
+                "Beteiligter"
+            ],
+            "Type": [
+                "Typ"
+            ],
+            "Share": [
+                "Anteil"
+            ],
+            "Calculated": [
+                "Berechnet"
+            ],
+            "No profit shares yet.": [
+                "Noch keine Anteile."
+            ],
+            "Allocated": [
+                "Zugeteilt"
+            ],
+            "Unallocated": [
+                "Nicht zugeteilt"
+            ],
+            "Over-allocated": [
+                "\u00dcberverteilt"
+            ],
+            "All group members already have a share.": [
+                "Alle Gruppenmitglieder haben bereits einen Anteil."
+            ],
+            "Add share": [
+                "Anteil hinzuf\u00fcgen"
+            ],
+            "Value": [
+                "Wert"
+            ],
+            "Percentage": [
+                "Prozent"
+            ],
+            "Fixed": [
+                "Fest"
             ]
         }
     }

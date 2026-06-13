@@ -1505,10 +1505,143 @@
 							api("/projects/" + projectId, {
 								method: "PUT",
 								body: JSON.stringify({ budget_planned: f.budgetPlanned.value, revenue_actual: f.revenueActual.value })
-							}).then(function (updated) { project = updated; renderCosts(); }).catch(function (e) { toast(e.message, "error"); });
+							}).then(function (updated) { project = updated; renderCosts(); renderProfitShares(); }).catch(function (e) { toast(e.message, "error"); });
 						});
 					});
 				}
+
+				/* --- Gewinnverteilung (Gruppen-Phase 4, Pendant zu tab-profit der App) ---
+				   Direkt nach den Kosten platziert: die Verteilung baut auf dem Gewinn-
+				   Pool aus den Kosten auf (Costs::summary.profit). Anteile je Mitglied der
+				   besitzenden Gruppe als Prozent (auf den Pool) oder fester Betrag. Site-
+				   Projekte (ohne Gruppe) zeigen nur einen Hinweis; ohne Umsatz steht der
+				   Pool nicht fest -> berechnete Beträge bei Prozent-Zeilen sind "—". */
+
+				var SHARE_TYPES = { percentage: __("Percentage", "project-prepper"), fixed: __("Fixed", "project-prepper") };
+				var profitSection = el("div", { class: "pp-modal-section" });
+				var profitGroupCache = null;
+				function renderProfitShares() {
+					profitSection.innerHTML = "";
+					profitSection.appendChild(el("h3", { text: __("Profit sharing", "project-prepper") }));
+
+					// Kein Gruppen-Projekt -> Hinweis, keine Verteilung.
+					if (!project.owner_group_id) {
+						profitSection.appendChild(el("p", { class: "pp-muted", text: __("Assign a group to distribute profit.", "project-prepper") }));
+						return;
+					}
+
+					var s = project.profit_summary || {};
+					var poolKnown = s.pool !== null && s.pool !== undefined;
+
+					// Gewinn-Pool oben.
+					if (poolKnown) {
+						profitSection.appendChild(el("div", { class: "pp-cost-summary" }, [
+							el("div", { class: "pp-cost-sum-row" }, [
+								el("span", { text: __("Profit pool", "project-prepper") }),
+								el("span", { class: "pp-num", text: money(s.pool) })
+							])
+						]));
+					} else {
+						profitSection.appendChild(el("p", { class: "pp-muted", text: __("Set project revenue to calculate amounts.", "project-prepper") }));
+					}
+
+					var table = el("table", { class: "pp-table" });
+					table.appendChild(el("thead", {
+						html: "<tr><th>" + __("Participant", "project-prepper") + "</th><th>" + __("Type", "project-prepper") + "</th><th>" + __("Share", "project-prepper") + "</th><th>" + __("Calculated", "project-prepper") + "</th><th></th></tr>"
+					}));
+					var tbody = el("tbody");
+					(project.profit_shares || []).forEach(function (sh) {
+						var name = sh.missing ? __("(removed user)", "project-prepper") : sh.display_name;
+						var shareText = sh.share_type === "percentage"
+							? Number(sh.share_value).toLocaleString("de-DE", { maximumFractionDigits: 2 }) + " %"
+							: money(sh.share_value);
+						var calcText = sh.calculated_amount === null || sh.calculated_amount === undefined ? "—" : money(sh.calculated_amount);
+						tbody.appendChild(el("tr", null, [
+							el("td", { text: name }),
+							el("td", { text: SHARE_TYPES[sh.share_type] || sh.share_type }),
+							el("td", { class: "pp-num", text: shareText }),
+							el("td", { class: "pp-num", text: calcText }),
+							editable ? el("td", null, [el("button", {
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/profit-shares/" + sh.id, { method: "DELETE" })
+										.then(function (updated) { project = updated; profitGroupCache = null; renderProfitShares(); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})]) : el("td")
+						]));
+					});
+					if (!(project.profit_shares || []).length) tbody.appendChild(el("tr", { html: '<td colspan="5" class="pp-muted">' + __("No profit shares yet.", "project-prepper") + "</td>" }));
+					table.appendChild(tbody);
+					profitSection.appendChild(el("div", { class: "pp-table-wrap" }, [table]));
+
+					// Summen-Block: zugeteilt gesamt / nicht zugeteilt; Über-Verteilung rot.
+					var sums = el("div", { class: "pp-cost-summary" });
+					function sumRow(label, value, extraClass) {
+						return el("div", { class: "pp-cost-sum-row" + (extraClass ? " " + extraClass : "") }, [
+							el("span", { text: label }), el("span", { class: "pp-num", text: value })
+						]);
+					}
+					sums.appendChild(sumRow(__("Allocated", "project-prepper"), money(s.total_allocated), s.over_allocated ? "pp-cost-over" : ""));
+					if (poolKnown) {
+						sums.appendChild(sumRow(__("Unallocated", "project-prepper"), money(s.unallocated), s.unallocated < 0 ? "pp-cost-over" : ""));
+						if (s.over_allocated) {
+							sums.appendChild(el("div", { class: "pp-cost-sum-row pp-cost-over" }, [
+								el("span", { text: __("Over-allocated", "project-prepper") }), el("span")
+							]));
+						}
+					}
+					profitSection.appendChild(sums);
+
+					if (!editable) return;
+
+					// Anlege-Zeile: Gruppenmitglieder (noch nicht zugeteilt) + Typ + Wert.
+					function buildAddRow(groupMembers) {
+						var assignedIds = (project.profit_shares || []).map(function (sh) { return sh.user_id; });
+						var available = (groupMembers || []).filter(function (gm) { return assignedIds.indexOf(gm.user_id) === -1; });
+						if (!available.length) {
+							profitSection.appendChild(el("p", { class: "pp-muted", text: __("All group members already have a share.", "project-prepper") }));
+							return;
+						}
+						var userSelect = el("select", { class: "pp-input-lg" });
+						userSelect.appendChild(el("option", { value: "", text: __("— select group member —", "project-prepper") }));
+						available.forEach(function (gm) {
+							userSelect.appendChild(el("option", { value: gm.user_id, text: gm.display_name + (gm.user_email ? " (" + gm.user_email + ")" : "") }));
+						});
+						var typeSelect = el("select", null, Object.keys(SHARE_TYPES).map(function (key) {
+							return el("option", { value: key, text: SHARE_TYPES[key] });
+						}));
+						typeSelect.value = "percentage";
+						var valueInput = el("input", { type: "number", step: "0.01", min: "0", placeholder: __("Value", "project-prepper"), class: "pp-input-sm" });
+						profitSection.appendChild(el("div", { class: "pp-row" }, [
+							userSelect, typeSelect, valueInput,
+							el("button", {
+								class: "pp-btn pp-btn-sm", text: __("Add share", "project-prepper"), type: "button",
+								onclick: function () {
+									if (!userSelect.value) return;
+									api("/projects/" + projectId + "/profit-shares", {
+										method: "POST",
+										body: JSON.stringify({ user_id: parseInt(userSelect.value, 10), share_type: typeSelect.value, share_value: valueInput.value })
+									}).then(function (updated) {
+										project = updated; profitGroupCache = null; valueInput.value = ""; typeSelect.value = "percentage";
+										renderProfitShares();
+									}).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					}
+
+					if (profitGroupCache) {
+						buildAddRow(profitGroupCache);
+					} else {
+						api("/groups/" + project.owner_group_id).then(function (group) {
+							profitGroupCache = group.members || [];
+							buildAddRow(profitGroupCache);
+						}).catch(function () {
+							// Gruppe nicht ladbar (z. B. keine Berechtigung) -> kein Formular.
+						});
+					}
+				}
+				renderProfitShares();
 
 				/* --- Material / Verbrauchsmaterial (Pendant zu tab-materials der App) ---
 				   Direkt nach den Kosten platziert: ebenfalls eine finanzielle Liste
@@ -2216,7 +2349,7 @@
 				}
 				renderTeam();
 
-				var body = el("div", null, [statusRow, info, membersSection, decisionsSection, bookingsSection, costsSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection]);
+				var body = el("div", null, [statusRow, info, membersSection, decisionsSection, bookingsSection, costsSection, profitSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection]);
 
 				var close;
 				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);

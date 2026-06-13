@@ -91,8 +91,10 @@ class Projects {
 		$project->team         = Team::for_project( $id );
 		$project->contacts     = Contacts::for_project( $id );
 		$project->files        = Files::for_project( $id );
-		$project->members      = ProjectMembers::for_project( $id );
-		$project->decisions    = Decisions::for_project( $id, get_current_user_id() ?: null );
+		$project->members        = ProjectMembers::for_project( $id );
+		$project->decisions      = Decisions::for_project( $id, get_current_user_id() ?: null );
+		$project->profit_shares  = ProfitShares::for_project( $id );
+		$project->profit_summary = ProfitShares::summary( $id );
 		return $project;
 	}
 
@@ -302,6 +304,8 @@ class Projects {
 			$wpdb->delete( Schema::table( 'project_decision_votes' ), [ 'decision_id' => $decision_id ], [ '%d' ] );
 		}
 		$wpdb->delete( Schema::table( 'project_decisions' ), [ 'project_id' => $id ], [ '%d' ] );
+		// Gewinnverteilung (Phase 4) räumen.
+		$wpdb->delete( Schema::table( 'project_profit_shares' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_items' ), [ 'project_id' => $id ], [ '%d' ] );
 		$ok = false !== $wpdb->delete( Schema::table( 'projects' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {
