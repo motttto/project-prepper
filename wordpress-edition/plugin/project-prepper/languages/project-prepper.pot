@@ -2934,3 +2934,15 @@ msgstr ""
 #: admin/js/blocks-editor.js:110
 msgid "Show equipment selection"
 msgstr ""
+
+#: admin/js/admin.js
+msgid "Overview"
+msgstr ""
+
+#: admin/js/admin.js
+msgid "Team & contacts"
+msgstr ""
+
+#: admin/js/admin.js
+msgid "Material & transport"
+msgstr ""

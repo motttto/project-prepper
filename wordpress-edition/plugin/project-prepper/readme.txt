@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.21.0
+Stable tag: 0.22.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -76,7 +76,17 @@ This plugin bundles the SheetJS Community Edition (https://sheetjs.com, file `ad
 for the XLSX import/export in the admin. SheetJS CE is licensed under the Apache License 2.0
 (https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
 
+This plugin bundles the Inter typeface (https://rsms.me/inter/, files `admin/fonts/inter-*.woff2`)
+for the admin UI, so no external font request is made at runtime. Inter is licensed under the
+SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
+
 == Changelog ==
+
+= 0.22.0 =
+* Visual alignment with the web app: the admin UI now bundles the Inter font locally (self-hosted, no external request) so typography matches the live app
+* The project detail dialog now uses a tabbed layout (Overview, Equipment, Schedule, Team & contacts, Material & transport, Costs, Profit, Checklists, Tasks, Polls, Decisions, Agreement, Files) instead of one long scroll — the segmented tab bar mirrors the app
+* Refined section headers (uppercase, muted) and inventory list styling: item condition is shown as coloured text and the inventory number as a small monospace badge under the name
+* No functional or schema changes — styling, markup wrappers and font bundling only
 
 = 0.21.0 =
 * New "Calendar" section: a read-only month view that merges existing data — rentals (reserved/active/returned), project periods and project schedule entries — into one grid

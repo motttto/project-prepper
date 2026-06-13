@@ -3,6 +3,39 @@
  * Design-Tokens aus src/app/globals.css der Next.js-App übernommen.
  */
 
+/*
+ * Inter — lokal gebündelt (self-hosted, kein externer Request).
+ * Inter ist SIL OFL 1.1, siehe admin/fonts/LICENSE. Quelle: rsms Inter v4.0.
+ */
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('../fonts/inter-400.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url('../fonts/inter-500.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+	src: url('../fonts/inter-600.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('../fonts/inter-700.woff2') format('woff2');
+}
+
 #pp-admin {
 	/* Brand */
 	--pp-background: #fafafa;
@@ -359,6 +392,27 @@
 /* "n unterwegs" neben dem Artikelnamen */
 .pp-badge-out { margin-left: 8px; }
 
+/* Inventar-Zustand als Farbtext (App-Stil statt Badge). */
+.pp-cond { font-size: 13px; font-weight: 500; white-space: nowrap; }
+.pp-cond-new,
+.pp-cond-good { color: var(--pp-success); }
+.pp-cond-fair { color: var(--pp-warning); }
+.pp-cond-poor { color: #ea580c; }
+.pp-cond-broken { color: var(--pp-destructive); }
+.pp-cond-retired { color: var(--pp-muted-foreground); }
+
+/* Inventarnummer als kleines Monospace-Badge unter dem Artikelnamen. */
+.pp-inv-number {
+	display: inline-block;
+	margin-top: 2px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 11px;
+	color: var(--pp-muted-foreground);
+	background: var(--pp-muted);
+	padding: 1px 6px;
+	border-radius: 4px;
+}
+
 /* Vollständige Nachricht im Anfrage-Detail */
 .pp-inquiry-message {
 	white-space: pre-wrap;
@@ -464,6 +518,49 @@
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
 	gap: 10px;
+}
+
+/* ---------- Tab-Leiste im Detail-Modal (App: segmentierte Pills) ---------- */
+
+.pp-tabs {
+	display: flex;
+	gap: 4px;
+	padding: 4px;
+	margin: 0 0 20px;
+	background: var(--pp-muted);
+	border-radius: var(--pp-radius-lg);
+	overflow-x: auto;
+}
+
+.pp-tab {
+	flex: none;
+	border: none;
+	background: transparent;
+	color: var(--pp-muted-foreground);
+	border-radius: var(--pp-radius-md);
+	padding: 7px 14px;
+	font-size: 13px;
+	font-weight: 500;
+	white-space: nowrap;
+	cursor: pointer;
+	transition: background 0.15s, color 0.15s;
+}
+
+.pp-tab:hover { color: var(--pp-foreground); }
+
+.pp-tab.is-active {
+	background: var(--pp-surface);
+	color: var(--pp-foreground);
+	box-shadow: var(--pp-shadow-sm);
+}
+
+.pp-tab-panel.is-hidden { display: none; }
+
+/* In der Tab-Ansicht entfällt die obere Trennlinie der ersten sichtbaren Sektion. */
+.pp-tab-panel > .pp-modal-section:first-child {
+	margin-top: 0;
+	padding-top: 0;
+	border-top: none;
 }
 
 .pp-modal-section {

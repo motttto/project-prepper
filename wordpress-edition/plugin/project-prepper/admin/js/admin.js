@@ -194,18 +194,23 @@
 				listBox.innerHTML = "";
 				var table = el("table", { class: "pp-table" });
 				table.appendChild(el("thead", {
-					html: "<tr><th></th><th>" + __("Number", "project-prepper") + "</th><th>" + __("Name", "project-prepper") + "</th><th>" + __("Category", "project-prepper") + "</th><th>" + __("Quantity", "project-prepper") + "</th><th>" + __("Condition", "project-prepper") + "</th><th>" + __("Daily rate", "project-prepper") + "</th><th>" + __("Location", "project-prepper") + "</th><th>" + __("Docs", "project-prepper") + "</th></tr>"
+					html: "<tr><th></th><th>" + __("Name", "project-prepper") + "</th><th>" + __("Category", "project-prepper") + "</th><th>" + __("Quantity", "project-prepper") + "</th><th>" + __("Condition", "project-prepper") + "</th><th>" + __("Daily rate", "project-prepper") + "</th><th>" + __("Location", "project-prepper") + "</th><th>" + __("Docs", "project-prepper") + "</th></tr>"
 				}));
 				var tbody = el("tbody");
 				items.forEach(function (item) {
 					var thumb = item.image_url
 						? el("img", { class: "pp-thumb", src: item.image_url, alt: "" })
 						: el("div", { class: "pp-thumb-empty", text: item.category_icon || "📦" });
+					// Name + Inventarnummer als Monospace-Badge darunter (App-Layout).
 					// Badge "n unterwegs" wenn der Artikel heute in Verleihen oder
 					// bestätigten Projekten steckt (gleiche Semantik wie out_now).
-					var nameCell = el("td", null, [el("span", { text: item.name })]);
+					var nameLine = el("div", null, [el("span", { text: item.name })]);
 					if (item.out_now > 0) {
-						nameCell.appendChild(el("span", { class: "pp-badge pp-badge-active pp-badge-out", text: item.out_now + " " + __("out", "project-prepper") }));
+						nameLine.appendChild(el("span", { class: "pp-badge pp-badge-active pp-badge-out", text: item.out_now + " " + __("out", "project-prepper") }));
+					}
+					var nameCell = el("td", null, [nameLine]);
+					if (item.inventory_number) {
+						nameCell.appendChild(el("div", null, [el("span", { class: "pp-inv-number", text: item.inventory_number })]));
 					}
 					// Doku-Spalte: 1 PDF → direkt öffnen, mehrere → Detail-Modal (wie App, Commit e9fe5b8).
 					var docsCell = el("td");
@@ -227,18 +232,17 @@
 					}
 					var row = el("tr", { class: "pp-clickable", onclick: function () { openItemModal(item.id); } }, [
 						el("td", null, [thumb]),
-						el("td", null, [el("code", { text: item.inventory_number })]),
 						nameCell,
 						el("td", { text: (item.category_icon ? item.category_icon + " " : "") + (item.category_name || "—") }),
 						el("td", { text: item.quantity }),
-						el("td", null, [badge(item.condition, CONDITIONS)]),
+						el("td", null, [el("span", { class: "pp-cond pp-cond-" + item.condition, text: CONDITIONS[item.condition] || item.condition })]),
 						el("td", { text: money(item.cost_per_day) }),
 						el("td", { text: item.location || "—" }),
 						docsCell
 					]);
 					tbody.appendChild(row);
 				});
-				if (!items.length) tbody.appendChild(el("tr", { html: '<td colspan="9" class="pp-muted">' + __("No items found.", "project-prepper") + "</td>" }));
+				if (!items.length) tbody.appendChild(el("tr", { html: '<td colspan="8" class="pp-muted">' + __("No items found.", "project-prepper") + "</td>" }));
 				table.appendChild(tbody);
 				listBox.appendChild(el("div", { class: "pp-table-wrap" }, [table]));
 			}).catch(function (e) { toast(e.message, "error"); });
@@ -2716,7 +2720,40 @@
 				}
 				renderAgreement();
 
-				var body = el("div", null, [statusRow, info, membersSection, decisionsSection, pollsSection, bookingsSection, costsSection, profitSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection, agreementSection]);
+				// Tab-Leiste (App-Layout): die Modal-Sektionen werden in Tabs gekapselt,
+				// nur das aktive Panel ist sichtbar. Reihenfolge wie in der App; WP-Extras
+				// (Beteiligte, Beschlüsse) den passenden Tabs zugeordnet.
+				var tabDefs = [
+					{ label: __("Overview", "project-prepper"), sections: [el("div", null, [statusRow, info])] },
+					{ label: __("Equipment", "project-prepper"), sections: [bookingsSection] },
+					{ label: __("Schedule", "project-prepper"), sections: [scheduleSection] },
+					{ label: __("Team & contacts", "project-prepper"), sections: [teamSection, membersSection] },
+					{ label: __("Material & transport", "project-prepper"), sections: [consumablesSection] },
+					{ label: __("Costs", "project-prepper"), sections: [costsSection] },
+					{ label: __("Profit", "project-prepper"), sections: [profitSection] },
+					{ label: __("Checklists", "project-prepper"), sections: [checklistsSection] },
+					{ label: __("Tasks", "project-prepper"), sections: [tasksSection] },
+					{ label: __("Polls", "project-prepper"), sections: [pollsSection] },
+					{ label: __("Decisions", "project-prepper"), sections: [decisionsSection] },
+					{ label: __("Agreement", "project-prepper"), sections: [agreementSection] },
+					{ label: __("Files", "project-prepper"), sections: [filesSection] }
+				];
+				var tabBar = el("div", { class: "pp-tabs" });
+				var panels = [];
+				tabDefs.forEach(function (def, index) {
+					var panel = el("div", { class: "pp-tab-panel" + (index === 0 ? "" : " is-hidden") }, def.sections);
+					panels.push(panel);
+					var tabBtn = el("button", {
+						class: "pp-tab" + (index === 0 ? " is-active" : ""), type: "button", text: def.label,
+						onclick: function () {
+							tabBar.querySelectorAll(".pp-tab").forEach(function (b) { b.classList.remove("is-active"); });
+							tabBtn.classList.add("is-active");
+							panels.forEach(function (p, i) { p.classList.toggle("is-hidden", i !== index); });
+						}
+					});
+					tabBar.appendChild(tabBtn);
+				});
+				var body = el("div", null, [tabBar].concat(panels));
 
 				var close;
 				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);

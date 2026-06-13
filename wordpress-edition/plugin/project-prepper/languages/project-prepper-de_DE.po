@@ -2675,3 +2675,15 @@ msgstr "November"
 #: admin/js/admin.js
 msgid "December"
 msgstr "Dezember"
+
+#: admin/js/admin.js
+msgid "Overview"
+msgstr "Übersicht"
+
+#: admin/js/admin.js
+msgid "Team & contacts"
+msgstr "Team & Kontakte"
+
+#: admin/js/admin.js
+msgid "Material & transport"
+msgstr "Material & Transport"
