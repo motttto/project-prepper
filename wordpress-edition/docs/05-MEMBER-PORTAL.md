@@ -48,7 +48,12 @@ Eine Installation = eine **Plattform/Architektur** (self-hosted, Datenhoheit, op
   - **Einstimmigkeit** wie App: bei Annahme mit nur 1 aktivem Mitglied sofort Beitritt; sonst Voting, eine Ablehnung → rejected, alle approve → approved + Beitritt. E-Mail-Einladungen werden bei Registrierung verknüpft (`user_register`).
   - **Superadmin/Admin-Override** bleibt das bestehende Add/Remove im Groups-Admin (umgeht Voting).
   - Cap `pp_collectives` (auch Mitglieder); de_DE per POMO; Plugin Check 0 echte Errors; Voting-Lifecycle in wp-env getestet (Gründen/Auto-Join/Einstimmig/Ablehnung/Zugriffsschutz) + Screenshot.
-- **Offen / als Nächstes:** Phase 3 (Mein Inventar + Teilen im Frontend, nutzt `owner_user_id`) — die „Mein Inventar"-Kachel aktivieren.
+- **Phase 3 umgesetzt (Plugin v0.27.0 / Schema 0.18.0, 2026-06-14):**
+  - `MemberInventory`-Service (scoped auf `owner_user_id`) + Tabelle `pp_item_group_shares` (Pendant zu `inventory_group_shares` der App, vereinfacht).
+  - Portal „Mein Inventar": eigene Artikel **anlegen/bearbeiten/löschen** (Name, Kategorie, Menge, Zustand, Tagessatz, Beschreibung) und **mit Kollektiven teilen/zurücknehmen** (Chip-Toggle pro Gruppe).
+  - Strikte per-User-Scoping-Guards (nur eigene Items sicht-/änderbar; Teilen nur mit eigenen Gruppen); Löschen entfernt auch die Freigaben. `Inventory::create_item/items()` um `owner_user_id` erweitert.
+  - de_DE per POMO; Plugin Check 0 echte Errors; Lifecycle in wp-env getestet (anlegen/scope-guard/teilen/Liste-mit-Owner/Fremd-Gruppe-blockiert/zurücknehmen/ändern/löschen-mit-cascade) + Screenshot.
+- **Offen / als Nächstes:** Phase 4 (Stöbern & Leihen) — geteiltes Inventar des Kollektivs durchsuchen + Leih-Anfrage (`MemberInventory::items_shared_with_group()` liegt schon bereit).
 
 ## Roadmap (gestuft, jede Phase testbar/ausrollbar)
 

@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.26.0
+Stable tag: 0.27.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,12 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.27.0 =
+* My inventory in the member portal: members add, edit and delete their own equipment on the front end (owned per user), with name, category, quantity, condition and an optional daily rate
+* Share your items with your collectives: toggle each item on or off for any collective you belong to — shared items become visible to that collective (browse & borrow follows)
+* Strict per-user scoping: you only ever see and change your own items, and can only share with collectives you are a member of
+* Deleting an item also removes its collective shares
 
 = 0.26.0 =
 * Collectives self-service in the member portal: members can found a collective, invite others by email, accept/decline invitations and vote on who joins — all on the front end, no wp-admin

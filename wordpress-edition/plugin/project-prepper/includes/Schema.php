@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.17.0';
+	const VERSION    = '0.18.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -59,6 +59,7 @@ class Schema {
 		$p_poll_v   = self::table( 'project_poll_votes' );
 		$g_invites  = self::table( 'group_invitations' );
 		$g_inv_v    = self::table( 'group_invitation_votes' );
+		$item_share = self::table( 'item_group_shares' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -595,6 +596,22 @@ class Schema {
 				PRIMARY KEY  (id),
 				KEY invitation_id (invitation_id),
 				UNIQUE KEY invitation_user (invitation_id,voter_id)
+			) {$charset};" );
+
+			// Inventar-Freigabe in Kollektive (v0.18.0, Member-Portal Phase 3) —
+			// Pendant zu `inventory_group_shares` der App (vereinfacht): ein
+			// Mitglied teilt ein EIGENES Item (owner_user_id) mit einer Gruppe, in
+			// der es Mitglied ist. Eine Zeile pro (Item, Gruppe). Nichtkommerziell:
+			// keine Tagessatz-/Bedingungsfelder hier (kommen ggf. mit Phase 4).
+			dbDelta( "CREATE TABLE {$item_share} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				item_id bigint(20) unsigned NOT NULL,
+				group_id bigint(20) unsigned NOT NULL,
+				shared_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY item_group (item_id,group_id),
+				KEY group_id (group_id)
 			) {$charset};" );
 
 		self::upgrade_data();

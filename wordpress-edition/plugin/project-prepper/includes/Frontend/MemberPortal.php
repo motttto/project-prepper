@@ -4,6 +4,8 @@ namespace ProjectPrepper\Frontend;
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance as Governance;
+use ProjectPrepper\Services\Inventory;
+use ProjectPrepper\Services\MemberInventory;
 use WP_User;
 
 defined( 'ABSPATH' ) || exit;
@@ -194,6 +196,26 @@ class MemberPortal {
 				$result = Governance::vote( $inv_id, sanitize_key( wp_unslash( (string) ( $_POST['pp_vote'] ?? '' ) ) ) );
 				$ok_msg = 'voted';
 				break;
+			case 'item_create':
+				$result = MemberInventory::create( get_current_user_id(), self::item_input() );
+				$ok_msg = 'item_saved';
+				break;
+			case 'item_update':
+				$result = MemberInventory::update( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ), self::item_input() );
+				$ok_msg = 'item_saved';
+				break;
+			case 'item_delete':
+				$result = MemberInventory::delete( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ) );
+				$ok_msg = 'item_deleted';
+				break;
+			case 'item_share':
+				$result = MemberInventory::share( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ), $grp_id );
+				$ok_msg = 'item_shared';
+				break;
+			case 'item_unshare':
+				$result = MemberInventory::unshare( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ), $grp_id );
+				$ok_msg = 'item_unshared';
+				break;
 		}
 
 		$msg = is_wp_error( $result ) ? 'error' : $ok_msg;
@@ -209,9 +231,27 @@ class MemberPortal {
 			'accepted'  => [ 'ok', __( 'Invitation accepted.', 'project-prepper' ) ],
 			'declined'  => [ 'ok', __( 'Invitation declined.', 'project-prepper' ) ],
 			'cancelled' => [ 'ok', __( 'Invitation cancelled.', 'project-prepper' ) ],
-			'voted'     => [ 'ok', __( 'Your vote was recorded.', 'project-prepper' ) ],
-			'error'     => [ 'err', __( 'Something went wrong. Please try again.', 'project-prepper' ) ],
+			'voted'         => [ 'ok', __( 'Your vote was recorded.', 'project-prepper' ) ],
+			'item_saved'    => [ 'ok', __( 'Item saved.', 'project-prepper' ) ],
+			'item_deleted'  => [ 'ok', __( 'Item deleted.', 'project-prepper' ) ],
+			'item_shared'   => [ 'ok', __( 'Item shared with the collective.', 'project-prepper' ) ],
+			'item_unshared' => [ 'ok', __( 'Item is no longer shared.', 'project-prepper' ) ],
+			'error'         => [ 'err', __( 'Something went wrong. Please try again.', 'project-prepper' ) ],
 		];
+	}
+
+	/** Sanitisierte Item-Felder aus dem Inventar-Formular (Nonce bereits geprüft). */
+	private static function item_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'name'         => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+			'category_id'  => (int) ( $_POST['pp_category'] ?? 0 ),
+			'quantity'     => max( 1, (int) ( $_POST['pp_quantity'] ?? 1 ) ),
+			'condition'    => sanitize_key( wp_unslash( (string) ( $_POST['pp_condition'] ?? 'good' ) ) ),
+			'cost_per_day' => '' !== ( $_POST['pp_cost'] ?? '' ) ? (float) $_POST['pp_cost'] : '',
+			'description'  => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
 	/* ===================== Rendering ===================== */
@@ -303,15 +343,7 @@ class MemberPortal {
 				</form>
 			</section>
 
-			<section class="pp-portal__section">
-				<div class="pp-portal__tiles">
-					<div class="pp-portal__tile pp-portal__tile--soon">
-						<span class="pp-portal__tile-title"><?php esc_html_e( 'My inventory', 'project-prepper' ); ?></span>
-						<span class="pp-portal__tile-desc"><?php esc_html_e( 'Add your own equipment and share it with your collectives.', 'project-prepper' ); ?></span>
-						<span class="pp-portal__tile-soon"><?php esc_html_e( 'Coming soon', 'project-prepper' ); ?></span>
-					</div>
-				</div>
-			</section>
+			<?php self::render_my_inventory( $user, $groups ); ?>
 
 			<footer class="pp-portal__footer">
 				<a class="pp-portal__btn pp-portal__btn--ghost" href="<?php echo esc_url( wp_logout_url( self::portal_url() ) ); ?>"><?php esc_html_e( 'Sign out', 'project-prepper' ); ?></a>
@@ -467,5 +499,124 @@ class MemberPortal {
 			'abstain' => __( 'You abstained', 'project-prepper' ),
 		];
 		return $map[ $vote ] ?? '';
+	}
+
+	/* ---------- Mein Inventar (Phase 3) ---------- */
+
+	/** @param array<object> $groups Kollektive des Users (id, name, member_role). */
+	private static function render_my_inventory( WP_User $user, array $groups ): void {
+		$items      = MemberInventory::my_items( (int) $user->ID );
+		$categories = Inventory::categories();
+		$conditions = Shortcodes::condition_labels();
+		?>
+		<section class="pp-portal__section">
+			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'My inventory', 'project-prepper' ); ?></h3>
+
+			<?php if ( $items ) : ?>
+				<?php foreach ( $items as $item ) : ?>
+					<div class="pp-portal__item">
+						<div class="pp-portal__item-head">
+							<span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span>
+							<span class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></span>
+							<span class="pp-portal__item-meta">
+								<?php
+								echo esc_html( $conditions[ $item->condition ] ?? $item->condition );
+								echo ' · ';
+								/* translators: %d: quantity. */
+								printf( esc_html__( 'Qty %d', 'project-prepper' ), (int) $item->quantity );
+								if ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) {
+									echo ' · ' . esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) ) . ' €';
+								}
+								?>
+							</span>
+						</div>
+
+						<?php if ( $groups ) : ?>
+							<?php $shared = MemberInventory::shared_group_ids( (int) $item->id ); ?>
+							<div class="pp-portal__share-row">
+								<span class="pp-portal__share-label"><?php esc_html_e( 'Shared with:', 'project-prepper' ); ?></span>
+								<?php foreach ( $groups as $g ) :
+									$is_shared = in_array( (int) $g->id, $shared, true ); ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+										<?php self::action_fields( $is_shared ? 'item_unshare' : 'item_share' ); ?>
+										<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+										<input type="hidden" name="pp_group" value="<?php echo (int) $g->id; ?>">
+										<button type="submit" class="pp-portal__chip <?php echo $is_shared ? 'pp-portal__chip--on' : ''; ?>">
+											<?php echo esc_html( $g->name ); ?><?php echo $is_shared ? ' ✕' : ' +'; ?>
+										</button>
+									</form>
+								<?php endforeach; ?>
+							</div>
+						<?php endif; ?>
+
+						<div class="pp-portal__actions">
+							<details class="pp-portal__edit">
+								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+								<?php self::item_form( 'item_update', $categories, $conditions, $item ); ?>
+							</details>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this item?', 'project-prepper' ) ); ?>');">
+								<?php self::action_fields( 'item_delete' ); ?>
+								<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
+							</form>
+						</div>
+					</div>
+				<?php endforeach; ?>
+			<?php else : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'You have no personal inventory yet. Add your first item below.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+
+			<details class="pp-portal__add">
+				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Add item', 'project-prepper' ); ?></summary>
+				<?php self::item_form( 'item_create', $categories, $conditions, null ); ?>
+			</details>
+		</section>
+		<?php
+	}
+
+	/**
+	 * Formular zum Anlegen/Bearbeiten eines eigenen Items.
+	 *
+	 * @param array<object> $categories
+	 * @param array<string,string> $conditions
+	 */
+	private static function item_form( string $do, array $categories, array $conditions, ?object $item ): void {
+		$val = static fn( string $field, $default = '' ) => $item && isset( $item->$field ) ? $item->$field : $default;
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( $do ); ?>
+			<?php if ( $item ) : ?>
+				<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+			<?php endif; ?>
+			<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+				<input type="text" name="pp_name" value="<?php echo esc_attr( (string) $val( 'name' ) ); ?>" required>
+			</label>
+			<label><?php esc_html_e( 'Category', 'project-prepper' ); ?>
+				<select name="pp_category">
+					<option value="0"><?php esc_html_e( '— none —', 'project-prepper' ); ?></option>
+					<?php foreach ( $categories as $cat ) : ?>
+						<option value="<?php echo (int) $cat->id; ?>" <?php selected( (int) $val( 'category_id', 0 ), (int) $cat->id ); ?>><?php echo esc_html( $cat->name ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</label>
+			<label><?php esc_html_e( 'Quantity', 'project-prepper' ); ?>
+				<input type="number" name="pp_quantity" min="1" value="<?php echo (int) $val( 'quantity', 1 ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Condition', 'project-prepper' ); ?>
+				<select name="pp_condition">
+					<?php foreach ( $conditions as $key => $label ) : ?>
+						<option value="<?php echo esc_attr( $key ); ?>" <?php selected( (string) $val( 'condition', 'good' ), $key ); ?>><?php echo esc_html( $label ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</label>
+			<label><?php esc_html_e( 'Daily rate (€, optional)', 'project-prepper' ); ?>
+				<input type="number" name="pp_cost" step="0.01" min="0" value="<?php echo esc_attr( (string) $val( 'cost_per_day' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
+				<textarea name="pp_description" rows="2"><?php echo esc_textarea( (string) $val( 'description' ) ); ?></textarea>
+			</label>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save item', 'project-prepper' ); ?></button>
+		</form>
+		<?php
 	}
 }

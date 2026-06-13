@@ -159,6 +159,11 @@ class Inventory {
 			$where[]        = 'i.category_id = %d';
 			$where_params[] = (int) $args['category_id'];
 		}
+		if ( ! empty( $args['owner_user_id'] ) ) {
+			// Member-Portal: nur das persönliche Inventar dieses Users.
+			$where[]        = 'i.owner_user_id = %d';
+			$where_params[] = (int) $args['owner_user_id'];
+		}
 		if ( ! empty( $args['usable_only'] ) ) {
 			// Öffentliches Frontend: defekte/ausgemusterte Artikel ausblenden.
 			$where[] = "i.item_condition NOT IN ('broken', 'retired')";
@@ -277,6 +282,9 @@ class Inventory {
 			'image_id'         => ! empty( $data['image_id'] ) ? (int) $data['image_id'] : null,
 			'document_ids'     => wp_json_encode( $data['document_ids'] ?? [] ),
 			'notes'            => $data['notes'] ?? '',
+			// owner_user_id (v0.18.0): gesetzt = persönliches Mitglieder-Inventar,
+			// NULL = Kollektiv-/Haus-Inventar (Admin). Das Member-Portal setzt es.
+			'owner_user_id'    => ! empty( $data['owner_user_id'] ) ? (int) $data['owner_user_id'] : null,
 			'created_by'       => get_current_user_id() ?: null,
 			'created_at'       => $now,
 			'updated_at'       => $now,

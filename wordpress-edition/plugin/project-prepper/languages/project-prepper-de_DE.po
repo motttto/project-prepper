@@ -2899,3 +2899,54 @@ msgstr "Du hast abgelehnt"
 
 msgid "You abstained"
 msgstr "Du hast dich enthalten"
+
+msgid "You are not allowed to add inventory."
+msgstr "Du darfst kein Inventar anlegen."
+
+msgid "Please enter a name for the item."
+msgstr "Bitte gib einen Namen für den Artikel ein."
+
+msgid "The item could not be saved."
+msgstr "Der Artikel konnte nicht gespeichert werden."
+
+msgid "This item is not yours."
+msgstr "Dieser Artikel gehört dir nicht."
+
+msgid "You can only share with collectives you belong to."
+msgstr "Du kannst nur mit Kollektiven teilen, in denen du Mitglied bist."
+
+msgid "Item saved."
+msgstr "Artikel gespeichert."
+
+msgid "Item shared with the collective."
+msgstr "Artikel mit dem Kollektiv geteilt."
+
+msgid "Item is no longer shared."
+msgstr "Artikel wird nicht mehr geteilt."
+
+msgid "Qty %d"
+msgstr "Anz. %d"
+
+msgid "Shared with:"
+msgstr "Geteilt mit:"
+
+msgid "Edit"
+msgstr "Bearbeiten"
+
+msgid "Delete this item?"
+msgstr "Diesen Artikel löschen?"
+
+msgid "You have no personal inventory yet. Add your first item below."
+msgstr "Du hast noch kein eigenes Inventar. Lege unten deinen ersten Artikel an."
+
+msgid "Add item"
+msgstr "Artikel hinzufügen"
+
+msgid "— none —"
+msgstr "— keine —"
+
+msgid "Daily rate (€, optional)"
+msgstr "Tagessatz (€, optional)"
+
+msgid "Save item"
+msgstr "Artikel speichern"

@@ -685,3 +685,79 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-portal__vote-email { font-weight: 600; font-size: .9rem; }
 .pp-portal__actions { display: flex; gap: .4rem; flex-wrap: wrap; }
 .pp-portal__actions form { margin: 0; }
+
+/* Member-Portal Phase 3 — Mein Inventar */
+.pp-portal__form label {
+	display: flex;
+	flex-direction: column;
+	gap: .2rem;
+}
+.pp-portal__form select {
+	padding: .5rem .65rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 8px;
+	font: inherit;
+	background: #fff;
+}
+.pp-portal__item {
+	background: var(--pp-surface);
+	border: 1px solid var(--pp-border);
+	border-radius: var(--pp-radius);
+	padding: .9rem 1.1rem;
+	margin-bottom: .6rem;
+}
+.pp-portal__item-head {
+	display: flex;
+	align-items: baseline;
+	gap: .6rem;
+	flex-wrap: wrap;
+}
+.pp-portal__item-num {
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: .75rem;
+	color: var(--pp-muted-foreground);
+	background: var(--pp-muted);
+	border-radius: 6px;
+	padding: .1rem .4rem;
+}
+.pp-portal__item-meta {
+	font-size: .8rem;
+	color: var(--pp-muted-foreground);
+	margin-left: auto;
+}
+.pp-portal__share-row {
+	display: flex;
+	align-items: center;
+	gap: .4rem;
+	flex-wrap: wrap;
+	margin: .6rem 0 .4rem;
+}
+.pp-portal__share-label {
+	font-size: .8rem;
+	color: var(--pp-muted-foreground);
+}
+.pp-portal__share-row form { margin: 0; }
+.pp-portal__chip {
+	border: 1px solid var(--pp-border);
+	background: var(--pp-surface);
+	color: var(--pp-muted-foreground);
+	border-radius: 999px;
+	padding: .2rem .65rem;
+	font: inherit;
+	font-size: .8rem;
+	cursor: pointer;
+}
+.pp-portal__chip--on {
+	background: var(--pp-primary);
+	border-color: var(--pp-primary);
+	color: #fff;
+}
+.pp-portal__edit, .pp-portal__add { display: inline-block; }
+.pp-portal__edit summary, .pp-portal__add summary {
+	list-style: none;
+	display: inline-block;
+}
+.pp-portal__edit summary::-webkit-details-marker,
+.pp-portal__add summary::-webkit-details-marker { display: none; }
+.pp-portal__edit[open], .pp-portal__add[open] { display: block; margin-top: .5rem; }
+.pp-portal__add { margin-top: .5rem; }
