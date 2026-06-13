@@ -47,7 +47,7 @@ Eine Installation = eine **Plattform/Architektur** (self-hosted, Datenhoheit, op
 
 ## Offene Detail-Entscheidungen (vor Phase 1/2 zu klären)
 - **Bestandsinventar**: bleibt `owner_user_id=NULL` (Kollektiv-Inventar, Admin verwaltet) — ok? Oder Admin-User zuweisen?
-- **Registrierung (offene Hauptentscheidung):** Da url.xyz „Startpunkt für Single-User zum Kollektiv-Gründen" ist, braucht es Self-Service-Signup. Modi: (a) **offen** (jeder registriert sich + gründet Gruppe) — niedrigschwellig, aber Spam/Moderation; (b) **Admin-Freigabe** (User registriert, Admin schaltet frei) — empfohlener Default; (c) **nur Einladung**. Empfehlung: **(b) Admin-Freigabe** als Plattform-Default, konfigurierbar.
+- **Registrierung: ENTSCHIEDEN = (c) nur per Einladung** (2026-06-14). Plattform-Account: Admin lädt Seed-User ein (kein offenes Signup). Gruppen-Beitritt: Mitglieder laden ein + Gruppen-Voting (einstimmig) + Superadmin-Override. (a/b später denkbar/konfigurierbar.)
 - **Front-End-App im Theme vs. Plugin**: UI-Templates im Theme, Logik/Daten im Plugin (Shortcodes/Blöcke + REST) — Theme bleibt der „Skin", Plugin das Backend. So bleibt das Plugin theme-unabhängig nutzbar.
 - **„vollwertiges Theme zum Testen"** (User-Wunsch): Theme „Prepper Site" wird zum Träger der Member-App ausgebaut; nach Phase 1–2 mit dem eigenen Kollektiv testbar.
 
@@ -80,3 +80,7 @@ Quelle: `066_cooperation_agreements.sql` + `database.ts` (ProfitFormula).
 ### Konsequenz für die Roadmap
 - Phase 2 „Kollektiv gründen/​beitreten" wird zu **„Gründen + Einladen + Beitritts-Voting"** (Mitglieder laden ein, Gruppe stimmt ab, Superadmin-Override).
 - Gewinn-Phase (später) bekommt das **formelbasierte Verteilmodell** statt nur Prozent/Fest.
+
+## Sicherheit & Missbrauch (Backlog — User-Vorgabe 2026-06-14)
+- **Sicherheit „unbedingt", aber später als eigener Lauf:** 2FA, Verschlüsselung (at rest / in transit), Härtung. **JETZT beim Member-Portal-Bau aber schon sauber** (security by design): Frontend-Auth korrekt, **per-User-REST-Scoping** (Mitglied sieht/ändert NUR Eigenes + Gruppen-Geteiltes), **kein wp-admin-Zugang für Mitglieder**, Nonces + Capability-Checks auf jeder Route, keine ID-enumerierbaren Leaks.
+- **Schneeball/Missbrauch:** Einladungen (Plattform + Gruppe) können sich schneeballartig ausbreiten → evtl. später **Limit: Anzahl Gruppen pro User** und/oder Einladungs-Kontingente. Erst beobachten, Hook/Setting offenhalten.
