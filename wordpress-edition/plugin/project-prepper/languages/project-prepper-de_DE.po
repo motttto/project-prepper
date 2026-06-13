@@ -1805,3 +1805,197 @@ msgstr "Nur Mitglieder der Projektgruppe dürfen unterschreiben."
 
 msgid "Agreement not found."
 msgstr "Vereinbarung nicht gefunden."
+
+#: includes/Admin/Menu.php:36
+#: includes/Admin/Menu.php:37
+#: includes/Admin/Menu.php:137
+msgid "Dashboard"
+msgstr "Dashboard"
+
+#: includes/Services/Dashboard.php:148
+#: includes/Services/Dashboard.php:151
+#: admin/js/admin.js:3271
+msgid "—"
+msgstr "—"
+
+#: includes/Services/Dashboard.php:153
+msgid "System"
+msgstr "System"
+
+#: admin/js/admin.js:3170
+msgid "Item created"
+msgstr "Artikel angelegt"
+
+#: admin/js/admin.js:3171
+msgid "Item updated"
+msgstr "Artikel aktualisiert"
+
+#: admin/js/admin.js:3172
+msgid "Item deleted"
+msgstr "Artikel gelöscht"
+
+#: admin/js/admin.js:3173
+msgid "Category created"
+msgstr "Kategorie angelegt"
+
+#: admin/js/admin.js:3174
+msgid "Category updated"
+msgstr "Kategorie aktualisiert"
+
+#: admin/js/admin.js:3175
+msgid "Category deleted"
+msgstr "Kategorie gelöscht"
+
+#: admin/js/admin.js:3176
+msgid "Categories merged"
+msgstr "Kategorien zusammengeführt"
+
+#: admin/js/admin.js:3177
+msgid "Rental created"
+msgstr "Verleih angelegt"
+
+#: admin/js/admin.js:3178
+msgid "Rental updated"
+msgstr "Verleih aktualisiert"
+
+#: admin/js/admin.js:3179
+msgid "Rental status changed"
+msgstr "Verleih-Status geändert"
+
+#: admin/js/admin.js:3180
+msgid "Rental deleted"
+msgstr "Verleih gelöscht"
+
+#: admin/js/admin.js:3181
+msgid "Project created"
+msgstr "Projekt angelegt"
+
+#: admin/js/admin.js:3182
+msgid "Project updated"
+msgstr "Projekt aktualisiert"
+
+#: admin/js/admin.js:3183
+msgid "Project deleted"
+msgstr "Projekt gelöscht"
+
+#: admin/js/admin.js:3184
+msgid "Inquiry created"
+msgstr "Anfrage angelegt"
+
+#: admin/js/admin.js:3185
+msgid "Inquiry status changed"
+msgstr "Anfrage-Status geändert"
+
+#: admin/js/admin.js:3186
+msgid "Inquiry converted"
+msgstr "Anfrage umgewandelt"
+
+#: admin/js/admin.js:3187
+msgid "Inquiry deleted"
+msgstr "Anfrage gelöscht"
+
+#: admin/js/admin.js:3188
+msgid "Group created"
+msgstr "Gruppe angelegt"
+
+#: admin/js/admin.js:3189
+msgid "Group updated"
+msgstr "Gruppe aktualisiert"
+
+#: admin/js/admin.js:3190
+msgid "Group deleted"
+msgstr "Gruppe gelöscht"
+
+#: admin/js/admin.js:3191
+msgid "Participant added"
+msgstr "Beteiligter hinzugefügt"
+
+#: admin/js/admin.js:3192
+msgid "Decision created"
+msgstr "Beschluss angelegt"
+
+#: admin/js/admin.js:3193
+msgid "Profit share added"
+msgstr "Gewinnanteil hinzugefügt"
+
+#: admin/js/admin.js:3194
+msgid "Agreement created"
+msgstr "Vereinbarung angelegt"
+
+#: admin/js/admin.js:3195
+msgid "Agreement opened for signing"
+msgstr "Vereinbarung zur Unterzeichnung freigegeben"
+
+#: admin/js/admin.js:3196
+msgid "Agreement signed"
+msgstr "Vereinbarung unterschrieben"
+
+#: admin/js/admin.js:3197
+msgid "Agreement declined"
+msgstr "Vereinbarung abgelehnt"
+
+#: admin/js/admin.js:3198
+msgid "Agreement revised"
+msgstr "Vereinbarung überarbeitet"
+
+#: admin/js/admin.js:3199
+msgid "Agreement terminated"
+msgstr "Vereinbarung beendet"
+
+#: admin/js/admin.js:3204
+#: admin/js/admin.js:3272
+msgid "Rental"
+msgstr "Verleih"
+
+#: admin/js/admin.js:3205
+#: admin/js/admin.js:3263
+msgid "Project"
+msgstr "Projekt"
+
+#: admin/js/admin.js:3206
+msgid "Inquiry"
+msgstr "Anfrage"
+
+#: admin/js/admin.js:3208
+msgid "Decision"
+msgstr "Beschluss"
+
+#: admin/js/admin.js:3209
+msgid "Agreement"
+msgstr "Vereinbarung"
+
+#: admin/js/admin.js:3237
+msgid "Active rentals"
+msgstr "Aktive Verleihe"
+
+#: admin/js/admin.js:3238
+msgid "Reserved rentals"
+msgstr "Reservierte Verleihe"
+
+#: admin/js/admin.js:3239
+msgid "Open inquiries"
+msgstr "Offene Anfragen"
+
+#: admin/js/admin.js:3240
+msgid "Running / planned projects"
+msgstr "Laufende / geplante Projekte"
+
+#: admin/js/admin.js:3246
+msgid "Upcoming (next 14 days)"
+msgstr "Anstehend (nächste 14 Tage)"
+
+#: admin/js/admin.js:3251
+msgid "Nothing scheduled."
+msgstr "Nichts geplant."
+
+#: admin/js/admin.js:3261
+msgid "(untitled)"
+msgstr "(ohne Titel)"
+
+#: admin/js/admin.js:3282
+msgid "Recent activity"
+msgstr "Letzte Aktivität"
+
+#: admin/js/admin.js:3286
+msgid "No activity yet."
+msgstr "Noch keine Aktivität."

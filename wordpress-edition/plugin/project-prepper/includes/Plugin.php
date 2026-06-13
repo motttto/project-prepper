@@ -33,6 +33,7 @@ class Plugin {
 	}
 
 	public static function register_rest_routes(): void {
+		( new Rest\DashboardController() )->register_routes();
 		( new Rest\CategoriesController() )->register_routes();
 		( new Rest\ItemsController() )->register_routes();
 		( new Rest\UnitsController() )->register_routes();

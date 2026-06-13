@@ -3160,9 +3160,150 @@
 		load();
 	}
 
+	/* ================= Seite: Dashboard ================= */
+
+	function renderDashboard() {
+		root.innerHTML = "";
+
+		// Menschenlesbare Labels für die Aktivitäts-Keys (Fallback = roher Key).
+		var ACTION_LABELS = {
+			item_created: __("Item created", "project-prepper"),
+			item_updated: __("Item updated", "project-prepper"),
+			item_deleted: __("Item deleted", "project-prepper"),
+			category_created: __("Category created", "project-prepper"),
+			category_updated: __("Category updated", "project-prepper"),
+			category_deleted: __("Category deleted", "project-prepper"),
+			category_merged: __("Categories merged", "project-prepper"),
+			rental_created: __("Rental created", "project-prepper"),
+			rental_updated: __("Rental updated", "project-prepper"),
+			rental_status_changed: __("Rental status changed", "project-prepper"),
+			rental_deleted: __("Rental deleted", "project-prepper"),
+			project_created: __("Project created", "project-prepper"),
+			project_updated: __("Project updated", "project-prepper"),
+			project_deleted: __("Project deleted", "project-prepper"),
+			inquiry_created: __("Inquiry created", "project-prepper"),
+			inquiry_status_changed: __("Inquiry status changed", "project-prepper"),
+			inquiry_converted: __("Inquiry converted", "project-prepper"),
+			inquiry_deleted: __("Inquiry deleted", "project-prepper"),
+			group_created: __("Group created", "project-prepper"),
+			group_updated: __("Group updated", "project-prepper"),
+			group_deleted: __("Group deleted", "project-prepper"),
+			project_member_added: __("Participant added", "project-prepper"),
+			decision_created: __("Decision created", "project-prepper"),
+			profit_share_added: __("Profit share added", "project-prepper"),
+			agreement_created: __("Agreement created", "project-prepper"),
+			agreement_opened: __("Agreement opened for signing", "project-prepper"),
+			agreement_signed: __("Agreement signed", "project-prepper"),
+			agreement_declined: __("Agreement declined", "project-prepper"),
+			agreement_revised: __("Agreement revised", "project-prepper"),
+			agreement_terminated: __("Agreement terminated", "project-prepper")
+		};
+		var ENTITY_LABELS = {
+			item: __("Item", "project-prepper"),
+			category: __("Category", "project-prepper"),
+			rental: __("Rental", "project-prepper"),
+			project: __("Project", "project-prepper"),
+			inquiry: __("Inquiry", "project-prepper"),
+			group: __("Group", "project-prepper"),
+			decision: __("Decision", "project-prepper"),
+			agreement: __("Agreement", "project-prepper")
+		};
+
+		function kpiCard(value, label) {
+			return el("div", { class: "pp-kpi" }, [
+				el("div", { class: "pp-kpi-value", text: String(value) }),
+				el("div", { class: "pp-kpi-label", text: label })
+			]);
+		}
+
+		api("/dashboard").then(function (d) {
+			var inv = d.inventory || {};
+			var rentals = d.rentals || {};
+			var projects = d.projects || {};
+			var inquiries = d.inquiries || {};
+
+			// Reihe 1: Inventar-KPIs (wie auf der Inventarseite).
+			var kpiInv = el("div", { class: "pp-kpis" }, [
+				kpiCard(inv.item_count || 0, __("Items", "project-prepper")),
+				kpiCard(inv.total_pieces || 0, __("Total pieces", "project-prepper")),
+				kpiCard(inv.out_today || 0, __("Out today", "project-prepper")),
+				kpiCard(money(inv.daily_value), __("Daily inventory value", "project-prepper"))
+			]);
+			root.appendChild(kpiInv);
+
+			// Reihe 2: Verleih / Anfragen / Projekte.
+			var runningPlanned = (projects.running || 0) + (projects.confirmed || 0) + (projects.planned || 0);
+			var kpiOps = el("div", { class: "pp-kpis" }, [
+				kpiCard(rentals.active || 0, __("Active rentals", "project-prepper")),
+				kpiCard(rentals.reserved || 0, __("Reserved rentals", "project-prepper")),
+				kpiCard(inquiries.new || 0, __("Open inquiries", "project-prepper")),
+				kpiCard(runningPlanned, __("Running / planned projects", "project-prepper"))
+			]);
+			root.appendChild(kpiOps);
+
+			// Abschnitt "Anstehend" (nächste 14 Tage): Verleihe + Projekte.
+			var upcomingSection = el("div", { class: "pp-modal-section" }, [
+				el("h3", { text: __("Upcoming (next 14 days)", "project-prepper") })
+			]);
+			var upRentals = rentals.upcoming || [];
+			var upProjects = projects.upcoming || [];
+			if (!upRentals.length && !upProjects.length) {
+				upcomingSection.appendChild(el("p", { class: "pp-muted", text: __("Nothing scheduled.", "project-prepper") }));
+			} else {
+				var upList = el("ul", { class: "pp-lines pp-lines-block" });
+				upProjects.forEach(function (p) {
+					var range = dateDe(p.date_start) + (p.date_end ? " – " + dateDe(p.date_end) : "");
+					upList.appendChild(el("li", null, [
+						el("div", null, [
+							el("a", {
+								href: "admin.php?page=pp-projects#pp-project-" + p.id,
+								class: "pp-link",
+								text: p.name || __("(untitled)", "project-prepper")
+							}),
+							el("span", { class: "pp-muted", text: " · " + __("Project", "project-prepper") + " · " + range })
+						])
+					]));
+				});
+				upRentals.forEach(function (r) {
+					var range = dateDe(r.date_from) + (r.date_to ? " – " + dateDe(r.date_to) : "");
+					upList.appendChild(el("li", null, [
+						el("div", null, [
+							el("span", { text: r.borrower_name || __("—", "project-prepper") }),
+							el("span", { class: "pp-muted", text: " · " + __("Rental", "project-prepper") + " · " + range })
+						])
+					]));
+				});
+				upcomingSection.appendChild(upList);
+			}
+			root.appendChild(upcomingSection);
+
+			// Abschnitt "Letzte Aktivität".
+			var activitySection = el("div", { class: "pp-modal-section" }, [
+				el("h3", { text: __("Recent activity", "project-prepper") })
+			]);
+			var activity = d.recent_activity || [];
+			if (!activity.length) {
+				activitySection.appendChild(el("p", { class: "pp-muted", text: __("No activity yet.", "project-prepper") }));
+			} else {
+				var actList = el("ul", { class: "pp-lines" });
+				activity.forEach(function (a) {
+					var actionLabel = ACTION_LABELS[a.action] || a.action;
+					var entityLabel = ENTITY_LABELS[a.entity_type] || a.entity_type;
+					var line = a.actor + " · " + actionLabel + " · " + entityLabel + " · " + dateDe(a.created_at);
+					actList.appendChild(el("li", null, [el("span", { text: line })]));
+				});
+				activitySection.appendChild(actList);
+			}
+			root.appendChild(activitySection);
+		}).catch(function (err) {
+			toast(err.message, "error");
+		});
+	}
+
 	/* ================= Routing ================= */
 
-	if (page === "categories") renderCategories();
+	if (page === "dashboard") renderDashboard();
+	else if (page === "categories") renderCategories();
 	else if (page === "projects") renderProjects();
 	else if (page === "groups") renderGroups();
 	else if (page === "rentals") renderRentals();

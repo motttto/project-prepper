@@ -19,22 +19,34 @@ class Menu {
 	}
 
 	public static function register_menu(): void {
+		// Top-Level = Dashboard (Startseite des Plugins). Niedrigste sinnvolle
+		// View-Cap, damit das Menü erscheint, sobald der Nutzer ein Modul sehen darf.
 		add_menu_page(
 			'Project Prepper',
 			'Project Prepper',
 			Capabilities::VIEW_INVENTORY,
 			'project-prepper',
-			[ self::class, 'render_inventory' ],
+			[ self::class, 'render_dashboard' ],
 			'dashicons-archive',
 			30
 		);
 
 		add_submenu_page(
 			'project-prepper',
+			__( 'Dashboard', 'project-prepper' ),
+			__( 'Dashboard', 'project-prepper' ),
+			Capabilities::VIEW_INVENTORY,
+			'project-prepper',
+			[ self::class, 'render_dashboard' ]
+		);
+
+		// Inventar ist von der Top-Ebene auf den eigenen Slug pp-inventory umgezogen.
+		add_submenu_page(
+			'project-prepper',
 			__( 'Inventory', 'project-prepper' ),
 			__( 'Inventory', 'project-prepper' ),
 			Capabilities::VIEW_INVENTORY,
-			'project-prepper',
+			'pp-inventory',
 			[ self::class, 'render_inventory' ]
 		);
 
@@ -119,6 +131,10 @@ class Menu {
 				'groups'       => current_user_can( Capabilities::MANAGE_GROUPS ),
 			],
 		] );
+	}
+
+	public static function render_dashboard(): void {
+		echo '<div class="wrap"><h1>' . esc_html__( 'Dashboard', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="dashboard"></div></div>';
 	}
 
 	public static function render_inventory(): void {

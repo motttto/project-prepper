@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Project Prepper 0.17.0\n"
+"Project-Id-Version: Project Prepper 0.18.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/project-prepper\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-13T14:29:09+00:00\n"
+"POT-Creation-Date: 2026-06-13T14:58:04+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: project-prepper\n"
@@ -34,48 +34,54 @@ msgstr ""
 msgid "motttto"
 msgstr ""
 
-#: includes/Admin/Menu.php:34
-#: includes/Admin/Menu.php:35
-#: includes/Admin/Menu.php:125
+#: includes/Admin/Menu.php:36
+#: includes/Admin/Menu.php:37
+#: includes/Admin/Menu.php:137
+msgid "Dashboard"
+msgstr ""
+
+#: includes/Admin/Menu.php:46
+#: includes/Admin/Menu.php:47
+#: includes/Admin/Menu.php:141
 #: admin/js/admin.js:626
 #: admin/js/admin.js:1175
 msgid "Inventory"
 msgstr ""
 
-#: includes/Admin/Menu.php:43
-#: includes/Admin/Menu.php:44
-#: includes/Admin/Menu.php:129
+#: includes/Admin/Menu.php:55
+#: includes/Admin/Menu.php:56
+#: includes/Admin/Menu.php:145
 msgid "Projects"
 msgstr ""
 
-#: includes/Admin/Menu.php:52
-#: includes/Admin/Menu.php:53
-#: includes/Admin/Menu.php:133
+#: includes/Admin/Menu.php:64
+#: includes/Admin/Menu.php:65
+#: includes/Admin/Menu.php:149
 msgid "Groups"
 msgstr ""
 
-#: includes/Admin/Menu.php:61
-#: includes/Admin/Menu.php:62
-#: includes/Admin/Menu.php:137
+#: includes/Admin/Menu.php:73
+#: includes/Admin/Menu.php:74
+#: includes/Admin/Menu.php:153
 #: includes/Rest/CalendarController.php:54
 msgid "Rentals"
 msgstr ""
 
-#: includes/Admin/Menu.php:70
-#: includes/Admin/Menu.php:71
-#: includes/Admin/Menu.php:149
+#: includes/Admin/Menu.php:82
+#: includes/Admin/Menu.php:83
+#: includes/Admin/Menu.php:165
 msgid "Inquiries"
 msgstr ""
 
-#: includes/Admin/Menu.php:79
-#: includes/Admin/Menu.php:80
-#: includes/Admin/Menu.php:141
+#: includes/Admin/Menu.php:91
+#: includes/Admin/Menu.php:92
+#: includes/Admin/Menu.php:157
 msgid "Categories"
 msgstr ""
 
-#: includes/Admin/Menu.php:88
-#: includes/Admin/Menu.php:89
-#: includes/Admin/Menu.php:145
+#: includes/Admin/Menu.php:100
+#: includes/Admin/Menu.php:101
+#: includes/Admin/Menu.php:161
 #: admin/js/blocks-editor.js:18
 msgid "Settings"
 msgstr ""
@@ -327,6 +333,7 @@ msgstr ""
 #: admin/js/admin.js:594
 #: admin/js/admin.js:655
 #: admin/js/admin.js:1418
+#: admin/js/admin.js:3203
 msgid "Category"
 msgstr ""
 
@@ -724,6 +731,16 @@ msgstr ""
 msgid "Invalid cost category."
 msgstr ""
 
+#: includes/Services/Dashboard.php:148
+#: includes/Services/Dashboard.php:151
+#: admin/js/admin.js:3271
+msgid "—"
+msgstr ""
+
+#: includes/Services/Dashboard.php:153
+msgid "System"
+msgstr ""
+
 #: includes/Services/Decisions.php:161
 msgid "This project has no owning group. Assign a group first to hold votes."
 msgstr ""
@@ -1054,18 +1071,22 @@ msgid "Search: name, number, manufacturer, serial number, tags …"
 msgstr ""
 
 #: admin/js/admin.js:156
+#: admin/js/admin.js:3227
 msgid "Items"
 msgstr ""
 
 #: admin/js/admin.js:157
+#: admin/js/admin.js:3228
 msgid "Total pieces"
 msgstr ""
 
 #: admin/js/admin.js:158
+#: admin/js/admin.js:3229
 msgid "Out today"
 msgstr ""
 
 #: admin/js/admin.js:159
+#: admin/js/admin.js:3230
 msgid "Daily inventory value"
 msgstr ""
 
@@ -1545,6 +1566,7 @@ msgid "Rental %s created."
 msgstr ""
 
 #: admin/js/admin.js:1131
+#: admin/js/admin.js:3202
 msgid "Item"
 msgstr ""
 
@@ -1631,6 +1653,7 @@ msgstr ""
 
 #: admin/js/admin.js:1303
 #: admin/js/admin.js:2605
+#: admin/js/admin.js:3207
 msgid "Group"
 msgstr ""
 
@@ -2458,6 +2481,184 @@ msgstr ""
 
 #: admin/js/admin.js:3152
 msgid "Create group"
+msgstr ""
+
+#: admin/js/admin.js:3170
+msgid "Item created"
+msgstr ""
+
+#: admin/js/admin.js:3171
+msgid "Item updated"
+msgstr ""
+
+#: admin/js/admin.js:3172
+msgid "Item deleted"
+msgstr ""
+
+#: admin/js/admin.js:3173
+msgid "Category created"
+msgstr ""
+
+#: admin/js/admin.js:3174
+msgid "Category updated"
+msgstr ""
+
+#: admin/js/admin.js:3175
+msgid "Category deleted"
+msgstr ""
+
+#: admin/js/admin.js:3176
+msgid "Categories merged"
+msgstr ""
+
+#: admin/js/admin.js:3177
+msgid "Rental created"
+msgstr ""
+
+#: admin/js/admin.js:3178
+msgid "Rental updated"
+msgstr ""
+
+#: admin/js/admin.js:3179
+msgid "Rental status changed"
+msgstr ""
+
+#: admin/js/admin.js:3180
+msgid "Rental deleted"
+msgstr ""
+
+#: admin/js/admin.js:3181
+msgid "Project created"
+msgstr ""
+
+#: admin/js/admin.js:3182
+msgid "Project updated"
+msgstr ""
+
+#: admin/js/admin.js:3183
+msgid "Project deleted"
+msgstr ""
+
+#: admin/js/admin.js:3184
+msgid "Inquiry created"
+msgstr ""
+
+#: admin/js/admin.js:3185
+msgid "Inquiry status changed"
+msgstr ""
+
+#: admin/js/admin.js:3186
+msgid "Inquiry converted"
+msgstr ""
+
+#: admin/js/admin.js:3187
+msgid "Inquiry deleted"
+msgstr ""
+
+#: admin/js/admin.js:3188
+msgid "Group created"
+msgstr ""
+
+#: admin/js/admin.js:3189
+msgid "Group updated"
+msgstr ""
+
+#: admin/js/admin.js:3190
+msgid "Group deleted"
+msgstr ""
+
+#: admin/js/admin.js:3191
+msgid "Participant added"
+msgstr ""
+
+#: admin/js/admin.js:3192
+msgid "Decision created"
+msgstr ""
+
+#: admin/js/admin.js:3193
+msgid "Profit share added"
+msgstr ""
+
+#: admin/js/admin.js:3194
+msgid "Agreement created"
+msgstr ""
+
+#: admin/js/admin.js:3195
+msgid "Agreement opened for signing"
+msgstr ""
+
+#: admin/js/admin.js:3196
+msgid "Agreement signed"
+msgstr ""
+
+#: admin/js/admin.js:3197
+msgid "Agreement declined"
+msgstr ""
+
+#: admin/js/admin.js:3198
+msgid "Agreement revised"
+msgstr ""
+
+#: admin/js/admin.js:3199
+msgid "Agreement terminated"
+msgstr ""
+
+#: admin/js/admin.js:3204
+#: admin/js/admin.js:3272
+msgid "Rental"
+msgstr ""
+
+#: admin/js/admin.js:3205
+#: admin/js/admin.js:3263
+msgid "Project"
+msgstr ""
+
+#: admin/js/admin.js:3206
+msgid "Inquiry"
+msgstr ""
+
+#: admin/js/admin.js:3208
+msgid "Decision"
+msgstr ""
+
+#: admin/js/admin.js:3209
+msgid "Agreement"
+msgstr ""
+
+#: admin/js/admin.js:3237
+msgid "Active rentals"
+msgstr ""
+
+#: admin/js/admin.js:3238
+msgid "Reserved rentals"
+msgstr ""
+
+#: admin/js/admin.js:3239
+msgid "Open inquiries"
+msgstr ""
+
+#: admin/js/admin.js:3240
+msgid "Running / planned projects"
+msgstr ""
+
+#: admin/js/admin.js:3246
+msgid "Upcoming (next 14 days)"
+msgstr ""
+
+#: admin/js/admin.js:3251
+msgid "Nothing scheduled."
+msgstr ""
+
+#: admin/js/admin.js:3261
+msgid "(untitled)"
+msgstr ""
+
+#: admin/js/admin.js:3282
+msgid "Recent activity"
+msgstr ""
+
+#: admin/js/admin.js:3286
+msgid "No activity yet."
 msgstr ""
 
 #: admin/js/blocks-editor.js:24
