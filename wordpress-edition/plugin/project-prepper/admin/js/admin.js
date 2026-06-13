@@ -1972,6 +1972,142 @@
 				}
 				renderProjectMembers();
 
+				/* --- Beschlüsse (Gruppen-Phase 3, Pendant zu tab-polls / org_decisions
+				   der App) --- Abstimmungen unter den aktiven Mitgliedern der
+				   besitzenden Gruppe: Zustimmen/Ablehnen/Enthalten, Mehrheits- oder
+				   Einstimmigkeits-Auflösung. Governance der Beteiligten, daher
+				   direkt nach „Beteiligte". Site-Projekte (ohne Gruppe) zeigen nur
+				   einen Hinweis. Sichtbarkeit „darf ich abstimmen" + meine Stimme
+				   kommen aus dem Backend (can_vote/my_vote), nicht aus Frontend-User-
+				   Logik. */
+
+				var DECISION_STATUS = { open: __("Open", "project-prepper"), approved: __("Approved", "project-prepper"), rejected: __("Rejected", "project-prepper"), cancelled: __("Cancelled", "project-prepper") };
+				var DECISION_BADGE = { open: "reserved", approved: "returned", rejected: "cancelled", cancelled: "draft" };
+				var VOTE_LABELS = { approve: __("Approve", "project-prepper"), reject: __("Reject", "project-prepper"), abstain: __("Abstain", "project-prepper") };
+
+				var decisionsSection = el("div", { class: "pp-modal-section" });
+				function renderDecisions() {
+					decisionsSection.innerHTML = "";
+					decisionsSection.appendChild(el("h3", { text: __("Decisions", "project-prepper") }));
+
+					// Kein Gruppen-Projekt -> Hinweis, keine Beschlüsse/Abstimmung.
+					if (!project.owner_group_id) {
+						decisionsSection.appendChild(el("p", { class: "pp-muted", text: __("Assign a group to hold votes.", "project-prepper") }));
+						return;
+					}
+
+					var list = el("ul", { class: "pp-lines pp-lines-block" });
+					(project.decisions || []).forEach(function (d) {
+						var row = el("li", { class: "pp-decision" });
+
+						// Kopfzeile: Titel + Status-Badge + Modus-Hinweis.
+						var head = el("div", { class: "pp-decision-head" }, [
+							el("strong", { text: d.title }),
+							el("span", { class: "pp-badge pp-badge-" + (DECISION_BADGE[d.status] || d.status), text: DECISION_STATUS[d.status] || d.status }),
+							el("span", { class: "pp-muted", text: d.requires_unanimous ? __("Unanimous", "project-prepper") : __("Majority", "project-prepper") })
+						]);
+						row.appendChild(head);
+
+						if (d.description) row.appendChild(el("div", { class: "pp-muted", text: d.description }));
+
+						// Tally „✓ n · ✗ n · ○ n von m" (Text, keine Icons).
+						/* translators: 1: approvals, 2: rejections, 3: abstentions, 4: total eligible */
+						var tallyTpl = __("Approve %1$d · Reject %2$d · Abstain %3$d of %4$d", "project-prepper");
+						row.appendChild(el("div", { class: "pp-decision-tally", text:
+							sprintf(tallyTpl, d.approve_count, d.reject_count, d.abstain_count, d.total_active) }));
+
+						// Vote-Buttons nur für offene Beschlüsse + stimmberechtigte
+						// Gruppenmitglieder (Backend liefert can_vote).
+						if (d.status === "open" && d.can_vote) {
+							var voteRow = el("div", { class: "pp-row pp-decision-votes" });
+							["approve", "reject", "abstain"].forEach(function (v) {
+								var isMine = d.my_vote === v;
+								voteRow.appendChild(el("button", {
+									class: "pp-btn pp-btn-sm" + (isMine ? " pp-btn-primary" : ""),
+									text: VOTE_LABELS[v], type: "button",
+									onclick: function () {
+										api("/projects/" + projectId + "/decisions/" + d.id + "/vote", {
+											method: "POST", body: JSON.stringify({ vote: v })
+										}).then(function () { reload(renderDecisions); }).catch(function (e) { toast(e.message, "error"); });
+									}
+								}));
+							});
+							row.appendChild(voteRow);
+						}
+
+						// Stimmen-Detail (wer wie) als ausklappbares Element. Die
+						// namentliche Liste (voters) ist in for_project eingebettet.
+						if ((d.voters || []).length) {
+							var details = el("details", { class: "pp-decision-detail" });
+							/* translators: %d: number of votes cast */
+							details.appendChild(el("summary", { text: sprintf(__("%d votes", "project-prepper"), d.total_votes) }));
+							var voteList = el("ul", { class: "pp-lines" });
+							d.voters.forEach(function (vr) {
+								var who = vr.missing ? __("(removed user)", "project-prepper") : vr.display_name;
+								voteList.appendChild(el("li", null, [
+									el("span", { text: who }),
+									el("span", { class: "pp-muted", text: VOTE_LABELS[vr.vote] || vr.vote })
+								]));
+							});
+							details.appendChild(voteList);
+							row.appendChild(details);
+						}
+
+						// Verwaltungs-Aktionen (Schließen/Löschen) — Backend prüft
+						// Ersteller/Admin; wir zeigen sie editierbaren Nutzern.
+						if (editable) {
+							var actions = el("div", { class: "pp-row pp-decision-actions" });
+							if (d.status === "open") {
+								actions.appendChild(el("button", {
+									class: "pp-link", text: __("Close", "project-prepper"), type: "button",
+									onclick: function () {
+										if (!confirm(__("Close this decision early?", "project-prepper"))) return;
+										api("/projects/" + projectId + "/decisions/" + d.id + "/cancel", { method: "POST" })
+											.then(function () { reload(renderDecisions); }).catch(function (e) { toast(e.message, "error"); });
+									}
+								}));
+							}
+							actions.appendChild(el("button", {
+								class: "pp-link pp-link-danger", text: __("delete", "project-prepper"), type: "button",
+								onclick: function () {
+									if (!confirm(__("Delete this decision and all votes?", "project-prepper"))) return;
+									api("/projects/" + projectId + "/decisions/" + d.id, { method: "DELETE" })
+										.then(function () { reload(renderDecisions); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							}));
+							row.appendChild(actions);
+						}
+						list.appendChild(row);
+					});
+					if (!(project.decisions || []).length) list.appendChild(el("li", { class: "pp-muted", text: __("No decisions yet.", "project-prepper") }));
+					decisionsSection.appendChild(list);
+
+					// Anlege-Formular: Titel, Beschreibung, Einstimmigkeit (default an).
+					if (!editable) return;
+					var dTitle = el("input", { type: "text", placeholder: __("Title", "project-prepper"), class: "pp-input-lg" });
+					var dDesc = el("input", { type: "text", placeholder: __("Description", "project-prepper"), class: "pp-input-lg" });
+					var dUnanimous = el("input", { type: "checkbox" });
+					dUnanimous.checked = true;
+					decisionsSection.appendChild(el("div", { class: "pp-row" }, [
+						dTitle, dDesc,
+						el("label", { class: "pp-check" }, [dUnanimous, el("span", { text: __("Requires unanimous", "project-prepper") })]),
+						el("button", {
+							class: "pp-btn pp-btn-sm", text: __("New decision", "project-prepper"), type: "button",
+							onclick: function () {
+								if (!dTitle.value.trim()) return;
+								api("/projects/" + projectId + "/decisions", {
+									method: "POST",
+									body: JSON.stringify({ title: dTitle.value.trim(), description: dDesc.value.trim(), requires_unanimous: dUnanimous.checked })
+								}).then(function () {
+									dTitle.value = ""; dDesc.value = ""; dUnanimous.checked = true;
+									reload(renderDecisions);
+								}).catch(function (e) { toast(e.message, "error"); });
+							}
+						})
+					]));
+				}
+				renderDecisions();
+
 				/* --- Team & Kontakte (Pendant zu tab-team der App) ---
 				   Eine Sektion mit zwei Unterlisten: Team (Name/Rolle/Abteilung)
 				   und Kontakte (Name/Rolle/Firma/E-Mail/Telefon). Single-Site:
@@ -2080,7 +2216,7 @@
 				}
 				renderTeam();
 
-				var body = el("div", null, [statusRow, info, membersSection, bookingsSection, costsSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection]);
+				var body = el("div", null, [statusRow, info, membersSection, decisionsSection, bookingsSection, costsSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection]);
 
 				var close;
 				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);

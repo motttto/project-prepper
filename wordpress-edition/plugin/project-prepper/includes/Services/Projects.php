@@ -92,6 +92,7 @@ class Projects {
 		$project->contacts     = Contacts::for_project( $id );
 		$project->files        = Files::for_project( $id );
 		$project->members      = ProjectMembers::for_project( $id );
+		$project->decisions    = Decisions::for_project( $id, get_current_user_id() ?: null );
 		return $project;
 	}
 
@@ -291,6 +292,16 @@ class Projects {
 		// Nur die Datei-Verknüpfungen entfernen, nicht die Medien-Anhänge selbst.
 		$wpdb->delete( Schema::table( 'project_files' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_members' ), [ 'project_id' => $id ], [ '%d' ] );
+		// Beschlüsse + deren Stimmen (Phase 3) räumen.
+		$decision_ids = $wpdb->get_col( $wpdb->prepare(
+			'SELECT id FROM %i WHERE project_id = %d',
+			Schema::table( 'project_decisions' ),
+			$id
+		) );
+		foreach ( array_map( 'intval', $decision_ids ) as $decision_id ) {
+			$wpdb->delete( Schema::table( 'project_decision_votes' ), [ 'decision_id' => $decision_id ], [ '%d' ] );
+		}
+		$wpdb->delete( Schema::table( 'project_decisions' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_items' ), [ 'project_id' => $id ], [ '%d' ] );
 		$ok = false !== $wpdb->delete( Schema::table( 'projects' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {

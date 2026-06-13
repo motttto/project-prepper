@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.11.0';
+	const VERSION    = '0.12.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -49,6 +49,8 @@ class Schema {
 		$groups     = self::table( 'groups' );
 		$g_members  = self::table( 'group_members' );
 		$p_members  = self::table( 'project_members' );
+		$p_decis    = self::table( 'project_decisions' );
+		$p_votes    = self::table( 'project_decision_votes' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -395,6 +397,43 @@ class Schema {
 				PRIMARY KEY  (id),
 				KEY project_id (project_id),
 				UNIQUE KEY project_user (project_id,user_id)
+			) {$charset};" );
+
+			// Beschlüsse pro Projekt (v0.12.0, Phase 3) — Pendant zu `org_decisions`
+			// der App (projektbezogen). Abstimmungen unter den aktiven Mitgliedern
+			// der besitzenden Gruppe (owner_group_id): approve/reject/abstain mit
+			// Mehrheits- oder Einstimmigkeits-Auflösung (requires_unanimous).
+			// status: open|approved|rejected|cancelled. resolved_at = Auflösungs-
+			// Zeitpunkt. created_by = Ersteller (für vorzeitiges Schließen).
+			// Siehe docs/03-GRUPPEN-ARCHITEKTUR.md §Phase 3.
+			dbDelta( "CREATE TABLE {$p_decis} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				project_id bigint(20) unsigned NOT NULL,
+				title varchar(190) NOT NULL,
+				description text,
+				requires_unanimous tinyint(1) NOT NULL DEFAULT 1,
+				status varchar(20) NOT NULL DEFAULT 'open',
+				created_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				resolved_at datetime DEFAULT NULL,
+				PRIMARY KEY  (id),
+				KEY project_id (project_id),
+				KEY status (status)
+			) {$charset};" );
+
+			// Stimmen je Beschluss (Pendant zu `org_decision_votes`). Eine Stimme
+			// pro Mitglied (UNIQUE decision_user) — Upsert ändert die vorhandene.
+			// vote: approve|reject|abstain. comment optional.
+			dbDelta( "CREATE TABLE {$p_votes} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				decision_id bigint(20) unsigned NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				vote varchar(10) NOT NULL,
+				comment text,
+				voted_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY decision_id (decision_id),
+				UNIQUE KEY decision_user (decision_id,user_id)
 			) {$charset};" );
 
 		self::upgrade_data();

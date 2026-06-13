@@ -6,6 +6,7 @@ use ProjectPrepper\Services\Checklists;
 use ProjectPrepper\Services\Consumables;
 use ProjectPrepper\Services\Contacts;
 use ProjectPrepper\Services\Costs;
+use ProjectPrepper\Services\Decisions;
 use ProjectPrepper\Services\Files;
 use ProjectPrepper\Services\ProjectMembers;
 use ProjectPrepper\Services\Projects;
@@ -270,6 +271,47 @@ class ProjectsController extends BaseController {
 				'callback'            => [ $this, 'remove_member' ],
 				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
 			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/decisions', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'decisions' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'add_decision' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/decisions/(?P<decision_id>\d+)', [
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_decision' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_decision' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		// Abstimmen erfordert NUR die View-Cap (abstimmen ist kein Bearbeiten);
+		// die Gruppenmitgliedschaft wird im Service (cast_vote) erzwungen.
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/decisions/(?P<decision_id>\d+)/vote', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'vote_decision' ],
+			'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+		] );
+
+		// Vorzeitiges Schließen: View-Cap genügt; Ersteller/Admin-Check im Service.
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/decisions/(?P<decision_id>\d+)/cancel', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'cancel_decision' ],
+			'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
 		] );
 
 		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/checklists', [
@@ -953,6 +995,112 @@ class ProjectsController extends BaseController {
 		}
 		if ( array_key_exists( 'sort_order', $json ) ) {
 			$data['sort_order'] = (int) $json['sort_order'];
+		}
+		return $data;
+	}
+
+	/* ---------- Beschlüsse (Gruppen-Phase 3) ---------- */
+
+	public function decisions( WP_REST_Request $request ) {
+		// Projects::get() liefert für Nicht-Gruppenmitglieder eines Gruppen-
+		// Projekts null → 404 (Gruppen-Zugriffsguard, kein Leak).
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( Decisions::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function add_decision( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$result = Decisions::create( (int) $request['id'], $this->decision_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Decisions::for_project( (int) $request['id'], get_current_user_id() ?: null ), 201 );
+	}
+
+	public function update_decision( WP_REST_Request $request ) {
+		$owner = $this->decision_in_project( (int) $request['id'], (int) $request['decision_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Decisions::update( (int) $request['decision_id'], $this->decision_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Decisions::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function remove_decision( WP_REST_Request $request ) {
+		$owner = $this->decision_in_project( (int) $request['id'], (int) $request['decision_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Decisions::delete( (int) $request['decision_id'], get_current_user_id() );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Decisions::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function vote_decision( WP_REST_Request $request ) {
+		$owner = $this->decision_in_project( (int) $request['id'], (int) $request['decision_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$json    = $request->get_json_params() ?: [];
+		$vote    = sanitize_text_field( (string) ( $json['vote'] ?? '' ) );
+		$comment = isset( $json['comment'] ) ? sanitize_textarea_field( (string) $json['comment'] ) : '';
+		$result  = Decisions::cast_vote( (int) $request['decision_id'], get_current_user_id(), $vote, $comment );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Decisions::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function cancel_decision( WP_REST_Request $request ) {
+		$owner = $this->decision_in_project( (int) $request['id'], (int) $request['decision_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Decisions::cancel( (int) $request['decision_id'], get_current_user_id() );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Decisions::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	/**
+	 * Sicherstellen, dass der Beschluss zum Projekt der URL gehört (nested route)
+	 * UND der Aufrufer auf das Projekt zugreifen darf (Gruppen-Guard aus Phase 1).
+	 * Reihenfolge: erst Projekt-Zugriff (404 bei Fremd-/Nicht-Gruppen-Projekt,
+	 * kein Leak), dann Zugehörigkeit der Beschluss-Zeile.
+	 *
+	 * @return true|WP_Error
+	 */
+	private function decision_in_project( int $project_id, int $decision_id ) {
+		if ( ! Projects::get( $project_id ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$entry = Decisions::get( $decision_id );
+		if ( ! $entry || (int) $entry->project_id !== $project_id ) {
+			return new WP_Error( 'pp_not_found', __( 'Decision not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return true;
+	}
+
+	private function decision_payload( array $json ): array {
+		$data = [];
+		if ( array_key_exists( 'title', $json ) ) {
+			$data['title'] = sanitize_text_field( (string) $json['title'] );
+		}
+		if ( array_key_exists( 'description', $json ) ) {
+			$data['description'] = sanitize_textarea_field( (string) $json['description'] );
+		}
+		if ( array_key_exists( 'requires_unanimous', $json ) ) {
+			$data['requires_unanimous'] = ! empty( $json['requires_unanimous'] );
 		}
 		return $data;
 	}

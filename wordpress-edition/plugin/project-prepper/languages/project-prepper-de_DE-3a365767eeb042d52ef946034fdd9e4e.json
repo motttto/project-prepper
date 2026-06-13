@@ -1,1 +1,54 @@
-{"translation-revision-date":"2026-06-12 12:00+0200","generator":"WP-CLI\/2.12.0","source":"admin\/js\/blocks-editor.js","domain":"messages","locale_data":{"messages":{"":{"domain":"messages","lang":"de_DE","plural-forms":"nplurals=2; plural=(n != 1);"},"Settings":["Einstellungen"],"Also show broken\/retired items":["Auch defekte\/ausgemusterte zeigen"],"PP: Equipment list":["PP: Equipment-Liste"],"Public inventory list from Project Prepper.":["\u00d6ffentliche Inventarliste aus Project Prepper."],"Category (name or prefix, empty = all)":["Kategorie (Name oder Prefix, leer = alle)"],"Show daily rates":["Tagess\u00e4tze anzeigen"],"Show search field":["Suchfeld anzeigen"],"PP: Availability check":["PP: Verf\u00fcgbarkeits-Check"],"Check the availability of an item for a date range.":["Verf\u00fcgbarkeit eines Artikels f\u00fcr einen Zeitraum pr\u00fcfen."],"Item ID (empty = select field)":["Artikel-ID (leer = Auswahlfeld)"],"PP: Request form":["PP: Anfrage-Formular"],"Rental\/project request form for visitors.":["Leih-\/Projektanfrage-Formular f\u00fcr Besucher."],"Show equipment selection":["Equipment-Auswahl anzeigen"]}}}
+{
+    "translation-revision-date": "2026-06-12 12:00+0200",
+    "generator": "WP-CLI\/2.12.0",
+    "source": "admin\/js\/blocks-editor.js",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "de_DE",
+                "plural-forms": "nplurals=2; plural=(n != 1);"
+            },
+            "Settings": [
+                "Einstellungen"
+            ],
+            "Also show broken\/retired items": [
+                "Auch defekte\/ausgemusterte zeigen"
+            ],
+            "PP: Equipment list": [
+                "PP: Equipment-Liste"
+            ],
+            "Public inventory list from Project Prepper.": [
+                "\u00d6ffentliche Inventarliste aus Project Prepper."
+            ],
+            "Category (name or prefix, empty = all)": [
+                "Kategorie (Name oder Prefix, leer = alle)"
+            ],
+            "Show daily rates": [
+                "Tagess\u00e4tze anzeigen"
+            ],
+            "Show search field": [
+                "Suchfeld anzeigen"
+            ],
+            "PP: Availability check": [
+                "PP: Verf\u00fcgbarkeits-Check"
+            ],
+            "Check the availability of an item for a date range.": [
+                "Verf\u00fcgbarkeit eines Artikels f\u00fcr einen Zeitraum pr\u00fcfen."
+            ],
+            "Item ID (empty = select field)": [
+                "Artikel-ID (leer = Auswahlfeld)"
+            ],
+            "PP: Request form": [
+                "PP: Anfrage-Formular"
+            ],
+            "Rental\/project request form for visitors.": [
+                "Leih-\/Projektanfrage-Formular f\u00fcr Besucher."
+            ],
+            "Show equipment selection": [
+                "Equipment-Auswahl anzeigen"
+            ]
+        }
+    }
+}
