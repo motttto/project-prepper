@@ -44,6 +44,7 @@ class Plugin {
 		( new Rest\InquiriesController() )->register_routes();
 		( new Rest\ImportExportController() )->register_routes();
 		( new Rest\CalendarController() )->register_routes();
+		( new Rest\CalendarViewController() )->register_routes();
 		( new Rest\SettingsController() )->register_routes();
 	}
 }

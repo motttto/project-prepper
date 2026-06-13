@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.20.0
+Stable tag: 0.21.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -28,6 +28,7 @@ Project Prepper manages equipment inventory and rentals directly in WordPress:
 * XLSX/CSV import and export
 * Email notifications with editable templates
 * iCal calendar feed of all reserved/active rentals
+* Calendar month view of rentals, projects and schedule entries
 * Roles & capabilities: Prepper Manager and Prepper Member
 * GDPR tools: export and anonymization of borrower data via the WordPress privacy tools
 * Activity log of all changes
@@ -76,6 +77,13 @@ for the XLSX import/export in the admin. SheetJS CE is licensed under the Apache
 (https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
 
 == Changelog ==
+
+= 0.21.0 =
+* New "Calendar" section: a read-only month view that merges existing data — rentals (reserved/active/returned), project periods and project schedule entries — into one grid
+* Multi-day rentals and projects appear on every day of their period; schedule entries show their start time; events link to the related rental or project
+* Month navigation (previous/next/today), today highlight, German weekday labels and a colour-coded legend; the existing iCal feed URL is linked below the grid
+* Group access is respected: project and schedule events of group projects are only visible to members of the owning group; rentals are site-wide
+* No two-way sync / CalDAV (the app's CalDAV is a separate standalone service) — this is display only, alongside the existing read-only iCal feed
 
 = 0.20.0 =
 * New "Polls" section in the project detail (group projects only): create date polls (Doodle-style scheduling) or choice polls and let the active members of the owning group vote yes/no/maybe per option

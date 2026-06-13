@@ -88,6 +88,15 @@ class Menu {
 
 		add_submenu_page(
 			'project-prepper',
+			__( 'Calendar', 'project-prepper' ),
+			__( 'Calendar', 'project-prepper' ),
+			Capabilities::VIEW_RENTALS,
+			'pp-calendar',
+			[ self::class, 'render_calendar' ]
+		);
+
+		add_submenu_page(
+			'project-prepper',
 			__( 'Categories', 'project-prepper' ),
 			__( 'Categories', 'project-prepper' ),
 			Capabilities::EDIT_INVENTORY,
@@ -151,6 +160,10 @@ class Menu {
 
 	public static function render_rentals(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Rentals', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="rentals"></div></div>';
+	}
+
+	public static function render_calendar(): void {
+		echo '<div class="wrap"><h1>' . esc_html__( 'Calendar', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="calendar"></div></div>';
 	}
 
 	public static function render_categories(): void {

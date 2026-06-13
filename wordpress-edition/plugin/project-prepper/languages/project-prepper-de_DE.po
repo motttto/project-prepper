@@ -2572,3 +2572,106 @@ msgstr "Leih-/Projektanfrage-Formular für Besucher."
 #: admin/js/blocks-editor.js:110
 msgid "Show equipment selection"
 msgstr "Equipment-Auswahl anzeigen"
+
+#: admin/js/admin.js
+msgid "Calendar"
+msgstr "Kalender"
+
+#: admin/js/admin.js
+msgid "Today"
+msgstr "Heute"
+
+#: admin/js/admin.js
+msgid "Previous month"
+msgstr "Voriger Monat"
+
+#: admin/js/admin.js
+msgid "Next month"
+msgstr "Nächster Monat"
+
+#: admin/js/admin.js
+msgid "available in the settings."
+msgstr "in den Einstellungen verfügbar."
+
+#: admin/js/admin.js
+msgctxt "weekday"
+msgid "Mon"
+msgstr "Mo"
+
+#: admin/js/admin.js
+msgctxt "weekday"
+msgid "Tue"
+msgstr "Di"
+
+#: admin/js/admin.js
+msgctxt "weekday"
+msgid "Wed"
+msgstr "Mi"
+
+#: admin/js/admin.js
+msgctxt "weekday"
+msgid "Thu"
+msgstr "Do"
+
+#: admin/js/admin.js
+msgctxt "weekday"
+msgid "Fri"
+msgstr "Fr"
+
+#: admin/js/admin.js
+msgctxt "weekday"
+msgid "Sat"
+msgstr "Sa"
+
+#: admin/js/admin.js
+msgctxt "weekday"
+msgid "Sun"
+msgstr "So"
+
+#: admin/js/admin.js
+msgid "January"
+msgstr "Januar"
+
+#: admin/js/admin.js
+msgid "February"
+msgstr "Februar"
+
+#: admin/js/admin.js
+msgid "March"
+msgstr "März"
+
+#: admin/js/admin.js
+msgid "April"
+msgstr "April"
+
+#: admin/js/admin.js
+msgid "May"
+msgstr "Mai"
+
+#: admin/js/admin.js
+msgid "June"
+msgstr "Juni"
+
+#: admin/js/admin.js
+msgid "July"
+msgstr "Juli"
+
+#: admin/js/admin.js
+msgid "August"
+msgstr "August"
+
+#: admin/js/admin.js
+msgid "September"
+msgstr "September"
+
+#: admin/js/admin.js
+msgid "October"
+msgstr "Oktober"
+
+#: admin/js/admin.js
+msgid "November"
+msgstr "November"
+
+#: admin/js/admin.js
+msgid "December"
+msgstr "Dezember"

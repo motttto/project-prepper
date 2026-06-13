@@ -3498,9 +3498,170 @@
 		});
 	}
 
+	/* ================= Calendar (month view) ================= */
+
+	function renderCalendar() {
+		root.innerHTML = "";
+
+		// Wochentage (Mo–So) + Monatsnamen als eigene übersetzbare Strings.
+		var WEEKDAYS = [
+			_x("Mon", "weekday", "project-prepper"),
+			_x("Tue", "weekday", "project-prepper"),
+			_x("Wed", "weekday", "project-prepper"),
+			_x("Thu", "weekday", "project-prepper"),
+			_x("Fri", "weekday", "project-prepper"),
+			_x("Sat", "weekday", "project-prepper"),
+			_x("Sun", "weekday", "project-prepper")
+		];
+		var MONTHS = [
+			__("January", "project-prepper"), __("February", "project-prepper"),
+			__("March", "project-prepper"), __("April", "project-prepper"),
+			__("May", "project-prepper"), __("June", "project-prepper"),
+			__("July", "project-prepper"), __("August", "project-prepper"),
+			__("September", "project-prepper"), __("October", "project-prepper"),
+			__("November", "project-prepper"), __("December", "project-prepper")
+		];
+
+		// Lokales Y-m-d (kein UTC-Versatz wie bei toISOString).
+		function ymd(d) {
+			var m = String(d.getMonth() + 1);
+			var day = String(d.getDate());
+			return d.getFullYear() + "-" + (m.length < 2 ? "0" + m : m) + "-" + (day.length < 2 ? "0" + day : day);
+		}
+		// Wochentag Mo=0 … So=6.
+		function isoDow(d) { return (d.getDay() + 6) % 7; }
+
+		var today = new Date();
+		var view = new Date(today.getFullYear(), today.getMonth(), 1);
+
+		// Container-Gerüst (Toolbar + Grid-Mount + Legende + Feed).
+		var titleEl = el("span", { class: "pp-cal-title" });
+		var toolbar = el("div", { class: "pp-cal-toolbar" }, [
+			el("button", { class: "pp-cal-nav", text: "‹", title: __("Previous month", "project-prepper"), onclick: function () { shift(-1); } }),
+			el("button", { class: "pp-cal-nav", text: "›", title: __("Next month", "project-prepper"), onclick: function () { shift(1); } }),
+			titleEl,
+			el("button", { class: "pp-cal-today", text: __("Today", "project-prepper"), onclick: function () { view = new Date(today.getFullYear(), today.getMonth(), 1); load(); } })
+		]);
+		var gridMount = el("div", {});
+		root.appendChild(toolbar);
+		root.appendChild(gridMount);
+
+		// Legende.
+		function legendItem(cls, label) {
+			return el("span", { class: "pp-cal-legend-item" }, [
+				el("span", { class: "pp-cal-swatch " + cls }),
+				el("span", { text: label })
+			]);
+		}
+		root.appendChild(el("div", { class: "pp-cal-legend" }, [
+			legendItem("pp-cal-rental", __("Rental", "project-prepper")),
+			legendItem("pp-cal-project", __("Project", "project-prepper")),
+			legendItem("pp-cal-schedule", __("Schedule", "project-prepper"))
+		]));
+
+		// iCal-Feed-Hinweis: URL nur, wenn der Nutzer die Einstellungen sehen darf.
+		var feedBox = el("div", { class: "pp-cal-feed" }, [
+			el("span", { text: __("Calendar feed (iCal)", "project-prepper") + ": " })
+		]);
+		if (ppConfig.canEdit && ppConfig.canEdit.settings) {
+			api("/settings").then(function (s) {
+				if (s && s.ical_url) feedBox.appendChild(el("code", { text: s.ical_url }));
+			}).catch(function () {
+				feedBox.appendChild(el("span", { text: __("available in the settings.", "project-prepper") }));
+			});
+		} else {
+			feedBox.appendChild(el("span", { text: __("available in the settings.", "project-prepper") }));
+		}
+		root.appendChild(feedBox);
+
+		function shift(delta) {
+			view = new Date(view.getFullYear(), view.getMonth() + delta, 1);
+			load();
+		}
+
+		function load() {
+			titleEl.textContent = MONTHS[view.getMonth()] + " " + view.getFullYear();
+
+			// Erster sichtbarer Rastertag (Montag der ersten Woche) … letzter (Sonntag).
+			var first = new Date(view.getFullYear(), view.getMonth(), 1);
+			var gridStart = new Date(first);
+			gridStart.setDate(first.getDate() - isoDow(first));
+			var last = new Date(view.getFullYear(), view.getMonth() + 1, 0);
+			var gridEnd = new Date(last);
+			gridEnd.setDate(last.getDate() + (6 - isoDow(last)));
+
+			var from = ymd(gridStart);
+			var to = ymd(gridEnd);
+
+			api("/calendar-events?from=" + from + "&to=" + to).then(function (events) {
+				// Events pro Tag bündeln; mehrtägige an jedem Tag des Zeitraums.
+				var byDay = {};
+				function push(day, ev) { (byDay[day] = byDay[day] || []).push(ev); }
+				(events || []).forEach(function (ev) {
+					if (ev.type === "schedule") {
+						push(ev.date, ev);
+					} else {
+						var s = new Date(ev.date_from + "T00:00:00");
+						var e = new Date((ev.date_to || ev.date_from) + "T00:00:00");
+						for (var d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+							var key = ymd(d);
+							if (key >= from && key <= to) push(key, ev);
+						}
+					}
+				});
+
+				var grid = el("div", { class: "pp-cal-grid" });
+				WEEKDAYS.forEach(function (w) { grid.appendChild(el("div", { class: "pp-cal-weekday", text: w })); });
+
+				var todayKey = ymd(today);
+				var cur = new Date(gridStart);
+				while (cur <= gridEnd) {
+					var key = ymd(cur);
+					var outside = cur.getMonth() !== view.getMonth();
+					var cls = "pp-cal-day" + (outside ? " pp-cal-outside" : "") + (key === todayKey ? " pp-cal-today-cell" : "");
+					var cell = el("div", { class: cls }, [
+						el("span", { class: "pp-cal-daynum", text: String(cur.getDate()) })
+					]);
+					(byDay[key] || []).forEach(function (ev) {
+						cell.appendChild(calEvent(ev));
+					});
+					grid.appendChild(cell);
+					cur.setDate(cur.getDate() + 1);
+				}
+
+				gridMount.innerHTML = "";
+				gridMount.appendChild(grid);
+			}).catch(function (err) {
+				toast(err.message, "error");
+			});
+		}
+
+		function calEvent(ev) {
+			var label, href, cls;
+			if (ev.type === "rental") {
+				cls = "pp-cal-rental";
+				label = ev.title;
+				href = "admin.php?page=pp-rentals";
+			} else if (ev.type === "project") {
+				cls = "pp-cal-project";
+				label = ev.title || __("(untitled)", "project-prepper");
+				href = "admin.php?page=pp-projects#pp-project-" + ev.id;
+			} else {
+				cls = "pp-cal-schedule";
+				var t = ev.time_start ? String(ev.time_start).slice(0, 5) + " " : "";
+				label = t + (ev.title || "");
+				href = "admin.php?page=pp-projects#pp-project-" + ev.project_id;
+			}
+			return el("a", { class: "pp-cal-event " + cls, href: href, title: label, text: label });
+		}
+
+		load();
+	}
+
 	/* ================= Routing ================= */
 
-	if (page === "dashboard") renderDashboard();
+	if (page === "calendar") renderCalendar();
+	else if (page === "dashboard") renderDashboard();
 	else if (page === "categories") renderCategories();
 	else if (page === "projects") renderProjects();
 	else if (page === "groups") renderGroups();
