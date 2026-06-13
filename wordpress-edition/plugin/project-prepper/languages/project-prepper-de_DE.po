@@ -1909,6 +1909,38 @@ msgstr "Leih-/Projektanfrage-Formular für Besucher."
 msgid "Show equipment selection"
 msgstr "Equipment-Auswahl anzeigen"
 
+#: includes/Services/ProjectMembers.php:96
+msgid "This project has no owning group. Assign a group first to add members."
+msgstr "Dieses Projekt hat keine Eigentümer-Gruppe. Ordne erst eine Gruppe zu, um Beteiligte hinzuzufügen."
+
+#: includes/Services/ProjectMembers.php:103
+msgid "This user is not a member of the project group."
+msgstr "Dieser Benutzer ist kein Mitglied der Projekt-Gruppe."
+
+#: admin/js/admin.js:1892
+msgid "Project members"
+msgstr "Beteiligte"
+
+#: admin/js/admin.js:1896
+msgid "Assign a group to add members."
+msgstr "Ordne erst eine Gruppe zu, um Beteiligte hinzuzufügen."
+
+#: admin/js/admin.js:1902
+msgid "(removed user)"
+msgstr "(entfernter Benutzer)"
+
+#: admin/js/admin.js:1923
+msgid "No members yet."
+msgstr "Noch keine Beteiligten."
+
+#: admin/js/admin.js:1935
+msgid "All group members are already listed."
+msgstr "Alle Gruppenmitglieder sind bereits aufgeführt."
+
+#: admin/js/admin.js:1939
+msgid "— select group member —"
+msgstr "— Gruppenmitglied wählen —"
+
 #~ msgid ""
 #~ "Equipment inventory & rentals for teams — categories with number ranges, "
 #~ "unit tracking, availability checks and rental management."

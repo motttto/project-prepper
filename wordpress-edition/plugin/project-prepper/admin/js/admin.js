@@ -1877,6 +1877,101 @@
 				}
 				renderTasks();
 
+				/* --- Beteiligte (Gruppen-Phase 2, Pendant zu project-members-panel der App) ---
+				   Roster der am Projekt beteiligten WP-Benutzer AUS der besitzenden
+				   Gruppe + freie Rolle. Rein dokumentarisch (gewaehrt keine Rechte —
+				   Zugriff bleibt gruppen-basiert). Site-Projekte (ohne Gruppe) zeigen
+				   nur einen Hinweis. Eigene Sektion neben „Team & Kontakte“: jene ist
+				   Freitext-Roster, diese der Gruppen-Beteiligten-Roster. */
+
+				var membersSection = el("div", { class: "pp-modal-section" });
+				// Gruppenmitglieder fuers Select werden lazy einmal geladen + gecacht.
+				var groupMembersCache = null;
+				function renderProjectMembers() {
+					membersSection.innerHTML = "";
+					membersSection.appendChild(el("h3", { text: __("Project members", "project-prepper") }));
+
+					// Kein Gruppen-Projekt -> Hinweis, kein Roster/Formular.
+					if (!project.owner_group_id) {
+						membersSection.appendChild(el("p", { class: "pp-muted", text: __("Assign a group to add members.", "project-prepper") }));
+						return;
+					}
+
+					var list = el("ul", { class: "pp-lines" });
+					(project.members || []).forEach(function (m) {
+						var name = m.missing ? __("(removed user)", "project-prepper") : m.display_name;
+						var bits = [];
+						if (m.role_title) bits.push(m.role_title);
+						if (m.user_email && !m.missing) bits.push(m.user_email);
+						if (m.note) bits.push(m.note);
+						var meta = el("span", { class: "pp-muted", text: bits.join(" · ") });
+						if (!editable) {
+							list.appendChild(el("li", null, [el("span", { text: name }), meta]));
+							return;
+						}
+						list.appendChild(el("li", null, [
+							el("span", { text: name }), meta,
+							el("button", {
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/members/" + m.id, { method: "DELETE" })
+										.then(function () { reload(renderProjectMembers); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					});
+					if (!(project.members || []).length) list.appendChild(el("li", { class: "pp-muted", text: __("No members yet.", "project-prepper") }));
+					membersSection.appendChild(list);
+
+					if (!editable) return;
+
+					// Anlege-Zeile: Select der Gruppenmitglieder, die noch NICHT im Roster
+					// sind, + freies Rollen-Feld. Gruppenmitglieder aus /groups/{owner_group_id}
+					// (fuer Gruppenmitglieder erlaubt), Roster-Mitglieder herausgefiltert.
+					function buildAddRow(groupMembers) {
+						var rosterIds = (project.members || []).map(function (m) { return m.user_id; });
+						var available = (groupMembers || []).filter(function (gm) { return rosterIds.indexOf(gm.user_id) === -1; });
+						if (!available.length) {
+							membersSection.appendChild(el("p", { class: "pp-muted", text: __("All group members are already listed.", "project-prepper") }));
+							return;
+						}
+						var userSelect = el("select", { class: "pp-input-lg" });
+						userSelect.appendChild(el("option", { value: "", text: __("— select group member —", "project-prepper") }));
+						available.forEach(function (gm) {
+							userSelect.appendChild(el("option", { value: gm.user_id, text: gm.display_name + (gm.user_email ? " (" + gm.user_email + ")" : "") }));
+						});
+						var roleInput = el("input", { type: "text", placeholder: __("Role", "project-prepper"), class: "pp-input-md" });
+						membersSection.appendChild(el("div", { class: "pp-row" }, [
+							userSelect, roleInput,
+							el("button", {
+								class: "pp-btn pp-btn-sm", text: __("Add member", "project-prepper"), type: "button",
+								onclick: function () {
+									if (!userSelect.value) return;
+									api("/projects/" + projectId + "/members", {
+										method: "POST",
+										body: JSON.stringify({ user_id: parseInt(userSelect.value, 10), role_title: roleInput.value.trim() })
+									}).then(function () {
+										groupMembersCache = null; // Roster aenderte sich -> Select neu aufbauen.
+										reload(renderProjectMembers);
+									}).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					}
+
+					if (groupMembersCache) {
+						buildAddRow(groupMembersCache);
+					} else {
+						api("/groups/" + project.owner_group_id).then(function (group) {
+							groupMembersCache = group.members || [];
+							buildAddRow(groupMembersCache);
+						}).catch(function () {
+							// Gruppe nicht ladbar (z. B. keine Berechtigung) -> kein Formular.
+						});
+					}
+				}
+				renderProjectMembers();
+
 				/* --- Team & Kontakte (Pendant zu tab-team der App) ---
 				   Eine Sektion mit zwei Unterlisten: Team (Name/Rolle/Abteilung)
 				   und Kontakte (Name/Rolle/Firma/E-Mail/Telefon). Single-Site:
@@ -1985,7 +2080,7 @@
 				}
 				renderTeam();
 
-				var body = el("div", null, [statusRow, info, bookingsSection, costsSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection]);
+				var body = el("div", null, [statusRow, info, membersSection, bookingsSection, costsSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection]);
 
 				var close;
 				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);

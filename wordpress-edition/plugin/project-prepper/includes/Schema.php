@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.10.0';
+	const VERSION    = '0.11.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -48,6 +48,7 @@ class Schema {
 		$p_files    = self::table( 'project_files' );
 		$groups     = self::table( 'groups' );
 		$g_members  = self::table( 'group_members' );
+		$p_members  = self::table( 'project_members' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -375,6 +376,25 @@ class Schema {
 				PRIMARY KEY  (id),
 				UNIQUE KEY group_user (group_id,user_id),
 				KEY user_id (user_id)
+			) {$charset};" );
+
+			// Projekt-Beteiligte (v0.11.0, Phase 2) — Pendant zu `project_members`
+			// der App, bewusst schlank: das Roster verweist auf WP-User aus der
+			// besitzenden Gruppe des Projekts (owner_group_id) + freie Rolle + Notiz.
+			// KEINE Beträge/Raten (kommen mit Gewinn-/Vereinbarungs-Phase), KEINE
+			// zweite Zugriffsebene — Zugriff bleibt gruppen-basiert (Phase 1). Rein
+			// dokumentarisch: wer ist am Projekt beteiligt und in welcher Rolle.
+			dbDelta( "CREATE TABLE {$p_members} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				project_id bigint(20) unsigned NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				role_title varchar(190) NOT NULL DEFAULT '',
+				note text,
+				sort_order int(11) NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY project_id (project_id),
+				UNIQUE KEY project_user (project_id,user_id)
 			) {$charset};" );
 
 		self::upgrade_data();

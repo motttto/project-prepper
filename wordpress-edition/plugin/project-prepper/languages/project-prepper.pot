@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Project Prepper 0.13.1\n"
+"Project-Id-Version: Project Prepper 0.14.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/project-prepper\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-13T11:34:36+00:00\n"
+"POT-Creation-Date: 2026-06-13T12:11:02+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: project-prepper\n"
@@ -172,7 +172,7 @@ msgstr ""
 
 #: includes/Frontend/Shortcodes.php:29
 #: admin/js/admin.js:118
-#: admin/js/admin.js:2227
+#: admin/js/admin.js:2322
 msgid "New"
 msgstr ""
 
@@ -222,12 +222,12 @@ msgstr ""
 #: admin/js/admin.js:1228
 #: admin/js/admin.js:1524
 #: admin/js/admin.js:1559
-#: admin/js/admin.js:1915
-#: admin/js/admin.js:1963
-#: admin/js/admin.js:2158
-#: admin/js/admin.js:2303
-#: admin/js/admin.js:2349
-#: admin/js/admin.js:2492
+#: admin/js/admin.js:2010
+#: admin/js/admin.js:2058
+#: admin/js/admin.js:2253
+#: admin/js/admin.js:2398
+#: admin/js/admin.js:2444
+#: admin/js/admin.js:2587
 msgid "Name"
 msgstr ""
 
@@ -236,8 +236,8 @@ msgstr ""
 #: admin/js/admin.js:1050
 #: admin/js/admin.js:1125
 #: admin/js/admin.js:1301
-#: admin/js/admin.js:1966
-#: admin/js/admin.js:2304
+#: admin/js/admin.js:2061
+#: admin/js/admin.js:2399
 msgid "Email"
 msgstr ""
 
@@ -247,8 +247,8 @@ msgstr ""
 #: admin/js/admin.js:1051
 #: admin/js/admin.js:1125
 #: admin/js/admin.js:1301
-#: admin/js/admin.js:1967
-#: admin/js/admin.js:2305
+#: admin/js/admin.js:2062
+#: admin/js/admin.js:2400
 msgid "Phone"
 msgstr ""
 
@@ -262,16 +262,16 @@ msgstr ""
 #: includes/Privacy.php:56
 #: admin/js/admin.js:978
 #: admin/js/admin.js:1228
-#: admin/js/admin.js:2306
-#: admin/js/admin.js:2349
+#: admin/js/admin.js:2401
+#: admin/js/admin.js:2444
 msgid "Period"
 msgstr ""
 
 #: includes/Privacy.php:57
 #: admin/js/admin.js:836
 #: admin/js/admin.js:1228
-#: admin/js/admin.js:2069
-#: admin/js/admin.js:2349
+#: admin/js/admin.js:2164
+#: admin/js/admin.js:2444
 msgid "Status"
 msgstr ""
 
@@ -336,10 +336,10 @@ msgstr ""
 #: admin/js/admin.js:656
 #: admin/js/admin.js:1418
 #: admin/js/admin.js:1447
-#: admin/js/admin.js:2492
-#: admin/js/admin.js:2516
-#: admin/js/admin.js:2604
-#: admin/js/admin.js:2618
+#: admin/js/admin.js:2587
+#: admin/js/admin.js:2611
+#: admin/js/admin.js:2699
+#: admin/js/admin.js:2713
 msgid "Description"
 msgstr ""
 
@@ -482,8 +482,8 @@ msgstr ""
 #: includes/Rest/InquiriesController.php:72
 #: includes/Rest/RentalsController.php:120
 #: includes/Services/Inquiries.php:167
-#: includes/Services/Projects.php:108
-#: includes/Services/Projects.php:244
+#: includes/Services/Projects.php:109
+#: includes/Services/Projects.php:245
 #: includes/Services/Tasks.php:48
 #: includes/Services/Tasks.php:91
 #: includes/Services/Tasks.php:97
@@ -502,10 +502,10 @@ msgid "Item not found."
 msgstr ""
 
 #: includes/Rest/ItemsController.php:115
-#: includes/Services/Projects.php:464
-#: includes/Services/Projects.php:525
-#: includes/Services/Projects.php:528
-#: includes/Services/Projects.php:531
+#: includes/Services/Projects.php:466
+#: includes/Services/Projects.php:527
+#: includes/Services/Projects.php:530
+#: includes/Services/Projects.php:533
 #: includes/Services/Rentals.php:113
 #: includes/Services/Rentals.php:226
 #: includes/Services/Schedule.php:58
@@ -527,63 +527,73 @@ msgstr ""
 msgid "File type not allowed."
 msgstr ""
 
-#: includes/Rest/ProjectsController.php:317
-#: includes/Rest/ProjectsController.php:385
-#: includes/Rest/ProjectsController.php:436
-#: includes/Rest/ProjectsController.php:443
-#: includes/Rest/ProjectsController.php:504
-#: includes/Rest/ProjectsController.php:514
-#: includes/Rest/ProjectsController.php:584
-#: includes/Rest/ProjectsController.php:591
-#: includes/Rest/ProjectsController.php:653
-#: includes/Rest/ProjectsController.php:660
-#: includes/Rest/ProjectsController.php:716
-#: includes/Rest/ProjectsController.php:723
-#: includes/Rest/ProjectsController.php:782
-#: includes/Rest/ProjectsController.php:789
-#: includes/Rest/ProjectsController.php:852
-#: includes/Rest/ProjectsController.php:920
-#: includes/Services/Projects.php:176
-#: includes/Services/Projects.php:241
-#: includes/Services/Projects.php:337
-#: includes/Services/Projects.php:374
+#: includes/Rest/ProjectsController.php:344
+#: includes/Rest/ProjectsController.php:412
+#: includes/Rest/ProjectsController.php:463
+#: includes/Rest/ProjectsController.php:470
+#: includes/Rest/ProjectsController.php:531
+#: includes/Rest/ProjectsController.php:541
+#: includes/Rest/ProjectsController.php:611
+#: includes/Rest/ProjectsController.php:618
+#: includes/Rest/ProjectsController.php:680
+#: includes/Rest/ProjectsController.php:687
+#: includes/Rest/ProjectsController.php:743
+#: includes/Rest/ProjectsController.php:750
+#: includes/Rest/ProjectsController.php:809
+#: includes/Rest/ProjectsController.php:816
+#: includes/Rest/ProjectsController.php:882
+#: includes/Rest/ProjectsController.php:889
+#: includes/Rest/ProjectsController.php:937
+#: includes/Rest/ProjectsController.php:964
+#: includes/Rest/ProjectsController.php:1032
+#: includes/Services/Projects.php:177
+#: includes/Services/Projects.php:242
+#: includes/Services/Projects.php:339
+#: includes/Services/Projects.php:376
 msgid "Project not found."
 msgstr ""
 
-#: includes/Rest/ProjectsController.php:484
+#: includes/Rest/ProjectsController.php:511
 #: includes/Services/Schedule.php:92
 #: includes/Services/Schedule.php:149
 msgid "Schedule entry not found."
 msgstr ""
 
-#: includes/Rest/ProjectsController.php:555
+#: includes/Rest/ProjectsController.php:582
 #: includes/Services/Costs.php:101
 #: includes/Services/Costs.php:158
 msgid "Cost item not found."
 msgstr ""
 
-#: includes/Rest/ProjectsController.php:630
+#: includes/Rest/ProjectsController.php:657
 #: includes/Services/Consumables.php:74
 #: includes/Services/Consumables.php:117
 msgid "Consumable not found."
 msgstr ""
 
-#: includes/Rest/ProjectsController.php:699
+#: includes/Rest/ProjectsController.php:726
 #: includes/Services/Team.php:69
 #: includes/Services/Team.php:105
 msgid "Team member not found."
 msgstr ""
 
-#: includes/Rest/ProjectsController.php:762
+#: includes/Rest/ProjectsController.php:789
 #: includes/Services/Contacts.php:71
 #: includes/Services/Contacts.php:113
 msgid "Contact not found."
 msgstr ""
 
-#: includes/Rest/ProjectsController.php:843
+#: includes/Rest/ProjectsController.php:870
 #: includes/Services/Files.php:127
 #: includes/Services/Files.php:157
 msgid "File not found."
+msgstr ""
+
+#: includes/Rest/ProjectsController.php:941
+#: includes/Services/Groups.php:244
+#: includes/Services/ProjectMembers.php:160
+#: includes/Services/ProjectMembers.php:190
+msgid "Member not found."
 msgstr ""
 
 #: includes/Rest/RentalsController.php:62
@@ -625,9 +635,9 @@ msgstr ""
 #: includes/Services/Costs.php:117
 #: includes/Services/Costs.php:124
 #: includes/Services/Costs.php:131
-#: includes/Services/Projects.php:116
-#: includes/Services/Projects.php:120
-#: includes/Services/Projects.php:206
+#: includes/Services/Projects.php:117
+#: includes/Services/Projects.php:121
+#: includes/Services/Projects.php:207
 msgid "Invalid amount."
 msgstr ""
 
@@ -646,11 +656,8 @@ msgid "Group name is required."
 msgstr ""
 
 #: includes/Services/Groups.php:196
+#: includes/Services/ProjectMembers.php:85
 msgid "Unknown user."
-msgstr ""
-
-#: includes/Services/Groups.php:244
-msgid "Member not found."
 msgstr ""
 
 #: includes/Services/Groups.php:255
@@ -689,43 +696,51 @@ msgstr ""
 msgid "Category not found."
 msgstr ""
 
-#: includes/Services/Projects.php:104
-#: includes/Services/Projects.php:179
+#: includes/Services/ProjectMembers.php:96
+msgid "This project has no owning group. Assign a group first to add members."
+msgstr ""
+
+#: includes/Services/ProjectMembers.php:103
+msgid "This user is not a member of the project group."
+msgstr ""
+
+#: includes/Services/Projects.php:105
+#: includes/Services/Projects.php:180
 msgid "Project name is required."
 msgstr ""
 
-#: includes/Services/Projects.php:250
+#: includes/Services/Projects.php:251
 msgid "Cancelled projects cannot change status."
 msgstr ""
 
-#: includes/Services/Projects.php:378
-#: includes/Services/Projects.php:421
+#: includes/Services/Projects.php:380
+#: includes/Services/Projects.php:423
 msgid "Line item not found."
 msgstr ""
 
-#: includes/Services/Projects.php:454
+#: includes/Services/Projects.php:456
 #: includes/Services/Rentals.php:125
 #: includes/Services/Rentals.php:247
 msgid "Invalid line item."
 msgstr ""
 
-#: includes/Services/Projects.php:461
+#: includes/Services/Projects.php:463
 msgid "Provide both start and end date, or neither."
 msgstr ""
 
 #. translators: 1: item name, 2: available quantity
-#: includes/Services/Projects.php:500
+#: includes/Services/Projects.php:502
 #: includes/Services/Rentals.php:137
 #: includes/Services/Rentals.php:259
 #, php-format
 msgid "\"%1$s\" is only available %2$d× in this period."
 msgstr ""
 
-#: includes/Services/Projects.php:576
+#: includes/Services/Projects.php:578
 msgid "Unknown group."
 msgstr ""
 
-#: includes/Services/Projects.php:580
+#: includes/Services/Projects.php:582
 msgid "You are not a member of this group."
 msgstr ""
 
@@ -771,8 +786,8 @@ msgid "Task not found."
 msgstr ""
 
 #: templates/availability.php:20
-#: admin/js/admin.js:2328
-#: admin/js/admin.js:2349
+#: admin/js/admin.js:2423
+#: admin/js/admin.js:2444
 msgid "Equipment"
 msgstr ""
 
@@ -789,8 +804,8 @@ msgstr ""
 #: admin/js/admin.js:1332
 #: admin/js/admin.js:1370
 #: admin/js/admin.js:1686
-#: admin/js/admin.js:2038
-#: admin/js/admin.js:2070
+#: admin/js/admin.js:2133
+#: admin/js/admin.js:2165
 msgid "From"
 msgstr ""
 
@@ -803,8 +818,8 @@ msgstr ""
 #: admin/js/admin.js:1333
 #: admin/js/admin.js:1371
 #: admin/js/admin.js:1687
-#: admin/js/admin.js:2039
-#: admin/js/admin.js:2070
+#: admin/js/admin.js:2134
+#: admin/js/admin.js:2165
 msgid "To"
 msgstr ""
 
@@ -854,9 +869,9 @@ msgstr ""
 #: admin/js/admin.js:512
 #: admin/js/admin.js:1049
 #: admin/js/admin.js:1299
-#: admin/js/admin.js:2036
-#: admin/js/admin.js:2069
-#: admin/js/admin.js:2197
+#: admin/js/admin.js:2131
+#: admin/js/admin.js:2164
+#: admin/js/admin.js:2292
 msgid "Name *"
 msgstr ""
 
@@ -869,8 +884,8 @@ msgid "Requested equipment"
 msgstr ""
 
 #: templates/request-form.php:65
-#: admin/js/admin.js:2314
-#: admin/js/admin.js:2349
+#: admin/js/admin.js:2409
+#: admin/js/admin.js:2444
 msgid "Message"
 msgstr ""
 
@@ -1095,9 +1110,10 @@ msgstr ""
 #: admin/js/admin.js:1673
 #: admin/js/admin.js:1753
 #: admin/js/admin.js:1843
-#: admin/js/admin.js:1903
-#: admin/js/admin.js:1951
-#: admin/js/admin.js:2531
+#: admin/js/admin.js:1915
+#: admin/js/admin.js:1998
+#: admin/js/admin.js:2046
+#: admin/js/admin.js:2626
 msgid "remove"
 msgstr ""
 
@@ -1115,8 +1131,8 @@ msgstr ""
 
 #: admin/js/admin.js:410
 #: admin/js/admin.js:1728
-#: admin/js/admin.js:2182
-#: admin/js/admin.js:2273
+#: admin/js/admin.js:2277
+#: admin/js/admin.js:2368
 msgid "delete"
 msgstr ""
 
@@ -1178,25 +1194,25 @@ msgstr ""
 
 #: admin/js/admin.js:464
 #: admin/js/admin.js:993
-#: admin/js/admin.js:1991
-#: admin/js/admin.js:2336
-#: admin/js/admin.js:2585
+#: admin/js/admin.js:2086
+#: admin/js/admin.js:2431
+#: admin/js/admin.js:2680
 msgid "Close"
 msgstr ""
 
 #: admin/js/admin.js:466
 #: admin/js/admin.js:996
-#: admin/js/admin.js:1994
-#: admin/js/admin.js:2406
-#: admin/js/admin.js:2576
+#: admin/js/admin.js:2089
+#: admin/js/admin.js:2501
+#: admin/js/admin.js:2671
 msgid "Save"
 msgstr ""
 
 #: admin/js/admin.js:498
 #: admin/js/admin.js:1016
-#: admin/js/admin.js:2013
-#: admin/js/admin.js:2169
-#: admin/js/admin.js:2581
+#: admin/js/admin.js:2108
+#: admin/js/admin.js:2264
+#: admin/js/admin.js:2676
 msgid "Saved."
 msgstr ""
 
@@ -1221,7 +1237,7 @@ msgid "Item %s created."
 msgstr ""
 
 #: admin/js/admin.js:577
-#: admin/js/admin.js:2215
+#: admin/js/admin.js:2310
 msgid "Create"
 msgstr ""
 
@@ -1396,7 +1412,7 @@ msgstr ""
 
 #. translators: %s: rental number
 #: admin/js/admin.js:1117
-#: admin/js/admin.js:2251
+#: admin/js/admin.js:2346
 #, js-format
 msgid "Rental %s created."
 msgstr ""
@@ -1446,21 +1462,21 @@ msgid "External services"
 msgstr ""
 
 #: admin/js/admin.js:1184
-#: admin/js/admin.js:2087
+#: admin/js/admin.js:2182
 msgid "— site level —"
 msgstr ""
 
 #: admin/js/admin.js:1228
 #: admin/js/admin.js:1300
-#: admin/js/admin.js:2040
-#: admin/js/admin.js:2071
+#: admin/js/admin.js:2135
+#: admin/js/admin.js:2166
 msgid "Venue"
 msgstr ""
 
 #: admin/js/admin.js:1228
 #: admin/js/admin.js:1301
-#: admin/js/admin.js:2041
-#: admin/js/admin.js:2071
+#: admin/js/admin.js:2136
+#: admin/js/admin.js:2166
 msgid "Client"
 msgstr ""
 
@@ -1486,7 +1502,7 @@ msgid "Revenue (net)"
 msgstr ""
 
 #: admin/js/admin.js:1303
-#: admin/js/admin.js:2072
+#: admin/js/admin.js:2167
 msgid "Group"
 msgstr ""
 
@@ -1625,7 +1641,7 @@ msgid "No schedule entries."
 msgstr ""
 
 #: admin/js/admin.js:1685
-#: admin/js/admin.js:2349
+#: admin/js/admin.js:2444
 msgid "Date"
 msgstr ""
 
@@ -1698,352 +1714,378 @@ msgstr ""
 msgid "+ Task"
 msgstr ""
 
-#: admin/js/admin.js:1889
-msgid "Team & Contacts"
-msgstr ""
-
 #: admin/js/admin.js:1892
-msgid "Team"
+msgid "Project members"
 msgstr ""
 
-#: admin/js/admin.js:1911
-msgid "No team members."
+#: admin/js/admin.js:1896
+msgid "Assign a group to add members."
 msgstr ""
 
-#: admin/js/admin.js:1916
-#: admin/js/admin.js:1964
+#: admin/js/admin.js:1902
+msgid "(removed user)"
+msgstr ""
+
+#: admin/js/admin.js:1923
+msgid "No members yet."
+msgstr ""
+
+#: admin/js/admin.js:1935
+msgid "All group members are already listed."
+msgstr ""
+
+#: admin/js/admin.js:1939
+msgid "— select group member —"
+msgstr ""
+
+#: admin/js/admin.js:1943
+#: admin/js/admin.js:2011
+#: admin/js/admin.js:2059
 msgid "Role"
 msgstr ""
 
-#: admin/js/admin.js:1917
+#: admin/js/admin.js:1947
+#: admin/js/admin.js:2652
+msgid "Add member"
+msgstr ""
+
+#: admin/js/admin.js:1984
+msgid "Team & Contacts"
+msgstr ""
+
+#: admin/js/admin.js:1987
+msgid "Team"
+msgstr ""
+
+#: admin/js/admin.js:2006
+msgid "No team members."
+msgstr ""
+
+#: admin/js/admin.js:2012
 msgid "Department"
 msgstr ""
 
-#: admin/js/admin.js:1921
+#: admin/js/admin.js:2016
 msgid "+ Team member"
 msgstr ""
 
-#: admin/js/admin.js:1937
+#: admin/js/admin.js:2032
 msgid "Contacts"
 msgstr ""
 
-#: admin/js/admin.js:1959
+#: admin/js/admin.js:2054
 msgid "No contacts."
 msgstr ""
 
-#: admin/js/admin.js:1965
+#: admin/js/admin.js:2060
 msgid "Company"
 msgstr ""
 
-#: admin/js/admin.js:1971
+#: admin/js/admin.js:2066
 msgid "+ Contact"
 msgstr ""
 
-#: admin/js/admin.js:2020
+#: admin/js/admin.js:2115
 msgid "Delete project"
 msgstr ""
 
 #. translators: %s: project name
-#: admin/js/admin.js:2023
+#: admin/js/admin.js:2118
 #, js-format
 msgid "Delete project \"%s\"? Bookings, checklists and tasks will be deleted too."
 msgstr ""
 
-#: admin/js/admin.js:2044
+#: admin/js/admin.js:2139
 msgid "New project"
 msgstr ""
 
 #. translators: %s: project number
-#: admin/js/admin.js:2062
+#: admin/js/admin.js:2157
 #, js-format
 msgid "Project %s created."
 msgstr ""
 
-#: admin/js/admin.js:2073
+#: admin/js/admin.js:2168
 msgid "Create project"
 msgstr ""
 
-#: admin/js/admin.js:2112
+#: admin/js/admin.js:2207
 msgid "No other category available as target."
 msgstr ""
 
-#: admin/js/admin.js:2117
+#: admin/js/admin.js:2212
 msgid "Counting items …"
 msgstr ""
 
 #. translators: 1: number of items, 2: category name
-#: admin/js/admin.js:2120
+#: admin/js/admin.js:2215
 #, js-format
 msgid "%1$d items will be moved to the target category, then \"%2$s\" will be deleted."
 msgstr ""
 
 #. translators: %s: category name
-#: admin/js/admin.js:2123
+#: admin/js/admin.js:2218
 #, js-format
 msgid "All items will be moved to the target category, then \"%s\" will be deleted."
 msgstr ""
 
 #. translators: %s: category name
-#: admin/js/admin.js:2128
+#: admin/js/admin.js:2223
 #, js-format
 msgid "Target category for \"%s\""
 msgstr ""
 
-#: admin/js/admin.js:2135
+#: admin/js/admin.js:2230
 msgid "Cancel"
 msgstr ""
 
-#: admin/js/admin.js:2137
+#: admin/js/admin.js:2232
 msgid "Merge"
 msgstr ""
 
 #. translators: %d: number of moved items
-#: admin/js/admin.js:2144
+#: admin/js/admin.js:2239
 #, js-format
 msgid "%d items moved, category deleted."
 msgstr ""
 
-#: admin/js/admin.js:2151
+#: admin/js/admin.js:2246
 msgid "Merge category"
 msgstr ""
 
-#: admin/js/admin.js:2158
+#: admin/js/admin.js:2253
 msgid "Icon"
 msgstr ""
 
-#: admin/js/admin.js:2158
-#: admin/js/admin.js:2199
+#: admin/js/admin.js:2253
+#: admin/js/admin.js:2294
 msgid "Prefix"
 msgstr ""
 
-#: admin/js/admin.js:2178
+#: admin/js/admin.js:2273
 msgid "Merge…"
 msgstr ""
 
 #. translators: %s: category name
-#: admin/js/admin.js:2185
+#: admin/js/admin.js:2280
 #, js-format
 msgid "Delete category \"%s\"? Items will be kept."
 msgstr ""
 
-#: admin/js/admin.js:2198
+#: admin/js/admin.js:2293
 msgid "Icon (emoji)"
 msgstr ""
 
-#: admin/js/admin.js:2201
+#: admin/js/admin.js:2296
 msgid "New category"
 msgstr ""
 
-#: admin/js/admin.js:2212
+#: admin/js/admin.js:2307
 msgid "Category created."
 msgstr ""
 
-#: admin/js/admin.js:2227
+#: admin/js/admin.js:2322
 msgid "Contacted"
 msgstr ""
 
-#: admin/js/admin.js:2227
+#: admin/js/admin.js:2322
 msgid "Offer"
 msgstr ""
 
-#: admin/js/admin.js:2227
+#: admin/js/admin.js:2322
 msgid "Won"
 msgstr ""
 
-#: admin/js/admin.js:2227
+#: admin/js/admin.js:2322
 msgid "Lost"
 msgstr ""
 
-#: admin/js/admin.js:2227
+#: admin/js/admin.js:2322
 msgid "Closed"
 msgstr ""
 
-#: admin/js/admin.js:2244
+#: admin/js/admin.js:2339
 msgid "Convert to rental"
 msgstr ""
 
 #. translators: %s: name of the person who sent the inquiry
-#: admin/js/admin.js:2248
+#: admin/js/admin.js:2343
 #, js-format
 msgid "Convert the inquiry from \"%s\" into a rental? The inquiry will be marked as won."
 msgstr ""
 
-#: admin/js/admin.js:2258
+#: admin/js/admin.js:2353
 msgid "Date range missing — cannot convert"
 msgstr ""
 
 #. translators: %s: name of the person who sent the inquiry
-#: admin/js/admin.js:2277
+#: admin/js/admin.js:2372
 #, js-format
 msgid "Delete the inquiry from \"%s\"?"
 msgstr ""
 
-#: admin/js/admin.js:2307
+#: admin/js/admin.js:2402
 msgid "Received on"
 msgstr ""
 
 #. translators: %d: item ID
-#: admin/js/admin.js:2323
+#: admin/js/admin.js:2418
 #, js-format
 msgid "Item #%d"
 msgstr ""
 
-#: admin/js/admin.js:2326
+#: admin/js/admin.js:2421
 msgid "No equipment requested."
 msgstr ""
 
 #. translators: %s: name of the person who sent the inquiry
-#: admin/js/admin.js:2340
+#: admin/js/admin.js:2435
 #, js-format
 msgid "Inquiry from %s"
 msgstr ""
 
-#: admin/js/admin.js:2349
+#: admin/js/admin.js:2444
 msgid "Contact"
 msgstr ""
 
-#: admin/js/admin.js:2367
+#: admin/js/admin.js:2462
 msgid "No inquiries yet. Add the form to any page with the [pp_request_form] shortcode."
 msgstr ""
 
-#: admin/js/admin.js:2389
+#: admin/js/admin.js:2484
 msgid "Reservation confirmed"
 msgstr ""
 
-#: admin/js/admin.js:2390
+#: admin/js/admin.js:2485
 msgid "Equipment handed out"
 msgstr ""
 
-#: admin/js/admin.js:2391
+#: admin/js/admin.js:2486
 msgid "Return confirmed"
 msgstr ""
 
-#: admin/js/admin.js:2400
+#: admin/js/admin.js:2495
 msgid "Subject"
 msgstr ""
 
-#: admin/js/admin.js:2401
+#: admin/js/admin.js:2496
 msgid "Text"
 msgstr ""
 
-#: admin/js/admin.js:2420
+#: admin/js/admin.js:2515
 msgid "Settings saved."
 msgstr ""
 
-#: admin/js/admin.js:2425
+#: admin/js/admin.js:2520
 msgid "Email notifications"
 msgstr ""
 
-#: admin/js/admin.js:2426
+#: admin/js/admin.js:2521
 msgid "Send emails to borrowers (reservation, handout, return)"
 msgstr ""
 
-#: admin/js/admin.js:2427
+#: admin/js/admin.js:2522
 msgid "Placeholders:"
 msgstr ""
 
-#: admin/js/admin.js:2433
+#: admin/js/admin.js:2528
 msgid "Calendar feed (iCal)"
 msgstr ""
 
-#: admin/js/admin.js:2434
+#: admin/js/admin.js:2529
 msgid "Read-only feed of all reserved/active rentals — subscribe in Apple/Google/Outlook."
 msgstr ""
 
-#: admin/js/admin.js:2438
+#: admin/js/admin.js:2533
 msgid "Copy URL"
 msgstr ""
 
-#: admin/js/admin.js:2440
+#: admin/js/admin.js:2535
 msgid "Copied."
 msgstr ""
 
-#: admin/js/admin.js:2444
+#: admin/js/admin.js:2539
 msgid "Regenerate token"
 msgstr ""
 
-#: admin/js/admin.js:2446
+#: admin/js/admin.js:2541
 msgid "Regenerate token? Existing calendar subscriptions will lose access."
 msgstr ""
 
-#: admin/js/admin.js:2450
+#: admin/js/admin.js:2545
 msgid "Token regenerated."
 msgstr ""
 
-#: admin/js/admin.js:2461
+#: admin/js/admin.js:2556
 msgid "Public frontend"
 msgstr ""
 
-#: admin/js/admin.js:2462
+#: admin/js/admin.js:2557
 msgid "Show daily rates publicly (item detail page /equipment-item/…)"
 msgstr ""
 
-#: admin/js/admin.js:2463
+#: admin/js/admin.js:2558
 msgid "Inventory cards link to a public detail page per item. Purchase price and serial number are never shown there."
 msgstr ""
 
-#: admin/js/admin.js:2470
+#: admin/js/admin.js:2565
 msgid "Data"
 msgstr ""
 
-#: admin/js/admin.js:2471
+#: admin/js/admin.js:2566
 msgid "Delete all plugin data on uninstall"
 msgstr ""
 
-#: admin/js/admin.js:2472
+#: admin/js/admin.js:2567
 msgid "GDPR: export & anonymization of borrower data via Tools → Personal Data (search by email address)."
 msgstr ""
 
-#: admin/js/admin.js:2483
+#: admin/js/admin.js:2578
 msgid "Founder"
 msgstr ""
 
-#: admin/js/admin.js:2483
+#: admin/js/admin.js:2578
 msgid "Member"
 msgstr ""
 
-#: admin/js/admin.js:2492
-#: admin/js/admin.js:2523
+#: admin/js/admin.js:2587
+#: admin/js/admin.js:2618
 msgid "Members"
 msgstr ""
 
-#: admin/js/admin.js:2502
+#: admin/js/admin.js:2597
 msgid "No groups yet."
 msgstr ""
 
-#: admin/js/admin.js:2515
-#: admin/js/admin.js:2603
-#: admin/js/admin.js:2617
+#: admin/js/admin.js:2610
+#: admin/js/admin.js:2698
+#: admin/js/admin.js:2712
 msgid "Group name"
 msgstr ""
 
-#: admin/js/admin.js:2540
+#: admin/js/admin.js:2635
 msgid "No members."
 msgstr ""
 
-#: admin/js/admin.js:2546
+#: admin/js/admin.js:2641
 msgid "— select user —"
 msgstr ""
 
-#: admin/js/admin.js:2557
-msgid "Add member"
-msgstr ""
-
-#: admin/js/admin.js:2589
+#: admin/js/admin.js:2684
 msgid "Delete group"
 msgstr ""
 
 #. translators: %s: group name
-#: admin/js/admin.js:2592
+#: admin/js/admin.js:2687
 #, js-format
 msgid "Delete group \"%s\"? Projects of this group return to site level."
 msgstr ""
 
-#: admin/js/admin.js:2606
+#: admin/js/admin.js:2701
 msgid "New group"
 msgstr ""
 
-#: admin/js/admin.js:2619
+#: admin/js/admin.js:2714
 msgid "Create group"
 msgstr ""
 

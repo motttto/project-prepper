@@ -7,6 +7,7 @@ use ProjectPrepper\Services\Consumables;
 use ProjectPrepper\Services\Contacts;
 use ProjectPrepper\Services\Costs;
 use ProjectPrepper\Services\Files;
+use ProjectPrepper\Services\ProjectMembers;
 use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\Schedule;
 use ProjectPrepper\Services\Tasks;
@@ -241,6 +242,32 @@ class ProjectsController extends BaseController {
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'remove_file' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/members', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'members' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'add_member' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/members/(?P<member_id>\d+)', [
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_member' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_member' ],
 				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
 			],
 		] );
@@ -843,6 +870,91 @@ class ProjectsController extends BaseController {
 			return new WP_Error( 'pp_not_found', __( 'File not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		return true;
+	}
+
+	/* ---------- Beteiligte (Gruppen-Phase 2) ---------- */
+
+	public function members( WP_REST_Request $request ) {
+		// Projects::get() liefert für Nicht-Gruppenmitglieder eines Gruppen-Projekts
+		// null → 404 (Gruppen-Zugriffsguard aus Phase 1, kein Leak). Site-Projekte
+		// + Mitglieder + Admins erhalten das Projekt → Zugriff erlaubt.
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( ProjectMembers::for_project( (int) $request['id'] ) );
+	}
+
+	public function add_member( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$json   = $request->get_json_params() ?: [];
+		$result = ProjectMembers::add(
+			(int) $request['id'],
+			(int) ( $json['user_id'] ?? 0 ),
+			$this->member_payload( $json )
+		);
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( ProjectMembers::for_project( (int) $request['id'] ), 201 );
+	}
+
+	public function update_member( WP_REST_Request $request ) {
+		$owner = $this->member_in_project( (int) $request['id'], (int) $request['member_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = ProjectMembers::update( (int) $request['member_id'], $this->member_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( ProjectMembers::for_project( (int) $request['id'] ) );
+	}
+
+	public function remove_member( WP_REST_Request $request ) {
+		$owner = $this->member_in_project( (int) $request['id'], (int) $request['member_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = ProjectMembers::remove( (int) $request['member_id'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( ProjectMembers::for_project( (int) $request['id'] ) );
+	}
+
+	/**
+	 * Sicherstellen, dass die Roster-Zeile zum Projekt der URL gehört (nested
+	 * route) UND dass der Aufrufer auf das Projekt zugreifen darf (Gruppen-Guard
+	 * aus Phase 1). Reihenfolge: erst Projekt-Zugriff (404 bei Fremd-Projekt,
+	 * kein Leak über die Existenz der Roster-Zeile), dann Zugehörigkeit.
+	 *
+	 * @return true|WP_Error
+	 */
+	private function member_in_project( int $project_id, int $member_id ) {
+		if ( ! Projects::get( $project_id ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$entry = ProjectMembers::get( $member_id );
+		if ( ! $entry || (int) $entry->project_id !== $project_id ) {
+			return new WP_Error( 'pp_not_found', __( 'Member not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return true;
+	}
+
+	private function member_payload( array $json ): array {
+		$data = [];
+		if ( array_key_exists( 'role_title', $json ) ) {
+			$data['role_title'] = sanitize_text_field( (string) $json['role_title'] );
+		}
+		if ( array_key_exists( 'note', $json ) ) {
+			$data['note'] = sanitize_textarea_field( (string) $json['note'] );
+		}
+		if ( array_key_exists( 'sort_order', $json ) ) {
+			$data['sort_order'] = (int) $json['sort_order'];
+		}
+		return $data;
 	}
 
 	/* ---------- Checklisten ---------- */
