@@ -1812,3 +1812,11 @@ msgstr "Equipment-Auswahl anzeigen"
 #~ msgstr ""
 #~ "Equipment-Inventar & Verleih für Teams — Kategorien mit Nummernkreisen, "
 #~ "Einzelstücke, Verfügbarkeitsprüfung und Verleih-Verwaltung."
+
+#: admin/js/admin.js
+msgid "Booked in projects"
+msgstr "In Projekten gebucht"
+
+#: admin/js/admin.js
+msgid "no date"
+msgstr "kein Datum"

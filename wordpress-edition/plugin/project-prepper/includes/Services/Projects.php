@@ -522,4 +522,33 @@ class Projects {
 		}
 		return round( $num, 2 );
 	}
+
+	/**
+	 * Projekte, die einen bestimmten Artikel buchen — für die namentliche
+	 * Anzeige „in Projekt X gebucht" im Inventar-Item-Detail (Pendant zum
+	 * aggregierten out_now-Zähler). Liefert ALLE Buchungen (auch nicht-
+	 * blockierende wie draft/planned), damit der Nutzer den vollen Kontext
+	 * sieht; das Frontend kennzeichnet blockende Stati über das Badge.
+	 *
+	 * Effektiver Zeitraum = Zeilen-Datum mit Fallback auf den Projekt-Zeitraum.
+	 * Sortiert nach Start, dann Projekt.
+	 *
+	 * @return array<object>
+	 */
+	public static function bookings_for_item( int $item_id ): array {
+		global $wpdb;
+		return $wpdb->get_results( $wpdb->prepare(
+			'SELECT pi.id AS booking_id, pi.quantity,
+					COALESCE(pi.date_from, p.date_start) AS date_from,
+					COALESCE(pi.date_to, p.date_end) AS date_to,
+					p.id AS project_id, p.project_number, p.name AS project_name, p.status
+			 FROM %i pi
+			 INNER JOIN %i p ON p.id = pi.project_id
+			 WHERE pi.item_id = %d
+			 ORDER BY COALESCE(pi.date_from, p.date_start) IS NULL, COALESCE(pi.date_from, p.date_start) ASC, p.id ASC',
+			Schema::table( 'project_items' ),
+			Schema::table( 'projects' ),
+			$item_id
+		) ) ?: [];
+	}
 }

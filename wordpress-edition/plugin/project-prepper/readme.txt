@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.13.0
+Stable tag: 0.13.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -74,6 +74,10 @@ for the XLSX import/export in the admin. SheetJS CE is licensed under the Apache
 (https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
 
 == Changelog ==
+
+= 0.13.1 =
+* Inventory item detail now lists the projects an item is booked in (name, status, quantity and period) — the named counterpart to the aggregated "out" badge
+* Items are deep-linkable in the admin via #pp-item-{id} (used by the project booking links)
 
 = 0.13.0 =
 * New Files section in the project detail: attach files from the WordPress media library to a project; each file shows as a link with its MIME type and can be removed

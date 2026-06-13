@@ -428,6 +428,26 @@
 				renderUnits();
 				body.appendChild(unitsSection);
 
+				// Projekt-Buchungen (read-only): in welchen Projekten der Artikel
+				// gebucht ist — namentlich, Pendant zum aggregierten out_now-Zähler.
+				var bookings = item.project_bookings || [];
+				if (bookings.length) {
+					var PB_STATUS = { draft: __("Draft", "project-prepper"), planned: __("Planned", "project-prepper"), confirmed: __("Confirmed", "project-prepper"), running: __("Running", "project-prepper"), done: __("Done", "project-prepper"), cancelled: __("Cancelled", "project-prepper") };
+					var PB_BADGE = { draft: "draft", planned: "reserved", confirmed: "offer", running: "active", done: "returned", cancelled: "cancelled" };
+					var bookSection = el("div", { class: "pp-modal-section" }, [el("h3", { text: __("Booked in projects", "project-prepper") })]);
+					var blist = el("ul", { class: "pp-lines" });
+					bookings.forEach(function (b) {
+						var period = b.date_from ? (dateDe(b.date_from) + (b.date_to ? " – " + dateDe(b.date_to) : "")) : __("no date", "project-prepper");
+						blist.appendChild(el("li", null, [
+							el("span", { class: "pp-badge pp-badge-" + (PB_BADGE[b.status] || b.status), text: PB_STATUS[b.status] || b.status }),
+							el("a", { href: "admin.php?page=pp-projects#pp-project-" + b.project_id, class: "pp-link", text: b.project_name }),
+							el("span", { class: "pp-muted", text: " · " + b.quantity + "× · " + period })
+						]));
+					});
+					bookSection.appendChild(blist);
+					body.appendChild(bookSection);
+				}
+
 				var close;
 				var footer = el("div", { class: "pp-modal-footer" }, [
 					el("button", {
@@ -794,6 +814,10 @@
 		search.addEventListener("input", debounce(loadItems, 300));
 		loadStats();
 		loadItems();
+
+		// Deep-Link aufs Item-Detail (z. B. aus „In Projekten gebucht"): #pp-item-{id}.
+		var itemHash = window.location.hash.match(/^#pp-item-(\d+)$/);
+		if (itemHash) openItemModal(parseInt(itemHash[1], 10));
 	}
 
 	/* ================= Seite: Verleih ================= */

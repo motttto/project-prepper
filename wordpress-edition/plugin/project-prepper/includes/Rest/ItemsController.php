@@ -4,6 +4,7 @@ namespace ProjectPrepper\Rest;
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Services\Availability;
 use ProjectPrepper\Services\Inventory;
+use ProjectPrepper\Services\Projects;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
@@ -74,6 +75,9 @@ class ItemsController extends BaseController {
 		if ( ! $item ) {
 			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
+		// Namentliche Projekt-Buchungen nur im Einzel-Detail anhängen
+		// (nicht in der Liste/get_item — das ist ein heißer Pfad).
+		$item->project_bookings = Projects::bookings_for_item( (int) $request['id'] );
 		return new WP_REST_Response( $item );
 	}
 
