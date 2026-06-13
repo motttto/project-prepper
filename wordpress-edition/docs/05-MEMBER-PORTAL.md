@@ -6,8 +6,8 @@
 > Gruppen; nichtkommerzielles Ressourcen-Teilen; Fernziel **Föderation** mehrerer
 > Instanzen. Verbindlich vor weiterem Frontend-Bau.
 
-## Leitprinzip
-Eine Installation = ein Kollektiv (self-hosted, Datenhoheit, open source). **Nur der Admin nutzt wp-admin.** Mitglieder erleben alles im **Frontend** (Theme). → Es braucht eine **Front-End-Mitglieder-App**, kein weiteres wp-admin.
+## Leitprinzip (präzisiert 2026-06-13)
+Eine Installation = eine **Plattform/Architektur** (self-hosted, Datenhoheit, open source), auf der sich **mehrere Kollektive selbst bilden**. Ein **Kollektiv = eine vom User gegründete Gruppe** — die Instanz ist NICHT a priori einem Kollektiv zugeordnet; url.xyz ist der Startpunkt für Single-User, um ein Kollektiv zu gründen/​beizutreten. **Admin = Plattform-Betreiber** (stellt die Architektur, einziger mit wp-admin, Moderation). **Mitglieder erleben alles im Frontend** (Theme), kein wp-admin. → faktisch das **Multi-Tenant-Modell der App (User-First + selbst gegründete Gruppen), self-hosted** — es braucht eine vollwertige **Front-End-Mitglieder-App**.
 
 ## Architektur-Entscheidungen
 
@@ -37,16 +37,16 @@ Eine Installation = ein Kollektiv (self-hosted, Datenhoheit, open source). **Nur
 
 | Phase | Inhalt | Aufwand |
 |---|---|---|
-| **0 — Ehrliche Startseite** | Theme-Frontpage kommuniziert „Kollektiv teilt Ressourcen" + **Mitglieder-Login-CTA** (statt Single-Anbieter-Katalog). Klein, sofort. | S |
-| **1 — Fundament** | `owner_user_id` auf pp_items; `pp_member`-Rolle ohne wp-admin (Redirect); Front-End-Login + Mitglieder-Landingpage. | M |
-| **2 — Mein Inventar (Frontend)** | Mitglied verwaltet **eigenes** Inventar vorne (anlegen/bearbeiten/Foto/löschen), REST scoped auf owner_user_id. | L |
-| **3 — Gruppen (Frontend)** | Mitglied sieht/gründet/betritt Gruppen, **teilt eigenes Inventar** in Gruppen. | L |
+| **0 — Ehrliche Startseite** | Theme-Frontpage als **Plattform-Landing**: „Gründe ein Kollektiv oder tritt einem bei" + Registrieren/Login-CTA (statt Single-Anbieter-Katalog). Klein, sofort. | S |
+| **1 — Fundament** | `owner_user_id` auf pp_items; `pp_member`-Rolle ohne wp-admin (Redirect); **Self-Service-Registrierung** (Modus s. u.) + Front-End-Login + Mitglieder-Landingpage. | M |
+| **2 — Kollektiv gründen/​beitreten (Frontend)** | Onboarding: registrierter User **gründet eine Gruppe (= Kollektiv)** oder tritt einer bei — vorne, ohne wp-admin. (Gruppen-Overlay existiert backend-seitig; hier Front-End + User-darf-gründen.) | M |
+| **3 — Mein Inventar + Teilen (Frontend)** | Mitglied verwaltet **eigenes** Inventar vorne (anlegen/Foto/bearbeiten, REST scoped auf owner_user_id) und **teilt es in seine Gruppe(n)**. | L |
 | **4 — Stöbern & Leihen (Frontend)** | Mitglieder durchsuchen geteiltes Inventar des Kollektivs, **Leih-Anfrage** (an Verleih/Leihgaben gekoppelt), nichtkommerziell. | L |
 | **5+ — Föderation** | Instanz-Discovery-API (PLZ/Thema), instanzübergreifend. Weit später. | XL |
 
 ## Offene Detail-Entscheidungen (vor Phase 1/2 zu klären)
 - **Bestandsinventar**: bleibt `owner_user_id=NULL` (Kollektiv-Inventar, Admin verwaltet) — ok? Oder Admin-User zuweisen?
-- **Registrierung**: rein per Admin-Einladung (kein offenes Signup) für Phase 1–4 — passt zu „Admin lädt ein".
+- **Registrierung (offene Hauptentscheidung):** Da url.xyz „Startpunkt für Single-User zum Kollektiv-Gründen" ist, braucht es Self-Service-Signup. Modi: (a) **offen** (jeder registriert sich + gründet Gruppe) — niedrigschwellig, aber Spam/Moderation; (b) **Admin-Freigabe** (User registriert, Admin schaltet frei) — empfohlener Default; (c) **nur Einladung**. Empfehlung: **(b) Admin-Freigabe** als Plattform-Default, konfigurierbar.
 - **Front-End-App im Theme vs. Plugin**: UI-Templates im Theme, Logik/Daten im Plugin (Shortcodes/Blöcke + REST) — Theme bleibt der „Skin", Plugin das Backend. So bleibt das Plugin theme-unabhängig nutzbar.
 - **„vollwertiges Theme zum Testen"** (User-Wunsch): Theme „Prepper Site" wird zum Träger der Member-App ausgebaut; nach Phase 1–2 mit dem eigenen Kollektiv testbar.
 
