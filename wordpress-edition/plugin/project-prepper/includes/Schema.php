@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.14.0';
+	const VERSION    = '0.15.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -54,6 +54,9 @@ class Schema {
 		$p_shares   = self::table( 'project_profit_shares' );
 		$p_agree    = self::table( 'project_agreements' );
 		$p_agree_s  = self::table( 'project_agreement_signatures' );
+		$p_polls    = self::table( 'project_polls' );
+		$p_poll_o   = self::table( 'project_poll_options' );
+		$p_poll_v   = self::table( 'project_poll_votes' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -503,6 +506,54 @@ class Schema {
 				KEY agreement_id (agreement_id),
 				UNIQUE KEY agreement_user (agreement_id,user_id)
 			) {$charset};" );
+
+				// Umfragen pro Projekt (v0.15.0) — Pendant zu `org_polls` der App,
+				// hier projektbezogen. Termin- (date) oder Auswahl-Umfrage (choice)
+				// unter den aktiven Mitgliedern der besitzenden Gruppe. Anders als die
+				// Beschlüsse (approve/reject/abstain mit Auflösungs-Trigger) gibt es
+				// hier mehrere Optionen und je Option Ja/Nein/Vielleicht — KEIN Auto-
+				// Resolve, eine Umfrage bleibt offen bis manuell geschlossen.
+				// status: open|closed. created_by = Ersteller (für Schließen/Löschen).
+				dbDelta( "CREATE TABLE {$p_polls} (
+					id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+					project_id bigint(20) unsigned NOT NULL,
+					title varchar(190) NOT NULL,
+					description text,
+					poll_type varchar(10) NOT NULL DEFAULT 'date',
+					status varchar(10) NOT NULL DEFAULT 'open',
+					created_by bigint(20) unsigned DEFAULT NULL,
+					created_at datetime NOT NULL,
+					closed_at datetime DEFAULT NULL,
+					PRIMARY KEY  (id),
+					KEY project_id (project_id)
+				) {$charset};" );
+
+				// Optionen je Umfrage (Pendant zu `org_poll_options`). Bei date-
+				// Umfragen ist option_date gesetzt (+ optional option_time HH:MM),
+				// bei choice-Umfragen das label. sort_order für choice-Reihenfolge.
+				dbDelta( "CREATE TABLE {$p_poll_o} (
+					id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+					poll_id bigint(20) unsigned NOT NULL,
+					label varchar(190) NOT NULL DEFAULT '',
+					option_date date DEFAULT NULL,
+					option_time varchar(5) NOT NULL DEFAULT '',
+					sort_order int(11) NOT NULL DEFAULT 0,
+					PRIMARY KEY  (id),
+					KEY poll_id (poll_id)
+				) {$charset};" );
+
+				// Stimmen je Option (Pendant zu `org_poll_votes`). Eine Stimme pro
+				// (Option, User) — UNIQUE option_user, Upsert ändert die vorhandene.
+				// vote: yes|no|maybe. Ein Mitglied stimmt pro Option getrennt ab.
+				dbDelta( "CREATE TABLE {$p_poll_v} (
+					id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+					option_id bigint(20) unsigned NOT NULL,
+					user_id bigint(20) unsigned NOT NULL,
+					vote varchar(8) NOT NULL,
+					PRIMARY KEY  (id),
+					KEY option_id (option_id),
+					UNIQUE KEY option_user (option_id,user_id)
+				) {$charset};" );
 
 		self::upgrade_data();
 		update_option( self::OPTION_KEY, self::VERSION );

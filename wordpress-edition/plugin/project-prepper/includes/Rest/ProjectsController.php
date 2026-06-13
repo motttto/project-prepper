@@ -9,6 +9,7 @@ use ProjectPrepper\Services\Contacts;
 use ProjectPrepper\Services\Costs;
 use ProjectPrepper\Services\Decisions;
 use ProjectPrepper\Services\Files;
+use ProjectPrepper\Services\Polls;
 use ProjectPrepper\Services\ProfitShares;
 use ProjectPrepper\Services\ProjectMembers;
 use ProjectPrepper\Services\Projects;
@@ -313,6 +314,52 @@ class ProjectsController extends BaseController {
 		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/decisions/(?P<decision_id>\d+)/cancel', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'cancel_decision' ],
+			'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/polls', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'polls' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'add_poll' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/polls/(?P<poll_id>\d+)', [
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_poll' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_poll' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+		] );
+
+		// Abstimmen erfordert NUR die View-Cap (abstimmen ist kein Bearbeiten);
+		// die Gruppenmitgliedschaft wird im Service (cast_vote) erzwungen.
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/polls/(?P<poll_id>\d+)/vote', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'vote_poll' ],
+			'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+		] );
+
+		// Schließen/Öffnen: View-Cap genügt; Ersteller/Admin-Check im Service.
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/polls/(?P<poll_id>\d+)/close', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'close_poll' ],
+			'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+		] );
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/polls/(?P<poll_id>\d+)/reopen', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'reopen_poll' ],
 			'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
 		] );
 
@@ -1180,6 +1227,169 @@ class ProjectsController extends BaseController {
 		}
 		if ( array_key_exists( 'requires_unanimous', $json ) ) {
 			$data['requires_unanimous'] = ! empty( $json['requires_unanimous'] );
+		}
+		return $data;
+	}
+
+	/* ---------- Umfragen (v0.15.0, Pendant zu tab-polls) ---------- */
+
+	public function polls( WP_REST_Request $request ) {
+		// Projects::get() liefert für Nicht-Gruppenmitglieder eines Gruppen-
+		// Projekts null → 404 (Gruppen-Zugriffsguard, kein Leak).
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( Polls::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function add_poll( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$result = Polls::create( (int) $request['id'], $this->poll_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Polls::for_project( (int) $request['id'], get_current_user_id() ?: null ), 201 );
+	}
+
+	public function update_poll( WP_REST_Request $request ) {
+		$owner = $this->poll_in_project( (int) $request['id'], (int) $request['poll_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$json = $request->get_json_params() ?: [];
+		$data = [];
+		if ( array_key_exists( 'title', $json ) ) {
+			$data['title'] = sanitize_text_field( (string) $json['title'] );
+		}
+		if ( array_key_exists( 'description', $json ) ) {
+			$data['description'] = sanitize_textarea_field( (string) $json['description'] );
+		}
+		$result = Polls::update( (int) $request['poll_id'], $data );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Polls::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function remove_poll( WP_REST_Request $request ) {
+		$owner = $this->poll_in_project( (int) $request['id'], (int) $request['poll_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Polls::delete( (int) $request['poll_id'], get_current_user_id() );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Polls::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	/**
+	 * Stimme zu EINER Option. Body: { option_id, vote }. Die Option muss zur
+	 * Umfrage der URL gehören (sonst 404), Mitgliedschaft erzwingt der Service.
+	 */
+	public function vote_poll( WP_REST_Request $request ) {
+		$owner = $this->poll_in_project( (int) $request['id'], (int) $request['poll_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$json      = $request->get_json_params() ?: [];
+		$option_id = (int) ( $json['option_id'] ?? 0 );
+		$vote      = sanitize_text_field( (string) ( $json['vote'] ?? '' ) );
+		if ( ! $this->option_in_poll( (int) $request['poll_id'], $option_id ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Poll option not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$result = Polls::cast_vote( $option_id, get_current_user_id(), $vote );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Polls::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function close_poll( WP_REST_Request $request ) {
+		$owner = $this->poll_in_project( (int) $request['id'], (int) $request['poll_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Polls::close( (int) $request['poll_id'], get_current_user_id() );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Polls::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	public function reopen_poll( WP_REST_Request $request ) {
+		$owner = $this->poll_in_project( (int) $request['id'], (int) $request['poll_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Polls::reopen( (int) $request['poll_id'], get_current_user_id() );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Polls::for_project( (int) $request['id'], get_current_user_id() ?: null ) );
+	}
+
+	/**
+	 * Sicherstellen, dass die Umfrage zum Projekt der URL gehört (nested route)
+	 * UND der Aufrufer auf das Projekt zugreifen darf (Gruppen-Guard aus Phase 1).
+	 * Reihenfolge: erst Projekt-Zugriff (404 bei Fremd-/Nicht-Gruppen-Projekt,
+	 * kein Leak), dann Zugehörigkeit der Umfrage-Zeile.
+	 *
+	 * @return true|WP_Error
+	 */
+	private function poll_in_project( int $project_id, int $poll_id ) {
+		if ( ! Projects::get( $project_id ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$entry = Polls::get( $poll_id );
+		if ( ! $entry || (int) $entry->project_id !== $project_id ) {
+			return new WP_Error( 'pp_not_found', __( 'Poll not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return true;
+	}
+
+	/**
+	 * Gehört die Option zur Umfrage der URL? (verhindert Cross-Poll-Voting)
+	 */
+	private function option_in_poll( int $poll_id, int $option_id ): bool {
+		global $wpdb;
+		if ( ! $option_id ) {
+			return false;
+		}
+		$found = (int) $wpdb->get_var( $wpdb->prepare(
+			'SELECT poll_id FROM %i WHERE id = %d',
+			\ProjectPrepper\Schema::table( 'project_poll_options' ),
+			$option_id
+		) );
+		return $found === $poll_id;
+	}
+
+	private function poll_payload( array $json ): array {
+		$data = [];
+		if ( array_key_exists( 'title', $json ) ) {
+			$data['title'] = sanitize_text_field( (string) $json['title'] );
+		}
+		if ( array_key_exists( 'description', $json ) ) {
+			$data['description'] = sanitize_textarea_field( (string) $json['description'] );
+		}
+		if ( array_key_exists( 'poll_type', $json ) ) {
+			$data['poll_type'] = sanitize_text_field( (string) $json['poll_type'] );
+		}
+		if ( isset( $json['options'] ) && is_array( $json['options'] ) ) {
+			$options = [];
+			foreach ( $json['options'] as $opt ) {
+				if ( ! is_array( $opt ) ) {
+					continue;
+				}
+				$options[] = [
+					'label'       => isset( $opt['label'] ) ? sanitize_text_field( (string) $opt['label'] ) : '',
+					'option_date' => isset( $opt['option_date'] ) ? sanitize_text_field( (string) $opt['option_date'] ) : '',
+					'option_time' => isset( $opt['option_time'] ) ? sanitize_text_field( (string) $opt['option_time'] ) : '',
+				];
+			}
+			$data['options'] = $options;
 		}
 		return $data;
 	}

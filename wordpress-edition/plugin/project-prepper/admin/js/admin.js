@@ -2241,6 +2241,204 @@
 				}
 				renderDecisions();
 
+				/* --- Umfragen (v0.15.0, Pendant zu tab-polls / org_polls der App) ---
+				   Termin- (date) oder Auswahl-Umfragen (choice) unter den aktiven
+				   Mitgliedern der besitzenden Gruppe. Doodle-Stil: Optionen als
+				   Zeilen, je Option die Tally Ja/Vielleicht/Nein + drei Toggle-
+				   Buttons für das aktuelle Gruppenmitglied (eigene Wahl
+				   hervorgehoben). Anders als die Beschlüsse: mehrere Optionen, kein
+				   Auto-Resolve — manuell schließen/öffnen. Direkt nach „Beschlüsse"
+				   (verwandtes Voting-Konzept). Site-Projekte (ohne Gruppe) zeigen nur
+				   einen Hinweis. can_vote/my_votes kommen aus dem Backend. */
+
+				var POLL_TYPE_LABELS = { date: __("Date poll", "project-prepper"), choice: __("Choice poll", "project-prepper") };
+				var POLL_VOTE_LABELS = { yes: __("Yes", "project-prepper"), maybe: __("Maybe", "project-prepper"), no: __("No", "project-prepper") };
+				var POLL_VOTE_ORDER = ["yes", "maybe", "no"];
+
+				var pollsSection = el("div", { class: "pp-modal-section" });
+				function renderPolls() {
+					pollsSection.innerHTML = "";
+					pollsSection.appendChild(el("h3", { text: __("Polls", "project-prepper") }));
+
+					// Kein Gruppen-Projekt -> Hinweis, keine Umfragen.
+					if (!project.owner_group_id) {
+						pollsSection.appendChild(el("p", { class: "pp-muted", text: __("Assign a group to run polls.", "project-prepper") }));
+						return;
+					}
+
+					var list = el("ul", { class: "pp-lines pp-lines-block" });
+					(project.polls || []).forEach(function (p) {
+						var row = el("li", { class: "pp-decision" });
+
+						// Kopfzeile: Titel + Typ-Hinweis + Status-Badge.
+						var head = el("div", { class: "pp-decision-head" }, [
+							el("strong", { text: p.title }),
+							el("span", { class: "pp-muted", text: POLL_TYPE_LABELS[p.poll_type] || p.poll_type }),
+							el("span", { class: "pp-badge pp-badge-" + (p.status === "open" ? "reserved" : "cancelled"), text: p.status === "open" ? __("Open", "project-prepper") : __("Closed", "project-prepper") })
+						]);
+						row.appendChild(head);
+
+						if (p.description) row.appendChild(el("div", { class: "pp-muted", text: p.description }));
+
+						// Beste Option (meiste Ja) für die Markierung bestimmen.
+						var bestYes = 0;
+						(p.options || []).forEach(function (o) { if (o.yes > bestYes) bestYes = o.yes; });
+
+						// Doodle-Grid: je Option eine Zeile.
+						var grid = el("ul", { class: "pp-lines pp-poll-grid" });
+						(p.options || []).forEach(function (o) {
+							var label;
+							if (p.poll_type === "date") {
+								label = o.option_date ? dateDe(o.option_date) : "—";
+								if (o.option_time) label += " · " + o.option_time;
+							} else {
+								label = o.label || "—";
+							}
+							var optRow = el("li", { class: "pp-poll-option" });
+
+							var labelCell = el("span", { class: "pp-poll-option-label", text: label });
+							if (bestYes > 0 && o.yes === bestYes) {
+								labelCell.appendChild(el("span", { class: "pp-muted pp-poll-best", text: " · " + __("Best option", "project-prepper") }));
+							}
+							optRow.appendChild(labelCell);
+
+							// Tally „✓ n · ○ n · ✗ n" (Ja/Vielleicht/Nein als Text).
+							/* translators: 1: yes votes, 2: maybe votes, 3: no votes */
+							var tallyTpl = __("✓ %1$d · ○ %2$d · ✗ %3$d", "project-prepper");
+							optRow.appendChild(el("span", { class: "pp-muted pp-poll-tally", text: sprintf(tallyTpl, o.yes, o.maybe, o.no) }));
+
+							// Stimm-Buttons nur für offene Umfragen + stimmberechtigte
+							// Gruppenmitglieder (Backend liefert can_vote/my_votes).
+							if (p.status === "open" && p.can_vote) {
+								var mine = (p.my_votes && p.my_votes[String(o.id)]) || null;
+								var voteRow = el("span", { class: "pp-poll-votes" });
+								POLL_VOTE_ORDER.forEach(function (v) {
+									var isMine = mine === v;
+									voteRow.appendChild(el("button", {
+										class: "pp-btn pp-btn-sm" + (isMine ? " pp-btn-primary" : ""),
+										text: POLL_VOTE_LABELS[v], type: "button",
+										onclick: function () {
+											api("/projects/" + projectId + "/polls/" + p.id + "/vote", {
+												method: "POST", body: JSON.stringify({ option_id: o.id, vote: v })
+											}).then(function () { reload(renderPolls); }).catch(function (e) { toast(e.message, "error"); });
+										}
+									}));
+								});
+								optRow.appendChild(voteRow);
+							}
+							grid.appendChild(optRow);
+						});
+						row.appendChild(grid);
+
+						// Verwaltungs-Aktionen (Schließen/Öffnen/Löschen) — Backend
+						// prüft Ersteller/Admin; wir zeigen sie editierbaren Nutzern.
+						if (editable) {
+							var actions = el("div", { class: "pp-row pp-decision-actions" });
+							if (p.status === "open") {
+								actions.appendChild(el("button", {
+									class: "pp-link", text: __("Close", "project-prepper"), type: "button",
+									onclick: function () {
+										api("/projects/" + projectId + "/polls/" + p.id + "/close", { method: "POST" })
+											.then(function () { reload(renderPolls); }).catch(function (e) { toast(e.message, "error"); });
+									}
+								}));
+							} else {
+								actions.appendChild(el("button", {
+									class: "pp-link", text: __("Reopen", "project-prepper"), type: "button",
+									onclick: function () {
+										api("/projects/" + projectId + "/polls/" + p.id + "/reopen", { method: "POST" })
+											.then(function () { reload(renderPolls); }).catch(function (e) { toast(e.message, "error"); });
+									}
+								}));
+							}
+							actions.appendChild(el("button", {
+								class: "pp-link pp-link-danger", text: __("delete", "project-prepper"), type: "button",
+								onclick: function () {
+									if (!confirm(__("Delete this poll and all votes?", "project-prepper"))) return;
+									api("/projects/" + projectId + "/polls/" + p.id, { method: "DELETE" })
+										.then(function () { reload(renderPolls); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							}));
+							row.appendChild(actions);
+						}
+						list.appendChild(row);
+					});
+					if (!(project.polls || []).length) list.appendChild(el("li", { class: "pp-muted", text: __("No polls yet.", "project-prepper") }));
+					pollsSection.appendChild(list);
+
+					// Anlege-Formular: Titel, Beschreibung, Typ-Select + dynamische
+					// Options-Liste (Datum(+Zeit) bei „Termin", Text-Label bei
+					// „Auswahl"), „+ Option", mind. 2.
+					if (!editable) return;
+
+					var pTitle = el("input", { type: "text", placeholder: __("Title", "project-prepper"), class: "pp-input-lg" });
+					var pDesc = el("input", { type: "text", placeholder: __("Description", "project-prepper"), class: "pp-input-lg" });
+					var pType = el("select");
+					pType.appendChild(el("option", { value: "date", text: __("Date poll", "project-prepper") }));
+					pType.appendChild(el("option", { value: "choice", text: __("Choice poll", "project-prepper") }));
+
+					var optionsWrap = el("div", { class: "pp-poll-new-options" });
+					function addOptionRow() {
+						var rowEl;
+						if (pType.value === "date") {
+							var dInput = el("input", { type: "date" });
+							var tInput = el("input", { type: "time" });
+							rowEl = el("div", { class: "pp-row pp-poll-new-option" }, [dInput, tInput]);
+							rowEl._read = function () {
+								if (!dInput.value) return null;
+								return { option_date: dInput.value, option_time: tInput.value || "" };
+							};
+						} else {
+							var lInput = el("input", { type: "text", placeholder: __("Option", "project-prepper"), class: "pp-input-md" });
+							rowEl = el("div", { class: "pp-row pp-poll-new-option" }, [lInput]);
+							rowEl._read = function () {
+								if (!lInput.value.trim()) return null;
+								return { label: lInput.value.trim() };
+							};
+						}
+						rowEl.appendChild(el("button", {
+							class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+							onclick: function () { optionsWrap.removeChild(rowEl); }
+						}));
+						optionsWrap.appendChild(rowEl);
+					}
+					// Typwechsel leert die Options (Felder ändern sich).
+					pType.addEventListener("change", function () {
+						optionsWrap.innerHTML = "";
+						addOptionRow(); addOptionRow();
+					});
+					addOptionRow(); addOptionRow();
+
+					pollsSection.appendChild(el("div", { class: "pp-row" }, [pTitle, pDesc, pType]));
+					pollsSection.appendChild(optionsWrap);
+					pollsSection.appendChild(el("div", { class: "pp-row" }, [
+						el("button", {
+							class: "pp-btn pp-btn-sm", text: __("Add option", "project-prepper"), type: "button",
+							onclick: function () { addOptionRow(); }
+						}),
+						el("button", {
+							class: "pp-btn pp-btn-sm pp-btn-primary", text: __("Create poll", "project-prepper"), type: "button",
+							onclick: function () {
+								if (!pTitle.value.trim()) return;
+								var opts = [];
+								Array.prototype.forEach.call(optionsWrap.children, function (r) {
+									if (typeof r._read === "function") { var v = r._read(); if (v) opts.push(v); }
+								});
+								if (opts.length < 2) { toast(__("A poll needs at least two valid options.", "project-prepper"), "error"); return; }
+								api("/projects/" + projectId + "/polls", {
+									method: "POST",
+									body: JSON.stringify({ title: pTitle.value.trim(), description: pDesc.value.trim(), poll_type: pType.value, options: opts })
+								}).then(function () {
+									pTitle.value = ""; pDesc.value = ""; pType.value = "date";
+									optionsWrap.innerHTML = ""; addOptionRow(); addOptionRow();
+									reload(renderPolls);
+								}).catch(function (e) { toast(e.message, "error"); });
+							}
+						})
+					]));
+				}
+				renderPolls();
+
 				/* --- Team & Kontakte (Pendant zu tab-team der App) ---
 				   Eine Sektion mit zwei Unterlisten: Team (Name/Rolle/Abteilung)
 				   und Kontakte (Name/Rolle/Firma/E-Mail/Telefon). Single-Site:
@@ -2518,7 +2716,7 @@
 				}
 				renderAgreement();
 
-				var body = el("div", null, [statusRow, info, membersSection, decisionsSection, bookingsSection, costsSection, profitSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection, agreementSection]);
+				var body = el("div", null, [statusRow, info, membersSection, decisionsSection, pollsSection, bookingsSection, costsSection, profitSection, consumablesSection, filesSection, scheduleSection, checklistsSection, tasksSection, teamSection, agreementSection]);
 
 				var close;
 				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);

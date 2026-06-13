@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.19.0
+Stable tag: 0.20.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -19,7 +19,7 @@ Project Prepper manages equipment inventory and rentals directly in WordPress:
 * Categories with icon and prefix
 * Search and filters across name, number, manufacturer, tags
 * Projects: plan events with equipment bookings, a schedule, checklists, tasks, a cost breakdown with VAT, budget and revenue, materials, a team & contacts list and attached files from the media library — confirmed projects block inventory just like rentals
-* Groups: share projects with a team of WordPress users — group projects are only visible to their members, site-level projects keep working as before; list the project members (participants) from the owning group with a free-form role, hold decisions where group members vote (approve/reject/abstain) with majority or unanimous resolution, distribute the project profit among members as percentage or fixed shares, and record a cooperation agreement with per-member signature tracking (draft → in signing → active once everyone has signed)
+* Groups: share projects with a team of WordPress users — group projects are only visible to their members, site-level projects keep working as before; list the project members (participants) from the owning group with a free-form role, hold decisions where group members vote (approve/reject/abstain) with majority or unanimous resolution, run date or choice polls where members pick yes/no/maybe per option (Doodle style), distribute the project profit among members as percentage or fixed shares, and record a cooperation agreement with per-member signature tracking (draft → in signing → active once everyone has signed)
 * Rental management: borrower, period, deposit, fee
 * Availability checks across overlapping rental and project booking periods
 * Status flow: Reserved → On loan → Returned (or Cancelled)
@@ -76,6 +76,11 @@ for the XLSX import/export in the admin. SheetJS CE is licensed under the Apache
 (https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
 
 == Changelog ==
+
+= 0.20.0 =
+* New "Polls" section in the project detail (group projects only): create date polls (Doodle-style scheduling) or choice polls and let the active members of the owning group vote yes/no/maybe per option
+* Each option shows a tally (yes/maybe/no) and the option with the most yes votes is marked as the best option; the author or an admin can close, reopen or delete a poll (polls stay open until closed manually — there is no automatic resolution)
+* Voting requires only project view access plus group membership; creating, closing and deleting require the author or an admin — non-members of a group project cannot see or vote in its polls
 
 = 0.19.0 =
 * New Dashboard as the plugin's start page: KPI cards for inventory (items, total pieces, out today, daily value), active and reserved rentals, open inquiries and running/planned projects

@@ -541,6 +541,23 @@
 .pp-decision-detail { margin-top: 6px; font-size: 12px; }
 .pp-decision-detail summary { cursor: pointer; color: var(--pp-muted-foreground); }
 
+/* Umfragen (v0.15.0): Doodle-Grid — je Option eine Zeile mit Label, Tally und
+   Stimm-Buttons. */
+.pp-poll-grid { margin-top: 6px; }
+.pp-poll-option {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	flex-wrap: wrap;
+	padding: 6px 0;
+}
+.pp-poll-option-label { font-size: 13px; color: var(--pp-foreground); }
+.pp-poll-best { font-size: 11px; color: var(--pp-success, #16a34a); }
+.pp-poll-tally { margin-left: auto; white-space: nowrap; }
+.pp-poll-votes { display: flex; gap: 4px; }
+.pp-poll-new-options { margin: 6px 0; display: flex; flex-direction: column; gap: 6px; }
+.pp-poll-new-option { align-items: center; gap: 8px; }
+
 .pp-link {
 	color: var(--pp-primary);
 	cursor: pointer;

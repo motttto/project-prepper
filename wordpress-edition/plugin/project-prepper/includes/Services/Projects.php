@@ -96,6 +96,7 @@ class Projects {
 		$project->profit_shares  = ProfitShares::for_project( $id );
 		$project->profit_summary = ProfitShares::summary( $id );
 		$project->agreement      = Agreements::for_project( $id, get_current_user_id() ?: null );
+		$project->polls          = Polls::for_project( $id, get_current_user_id() ?: null );
 		return $project;
 	}
 
@@ -317,6 +318,24 @@ class Projects {
 			$wpdb->delete( Schema::table( 'project_agreement_signatures' ), [ 'agreement_id' => $agreement_id ], [ '%d' ] );
 		}
 		$wpdb->delete( Schema::table( 'project_agreements' ), [ 'project_id' => $id ], [ '%d' ] );
+		// Umfragen + Optionen + Stimmen (v0.15.0) räumen.
+		$poll_ids = $wpdb->get_col( $wpdb->prepare(
+			'SELECT id FROM %i WHERE project_id = %d',
+			Schema::table( 'project_polls' ),
+			$id
+		) );
+		foreach ( array_map( 'intval', $poll_ids ) as $poll_id ) {
+			$option_ids = $wpdb->get_col( $wpdb->prepare(
+				'SELECT id FROM %i WHERE poll_id = %d',
+				Schema::table( 'project_poll_options' ),
+				$poll_id
+			) );
+			foreach ( array_map( 'intval', $option_ids ) as $option_id ) {
+				$wpdb->delete( Schema::table( 'project_poll_votes' ), [ 'option_id' => $option_id ], [ '%d' ] );
+			}
+			$wpdb->delete( Schema::table( 'project_poll_options' ), [ 'poll_id' => $poll_id ], [ '%d' ] );
+		}
+		$wpdb->delete( Schema::table( 'project_polls' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_items' ), [ 'project_id' => $id ], [ '%d' ] );
 		$ok = false !== $wpdb->delete( Schema::table( 'projects' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {
