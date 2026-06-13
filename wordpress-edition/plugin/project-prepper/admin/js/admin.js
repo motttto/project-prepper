@@ -1472,6 +1472,75 @@
 					});
 				}
 
+				/* --- Material / Verbrauchsmaterial (Pendant zu tab-materials der App) ---
+				   Direkt nach den Kosten platziert: ebenfalls eine finanzielle Liste
+				   (Material mit Mengen + Kosten), vor den operativen Sektionen. */
+
+				var consumablesSection = el("div", { class: "pp-modal-section" });
+				function renderConsumables() {
+					consumablesSection.innerHTML = "";
+					consumablesSection.appendChild(el("h3", { text: __("Materials", "project-prepper") }));
+
+					var table = el("table", { class: "pp-table" });
+					table.appendChild(el("thead", {
+						html: "<tr><th>" + __("Name", "project-prepper") + "</th><th>" + __("Quantity", "project-prepper") + "</th><th>" + __("Unit", "project-prepper") + "</th><th>" + __("Cost", "project-prepper") + "</th><th></th></tr>"
+					}));
+					var tbody = el("tbody");
+					var totalCost = 0;
+					(project.consumables || []).forEach(function (c) {
+						if (c.cost !== null && c.cost !== undefined && c.cost !== "") totalCost += Number(c.cost);
+						tbody.appendChild(el("tr", null, [
+							el("td", { text: c.name }),
+							el("td", { class: "pp-num", text: Number(c.quantity).toLocaleString("de-DE", { maximumFractionDigits: 2 }) }),
+							el("td", { text: c.unit || "—" }),
+							el("td", { class: "pp-num", text: c.cost === null || c.cost === undefined || c.cost === "" ? "—" : money(c.cost) }),
+							editable ? el("td", null, [el("button", {
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/consumables/" + c.id, { method: "DELETE" })
+										.then(function () { reload(renderConsumables); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})]) : el("td")
+						]));
+					});
+					if (!(project.consumables || []).length) tbody.appendChild(el("tr", { html: '<td colspan="5" class="pp-muted">' + __("No materials.", "project-prepper") + "</td>" }));
+					table.appendChild(tbody);
+					consumablesSection.appendChild(el("div", { class: "pp-table-wrap" }, [table]));
+
+					if ((project.consumables || []).length) {
+						var sums = el("div", { class: "pp-cost-summary" }, [
+							el("div", { class: "pp-cost-sum-row" }, [
+								el("span", { text: __("Total material cost", "project-prepper") }),
+								el("span", { class: "pp-num", text: money(totalCost) })
+							])
+						]);
+						consumablesSection.appendChild(sums);
+					}
+
+					if (!editable) return;
+					var cName = el("input", { type: "text", placeholder: __("Name", "project-prepper"), class: "pp-input-md" });
+					var cQty = el("input", { type: "number", step: "0.01", min: "0", value: "1", placeholder: __("Quantity", "project-prepper"), class: "pp-input-sm" });
+					var cUnit = el("input", { type: "text", placeholder: __("Unit", "project-prepper"), class: "pp-input-sm" });
+					var cCost = el("input", { type: "number", step: "0.01", min: "0", placeholder: __("Cost", "project-prepper"), class: "pp-input-sm" });
+					consumablesSection.appendChild(el("div", { class: "pp-row" }, [
+						cName, cQty, cUnit, cCost,
+						el("button", {
+							class: "pp-btn pp-btn-sm", text: __("+ Material", "project-prepper"), type: "button",
+							onclick: function () {
+								if (!cName.value.trim()) return;
+								api("/projects/" + projectId + "/consumables", {
+									method: "POST",
+									body: JSON.stringify({ name: cName.value.trim(), quantity: cQty.value, unit: cUnit.value.trim(), cost: cCost.value })
+								}).then(function () {
+									cName.value = ""; cQty.value = "1"; cUnit.value = ""; cCost.value = "";
+									reload(renderConsumables);
+								}).catch(function (e) { toast(e.message, "error"); });
+							}
+						})
+					]));
+				}
+				renderConsumables();
+
 				/* --- Zeitplan --- */
 
 				var scheduleSection = el("div", { class: "pp-modal-section" });
@@ -1696,7 +1765,115 @@
 				}
 				renderTasks();
 
-				var body = el("div", null, [statusRow, info, bookingsSection, costsSection, scheduleSection, checklistsSection, tasksSection]);
+				/* --- Team & Kontakte (Pendant zu tab-team der App) ---
+				   Eine Sektion mit zwei Unterlisten: Team (Name/Rolle/Abteilung)
+				   und Kontakte (Name/Rolle/Firma/E-Mail/Telefon). Single-Site:
+				   keine Profil-Verknüpfung, nur Freitext. Ganz am Ende, da
+				   organisatorisch (nach den operativen Aufgaben). */
+
+				var teamSection = el("div", { class: "pp-modal-section" });
+				function renderTeam() {
+					teamSection.innerHTML = "";
+					teamSection.appendChild(el("h3", { text: __("Team & Contacts", "project-prepper") }));
+
+					// Unterliste 1: Team-Mitglieder.
+					teamSection.appendChild(el("div", { class: "pp-subhead", text: __("Team", "project-prepper") }));
+					var teamList = el("ul", { class: "pp-lines" });
+					(project.team || []).forEach(function (m) {
+						var meta = el("span", { class: "pp-muted", text: [m.role, m.department].filter(Boolean).join(" · ") });
+						if (!editable) {
+							teamList.appendChild(el("li", null, [el("span", { text: m.name }), meta]));
+							return;
+						}
+						teamList.appendChild(el("li", null, [
+							el("span", { text: m.name }), meta,
+							el("button", {
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/team/" + m.id, { method: "DELETE" })
+										.then(function () { reload(renderTeam); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					});
+					if (!(project.team || []).length) teamList.appendChild(el("li", { class: "pp-muted", text: __("No team members.", "project-prepper") }));
+					teamSection.appendChild(teamList);
+
+					if (editable) {
+						var tName = el("input", { type: "text", placeholder: __("Name", "project-prepper"), class: "pp-input-md" });
+						var tRole = el("input", { type: "text", placeholder: __("Role", "project-prepper"), class: "pp-input-md" });
+						var tDept = el("input", { type: "text", placeholder: __("Department", "project-prepper"), class: "pp-input-md" });
+						teamSection.appendChild(el("div", { class: "pp-row" }, [
+							tName, tRole, tDept,
+							el("button", {
+								class: "pp-btn pp-btn-sm", text: __("+ Team member", "project-prepper"), type: "button",
+								onclick: function () {
+									if (!tName.value.trim()) return;
+									api("/projects/" + projectId + "/team", {
+										method: "POST",
+										body: JSON.stringify({ name: tName.value.trim(), role: tRole.value.trim(), department: tDept.value.trim() })
+									}).then(function () {
+										tName.value = ""; tRole.value = ""; tDept.value = "";
+										reload(renderTeam);
+									}).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					}
+
+					// Unterliste 2: Externe Kontakte.
+					teamSection.appendChild(el("div", { class: "pp-subhead", text: __("Contacts", "project-prepper") }));
+					var contactList = el("ul", { class: "pp-lines" });
+					(project.contacts || []).forEach(function (c) {
+						var bits = [c.role, c.company].filter(Boolean);
+						if (c.email) bits.push(c.email);
+						if (c.phone) bits.push(c.phone);
+						var meta = el("span", { class: "pp-muted", text: bits.join(" · ") });
+						if (!editable) {
+							contactList.appendChild(el("li", null, [el("span", { text: c.name }), meta]));
+							return;
+						}
+						contactList.appendChild(el("li", null, [
+							el("span", { text: c.name }), meta,
+							el("button", {
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/contacts/" + c.id, { method: "DELETE" })
+										.then(function () { reload(renderTeam); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					});
+					if (!(project.contacts || []).length) contactList.appendChild(el("li", { class: "pp-muted", text: __("No contacts.", "project-prepper") }));
+					teamSection.appendChild(contactList);
+
+					if (editable) {
+						var coName = el("input", { type: "text", placeholder: __("Name", "project-prepper"), class: "pp-input-md" });
+						var coRole = el("input", { type: "text", placeholder: __("Role", "project-prepper"), class: "pp-input-sm" });
+						var coCompany = el("input", { type: "text", placeholder: __("Company", "project-prepper"), class: "pp-input-sm" });
+						var coEmail = el("input", { type: "email", placeholder: __("Email", "project-prepper"), class: "pp-input-md" });
+						var coPhone = el("input", { type: "text", placeholder: __("Phone", "project-prepper"), class: "pp-input-sm" });
+						teamSection.appendChild(el("div", { class: "pp-row" }, [
+							coName, coRole, coCompany, coEmail, coPhone,
+							el("button", {
+								class: "pp-btn pp-btn-sm", text: __("+ Contact", "project-prepper"), type: "button",
+								onclick: function () {
+									if (!coName.value.trim()) return;
+									api("/projects/" + projectId + "/contacts", {
+										method: "POST",
+										body: JSON.stringify({ name: coName.value.trim(), role: coRole.value.trim(), company: coCompany.value.trim(), email: coEmail.value.trim(), phone: coPhone.value.trim() })
+									}).then(function () {
+										coName.value = ""; coRole.value = ""; coCompany.value = ""; coEmail.value = ""; coPhone.value = "";
+										reload(renderTeam);
+									}).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					}
+				}
+				renderTeam();
+
+				var body = el("div", null, [statusRow, info, bookingsSection, costsSection, consumablesSection, scheduleSection, checklistsSection, tasksSection, teamSection]);
 
 				var close;
 				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);

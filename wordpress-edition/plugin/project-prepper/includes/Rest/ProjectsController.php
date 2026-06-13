@@ -3,10 +3,13 @@ namespace ProjectPrepper\Rest;
 
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Services\Checklists;
+use ProjectPrepper\Services\Consumables;
+use ProjectPrepper\Services\Contacts;
 use ProjectPrepper\Services\Costs;
 use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\Schedule;
 use ProjectPrepper\Services\Tasks;
+use ProjectPrepper\Services\Team;
 use WP_REST_Request;
 use WP_REST_Response;
 use WP_Error;
@@ -133,6 +136,84 @@ class ProjectsController extends BaseController {
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'remove_cost' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/consumables', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'consumables' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'add_consumable' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/consumables/(?P<cid>\d+)', [
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_consumable' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_consumable' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/team', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'team' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'add_team' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/team/(?P<tid>\d+)', [
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_team' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_team' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/contacts', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'contacts' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'add_contact' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/contacts/(?P<cid>\d+)', [
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_contact' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_contact' ],
 				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
 			],
 		] );
@@ -457,6 +538,204 @@ class ProjectsController extends BaseController {
 		}
 		if ( array_key_exists( 'exclude_from_profit', $json ) ) {
 			$data['exclude_from_profit'] = ! empty( $json['exclude_from_profit'] );
+		}
+		if ( array_key_exists( 'sort_order', $json ) ) {
+			$data['sort_order'] = (int) $json['sort_order'];
+		}
+		return $data;
+	}
+
+	/* ---------- Verbrauchsmaterial ---------- */
+
+	public function consumables( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( Consumables::for_project( (int) $request['id'] ) );
+	}
+
+	public function add_consumable( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$result = Consumables::create( (int) $request['id'], $this->consumable_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Consumables::for_project( (int) $request['id'] ), 201 );
+	}
+
+	public function update_consumable( WP_REST_Request $request ) {
+		$owner = $this->consumable_in_project( (int) $request['id'], (int) $request['cid'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Consumables::update( (int) $request['cid'], $this->consumable_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Consumables::for_project( (int) $request['id'] ) );
+	}
+
+	public function remove_consumable( WP_REST_Request $request ) {
+		$owner = $this->consumable_in_project( (int) $request['id'], (int) $request['cid'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Consumables::delete( (int) $request['cid'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Consumables::for_project( (int) $request['id'] ) );
+	}
+
+	/**
+	 * @return true|WP_Error
+	 */
+	private function consumable_in_project( int $project_id, int $consumable_id ) {
+		$entry = Consumables::get( $consumable_id );
+		if ( ! $entry || (int) $entry->project_id !== $project_id ) {
+			return new WP_Error( 'pp_not_found', __( 'Consumable not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return true;
+	}
+
+	private function consumable_payload( array $json ): array {
+		$data = $this->sanitize_text_fields( $json, [ 'name', 'unit' ] );
+		foreach ( [ 'quantity', 'cost' ] as $key ) {
+			if ( array_key_exists( $key, $json ) ) {
+				// Roh-Wert durchreichen ('' / null erlaubt); der Service validiert die Zahl.
+				$data[ $key ] = is_scalar( $json[ $key ] ) ? (string) $json[ $key ] : '';
+			}
+		}
+		if ( array_key_exists( 'sort_order', $json ) ) {
+			$data['sort_order'] = (int) $json['sort_order'];
+		}
+		return $data;
+	}
+
+	/* ---------- Team-Mitglieder ---------- */
+
+	public function team( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( Team::for_project( (int) $request['id'] ) );
+	}
+
+	public function add_team( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$result = Team::create( (int) $request['id'], $this->team_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Team::for_project( (int) $request['id'] ), 201 );
+	}
+
+	public function update_team( WP_REST_Request $request ) {
+		$owner = $this->team_member_in_project( (int) $request['id'], (int) $request['tid'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Team::update( (int) $request['tid'], $this->team_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Team::for_project( (int) $request['id'] ) );
+	}
+
+	public function remove_team( WP_REST_Request $request ) {
+		$owner = $this->team_member_in_project( (int) $request['id'], (int) $request['tid'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Team::delete( (int) $request['tid'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Team::for_project( (int) $request['id'] ) );
+	}
+
+	/**
+	 * @return true|WP_Error
+	 */
+	private function team_member_in_project( int $project_id, int $member_id ) {
+		$entry = Team::get( $member_id );
+		if ( ! $entry || (int) $entry->project_id !== $project_id ) {
+			return new WP_Error( 'pp_not_found', __( 'Team member not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return true;
+	}
+
+	private function team_payload( array $json ): array {
+		$data = $this->sanitize_text_fields( $json, [ 'name', 'role', 'department' ] );
+		if ( array_key_exists( 'sort_order', $json ) ) {
+			$data['sort_order'] = (int) $json['sort_order'];
+		}
+		return $data;
+	}
+
+	/* ---------- Kontakte ---------- */
+
+	public function contacts( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( Contacts::for_project( (int) $request['id'] ) );
+	}
+
+	public function add_contact( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$result = Contacts::create( (int) $request['id'], $this->contact_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Contacts::for_project( (int) $request['id'] ), 201 );
+	}
+
+	public function update_contact( WP_REST_Request $request ) {
+		$owner = $this->contact_in_project( (int) $request['id'], (int) $request['cid'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Contacts::update( (int) $request['cid'], $this->contact_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Contacts::for_project( (int) $request['id'] ) );
+	}
+
+	public function remove_contact( WP_REST_Request $request ) {
+		$owner = $this->contact_in_project( (int) $request['id'], (int) $request['cid'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Contacts::delete( (int) $request['cid'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Contacts::for_project( (int) $request['id'] ) );
+	}
+
+	/**
+	 * @return true|WP_Error
+	 */
+	private function contact_in_project( int $project_id, int $contact_id ) {
+		$entry = Contacts::get( $contact_id );
+		if ( ! $entry || (int) $entry->project_id !== $project_id ) {
+			return new WP_Error( 'pp_not_found', __( 'Contact not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return true;
+	}
+
+	private function contact_payload( array $json ): array {
+		$data = $this->sanitize_text_fields( $json, [ 'name', 'role', 'company', 'phone' ] );
+		if ( array_key_exists( 'email', $json ) ) {
+			$data['email'] = sanitize_email( (string) $json['email'] );
 		}
 		if ( array_key_exists( 'sort_order', $json ) ) {
 			$data['sort_order'] = (int) $json['sort_order'];

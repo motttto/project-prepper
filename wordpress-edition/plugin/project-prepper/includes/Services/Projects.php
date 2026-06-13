@@ -65,6 +65,9 @@ class Projects {
 		$project->tasks        = Tasks::for_project( $id );
 		$project->cost_items   = Costs::for_project( $id );
 		$project->cost_summary = Costs::summary( $id );
+		$project->consumables  = Consumables::for_project( $id );
+		$project->team         = Team::for_project( $id );
+		$project->contacts     = Contacts::for_project( $id );
 		return $project;
 	}
 
@@ -246,6 +249,9 @@ class Projects {
 		$wpdb->delete( Schema::table( 'project_tasks' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_schedule' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'cost_items' ), [ 'project_id' => $id ], [ '%d' ] );
+		$wpdb->delete( Schema::table( 'project_consumables' ), [ 'project_id' => $id ], [ '%d' ] );
+		$wpdb->delete( Schema::table( 'project_team' ), [ 'project_id' => $id ], [ '%d' ] );
+		$wpdb->delete( Schema::table( 'project_contacts' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_items' ), [ 'project_id' => $id ], [ '%d' ] );
 		$ok = false !== $wpdb->delete( Schema::table( 'projects' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {

@@ -578,6 +578,17 @@
 .pp-cost-sum-row span:first-child { color: var(--pp-muted-foreground); }
 .pp-cost-over span { color: var(--pp-destructive); font-weight: 600; }
 
+/* Unter-Überschrift innerhalb einer Modal-Sektion (z. B. Team / Kontakte) */
+.pp-subhead {
+	margin: 14px 0 4px;
+	font-size: 12px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--pp-muted-foreground);
+}
+.pp-subhead:first-of-type { margin-top: 4px; }
+
 /* ---------- Import-Vorschau ---------- */
 
 .pp-import-preview { max-height: 320px; overflow: auto; }

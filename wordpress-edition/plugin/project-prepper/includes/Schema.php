@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.7.0';
+	const VERSION    = '0.8.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -42,6 +42,9 @@ class Schema {
 		$p_tasks    = self::table( 'project_tasks' );
 		$p_sched    = self::table( 'project_schedule' );
 		$p_costs    = self::table( 'cost_items' );
+		$p_consum   = self::table( 'project_consumables' );
+		$p_team     = self::table( 'project_team' );
+		$p_contacts = self::table( 'project_contacts' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -277,6 +280,49 @@ class Schema {
 				exclude_from_profit tinyint(1) NOT NULL DEFAULT 0,
 				sort_order int(11) NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY project_id (project_id)
+			) {$charset};" );
+
+			// Verbrauchsmaterial pro Projekt (Pendant zu `project_consumables` der App).
+			// cost NULL = kein Kostenwert erfasst.
+			dbDelta( "CREATE TABLE {$p_consum} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				project_id bigint(20) unsigned NOT NULL,
+				name varchar(190) NOT NULL,
+				quantity decimal(10,2) NOT NULL DEFAULT 1,
+				unit varchar(40) NOT NULL DEFAULT '',
+				cost decimal(10,2) DEFAULT NULL,
+				sort_order int(11) NOT NULL DEFAULT 0,
+				PRIMARY KEY  (id),
+				KEY project_id (project_id)
+			) {$charset};" );
+
+			// Team-Mitglieder pro Projekt (Pendant zu `project_team_members` der App).
+			// Single-Site: keine Profil-Verknüpfung, nur Freitext-Felder.
+			dbDelta( "CREATE TABLE {$p_team} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				project_id bigint(20) unsigned NOT NULL,
+				name varchar(190) NOT NULL,
+				role varchar(190) NOT NULL DEFAULT '',
+				department varchar(190) NOT NULL DEFAULT '',
+				sort_order int(11) NOT NULL DEFAULT 0,
+				PRIMARY KEY  (id),
+				KEY project_id (project_id)
+			) {$charset};" );
+
+			// Externe Kontakte/Ansprechpartner pro Projekt (Pendant zu `project_contacts`
+			// der App). email/phone sind WP-Ergänzungen — externe Ansprechpartner
+			// haben Kontaktdaten.
+			dbDelta( "CREATE TABLE {$p_contacts} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				project_id bigint(20) unsigned NOT NULL,
+				name varchar(190) NOT NULL,
+				role varchar(190) NOT NULL DEFAULT '',
+				company varchar(190) NOT NULL DEFAULT '',
+				email varchar(190) NOT NULL DEFAULT '',
+				phone varchar(64) NOT NULL DEFAULT '',
+				sort_order int(11) NOT NULL DEFAULT 0,
 				PRIMARY KEY  (id),
 				KEY project_id (project_id)
 			) {$charset};" );
