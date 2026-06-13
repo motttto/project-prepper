@@ -141,48 +141,64 @@ class Inventory {
 		$cats    = Schema::table( 'categories' );
 		$lines   = Schema::table( 'rental_items' );
 		$rentals = Schema::table( 'rentals' );
+		$p_items = Schema::table( 'project_items' );
+		$projs   = Schema::table( 'projects' );
 		$today   = current_time( 'Y-m-d' );
 
-		$where  = [ '1=1' ];
-		// Platzhalter-Reihenfolge: erst die 4 Tabellennamen (%i, werden unten
-		// vorangestellt), dann die beiden Datums-%s des out_now-Subquery, dann WHERE.
-		$params = [ $today, $today ];
+		$where        = [ '1=1' ];
+		$where_params = [];
 
 		if ( ! empty( $args['search'] ) ) {
 			// Volltextsuche über die wichtigsten Felder (§8.5).
-			$like    = '%' . $wpdb->esc_like( $args['search'] ) . '%';
-			$fields  = [ 'i.name', 'i.inventory_number', 'i.description', 'i.manufacturer', 'i.model', 'i.serial_number', 'i.location', 'i.tags', 'i.accessories', 'i.notes' ];
-			$where[] = '(' . implode( ' LIKE %s OR ', $fields ) . ' LIKE %s)';
-			$params  = array_merge( $params, array_fill( 0, count( $fields ), $like ) );
+			$like         = '%' . $wpdb->esc_like( $args['search'] ) . '%';
+			$fields       = [ 'i.name', 'i.inventory_number', 'i.description', 'i.manufacturer', 'i.model', 'i.serial_number', 'i.location', 'i.tags', 'i.accessories', 'i.notes' ];
+			$where[]      = '(' . implode( ' LIKE %s OR ', $fields ) . ' LIKE %s)';
+			$where_params = array_merge( $where_params, array_fill( 0, count( $fields ), $like ) );
 		}
 		if ( ! empty( $args['category_id'] ) ) {
-			$where[]  = 'i.category_id = %d';
-			$params[] = (int) $args['category_id'];
+			$where[]        = 'i.category_id = %d';
+			$where_params[] = (int) $args['category_id'];
 		}
 		if ( ! empty( $args['usable_only'] ) ) {
 			// Öffentliches Frontend: defekte/ausgemusterte Artikel ausblenden.
 			$where[] = "i.item_condition NOT IN ('broken', 'retired')";
 		}
 		if ( ! empty( $args['out_only'] ) ) {
-			// Filter "Ausgeliehen" (§8.5): nur Artikel, die heute unterwegs sind.
+			// Filter "Ausgeliehen": nur Artikel, die heute unterwegs sind.
 			$where[] = 'COALESCE(o.out_now, 0) > 0';
 		}
 
-		// out_now = heute unterwegs (Summe Mengen aus überlappenden reserved/active-Verleihen),
-		// als ein Subquery-JOIN berechnet — kein N+1, nichts gespeichert.
-		array_unshift( $params, $items, $cats, $lines, $rentals );
+		// out_now = heute unterwegs: Summe der Mengen aus überlappenden
+		// reserved/active-Verleihen UND confirmed/running-Projekt-Buchungen
+		// (gleiche Semantik wie Availability), als ein Subquery-JOIN — kein N+1.
+		// Platzhalter-Reihenfolge folgt dem SQL von oben nach unten.
+		$params = array_merge(
+			[ $items, $cats ],                            // FROM %i i, LEFT JOIN %i c
+			[ $lines, $rentals, $today, $today ],         // Verleih-Zweig der UNION
+			[ $p_items, $projs, $today, $today ],         // Projekt-Zweig der UNION
+			$where_params                                 // WHERE
+		);
 		$sql = $wpdb->prepare(
 			"SELECT i.*, c.name AS category_name, c.icon AS category_icon,
 					COALESCE(o.out_now, 0) AS out_now
 				FROM %i i
 				LEFT JOIN %i c ON c.id = i.category_id
 				LEFT JOIN (
-					SELECT ri.item_id, SUM(ri.quantity) AS out_now
-					FROM %i ri
-					INNER JOIN %i r ON r.id = ri.rental_id
-					WHERE r.status IN ('reserved', 'active')
-					  AND r.date_from <= %s AND r.date_to >= %s
-					GROUP BY ri.item_id
+					SELECT u.item_id, SUM(u.quantity) AS out_now FROM (
+						SELECT ri.item_id, ri.quantity
+						FROM %i ri
+						INNER JOIN %i r ON r.id = ri.rental_id
+						WHERE r.status IN ('reserved', 'active')
+						  AND r.date_from <= %s AND r.date_to >= %s
+						UNION ALL
+						SELECT pi.item_id, pi.quantity
+						FROM %i pi
+						INNER JOIN %i p ON p.id = pi.project_id
+						WHERE p.status IN ('confirmed', 'running')
+						  AND COALESCE(pi.date_from, p.date_start) <= %s
+						  AND COALESCE(pi.date_to, p.date_end) >= %s
+					) u
+					GROUP BY u.item_id
 				) o ON o.item_id = i.id
 				WHERE " . implode( ' AND ', $where ) . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- WHERE-Bedingungen sind statische Strings mit Platzhaltern.
 				' ORDER BY i.inventory_number ASC',
@@ -373,9 +389,14 @@ class Inventory {
 		$items   = Schema::table( 'items' );
 		$lines   = Schema::table( 'rental_items' );
 		$rentals = Schema::table( 'rentals' );
+		$p_items = Schema::table( 'project_items' );
+		$projs   = Schema::table( 'projects' );
 		$today   = current_time( 'Y-m-d' );
 
-		$out_today = (int) $wpdb->get_var( $wpdb->prepare(
+		// "Heute unterwegs" = Verleihe (reserved/active) + Projekt-Buchungen
+		// (confirmed/running), die heute überlappen — dieselbe Semantik wie
+		// Availability::available_quantity().
+		$out_rented = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT COALESCE(SUM(ri.quantity), 0)
 			 FROM %i ri
 			 INNER JOIN %i r ON r.id = ri.rental_id
@@ -386,6 +407,21 @@ class Inventory {
 			$today,
 			$today
 		) );
+
+		$out_booked = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COALESCE(SUM(pi.quantity), 0)
+			 FROM %i pi
+			 INNER JOIN %i p ON p.id = pi.project_id
+			 WHERE p.status IN ('confirmed', 'running')
+			   AND COALESCE(pi.date_from, p.date_start) <= %s
+			   AND COALESCE(pi.date_to, p.date_end) >= %s",
+			$p_items,
+			$projs,
+			$today,
+			$today
+		) );
+
+		$out_today = $out_rented + $out_booked;
 
 		$row = $wpdb->get_row( $wpdb->prepare(
 			'SELECT COUNT(*) AS item_count,

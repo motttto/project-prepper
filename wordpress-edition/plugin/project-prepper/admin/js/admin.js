@@ -192,10 +192,11 @@
 					var thumb = item.image_url
 						? el("img", { class: "pp-thumb", src: item.image_url, alt: "" })
 						: el("div", { class: "pp-thumb-empty", text: item.category_icon || "📦" });
-					// Badge "n unterwegs" wenn der Artikel heute in Verleihen steckt.
+					// Badge "n unterwegs" wenn der Artikel heute in Verleihen oder
+					// bestätigten Projekten steckt (gleiche Semantik wie out_now).
 					var nameCell = el("td", null, [el("span", { text: item.name })]);
 					if (item.out_now > 0) {
-						nameCell.appendChild(el("span", { class: "pp-badge pp-badge-active pp-badge-out", text: item.out_now + " " + __("on loan", "project-prepper") }));
+						nameCell.appendChild(el("span", { class: "pp-badge pp-badge-active pp-badge-out", text: item.out_now + " " + __("out", "project-prepper") }));
 					}
 					// Doku-Spalte: 1 PDF → direkt öffnen, mehrere → Detail-Modal (wie App, Commit e9fe5b8).
 					var docsCell = el("td");

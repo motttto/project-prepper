@@ -703,7 +703,7 @@ msgstr "Tageswert Inventar"
 
 #: admin/js/admin.js:165
 msgid "Out now"
-msgstr "Ausgeliehen"
+msgstr "Unterwegs"
 
 #: admin/js/admin.js:168 admin/js/admin.js:1166
 msgid "All"
@@ -718,7 +718,7 @@ msgid "Docs"
 msgstr "Doku"
 
 #: admin/js/admin.js:198
-msgid "on loan"
+msgid "out"
 msgstr "unterwegs"
 
 #: admin/js/admin.js:206
