@@ -13,6 +13,9 @@ class Plugin {
 		if ( get_option( Schema::OPTION_KEY ) !== Schema::VERSION ) {
 			Schema::migrate();
 			Capabilities::install();
+			// Portal-Seite erst auf 'init' anlegen (wp_insert_post ist auf
+			// plugins_loaded zu früh) — Flag setzen, MemberPortal erledigt es.
+			update_option( Frontend\MemberPortal::ENSURE_FLAG, 1 );
 		}
 
 		// Gebündelte Übersetzungen aus languages/ laden — nötig, solange das Plugin
@@ -26,6 +29,7 @@ class Plugin {
 		Frontend\Shortcodes::init();
 		Frontend\Blocks::init();
 		Frontend\ItemDetail::init();
+		Frontend\MemberPortal::init();
 
 		if ( is_admin() ) {
 			Admin\Menu::init();

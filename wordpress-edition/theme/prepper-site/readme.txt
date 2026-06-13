@@ -31,6 +31,11 @@ is activated.
 
 == Changelog ==
 
+= 0.3.0 =
+* Front page reframed as a collective platform landing: hero, "how it works" and call-to-action now describe founding/joining a collective, bringing in your own inventory and lending to each other — instead of a single-operator rental catalog
+* Hero and CTA buttons now link to the plugin's member portal (/portal/) for sign-in
+* German translation updated for the new front-page copy
+
 = 0.2.0 =
 * Bundled Inter as the body font (self-hosted, SIL OFL) so the site typography matches the Project Prepper plugin admin and web app; registered via theme.json fontFace, no external request.
 

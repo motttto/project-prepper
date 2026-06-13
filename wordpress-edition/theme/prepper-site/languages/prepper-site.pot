@@ -2,14 +2,14 @@
 # This file is distributed under the GPLv2 or later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Prepper Site 0.1.0\n"
+"Project-Id-Version: Prepper Site 0.2.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/theme/prepper-site\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-12T19:59:29+00:00\n"
+"POT-Creation-Date: 2026-06-13T22:38:25+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: prepper-site\n"
@@ -81,27 +81,27 @@ msgid "How it works"
 msgstr ""
 
 #: patterns/features.php:22
-msgid "Browse the catalog"
+msgid "Found or join a collective"
 msgstr ""
 
 #: patterns/features.php:25
-msgid "Search our equipment by name, category or tags — with daily rates and live availability."
+msgid "Start your own collective or get invited to one — the members decide together who joins."
 msgstr ""
 
 #: patterns/features.php:35
-msgid "Send your request"
+msgid "Bring in your inventory"
 msgstr ""
 
 #: patterns/features.php:38
-msgid "Pick the items and your rental period — we get back to you with a quote."
+msgid "Add your own equipment and share it with your collective — you stay the owner."
 msgstr ""
 
 #: patterns/features.php:48
-msgid "Pick up & play"
+msgid "Lend to each other"
 msgstr ""
 
 #: patterns/features.php:51
-msgid "Collect your gear on the agreed date — checked, tested and ready to go."
+msgid "Browse what your collective shares and borrow what you need — making better use of what already exists."
 msgstr ""
 
 #: patterns/hero.php
@@ -115,20 +115,19 @@ msgid "Dark hero section with headline, intro text and two call-to-action button
 msgstr ""
 
 #: patterns/hero.php:14
-msgid "Rent professional event equipment"
+msgid "Share resources as a collective"
 msgstr ""
 
 #: patterns/hero.php:17
-msgid "Lighting, sound and stage gear — check availability online and send your request in minutes."
+msgid "A self-hosted platform for collectives: found or join a group, bring in your own equipment and lend it to each other — non-commercially."
 msgstr ""
 
 #: patterns/hero.php:22
-msgid "Browse equipment"
+msgid "Member login"
 msgstr ""
 
 #: patterns/hero.php:25
-#: patterns/request-cta.php:20
-msgid "Send a request"
+msgid "Browse shared equipment"
 msgstr ""
 
 #: patterns/request-cta.php
@@ -142,11 +141,15 @@ msgid "Indigo call-to-action band linking to the request form."
 msgstr ""
 
 #: patterns/request-cta.php:12
-msgid "Planning an event?"
+msgid "Already a member?"
 msgstr ""
 
 #: patterns/request-cta.php:15
-msgid "Tell us what you need and when — you will hear back from us within one business day."
+msgid "Sign in to manage your inventory and your collectives. New here? Access is by invitation — ask the platform operators."
+msgstr ""
+
+#: patterns/request-cta.php:20
+msgid "Go to member login"
 msgstr ""
 
 #: theme.json
@@ -197,6 +200,11 @@ msgstr ""
 #: theme.json
 msgctxt "Gradient name"
 msgid "Hero"
+msgstr ""
+
+#: theme.json
+msgctxt "Font family name"
+msgid "Inter"
 msgstr ""
 
 #: theme.json

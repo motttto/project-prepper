@@ -34,6 +34,16 @@ Eine Installation = eine **Plattform/Architektur** (self-hosted, Datenhoheit, op
 ### 5. Föderation (Fernziel, NICHT jetzt)
 - Eigene **REST-API zur Instanz-Erkennung**: Instanzen finden sich (opt-in), eingrenzbar per **PLZ**, sortiert nach **Thema**; instanzübergreifende Inventar-Sichtbarkeit. Eigener Lauf weit später; Datenschutz/Opt-in kritisch.
 
+## Umsetzungsstand
+- **Phase 0 + 1 umgesetzt (Plugin v0.25.0 / Schema 0.16.0 / Theme „Prepper Site" v0.3.0, 2026-06-14):**
+  - Theme-Frontpage als Plattform-Landing (Hero „Ressourcen als Kollektiv teilen", 3-Schritte „Gründen/Beitreten · Inventar einbringen · Verleihen", CTA → `/portal/`).
+  - `owner_user_id` (NULL = Kollektiv) auf `pp_items` + `pp_categories` — additiv, Bestandsdaten unverändert.
+  - Rolle `pp_member` wird vom wp-admin ferngehalten (Redirect auf Portal + Admin-Bar aus); Admin/Manager behalten Backend (`MemberPortal::is_member_only()`).
+  - Front-End-Portal `[pp_member_portal]` (Auto-Seite „portal"): Login (WP-Auth) + Einladungs-Hinweis · für Mitglieder Begrüßung + eigene Kollektive + ehrliche „In Vorbereitung"-Kacheln (Gründen/Beitreten/Mein Inventar).
+  - Einladungs-only by design (kein offenes Signup); security by design (Portal liest nur eigene Daten).
+  - de_DE vollständig (POMO-kompiliert), Plugin Check sauber (nur dev-only `.wp-env.json` + erwarteter Stable-Tag, beide ok).
+- **Offen / als Nächstes:** Phase 2 (Gründen/Beitreten + Beitritts-Voting im Frontend) — die Portal-Kacheln aktivieren.
+
 ## Roadmap (gestuft, jede Phase testbar/ausrollbar)
 
 | Phase | Inhalt | Aufwand |

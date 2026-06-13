@@ -32,3 +32,6 @@ cloudflare-caldav-proxy/.next/
 .claude/settings.local.json
 .claude/worktrees/
 wordpress-edition/research/
+
+# Lokale Recherche-Screenshots (WP-Edition) — nie committen
+wordpress-edition/.research-shots/

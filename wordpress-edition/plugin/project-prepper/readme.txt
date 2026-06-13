@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.24.0
+Stable tag: 0.25.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.25.0 =
+* Member portal (foundation): a new front-end portal page ([pp_member_portal], created automatically) where members sign in and see their collectives — members work entirely on the website, not in wp-admin
+* Members (role "Prepper Member") are now kept out of wp-admin: they are redirected to the portal and the admin bar is hidden, while admins and managers keep full back-end access
+* Access is invitation-only by design — the portal shows a sign-in form and a note that accounts are set up by the platform operators (no open registration)
+* Per-user inventory ownership groundwork: inventory items and categories gained an optional owner (owner_user_id); existing data stays collective-owned (unchanged)
+* Front page reframed as a collective platform landing (found/join a collective, bring in your inventory, lend to each other) instead of a single-operator rental catalog
 
 = 0.24.0 =
 * Frontend visual alignment: removed the dark-mode override so the public shortcodes and blocks always render light, matching the theme and web app (previously the cards turned dark on a dark OS while the page stayed white)

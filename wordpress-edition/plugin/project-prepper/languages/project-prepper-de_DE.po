@@ -2731,3 +2731,66 @@ msgstr "Gewinn abrechnen"
 #: admin/js/admin.js
 msgid "Distribute the profit and record a signed agreement."
 msgstr "Gewinn verteilen und eine unterschriebene Vereinbarung festhalten."
+
+msgid "Member portal"
+msgstr "Mitgliederportal"
+
+msgid "Member login"
+msgstr "Mitglieder-Login"
+
+msgid "Sign in to manage your inventory, your collectives and shared resources."
+msgstr "Melde dich an, um dein Inventar, deine Kollektive und geteilte Ressourcen zu verwalten."
+
+msgid "Email or username"
+msgstr "E-Mail oder Benutzername"
+
+msgid "Password"
+msgstr "Passwort"
+
+msgid "Sign in"
+msgstr "Anmelden"
+
+msgid "Access is by invitation only. Ask the platform operators to set up an account for you."
+msgstr "Der Zugang erfolgt nur per Einladung. Bitte die Plattform-Betreiber, ein Konto für dich anzulegen."
+
+msgid "Forgot your password?"
+msgstr "Passwort vergessen?"
+
+msgid "Welcome to your collective platform."
+msgstr "Willkommen auf deiner Kollektiv-Plattform."
+
+msgid "You have management access to this platform."
+msgstr "Du hast Verwaltungszugang zu dieser Plattform."
+
+msgid "Open admin area"
+msgstr "Verwaltung öffnen"
+
+msgid "Your collectives"
+msgstr "Deine Kollektive"
+
+msgid "You are not part of any collective yet. Found one or join an existing collective to start sharing inventory."
+msgstr "Du bist noch in keinem Kollektiv. Gründe eines oder tritt einem bestehenden Kollektiv bei, um Inventar zu teilen."
+
+msgid "What you can do here"
+msgstr "Was du hier tun kannst"
+
+msgid "Found a collective"
+msgstr "Kollektiv gründen"
+
+msgid "Start your own collective and invite others to share resources."
+msgstr "Gründe dein eigenes Kollektiv und lade andere ein, Ressourcen zu teilen."
+
+msgid "Join a collective"
+msgstr "Kollektiv beitreten"
+
+msgid "Get invited to an existing collective — the members decide together."
+msgstr "Lass dich in ein bestehendes Kollektiv einladen — die Mitglieder entscheiden gemeinsam."
+
+msgid "My inventory"
+msgstr "Mein Inventar"
+
+msgid "Add your own equipment and share it with your collectives."
+msgstr "Lege dein eigenes Equipment an und teile es mit deinen Kollektiven."
+
+msgid "Coming soon"
+msgstr "In Vorbereitung"

@@ -1,4 +1,3 @@
-# German translation for the Prepper Site theme.
 msgid ""
 msgstr ""
 "Project-Id-Version: Prepper Site 0.1.0\n"
@@ -190,3 +189,42 @@ msgstr "Footer"
 #: theme.json
 msgid "Page without title"
 msgstr "Seite ohne Titel"
+
+msgid "Share resources as a collective"
+msgstr "Ressourcen als Kollektiv teilen"
+
+msgid "A self-hosted platform for collectives: found or join a group, bring in your own equipment and lend it to each other — non-commercially."
+msgstr "Eine selbst gehostete Plattform für Kollektive: Gründe eine Gruppe oder tritt einer bei, bring dein eigenes Equipment ein und verleiht es einander — nichtkommerziell."
+
+msgid "Member login"
+msgstr "Mitglieder-Login"
+
+msgid "Browse shared equipment"
+msgstr "Geteiltes Equipment ansehen"
+
+msgid "Found or join a collective"
+msgstr "Kollektiv gründen oder beitreten"
+
+msgid "Start your own collective or get invited to one — the members decide together who joins."
+msgstr "Gründe dein eigenes Kollektiv oder lass dich einladen — die Mitglieder entscheiden gemeinsam, wer beitritt."
+
+msgid "Bring in your inventory"
+msgstr "Bring dein Inventar ein"
+
+msgid "Add your own equipment and share it with your collective — you stay the owner."
+msgstr "Lege dein eigenes Equipment an und teile es mit deinem Kollektiv — du bleibst Eigentümer."
+
+msgid "Lend to each other"
+msgstr "Verleiht einander"
+
+msgid "Browse what your collective shares and borrow what you need — making better use of what already exists."
+msgstr "Sieh, was dein Kollektiv teilt, und leih dir, was du brauchst — so wird besser genutzt, was schon da ist."
+
+msgid "Already a member?"
+msgstr "Schon Mitglied?"
+
+msgid "Sign in to manage your inventory and your collectives. New here? Access is by invitation — ask the platform operators."
+msgstr "Melde dich an, um dein Inventar und deine Kollektive zu verwalten. Neu hier? Der Zugang erfolgt per Einladung — frag die Plattform-Betreiber."
+
+msgid "Go to member login"
+msgstr "Zum Mitglieder-Login"

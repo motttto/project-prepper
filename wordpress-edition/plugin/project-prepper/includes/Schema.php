@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.15.0';
+	const VERSION    = '0.16.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -64,9 +64,11 @@ class Schema {
 			icon varchar(16) NOT NULL DEFAULT '',
 			prefix varchar(10) NOT NULL DEFAULT '',
 			sort_order int(11) NOT NULL DEFAULT 0,
+			owner_user_id bigint(20) unsigned DEFAULT NULL,
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
-			KEY sort_order (sort_order)
+			KEY sort_order (sort_order),
+			KEY owner_user_id (owner_user_id)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$items} (
@@ -99,13 +101,15 @@ class Schema {
 			image_id bigint(20) unsigned DEFAULT NULL,
 			document_ids longtext,
 			notes text,
+			owner_user_id bigint(20) unsigned DEFAULT NULL,
 			created_by bigint(20) unsigned DEFAULT NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY inventory_number (inventory_number),
 			KEY category_id (category_id),
-			KEY name (name)
+			KEY name (name),
+			KEY owner_user_id (owner_user_id)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$units} (
