@@ -3112,3 +3112,126 @@ msgstr ""
 "\n"
 "Viele Grüße\n"
 "{{site_name}}"
+
+msgid "Too many failed attempts. Please try again in about %d minutes."
+msgstr "Zu viele Fehlversuche. Bitte versuche es in etwa %d Minuten erneut."
+
+msgid "You have reached the maximum number of collectives."
+msgstr "Du hast die maximale Anzahl an Kollektiven erreicht."
+
+msgid "You have reached your invitation limit for today."
+msgstr "Du hast dein Einladungs-Limit für heute erreicht."
+
+msgid "Permission denied."
+msgstr "Zugriff verweigert."
+
+msgid "Platform"
+msgstr "Plattform"
+
+msgid "Security"
+msgstr "Sicherheit"
+
+msgid "Where the member portal comes together: collectives, join voting, member inventory and borrow requests. Manage members under Groups."
+msgstr "Hier laufen die Member-Portal-Prozesse zusammen: Kollektive, Beitritts-Voting, Mitglieder-Inventar und Leih-Anfragen. Mitglieder verwaltest du unter „Gruppen\"."
+
+msgid "Collectives"
+msgstr "Kollektive"
+
+msgid "Member inventory"
+msgstr "Mitglieder-Inventar"
+
+msgid "Open invitations"
+msgstr "Offene Einladungen"
+
+msgid "Active loans"
+msgstr "Aktive Leihen"
+
+msgid "Open borrow requests"
+msgstr "Offene Leih-Anfragen"
+
+msgid "Open join invitations"
+msgstr "Offene Beitritts-Einladungen"
+
+msgid "Invited"
+msgstr "Eingeladen"
+
+msgid "Approvals"
+msgstr "Zustimmungen"
+
+msgid "Collective"
+msgstr "Kollektiv"
+
+msgid "No open invitations."
+msgstr "Keine offenen Einladungen."
+
+msgid "Recent borrow requests"
+msgstr "Letzte Leih-Anfragen"
+
+msgid "Owner"
+msgstr "Eigentümer"
+
+msgid "No borrow requests yet."
+msgstr "Noch keine Leih-Anfragen."
+
+msgid "Manage"
+msgstr "Verwalten"
+
+msgid "No collectives yet."
+msgstr "Noch keine Kollektive."
+
+msgid "Pending acceptance"
+msgstr "Wartet auf Annahme"
+
+msgid "In voting"
+msgstr "In Abstimmung"
+
+msgid "Frontend hardening for the member portal. Everything is OFF by default — nothing changes until you enable it here."
+msgstr "Frontend-Härtung für das Member-Portal. Standardmäßig ist alles AUS — es ändert sich nichts, bis du es hier aktivierst."
+
+msgid "Security settings saved."
+msgstr "Sicherheits-Einstellungen gespeichert."
+
+msgid "Login throttling"
+msgstr "Login-Drosselung"
+
+msgid "Lock out repeated failed logins (per IP)."
+msgstr "Wiederholte Fehl-Logins sperren (pro IP)."
+
+msgid "Max attempts"
+msgstr "Max. Versuche"
+
+msgid "Lockout (minutes)"
+msgstr "Sperre (Minuten)"
+
+msgid "Collectives per user"
+msgstr "Kollektive pro User"
+
+msgid "Anti-snowball limit. 0 = unlimited."
+msgstr "Schneeball-Schutz. 0 = unbegrenzt."
+
+msgid "Invitations per day"
+msgstr "Einladungen pro Tag"
+
+msgid "Per member, rolling 24 hours. 0 = unlimited."
+msgstr "Pro Mitglied, gleitende 24 Stunden. 0 = unbegrenzt."
+
+msgid "Self-registration"
+msgstr "Selbst-Registrierung"
+
+msgid "Allow open sign-up (new accounts become members). Off = invitation only."
+msgstr "Offene Registrierung erlauben (neue Konten werden Mitglieder). Aus = nur per Einladung."
+
+msgid "Two-factor for members"
+msgstr "Zwei-Faktor für Mitglieder"
+
+msgid "Require a second factor at member login."
+msgstr "Beim Mitglieder-Login einen zweiten Faktor verlangen."
+
+msgid "Prepared — not enforced yet."
+msgstr "Vorbereitet — noch nicht aktiv."
+
+msgid "The switch is saved; the actual 2FA flow is delivered in a dedicated security run."
+msgstr "Der Schalter wird gespeichert; der eigentliche 2FA-Ablauf folgt in einem eigenen Sicherheits-Lauf."
+
+msgid "Save security settings"
+msgstr "Sicherheits-Einstellungen speichern"

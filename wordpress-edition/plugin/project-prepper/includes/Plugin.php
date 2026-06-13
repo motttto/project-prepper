@@ -26,6 +26,7 @@ class Plugin {
 
 		Email\Notifications::init();
 		Privacy::init();
+		Security::init();
 		Frontend\Shortcodes::init();
 		Frontend\Blocks::init();
 		Frontend\ItemDetail::init();

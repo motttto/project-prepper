@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.29.0
+Stable tag: 0.30.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.30.0 =
+* New "Platform" admin page: the member-portal processes come together for operators — KPIs (collectives, member inventory, open invitations, active loans, open requests), open join invitations with voting status, recent borrow requests, and all collectives with member counts
+* New "Security" admin page: frontend hardening for the member portal, all OFF by default — login throttling (lockout after repeated failed logins per IP), a collectives-per-user limit and an invitations-per-day limit (anti-snowball), an optional self-registration switch (off = invitation only), and a prepared two-factor switch (saved, full flow to follow)
+* Nothing changes unless an operator enables it; with everything off the behaviour is exactly as before
 
 = 0.29.0 =
 * Availability for borrowing: a request can only be approved if a unit of the item is actually free in that period — overlapping approved loans are counted against the item quantity, so no overbooking

@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Project Prepper 0.29.0\n"
+"Project-Id-Version: Project Prepper 0.30.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/project-prepper\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-13T23:15:56+00:00\n"
+"POT-Creation-Date: 2026-06-13T23:30:07+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: project-prepper\n"
@@ -34,69 +34,309 @@ msgstr ""
 msgid "motttto"
 msgstr ""
 
-#: includes/Admin/Menu.php:36
-#: includes/Admin/Menu.php:37
+#: includes/Admin/Menu.php:41
+#: includes/Admin/Menu.php:42
 msgid "Dashboard"
 msgstr ""
 
-#: includes/Admin/Menu.php:46
-#: includes/Admin/Menu.php:47
-#: includes/Admin/Menu.php:161
+#: includes/Admin/Menu.php:51
+#: includes/Admin/Menu.php:52
+#: includes/Admin/Menu.php:188
 #: admin/js/admin.js:630
 #: admin/js/admin.js:1179
 msgid "Inventory"
 msgstr ""
 
-#: includes/Admin/Menu.php:55
-#: includes/Admin/Menu.php:56
-#: includes/Admin/Menu.php:165
+#: includes/Admin/Menu.php:60
+#: includes/Admin/Menu.php:61
+#: includes/Admin/Menu.php:192
 msgid "Projects"
 msgstr ""
 
-#: includes/Admin/Menu.php:64
-#: includes/Admin/Menu.php:65
-#: includes/Admin/Menu.php:169
+#: includes/Admin/Menu.php:69
+#: includes/Admin/Menu.php:70
+#: includes/Admin/Menu.php:196
 msgid "Groups"
 msgstr ""
 
-#: includes/Admin/Menu.php:73
-#: includes/Admin/Menu.php:74
-#: includes/Admin/Menu.php:173
+#: includes/Admin/Menu.php:81
+#: includes/Admin/Menu.php:82
+#: includes/Admin/Menu.php:254
+msgid "Platform"
+msgstr ""
+
+#: includes/Admin/Menu.php:90
+#: includes/Admin/Menu.php:91
+#: includes/Admin/Menu.php:200
 #: includes/Rest/CalendarController.php:54
 msgid "Rentals"
 msgstr ""
 
-#: includes/Admin/Menu.php:82
-#: includes/Admin/Menu.php:83
-#: includes/Admin/Menu.php:189
+#: includes/Admin/Menu.php:99
+#: includes/Admin/Menu.php:100
+#: includes/Admin/Menu.php:216
 msgid "Inquiries"
 msgstr ""
 
-#: includes/Admin/Menu.php:91
-#: includes/Admin/Menu.php:92
-#: includes/Admin/Menu.php:177
+#: includes/Admin/Menu.php:108
+#: includes/Admin/Menu.php:109
+#: includes/Admin/Menu.php:204
 msgid "Calendar"
 msgstr ""
 
-#: includes/Admin/Menu.php:100
-#: includes/Admin/Menu.php:101
-#: includes/Admin/Menu.php:181
+#: includes/Admin/Menu.php:117
+#: includes/Admin/Menu.php:118
+#: includes/Admin/Menu.php:208
 msgid "Categories"
 msgstr ""
 
-#: includes/Admin/Menu.php:109
-#: includes/Admin/Menu.php:110
-#: includes/Admin/Menu.php:185
+#: includes/Admin/Menu.php:126
+#: includes/Admin/Menu.php:127
+#: includes/Admin/Menu.php:212
 #: admin/js/blocks-editor.js:18
 msgid "Settings"
 msgstr ""
 
+#: includes/Admin/Menu.php:136
+#: includes/Admin/Menu.php:137
+#: includes/Admin/Menu.php:341
+msgid "Security"
+msgstr ""
+
 #. translators: %s = display name of the current user.
 #. translators: %s: member display name.
-#: includes/Admin/Menu.php:154
+#: includes/Admin/Menu.php:181
 #: includes/Frontend/MemberPortal.php:337
 #, php-format
 msgid "Hello %s"
+msgstr ""
+
+#: includes/Admin/Menu.php:230
+msgid "Pending acceptance"
+msgstr ""
+
+#: includes/Admin/Menu.php:231
+msgid "In voting"
+msgstr ""
+
+#: includes/Admin/Menu.php:232
+#: includes/Frontend/MemberPortal.php:809
+msgid "Requested"
+msgstr ""
+
+#: includes/Admin/Menu.php:233
+#: includes/Frontend/MemberPortal.php:810
+#: admin/js/admin.js:2121
+msgid "Approved"
+msgstr ""
+
+#: includes/Admin/Menu.php:234
+#: includes/Frontend/MemberPortal.php:811
+#: admin/js/admin.js:2564
+msgid "Declined"
+msgstr ""
+
+#: includes/Admin/Menu.php:235
+#: includes/Frontend/MemberPortal.php:812
+#: admin/js/admin.js:119
+#: admin/js/admin.js:439
+#: admin/js/admin.js:1174
+#: admin/js/admin.js:2121
+msgid "Cancelled"
+msgstr ""
+
+#: includes/Admin/Menu.php:236
+#: includes/Frontend/MemberPortal.php:813
+#: admin/js/admin.js:119
+msgid "Returned"
+msgstr ""
+
+#: includes/Admin/Menu.php:246
+#: includes/Admin/Menu.php:312
+msgid "Collectives"
+msgstr ""
+
+#: includes/Admin/Menu.php:247
+msgid "Member inventory"
+msgstr ""
+
+#: includes/Admin/Menu.php:248
+msgid "Open invitations"
+msgstr ""
+
+#: includes/Admin/Menu.php:249
+msgid "Active loans"
+msgstr ""
+
+#: includes/Admin/Menu.php:250
+msgid "Open borrow requests"
+msgstr ""
+
+#: includes/Admin/Menu.php:255
+msgid "Where the member portal comes together: collectives, join voting, member inventory and borrow requests. Manage members under Groups."
+msgstr ""
+
+#: includes/Admin/Menu.php:266
+msgid "Open join invitations"
+msgstr ""
+
+#: includes/Admin/Menu.php:269
+msgid "Collective"
+msgstr ""
+
+#: includes/Admin/Menu.php:270
+msgid "Invited"
+msgstr ""
+
+#: includes/Admin/Menu.php:271
+#: includes/Admin/Menu.php:295
+#: includes/Privacy.php:57
+#: admin/js/admin.js:840
+#: admin/js/admin.js:1232
+#: admin/js/admin.js:2837
+#: admin/js/admin.js:3117
+msgid "Status"
+msgstr ""
+
+#: includes/Admin/Menu.php:272
+msgid "Approvals"
+msgstr ""
+
+#: includes/Admin/Menu.php:283
+msgid "No open invitations."
+msgstr ""
+
+#: includes/Admin/Menu.php:288
+msgid "Recent borrow requests"
+msgstr ""
+
+#: includes/Admin/Menu.php:291
+#: admin/js/admin.js:1135
+#: admin/js/admin.js:3467
+msgid "Item"
+msgstr ""
+
+#: includes/Admin/Menu.php:292
+msgid "Owner"
+msgstr ""
+
+#: includes/Admin/Menu.php:293
+#: admin/js/admin.js:840
+msgid "Borrower"
+msgstr ""
+
+#: includes/Admin/Menu.php:294
+#: includes/Privacy.php:56
+#: admin/js/admin.js:982
+#: admin/js/admin.js:1232
+#: admin/js/admin.js:3074
+#: admin/js/admin.js:3117
+msgid "Period"
+msgstr ""
+
+#: includes/Admin/Menu.php:307
+msgid "No borrow requests yet."
+msgstr ""
+
+#: includes/Admin/Menu.php:315
+#: includes/Frontend/MemberPortal.php:630
+#: includes/Privacy.php:52
+#: includes/Rest/ImportExportController.php:28
+#: admin/js/admin.js:197
+#: admin/js/admin.js:598
+#: admin/js/admin.js:659
+#: admin/js/admin.js:1232
+#: admin/js/admin.js:1661
+#: admin/js/admin.js:1696
+#: admin/js/admin.js:2481
+#: admin/js/admin.js:2529
+#: admin/js/admin.js:2926
+#: admin/js/admin.js:3071
+#: admin/js/admin.js:3117
+#: admin/js/admin.js:3260
+msgid "Name"
+msgstr ""
+
+#: includes/Admin/Menu.php:316
+#: admin/js/admin.js:3260
+#: admin/js/admin.js:3291
+msgid "Members"
+msgstr ""
+
+#: includes/Admin/Menu.php:324
+msgid "Manage"
+msgstr ""
+
+#: includes/Admin/Menu.php:327
+msgid "No collectives yet."
+msgstr ""
+
+#: includes/Admin/Menu.php:342
+msgid "Frontend hardening for the member portal. Everything is OFF by default — nothing changes until you enable it here."
+msgstr ""
+
+#: includes/Admin/Menu.php:345
+msgid "Security settings saved."
+msgstr ""
+
+#: includes/Admin/Menu.php:354
+msgid "Login throttling"
+msgstr ""
+
+#: includes/Admin/Menu.php:356
+msgid "Lock out repeated failed logins (per IP)."
+msgstr ""
+
+#: includes/Admin/Menu.php:358
+msgid "Max attempts"
+msgstr ""
+
+#: includes/Admin/Menu.php:360
+msgid "Lockout (minutes)"
+msgstr ""
+
+#: includes/Admin/Menu.php:365
+msgid "Collectives per user"
+msgstr ""
+
+#: includes/Admin/Menu.php:368
+msgid "Anti-snowball limit. 0 = unlimited."
+msgstr ""
+
+#: includes/Admin/Menu.php:372
+msgid "Invitations per day"
+msgstr ""
+
+#: includes/Admin/Menu.php:375
+msgid "Per member, rolling 24 hours. 0 = unlimited."
+msgstr ""
+
+#: includes/Admin/Menu.php:379
+msgid "Self-registration"
+msgstr ""
+
+#: includes/Admin/Menu.php:381
+msgid "Allow open sign-up (new accounts become members). Off = invitation only."
+msgstr ""
+
+#: includes/Admin/Menu.php:385
+msgid "Two-factor for members"
+msgstr ""
+
+#: includes/Admin/Menu.php:387
+msgid "Require a second factor at member login."
+msgstr ""
+
+#: includes/Admin/Menu.php:388
+msgid "Prepared — not enforced yet."
+msgstr ""
+
+#: includes/Admin/Menu.php:388
+msgid "The switch is saved; the actual 2FA flow is delivered in a dedicated security run."
+msgstr ""
+
+#: includes/Admin/Menu.php:393
+msgid "Save security settings"
 msgstr ""
 
 #: includes/Capabilities.php:64
@@ -505,24 +745,6 @@ msgstr ""
 msgid "Add item"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:630
-#: includes/Privacy.php:52
-#: includes/Rest/ImportExportController.php:28
-#: admin/js/admin.js:197
-#: admin/js/admin.js:598
-#: admin/js/admin.js:659
-#: admin/js/admin.js:1232
-#: admin/js/admin.js:1661
-#: admin/js/admin.js:1696
-#: admin/js/admin.js:2481
-#: admin/js/admin.js:2529
-#: admin/js/admin.js:2926
-#: admin/js/admin.js:3071
-#: admin/js/admin.js:3117
-#: admin/js/admin.js:3260
-msgid "Name"
-msgstr ""
-
 #: includes/Frontend/MemberPortal.php:633
 #: includes/Rest/ImportExportController.php:29
 #: admin/js/admin.js:197
@@ -640,33 +862,6 @@ msgstr ""
 msgid "Borrow requests for your items"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:809
-msgid "Requested"
-msgstr ""
-
-#: includes/Frontend/MemberPortal.php:810
-#: admin/js/admin.js:2121
-msgid "Approved"
-msgstr ""
-
-#: includes/Frontend/MemberPortal.php:811
-#: admin/js/admin.js:2564
-msgid "Declined"
-msgstr ""
-
-#: includes/Frontend/MemberPortal.php:812
-#: admin/js/admin.js:119
-#: admin/js/admin.js:439
-#: admin/js/admin.js:1174
-#: admin/js/admin.js:2121
-msgid "Cancelled"
-msgstr ""
-
-#: includes/Frontend/MemberPortal.php:813
-#: admin/js/admin.js:119
-msgid "Returned"
-msgstr ""
-
 #: includes/Frontend/Shortcodes.php:29
 #: admin/js/admin.js:118
 #: admin/js/admin.js:2995
@@ -737,22 +932,6 @@ msgstr ""
 #: admin/js/admin.js:1056
 #: admin/js/admin.js:1129
 msgid "Address"
-msgstr ""
-
-#: includes/Privacy.php:56
-#: admin/js/admin.js:982
-#: admin/js/admin.js:1232
-#: admin/js/admin.js:3074
-#: admin/js/admin.js:3117
-msgid "Period"
-msgstr ""
-
-#: includes/Privacy.php:57
-#: admin/js/admin.js:840
-#: admin/js/admin.js:1232
-#: admin/js/admin.js:2837
-#: admin/js/admin.js:3117
-msgid "Status"
 msgstr ""
 
 #: includes/Privacy.php:80
@@ -1108,6 +1287,16 @@ msgstr ""
 msgid "There is already a unit for every piece of the quantity."
 msgstr ""
 
+#. translators: %d: minutes until the next login attempt is allowed.
+#: includes/Security.php:94
+#, php-format
+msgid "Too many failed attempts. Please try again in about %d minutes."
+msgstr ""
+
+#: includes/Security.php:118
+msgid "Permission denied."
+msgstr ""
+
 #: includes/Services/Agreements.php:185
 msgid "This project has no owning group. Assign a group first to set up an agreement."
 msgstr ""
@@ -1271,7 +1460,7 @@ msgid "This decision is already closed."
 msgstr ""
 
 #: includes/Services/Decisions.php:220
-#: includes/Services/GroupGovernance.php:205
+#: includes/Services/GroupGovernance.php:225
 #: includes/Services/Polls.php:232
 msgid "Invalid vote."
 msgstr ""
@@ -1293,58 +1482,66 @@ msgstr ""
 msgid "Invalid attachment."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:42
+#: includes/Services/GroupGovernance.php:43
 msgid "You are not allowed to found a collective."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:60
+#: includes/Services/GroupGovernance.php:48
+msgid "You have reached the maximum number of collectives."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:66
 msgid "You are not allowed to invite members."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:63
+#: includes/Services/GroupGovernance.php:69
 msgid "Only members of this collective can invite others."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:67
+#: includes/Services/GroupGovernance.php:73
 msgid "Please enter a valid email address."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:75
+#: includes/Services/GroupGovernance.php:86
+msgid "You have reached your invitation limit for today."
+msgstr ""
+
+#: includes/Services/GroupGovernance.php:95
 msgid "That person is already a member of this collective."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:87
+#: includes/Services/GroupGovernance.php:107
 msgid "There is already an open invitation for this address."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:119
+#: includes/Services/GroupGovernance.php:139
 msgid "This invitation can no longer be accepted."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:152
-#: includes/Services/GroupGovernance.php:175
+#: includes/Services/GroupGovernance.php:172
+#: includes/Services/GroupGovernance.php:195
 msgid "This invitation is already resolved."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:168
-#: includes/Services/GroupGovernance.php:194
-#: includes/Services/GroupGovernance.php:365
+#: includes/Services/GroupGovernance.php:188
+#: includes/Services/GroupGovernance.php:214
+#: includes/Services/GroupGovernance.php:407
 msgid "Invitation not found."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:172
+#: includes/Services/GroupGovernance.php:192
 msgid "Only members of this collective can cancel invitations."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:197
+#: includes/Services/GroupGovernance.php:217
 msgid "This invitation is not open for voting."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:201
+#: includes/Services/GroupGovernance.php:221
 msgid "Only members of this collective can vote."
 msgstr ""
 
-#: includes/Services/GroupGovernance.php:371
+#: includes/Services/GroupGovernance.php:413
 msgid "This invitation is not addressed to you."
 msgstr ""
 
@@ -2034,10 +2231,6 @@ msgid "Number"
 msgstr ""
 
 #: admin/js/admin.js:840
-msgid "Borrower"
-msgstr ""
-
-#: admin/js/admin.js:840
 #: admin/js/admin.js:948
 msgid "Line items"
 msgstr ""
@@ -2137,11 +2330,6 @@ msgstr ""
 #: admin/js/admin.js:3019
 #, js-format
 msgid "Rental %s created."
-msgstr ""
-
-#: admin/js/admin.js:1135
-#: admin/js/admin.js:3467
-msgid "Item"
 msgstr ""
 
 #: admin/js/admin.js:1148
@@ -3076,11 +3264,6 @@ msgstr ""
 
 #: admin/js/admin.js:3240
 msgid "GDPR: export & anonymization of borrower data via Tools → Personal Data (search by email address)."
-msgstr ""
-
-#: admin/js/admin.js:3260
-#: admin/js/admin.js:3291
-msgid "Members"
 msgstr ""
 
 #: admin/js/admin.js:3270

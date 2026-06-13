@@ -3,6 +3,7 @@ namespace ProjectPrepper\Services;
 
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Schema;
+use ProjectPrepper\Security;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -41,6 +42,11 @@ class GroupGovernance {
 		if ( ! $uid || ! current_user_can( Capabilities::COLLECTIVES ) ) {
 			return new WP_Error( 'pp_forbidden', __( 'You are not allowed to found a collective.', 'project-prepper' ), [ 'status' => 403 ] );
 		}
+		// Schneeball-Schutz (nur wenn aktiviert): max. Kollektive pro User.
+		$limit = Security::int( 'groups_per_user' );
+		if ( $limit > 0 && count( Groups::user_group_ids( $uid ) ) >= $limit ) {
+			return new WP_Error( 'pp_group_limit', __( 'You have reached the maximum number of collectives.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
 		// Groups::create trägt den aktuellen User automatisch als founder ein.
 		return Groups::create( [ 'name' => $name, 'description' => $description ] );
 	}
@@ -65,6 +71,20 @@ class GroupGovernance {
 		$email = sanitize_email( $email );
 		if ( ! is_email( $email ) ) {
 			return new WP_Error( 'pp_bad_email', __( 'Please enter a valid email address.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		// Schneeball-Schutz (nur wenn aktiviert): max. Einladungen pro User / 24 h.
+		$per_day = Security::int( 'invites_per_day' );
+		if ( $per_day > 0 ) {
+			$since = gmdate( 'Y-m-d H:i:s', time() - DAY_IN_SECONDS );
+			$today = (int) $wpdb->get_var( $wpdb->prepare(
+				'SELECT COUNT(*) FROM %i WHERE invited_by = %d AND created_at >= %s',
+				Schema::table( 'group_invitations' ),
+				$uid,
+				$since
+			) );
+			if ( $today >= $per_day ) {
+				return new WP_Error( 'pp_invite_limit', __( 'You have reached your invitation limit for today.', 'project-prepper' ), [ 'status' => 429 ] );
+			}
 		}
 
 		$invited_user    = get_user_by( 'email', $email );
@@ -324,6 +344,28 @@ class GroupGovernance {
 		$uid = get_current_user_id();
 		foreach ( $rows as $row ) {
 			$row->my_vote   = self::vote_of( (int) $row->id, $uid );
+			$row->approvals = self::approve_count( (int) $row->id, (int) $row->group_id );
+			$row->needed    = self::active_member_count( (int) $row->group_id );
+		}
+		return $rows;
+	}
+
+	/**
+	 * Alle offenen Einladungen plattformweit (Backend-Übersicht/Moderation).
+	 *
+	 * @return array<object>
+	 */
+	public static function all_pending(): array {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT i.*, g.name AS group_name
+			 FROM %i i JOIN %i g ON g.id = i.group_id
+			 WHERE i.status IN ('pending','voting')
+			 ORDER BY i.created_at DESC",
+			Schema::table( 'group_invitations' ),
+			Schema::table( 'groups' )
+		) ) ?: [];
+		foreach ( $rows as $row ) {
 			$row->approvals = self::approve_count( (int) $row->id, (int) $row->group_id );
 			$row->needed    = self::active_member_count( (int) $row->group_id );
 		}

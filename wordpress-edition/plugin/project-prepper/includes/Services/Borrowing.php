@@ -227,6 +227,34 @@ class Borrowing {
 		return $rows;
 	}
 
+	/**
+	 * Letzte Leih-Anfragen plattformweit (Backend-Übersicht/Moderation).
+	 *
+	 * @return array<object>
+	 */
+	public static function all_recent( int $limit = 30 ): array {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT b.*, i.name AS item_name, g.name AS group_name
+			 FROM %i b
+			 JOIN %i i ON i.id = b.item_id
+			 LEFT JOIN %i g ON g.id = b.group_id
+			 ORDER BY b.created_at DESC
+			 LIMIT %d',
+			Schema::table( 'borrow_requests' ),
+			Schema::table( 'items' ),
+			Schema::table( 'groups' ),
+			$limit
+		) ) ?: [];
+		foreach ( $rows as $row ) {
+			$o               = get_userdata( (int) $row->owner_id );
+			$r               = get_userdata( (int) $row->requester_id );
+			$row->owner_name = $o ? $o->display_name : '';
+			$row->requester_name = $r ? $r->display_name : '';
+		}
+		return $rows;
+	}
+
 	public static function get( int $request_id ): ?object {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare( 'SELECT * FROM %i WHERE id = %d', Schema::table( 'borrow_requests' ), $request_id ) ) ?: null;
