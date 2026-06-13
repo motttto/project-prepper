@@ -76,37 +76,6 @@
 	-webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-	#pp-admin {
-		--pp-background: #0c0a1d;
-		--pp-foreground: #e2e8f0;
-		--pp-primary: #818cf8;
-		--pp-primary-hover: #a5b4fc;
-		--pp-primary-light: #1e1b4b;
-		--pp-primary-muted: #3730a3;
-
-		--pp-surface: #1a1833;
-		--pp-surface-hover: #221f3d;
-		--pp-muted: #1e1b4b;
-		--pp-muted-foreground: #b0bec9;
-		--pp-border: #312e81;
-		--pp-border-light: #1e1b4b;
-
-		--pp-destructive: #f87171;
-		--pp-destructive-light: #450a0a;
-		--pp-success: #34d399;
-		--pp-success-light: #022c22;
-		--pp-warning: #fbbf24;
-		--pp-warning-light: #451a03;
-		--pp-info: #60a5fa;
-		--pp-info-light: #172554;
-
-		--pp-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
-		--pp-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.3), 0 2px 4px -2px rgb(0 0 0 / 0.2);
-		--pp-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.3), 0 4px 6px -4px rgb(0 0 0 / 0.2);
-	}
-}
-
 /* ---------- KPI-Karten (wie Dashboard-Cards der App) ---------- */
 
 .pp-kpis {
@@ -890,3 +859,39 @@
 	display: inline-block;
 	margin-top: 4px;
 }
+
+/* ── Dashboard-Startseite: Begrüßung + How-it-works-Banner (Web-App-Look) ── */
+.pp-dash-wrap .pp-greeting {
+	font-family: 'Inter', system-ui, -apple-system, sans-serif;
+	font-size: 24px; font-weight: 700; color: #0f172a;
+	margin: 8px 0 2px; padding: 0;
+}
+.pp-dash-wrap .pp-greeting-sub {
+	font-family: 'Inter', system-ui, -apple-system, sans-serif;
+	color: #64748b; font-size: 14px; margin: 0 0 4px;
+}
+#pp-admin .pp-hiw {
+	background: var(--pp-primary-light);
+	border: 1px solid var(--pp-primary-muted);
+	border-radius: var(--pp-radius-lg);
+	padding: 20px 24px; margin-bottom: 24px;
+}
+#pp-admin .pp-hiw-head {
+	display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 16px;
+}
+#pp-admin .pp-hiw-head h2 {
+	margin: 0; font-size: 16px; font-weight: 700; color: var(--pp-foreground);
+}
+#pp-admin .pp-hiw-dismiss { white-space: nowrap; }
+#pp-admin .pp-hiw-steps {
+	display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;
+}
+#pp-admin .pp-hiw-step { display: flex; gap: 12px; align-items: flex-start; }
+#pp-admin .pp-hiw-num {
+	flex: 0 0 auto; width: 26px; height: 26px; border-radius: 999px;
+	background: var(--pp-primary); color: #fff; font-weight: 700; font-size: 13px;
+	display: flex; align-items: center; justify-content: center;
+}
+#pp-admin .pp-hiw-step-title { font-weight: 600; font-size: 14px; color: var(--pp-foreground); }
+#pp-admin .pp-hiw-step-desc { font-size: 13px; color: var(--pp-muted-foreground); margin-top: 2px; }
+

@@ -143,7 +143,18 @@ class Menu {
 	}
 
 	public static function render_dashboard(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Dashboard', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="dashboard"></div></div>';
+		// Persönliche Begrüßung wie in der Web-App ("Hallo {Name}") statt
+		// generischem Titel — der Name ist serverseitig verfügbar (kein Flash).
+		$user = wp_get_current_user();
+		$name = ( $user && '' !== $user->display_name ) ? $user->display_name : $user->user_login;
+		echo '<div class="wrap pp-dash-wrap">';
+		printf(
+			'<h1 class="pp-greeting">%s</h1>',
+			/* translators: %s = display name of the current user. */
+			esc_html( sprintf( __( 'Hello %s', 'project-prepper' ), $name ) )
+		);
+		echo '<p class="pp-greeting-sub">' . esc_html( get_bloginfo( 'name' ) ) . '</p>';
+		echo '<div id="pp-admin" data-page="dashboard"></div></div>';
 	}
 
 	public static function render_inventory(): void {

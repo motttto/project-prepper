@@ -3400,6 +3400,36 @@
 	function renderDashboard() {
 		root.innerHTML = "";
 
+		// "So funktioniert Project Prepper" — dismissibler Banner wie in der
+		// Web-App (Status nur clientseitig via localStorage, kein Server-State).
+		if (localStorage.getItem("pp_dash_hiw_dismissed") !== "1") {
+			var hiwSteps = [
+				[__("Build your inventory", "project-prepper"), __("Items with number ranges, conditions and daily rates.", "project-prepper")],
+				[__("Plan projects", "project-prepper"), __("Bookings, schedule, checklists, tasks and a cost breakdown.", "project-prepper")],
+				[__("Work as a group", "project-prepper"), __("Share a project with a team: members, decisions and polls.", "project-prepper")],
+				[__("Settle the profit", "project-prepper"), __("Distribute the profit and record a signed agreement.", "project-prepper")]
+			];
+			var hiw = el("div", { class: "pp-hiw" }, [
+				el("div", { class: "pp-hiw-head" }, [
+					el("h2", { text: __("How Project Prepper works", "project-prepper") }),
+					el("button", {
+						class: "pp-link pp-hiw-dismiss", text: __("Got it, hide", "project-prepper"),
+						onclick: function () { localStorage.setItem("pp_dash_hiw_dismissed", "1"); hiw.remove(); }
+					})
+				]),
+				el("div", { class: "pp-hiw-steps" }, hiwSteps.map(function (s, i) {
+					return el("div", { class: "pp-hiw-step" }, [
+						el("div", { class: "pp-hiw-num", text: String(i + 1) }),
+						el("div", null, [
+							el("div", { class: "pp-hiw-step-title", text: s[0] }),
+							el("div", { class: "pp-hiw-step-desc", text: s[1] })
+						])
+					]);
+				}))
+			]);
+			root.appendChild(hiw);
+		}
+
 		// Menschenlesbare Labels für die Aktivitäts-Keys (Fallback = roher Key).
 		var ACTION_LABELS = {
 			item_created: __("Item created", "project-prepper"),

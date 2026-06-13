@@ -2687,3 +2687,47 @@ msgstr "Team & Kontakte"
 #: admin/js/admin.js
 msgid "Material & transport"
 msgstr "Material & Transport"
+
+#: admin/js/admin.js
+msgid "Hello %s"
+msgstr "Hallo %s"
+
+#: admin/js/admin.js
+msgid "How Project Prepper works"
+msgstr "So funktioniert Project Prepper"
+
+#: admin/js/admin.js
+msgid "Got it, hide"
+msgstr "Verstanden, ausblenden"
+
+#: admin/js/admin.js
+msgid "Build your inventory"
+msgstr "Inventar aufbauen"
+
+#: admin/js/admin.js
+msgid "Items with number ranges, conditions and daily rates."
+msgstr "Artikel mit Nummernkreisen, Zustand und Tagessätzen."
+
+#: admin/js/admin.js
+msgid "Plan projects"
+msgstr "Projekte planen"
+
+#: admin/js/admin.js
+msgid "Bookings, schedule, checklists, tasks and a cost breakdown."
+msgstr "Buchungen, Zeitplan, Checklisten, Aufgaben und Kostenaufstellung."
+
+#: admin/js/admin.js
+msgid "Work as a group"
+msgstr "Im Kollektiv arbeiten"
+
+#: admin/js/admin.js
+msgid "Share a project with a team: members, decisions and polls."
+msgstr "Ein Projekt im Team teilen: Beteiligte, Beschlüsse und Umfragen."
+
+#: admin/js/admin.js
+msgid "Settle the profit"
+msgstr "Gewinn abrechnen"
+
+#: admin/js/admin.js
+msgid "Distribute the profit and record a signed agreement."
+msgstr "Gewinn verteilen und eine unterschriebene Vereinbarung festhalten."

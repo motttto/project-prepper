@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.22.0
+Stable tag: 0.23.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.23.0 =
+* Dashboard start page now matches the web app: a personal greeting ("Hello {name}") with the site name, and a dismissible "How Project Prepper works" banner with the four-step workflow
+* The banner can be hidden per browser; the KPI cards, upcoming list and recent activity remain below
+* Removed the dark-mode override so the admin always renders light like the web app (fixes low-contrast text on the WordPress admin background)
 
 = 0.22.0 =
 * Visual alignment with the web app: the admin UI now bundles the Inter font locally (self-hosted, no external request) so typography matches the live app
