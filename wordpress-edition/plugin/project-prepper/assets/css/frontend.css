@@ -3,6 +3,40 @@
  * Gleiche Design-Tokens wie Admin-UI und Live-App (globals.css).
  */
 
+/*
+ * Inter — lokal gebündelt (self-hosted, kein externer Request).
+ * Inter ist SIL OFL 1.1, siehe assets/fonts/LICENSE. Quelle: rsms Inter v4.0.
+ * Dieselben woff2 wie die Admin-UI (assets/fonts/), geteilt.
+ */
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 400;
+	font-display: swap;
+	src: url('../fonts/inter-400.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 500;
+	font-display: swap;
+	src: url('../fonts/inter-500.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 600;
+	font-display: swap;
+	src: url('../fonts/inter-600.woff2') format('woff2');
+}
+@font-face {
+	font-family: 'Inter';
+	font-style: normal;
+	font-weight: 700;
+	font-display: swap;
+	src: url('../fonts/inter-700.woff2') format('woff2');
+}
+
 .pp-front {
 	--pp-foreground: #0f172a;
 	--pp-primary: #6366f1;
@@ -25,26 +59,6 @@
 	color: var(--pp-foreground);
 	font-family: 'Inter', system-ui, -apple-system, sans-serif;
 	margin: 1.5em 0;
-}
-
-@media (prefers-color-scheme: dark) {
-	.pp-front {
-		--pp-foreground: #e2e8f0;
-		--pp-primary: #818cf8;
-		--pp-primary-hover: #a5b4fc;
-		--pp-surface: #1a1833;
-		--pp-muted: #1e1b4b;
-		--pp-muted-foreground: #b0bec9;
-		--pp-border: #312e81;
-		--pp-success: #34d399;
-		--pp-success-light: #022c22;
-		--pp-warning: #fbbf24;
-		--pp-warning-light: #451a03;
-		--pp-destructive: #f87171;
-		--pp-destructive-light: #450a0a;
-		--pp-info: #60a5fa;
-		--pp-info-light: #172554;
-	}
 }
 
 /* ---------- Karten-Grid ---------- */

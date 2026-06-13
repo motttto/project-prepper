@@ -5,35 +5,36 @@
 
 /*
  * Inter — lokal gebündelt (self-hosted, kein externer Request).
- * Inter ist SIL OFL 1.1, siehe admin/fonts/LICENSE. Quelle: rsms Inter v4.0.
+ * Inter ist SIL OFL 1.1, siehe assets/fonts/LICENSE. Quelle: rsms Inter v4.0.
+ * Die woff2 liegen unter assets/fonts/ und werden mit dem Frontend geteilt.
  */
 @font-face {
 	font-family: 'Inter';
 	font-style: normal;
 	font-weight: 400;
 	font-display: swap;
-	src: url('../fonts/inter-400.woff2') format('woff2');
+	src: url('../../assets/fonts/inter-400.woff2') format('woff2');
 }
 @font-face {
 	font-family: 'Inter';
 	font-style: normal;
 	font-weight: 500;
 	font-display: swap;
-	src: url('../fonts/inter-500.woff2') format('woff2');
+	src: url('../../assets/fonts/inter-500.woff2') format('woff2');
 }
 @font-face {
 	font-family: 'Inter';
 	font-style: normal;
 	font-weight: 600;
 	font-display: swap;
-	src: url('../fonts/inter-600.woff2') format('woff2');
+	src: url('../../assets/fonts/inter-600.woff2') format('woff2');
 }
 @font-face {
 	font-family: 'Inter';
 	font-style: normal;
 	font-weight: 700;
 	font-display: swap;
-	src: url('../fonts/inter-700.woff2') format('woff2');
+	src: url('../../assets/fonts/inter-700.woff2') format('woff2');
 }
 
 #pp-admin {

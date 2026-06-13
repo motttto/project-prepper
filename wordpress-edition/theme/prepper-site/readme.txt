@@ -31,5 +31,13 @@ is activated.
 
 == Changelog ==
 
+= 0.2.0 =
+* Bundled Inter as the body font (self-hosted, SIL OFL) so the site typography matches the Project Prepper plugin admin and web app; registered via theme.json fontFace, no external request.
+
 = 0.1.0 =
 * Initial release: front page (hero, features, equipment teaser, request CTA), header/footer parts, page/single/index/404 templates, German translation.
+
+== Credits ==
+
+Inter font by Rasmus Andersson, licensed under the SIL Open Font License 1.1
+(see assets/fonts/LICENSE). https://rsms.me/inter/

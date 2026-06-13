@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.23.0
+Stable tag: 0.24.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.24.0 =
+* Frontend visual alignment: removed the dark-mode override so the public shortcodes and blocks always render light, matching the theme and web app (previously the cards turned dark on a dark OS while the page stayed white)
+* Bundled Inter for the public shortcodes/blocks as well, so typography matches the web app everywhere
+* The Inter font files now live under assets/fonts and are shared between the admin UI and the front end (no duplicate files, no external request)
 
 = 0.23.0 =
 * Dashboard start page now matches the web app: a personal greeting ("Hello {name}") with the site name, and a dismissible "How Project Prepper works" banner with the four-step workflow
