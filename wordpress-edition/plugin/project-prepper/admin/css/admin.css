@@ -552,6 +552,32 @@
 .pp-billing dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
 .pp-billing .pp-billing-total { font-weight: 600; }
 
+/* ---------- Kosten-Summen (Projekt-Detail) ---------- */
+
+.pp-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+.pp-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+
+.pp-cost-summary {
+	margin-top: 12px;
+	background: var(--pp-muted);
+	border-radius: var(--pp-radius-md);
+	padding: 10px 14px;
+	font-size: 13px;
+	width: fit-content;
+	min-width: 240px;
+}
+
+.pp-cost-sum-row {
+	display: flex;
+	justify-content: space-between;
+	gap: 24px;
+	padding: 2px 0;
+}
+
+.pp-cost-sum-row span:first-child { color: var(--pp-muted-foreground); }
+.pp-cost-over span { color: var(--pp-destructive); font-weight: 600; }
+
 /* ---------- Import-Vorschau ---------- */
 
 .pp-import-preview { max-height: 320px; overflow: auto; }

@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.10.0
+Stable tag: 0.11.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,7 +17,7 @@ Project Prepper manages equipment inventory and rentals directly in WordPress:
 * Inventory items with automatic inventory numbers (number range per category prefix)
 * Categories with icon and prefix
 * Search and filters across name, number, manufacturer, tags
-* Projects: plan events with equipment bookings, a schedule, checklists and tasks — confirmed projects block inventory just like rentals
+* Projects: plan events with equipment bookings, a schedule, checklists, tasks and a cost breakdown with VAT, budget and revenue — confirmed projects block inventory just like rentals
 * Rental management: borrower, period, deposit, fee
 * Availability checks across overlapping rental and project booking periods
 * Status flow: Reserved → On loan → Returned (or Cancelled)
@@ -74,6 +74,10 @@ for the XLSX import/export in the admin. SheetJS CE is licensed under the Apache
 (https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
 
 == Changelog ==
+
+= 0.11.0 =
+* New Costs section in the project detail: cost items with category (personnel, material, inventory, external services, other), description, planned and actual net amounts, VAT rate per line and an "exclude from profit" flag
+* Project budget and revenue (net) fields with a summary block: planned/actual net and gross, budget variance (highlighted when over budget) and profit (revenue minus actual costs)
 
 = 0.10.0 =
 * New Schedule section in the project detail: chronological run-of-show entries with date, optional time range (from/to), title and location

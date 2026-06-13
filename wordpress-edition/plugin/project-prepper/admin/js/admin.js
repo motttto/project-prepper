@@ -1148,6 +1148,7 @@
 		var TASK_STATUS = { open: __("Open", "project-prepper"), doing: __("In progress", "project-prepper"), done: __("Done", "project-prepper") };
 		var TASK_NEXT = { open: "doing", doing: "done", done: "open" };
 		var TASK_PRIORITY = { low: __("Low", "project-prepper"), normal: __("Normal", "project-prepper"), high: __("High", "project-prepper") };
+		var COST_CATEGORIES = { personnel: __("Personnel", "project-prepper"), material: __("Material", "project-prepper"), inventory: __("Inventory", "project-prepper"), external: __("External services", "project-prepper"), other: __("Other", "project-prepper") };
 		var items = [];
 		var activeStatus = "";
 		var pillBox = el("div", { class: "pp-pills" });
@@ -1230,8 +1231,14 @@
 					clientName: input("text", project.client_name),
 					clientEmail: input("email", project.client_email),
 					clientPhone: input("text", project.client_phone),
-					notes: el("textarea", { rows: "2" })
+					notes: el("textarea", { rows: "2" }),
+					budgetPlanned: input("number", project.budget_planned),
+					revenueActual: input("number", project.revenue_actual)
 				};
+				f.budgetPlanned.setAttribute("step", "0.01");
+				f.budgetPlanned.setAttribute("min", "0");
+				f.revenueActual.setAttribute("step", "0.01");
+				f.revenueActual.setAttribute("min", "0");
 				f.venueAddress.value = project.venue_address || "";
 				f.notes.value = project.notes || "";
 				if (!editable) { f.venueAddress.disabled = true; f.notes.disabled = true; }
@@ -1255,6 +1262,7 @@
 					field(__("Name *", "project-prepper"), f.name), field(__("From", "project-prepper"), f.start), field(__("To", "project-prepper"), f.end),
 					field(__("Venue", "project-prepper"), f.venueName), field(__("Venue address", "project-prepper"), f.venueAddress),
 					field(__("Client", "project-prepper"), f.clientName), field(__("Email", "project-prepper"), f.clientEmail), field(__("Phone", "project-prepper"), f.clientPhone),
+					field(__("Budget (net)", "project-prepper"), f.budgetPlanned), field(__("Revenue (net)", "project-prepper"), f.revenueActual),
 					field(__("Notes", "project-prepper"), f.notes)
 				]);
 
@@ -1356,6 +1364,113 @@
 					bookingsSection.appendChild(el("div", { class: "pp-muted", text: __("Without dates the booking inherits the project period.", "project-prepper") }));
 				}
 				renderBookings();
+
+				/* --- Kosten (Pendant zu tab-costs der App) ---
+				   Direkt nach den Buchungen platziert: die finanzielle Dimension der
+				   physischen Ressourcen, vor den operativen Sektionen (Zeitplan,
+				   Checklisten, Aufgaben). */
+
+				var costsSection = el("div", { class: "pp-modal-section" });
+				function renderCosts() {
+					costsSection.innerHTML = "";
+					costsSection.appendChild(el("h3", { text: __("Costs", "project-prepper") }));
+
+					var table = el("table", { class: "pp-table" });
+					table.appendChild(el("thead", {
+						html: "<tr><th>" + __("Category", "project-prepper") + "</th><th>" + __("Description", "project-prepper") + "</th><th>" + __("Planned (net)", "project-prepper") + "</th><th>" + __("Actual (net)", "project-prepper") + "</th><th>" + __("VAT %", "project-prepper") + "</th><th>" + __("Not in profit", "project-prepper") + "</th><th></th></tr>"
+					}));
+					var tbody = el("tbody");
+					(project.cost_items || []).forEach(function (cost) {
+						tbody.appendChild(el("tr", null, [
+							el("td", { text: COST_CATEGORIES[cost.category] || cost.category }),
+							el("td", { text: cost.description || "—" }),
+							el("td", { class: "pp-num", text: money(cost.amount_planned) }),
+							el("td", { class: "pp-num", text: cost.amount_actual === null ? "—" : money(cost.amount_actual) }),
+							el("td", { class: "pp-num", text: Number(cost.vat_rate).toLocaleString("de-DE", { maximumFractionDigits: 2 }) + " %" }),
+							el("td", { text: Number(cost.exclude_from_profit) ? "✓" : "" }),
+							editable ? el("td", null, [el("button", {
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/costs/" + cost.id, { method: "DELETE" })
+										.then(function (updated) { project = updated; renderCosts(); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})]) : el("td")
+						]));
+					});
+					if (!(project.cost_items || []).length) tbody.appendChild(el("tr", { html: '<td colspan="7" class="pp-muted">' + __("No cost items.", "project-prepper") + "</td>" }));
+					table.appendChild(tbody);
+					costsSection.appendChild(el("div", { class: "pp-table-wrap" }, [table]));
+
+					if (editable) {
+						var cat = el("select", null, Object.keys(COST_CATEGORIES).map(function (key) {
+							return el("option", { value: key, text: COST_CATEGORIES[key] });
+						}));
+						cat.value = "material";
+						var desc = el("input", { type: "text", placeholder: __("Description", "project-prepper"), class: "pp-input-md" });
+						var planned = el("input", { type: "number", step: "0.01", min: "0", placeholder: __("Planned (net)", "project-prepper"), class: "pp-input-sm" });
+						var actual = el("input", { type: "number", step: "0.01", min: "0", placeholder: __("Actual (net)", "project-prepper"), class: "pp-input-sm" });
+						var vat = el("input", { type: "number", step: "0.01", min: "0", value: "19", placeholder: __("VAT %", "project-prepper"), class: "pp-input-sm" });
+						var excl = el("input", { type: "checkbox" });
+						costsSection.appendChild(el("div", { class: "pp-row" }, [
+							cat, desc, planned, actual, vat,
+							el("label", { class: "pp-check" }, [excl, el("span", { text: __("Not in profit", "project-prepper") })]),
+							el("button", {
+								class: "pp-btn pp-btn-sm", text: __("+ Cost item", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/costs", {
+										method: "POST",
+										body: JSON.stringify({
+											category: cat.value, description: desc.value.trim(),
+											amount_planned: planned.value, amount_actual: actual.value,
+											vat_rate: vat.value, exclude_from_profit: excl.checked
+										})
+									}).then(function (updated) {
+										project = updated;
+										desc.value = ""; planned.value = ""; actual.value = ""; vat.value = "19"; excl.checked = false; cat.value = "material";
+										renderCosts();
+									}).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					}
+
+					// Summen-Block aus cost_summary.
+					var s = project.cost_summary || {};
+					var sums = el("div", { class: "pp-cost-summary" });
+					function sumRow(label, value, extraClass) {
+						return el("div", { class: "pp-cost-sum-row" + (extraClass ? " " + extraClass : "") }, [
+							el("span", { text: label }), el("span", { class: "pp-num", text: value })
+						]);
+					}
+					sums.appendChild(sumRow(__("Planned net", "project-prepper"), money(s.planned_net)));
+					sums.appendChild(sumRow(__("Planned gross", "project-prepper"), money(s.planned_gross)));
+					sums.appendChild(sumRow(__("Actual net", "project-prepper"), money(s.actual_net)));
+					sums.appendChild(sumRow(__("Actual gross", "project-prepper"), money(s.actual_gross)));
+					if (s.budget_planned !== null && s.budget_planned !== undefined) {
+						sums.appendChild(sumRow(__("Budget", "project-prepper"), money(s.budget_planned)));
+						// Abweichung: negativ = Budget überschritten (Geplant > Budget) → rot.
+						var overBudget = s.budget_variance < 0;
+						sums.appendChild(sumRow(__("Variance", "project-prepper"), money(s.budget_variance), overBudget ? "pp-cost-over" : ""));
+					}
+					if (s.revenue_actual !== null && s.revenue_actual !== undefined) {
+						sums.appendChild(sumRow(__("Revenue", "project-prepper"), money(s.revenue_actual)));
+						sums.appendChild(sumRow(__("Profit", "project-prepper"), money(s.profit), s.profit < 0 ? "pp-cost-over" : ""));
+					}
+					costsSection.appendChild(sums);
+				}
+				renderCosts();
+
+				// Budget/Umsatz live speichern und Summen aktualisieren (nicht nur beim Save).
+				if (editable) {
+					[f.budgetPlanned, f.revenueActual].forEach(function (control) {
+						control.addEventListener("change", function () {
+							api("/projects/" + projectId, {
+								method: "PUT",
+								body: JSON.stringify({ budget_planned: f.budgetPlanned.value, revenue_actual: f.revenueActual.value })
+							}).then(function (updated) { project = updated; renderCosts(); }).catch(function (e) { toast(e.message, "error"); });
+						});
+					});
+				}
 
 				/* --- Zeitplan --- */
 
@@ -1581,7 +1696,7 @@
 				}
 				renderTasks();
 
-				var body = el("div", null, [statusRow, info, bookingsSection, scheduleSection, checklistsSection, tasksSection]);
+				var body = el("div", null, [statusRow, info, bookingsSection, costsSection, scheduleSection, checklistsSection, tasksSection]);
 
 				var close;
 				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);
@@ -1600,6 +1715,8 @@
 									client_name: f.clientName.value.trim(),
 									client_email: f.clientEmail.value.trim(),
 									client_phone: f.clientPhone.value.trim(),
+									budget_planned: f.budgetPlanned.value,
+									revenue_actual: f.revenueActual.value,
 									notes: f.notes.value
 								})
 							}).then(function () {

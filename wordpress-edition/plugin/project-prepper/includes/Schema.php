@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.6.0';
+	const VERSION    = '0.7.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -41,6 +41,7 @@ class Schema {
 		$p_checks   = self::table( 'project_checklist_items' );
 		$p_tasks    = self::table( 'project_tasks' );
 		$p_sched    = self::table( 'project_schedule' );
+		$p_costs    = self::table( 'cost_items' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -183,6 +184,8 @@ class Schema {
 			client_email varchar(190) NOT NULL DEFAULT '',
 			client_phone varchar(64) NOT NULL DEFAULT '',
 			notes text,
+			budget_planned decimal(10,2) DEFAULT NULL,
+			revenue_actual decimal(10,2) DEFAULT NULL,
 			created_by bigint(20) unsigned DEFAULT NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
@@ -257,6 +260,26 @@ class Schema {
 			PRIMARY KEY  (id),
 			KEY project_id (project_id)
 		) {$charset};" );
+
+			// Kostenposten pro Projekt (Pendant zu `cost_items` der App).
+			// amount_actual NULL = noch kein Ist-Wert erfasst. exclude_from_profit
+			// nimmt die Zeile aus der Gewinnberechnung heraus (z. B. durchlaufende
+			// Posten). Sub-Budgets der App (Honorar/Technik/Transport) entfallen —
+			// Single-Site nutzt nur ein Gesamtbudget auf dem Projekt.
+			dbDelta( "CREATE TABLE {$p_costs} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				project_id bigint(20) unsigned NOT NULL,
+				category varchar(20) NOT NULL DEFAULT 'other',
+				description varchar(190) NOT NULL DEFAULT '',
+				amount_planned decimal(10,2) NOT NULL DEFAULT 0,
+				amount_actual decimal(10,2) DEFAULT NULL,
+				vat_rate decimal(5,2) NOT NULL DEFAULT 0,
+				exclude_from_profit tinyint(1) NOT NULL DEFAULT 0,
+				sort_order int(11) NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY project_id (project_id)
+			) {$charset};" );
 
 		self::upgrade_data();
 		update_option( self::OPTION_KEY, self::VERSION );

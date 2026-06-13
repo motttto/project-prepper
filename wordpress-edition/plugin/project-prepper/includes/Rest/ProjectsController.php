@@ -3,6 +3,7 @@ namespace ProjectPrepper\Rest;
 
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Services\Checklists;
+use ProjectPrepper\Services\Costs;
 use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\Schedule;
 use ProjectPrepper\Services\Tasks;
@@ -106,6 +107,32 @@ class ProjectsController extends BaseController {
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'remove_schedule' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/costs', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'costs' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'add_cost' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/costs/(?P<cost_id>\d+)', [
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_cost' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_cost' ],
 				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
 			],
 		] );
@@ -229,6 +256,12 @@ class ProjectsController extends BaseController {
 				$data[ $key ] = sanitize_textarea_field( (string) $json[ $key ] );
 			}
 		}
+		foreach ( [ 'budget_planned', 'revenue_actual' ] as $key ) {
+			if ( array_key_exists( $key, $json ) ) {
+				// Roh-Wert durchreichen ('' → NULL); der Service validiert die Zahl.
+				$data[ $key ] = is_scalar( $json[ $key ] ) ? (string) $json[ $key ] : '';
+			}
+		}
 		return $data;
 	}
 
@@ -344,6 +377,86 @@ class ProjectsController extends BaseController {
 		$data = $this->sanitize_text_fields( $json, [ 'title', 'schedule_date', 'time_start', 'time_end', 'location' ] );
 		if ( array_key_exists( 'notes', $json ) ) {
 			$data['notes'] = sanitize_textarea_field( (string) $json['notes'] );
+		}
+		if ( array_key_exists( 'sort_order', $json ) ) {
+			$data['sort_order'] = (int) $json['sort_order'];
+		}
+		return $data;
+	}
+
+	/* ---------- Kosten ---------- */
+
+	public function costs( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( [
+			'cost_items'   => Costs::for_project( (int) $request['id'] ),
+			'cost_summary' => Costs::summary( (int) $request['id'] ),
+		] );
+	}
+
+	public function add_cost( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$result = Costs::create( (int) $request['id'], $this->cost_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Projects::get( (int) $request['id'] ), 201 );
+	}
+
+	public function update_cost( WP_REST_Request $request ) {
+		$owner = $this->cost_item_in_project( (int) $request['id'], (int) $request['cost_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Costs::update( (int) $request['cost_id'], $this->cost_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Projects::get( (int) $request['id'] ) );
+	}
+
+	public function remove_cost( WP_REST_Request $request ) {
+		$owner = $this->cost_item_in_project( (int) $request['id'], (int) $request['cost_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Costs::delete( (int) $request['cost_id'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Projects::get( (int) $request['id'] ) );
+	}
+
+	/**
+	 * Sicherstellen, dass der Kostenposten zum Projekt der URL gehört (nested route).
+	 *
+	 * @return true|WP_Error
+	 */
+	private function cost_item_in_project( int $project_id, int $cost_id ) {
+		$entry = Costs::get( $cost_id );
+		if ( ! $entry || (int) $entry->project_id !== $project_id ) {
+			return new WP_Error( 'pp_not_found', __( 'Cost item not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return true;
+	}
+
+	private function cost_payload( array $json ): array {
+		$data = $this->sanitize_text_fields( $json, [ 'category' ] );
+		if ( array_key_exists( 'description', $json ) ) {
+			$data['description'] = sanitize_text_field( (string) $json['description'] );
+		}
+		foreach ( [ 'amount_planned', 'amount_actual', 'vat_rate' ] as $key ) {
+			if ( array_key_exists( $key, $json ) ) {
+				// Roh-Wert durchreichen ('' / null erlaubt); der Service validiert die Zahl.
+				$data[ $key ] = is_scalar( $json[ $key ] ) ? (string) $json[ $key ] : '';
+			}
+		}
+		if ( array_key_exists( 'exclude_from_profit', $json ) ) {
+			$data['exclude_from_profit'] = ! empty( $json['exclude_from_profit'] );
 		}
 		if ( array_key_exists( 'sort_order', $json ) ) {
 			$data['sort_order'] = (int) $json['sort_order'];

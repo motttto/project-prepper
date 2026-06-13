@@ -59,10 +59,12 @@ class Projects {
 		if ( ! $project ) {
 			return null;
 		}
-		$project->items      = self::items_for( $id );
-		$project->schedule   = Schedule::for_project( $id );
-		$project->checklists = Checklists::for_project( $id );
-		$project->tasks      = Tasks::for_project( $id );
+		$project->items        = self::items_for( $id );
+		$project->schedule     = Schedule::for_project( $id );
+		$project->checklists   = Checklists::for_project( $id );
+		$project->tasks        = Tasks::for_project( $id );
+		$project->cost_items   = Costs::for_project( $id );
+		$project->cost_summary = Costs::summary( $id );
 		return $project;
 	}
 
@@ -83,6 +85,14 @@ class Projects {
 		if ( is_wp_error( $dates ) ) {
 			return $dates;
 		}
+		$budget = self::sanitize_money( $data['budget_planned'] ?? '' );
+		if ( false === $budget ) {
+			return new WP_Error( 'pp_invalid_amount', __( 'Invalid amount.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$revenue = self::sanitize_money( $data['revenue_actual'] ?? '' );
+		if ( false === $revenue ) {
+			return new WP_Error( 'pp_invalid_amount', __( 'Invalid amount.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
 
 		$now = current_time( 'mysql' );
 		$wpdb->insert( Schema::table( 'projects' ), [
@@ -97,6 +107,8 @@ class Projects {
 			'client_email'   => $data['client_email'] ?? '',
 			'client_phone'   => $data['client_phone'] ?? '',
 			'notes'          => $data['notes'] ?? '',
+			'budget_planned' => $budget,
+			'revenue_actual' => $revenue,
 			'created_by'     => get_current_user_id() ?: null,
 			'created_at'     => $now,
 			'updated_at'     => $now,
@@ -155,6 +167,15 @@ class Projects {
 		}
 		if ( array_key_exists( 'date_end', $data ) ) {
 			$fields['date_end'] = $dates['end'];
+		}
+		foreach ( [ 'budget_planned', 'revenue_actual' ] as $money_key ) {
+			if ( array_key_exists( $money_key, $data ) ) {
+				$amount = self::sanitize_money( $data[ $money_key ] );
+				if ( false === $amount ) {
+					return new WP_Error( 'pp_invalid_amount', __( 'Invalid amount.', 'project-prepper' ), [ 'status' => 400 ] );
+				}
+				$fields[ $money_key ] = $amount;
+			}
 		}
 		$fields['updated_at'] = current_time( 'mysql' );
 		$wpdb->update( Schema::table( 'projects' ), $fields, [ 'id' => $id ] );
@@ -224,6 +245,7 @@ class Projects {
 		$wpdb->delete( Schema::table( 'project_checklists' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_tasks' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_schedule' ), [ 'project_id' => $id ], [ '%d' ] );
+		$wpdb->delete( Schema::table( 'cost_items' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_items' ), [ 'project_id' => $id ], [ '%d' ] );
 		$ok = false !== $wpdb->delete( Schema::table( 'projects' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {
@@ -469,5 +491,26 @@ class Projects {
 			'start' => '' !== $start ? $start : null,
 			'end'   => '' !== $end ? $end : null,
 		];
+	}
+
+	/**
+	 * Budget-/Umsatzbetrag validieren: leer ('' / null) → NULL, sonst
+	 * nicht-negative Dezimalzahl. Ungültig (nicht-numerisch / negativ) → false.
+	 *
+	 * @param mixed $value
+	 * @return float|null|false
+	 */
+	private static function sanitize_money( $value ) {
+		if ( null === $value || '' === $value || ( is_string( $value ) && '' === trim( $value ) ) ) {
+			return null;
+		}
+		if ( ! is_numeric( $value ) ) {
+			return false;
+		}
+		$num = (float) $value;
+		if ( $num < 0 ) {
+			return false;
+		}
+		return round( $num, 2 );
 	}
 }
