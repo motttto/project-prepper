@@ -37,6 +37,7 @@ class Plugin {
 		( new Rest\ItemsController() )->register_routes();
 		( new Rest\UnitsController() )->register_routes();
 		( new Rest\MediaController() )->register_routes();
+		( new Rest\ProjectsController() )->register_routes();
 		( new Rest\RentalsController() )->register_routes();
 		( new Rest\InquiriesController() )->register_routes();
 		( new Rest\ImportExportController() )->register_routes();

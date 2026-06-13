@@ -13,6 +13,8 @@ class Capabilities {
 
 	const VIEW_INVENTORY  = 'pp_inventory_view';
 	const EDIT_INVENTORY  = 'pp_inventory_edit';
+	const VIEW_PROJECTS   = 'pp_projects_view';
+	const EDIT_PROJECTS   = 'pp_projects_edit';
 	const VIEW_RENTALS    = 'pp_rentals_view';
 	const EDIT_RENTALS    = 'pp_rentals_edit';
 	const VIEW_INQUIRIES  = 'pp_inquiries_view';
@@ -24,6 +26,8 @@ class Capabilities {
 		return [
 			self::VIEW_INVENTORY,
 			self::EDIT_INVENTORY,
+			self::VIEW_PROJECTS,
+			self::EDIT_PROJECTS,
 			self::VIEW_RENTALS,
 			self::EDIT_RENTALS,
 			self::VIEW_INQUIRIES,
@@ -52,6 +56,8 @@ class Capabilities {
 			'read'                => true,
 			self::VIEW_INVENTORY  => true,
 			self::EDIT_INVENTORY  => true,
+			self::VIEW_PROJECTS   => true,
+			self::EDIT_PROJECTS   => true,
 			self::VIEW_RENTALS    => true,
 			self::EDIT_RENTALS    => true,
 			self::VIEW_INQUIRIES  => true,
@@ -64,6 +70,7 @@ class Capabilities {
 		add_role( 'pp_member', __( 'Prepper Member', 'project-prepper' ), [
 			'read'               => true,
 			self::VIEW_INVENTORY => true,
+			self::VIEW_PROJECTS  => true,
 			self::VIEW_RENTALS   => true,
 			self::VIEW_INQUIRIES => true,
 		] );

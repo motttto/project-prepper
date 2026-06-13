@@ -1128,6 +1128,490 @@
 		load();
 	}
 
+	/* ================= Seite: Projekte ================= */
+
+	function renderProjects() {
+		root.innerHTML = "";
+		// Status-Flow (bewusst einfach): jeder Wechsel erlaubt außer weg von 'cancelled'.
+		var PROJECT_STATUS = { draft: __("Draft", "project-prepper"), planned: __("Planned", "project-prepper"), confirmed: __("Confirmed", "project-prepper"), running: __("Running", "project-prepper"), done: __("Done", "project-prepper"), cancelled: __("Cancelled", "project-prepper") };
+		var PROJECT_BADGE = { draft: "draft", planned: "reserved", confirmed: "offer", running: "active", done: "returned", cancelled: "cancelled" };
+		var TASK_STATUS = { open: __("Open", "project-prepper"), doing: __("In progress", "project-prepper"), done: __("Done", "project-prepper") };
+		var TASK_NEXT = { open: "doing", doing: "done", done: "open" };
+		var TASK_PRIORITY = { low: __("Low", "project-prepper"), normal: __("Normal", "project-prepper"), high: __("High", "project-prepper") };
+		var items = [];
+		var activeStatus = "";
+		var pillBox = el("div", { class: "pp-pills" });
+		var listBox = el("div");
+
+		function projectBadge(status) {
+			return el("span", { class: "pp-badge pp-badge-" + (PROJECT_BADGE[status] || status), text: PROJECT_STATUS[status] || status });
+		}
+
+		function statusSelect(value) {
+			var select = el("select", null, Object.keys(PROJECT_STATUS).map(function (key) {
+				return el("option", { value: key, text: PROJECT_STATUS[key] });
+			}));
+			select.value = value || "draft";
+			return select;
+		}
+
+		function rangeText(from, to) {
+			if (!from && !to) return "—";
+			return dateDe(from) + " – " + dateDe(to);
+		}
+
+		function renderPills() {
+			pillBox.innerHTML = "";
+			pillBox.appendChild(el("button", {
+				class: "pp-pill" + (activeStatus === "" ? " is-active" : ""), text: __("All", "project-prepper"),
+				onclick: function () { activeStatus = ""; renderPills(); load(); }
+			}));
+			Object.keys(PROJECT_STATUS).forEach(function (key) {
+				pillBox.appendChild(el("button", {
+					class: "pp-pill" + (activeStatus === key ? " is-active" : ""), text: PROJECT_STATUS[key],
+					onclick: function () { activeStatus = key; renderPills(); load(); }
+				}));
+			});
+		}
+
+		function load() {
+			api("/projects" + (activeStatus ? "?status=" + activeStatus : "")).then(function (projects) {
+				listBox.innerHTML = "";
+				var table = el("table", { class: "pp-table" });
+				table.appendChild(el("thead", {
+					html: "<tr><th>" + __("Number", "project-prepper") + "</th><th>" + __("Name", "project-prepper") + "</th><th>" + __("Period", "project-prepper") + "</th><th>" + __("Venue", "project-prepper") + "</th><th>" + __("Client", "project-prepper") + "</th><th>" + __("Bookings", "project-prepper") + "</th><th>" + __("Status", "project-prepper") + "</th></tr>"
+				}));
+				var tbody = el("tbody");
+				projects.forEach(function (project) {
+					tbody.appendChild(el("tr", { class: "pp-clickable", onclick: function () { openProjectModal(project.id); } }, [
+						el("td", null, [el("code", { text: project.project_number })]),
+						el("td", { text: project.name }),
+						el("td", { text: rangeText(project.date_start, project.date_end) }),
+						el("td", { text: project.venue_name || "—" }),
+						el("td", { text: project.client_name || "—" }),
+						el("td", { text: project.item_count }),
+						el("td", null, [projectBadge(project.status)])
+					]));
+				});
+				if (!projects.length) tbody.appendChild(el("tr", { html: '<td colspan="7" class="pp-muted">' + __("No projects yet.", "project-prepper") + "</td>" }));
+				table.appendChild(tbody);
+				listBox.appendChild(el("div", { class: "pp-table-wrap" }, [table]));
+			}).catch(function (e) { toast(e.message, "error"); });
+		}
+
+		/* ----- Detail-Modal: Stammdaten + Buchungen + Checklisten + Aufgaben ----- */
+
+		function openProjectModal(projectId) {
+			api("/projects/" + projectId).then(function (project) {
+				var editable = ppConfig.canEdit.projects;
+
+				function input(type, value) {
+					var attrs = { type: type, value: value === null || value === undefined ? "" : value };
+					if (!editable) attrs.disabled = "disabled";
+					return el("input", attrs);
+				}
+
+				var f = {
+					name: input("text", project.name),
+					start: input("date", project.date_start),
+					end: input("date", project.date_end),
+					venueName: input("text", project.venue_name),
+					venueAddress: el("textarea", { rows: "2" }),
+					clientName: input("text", project.client_name),
+					clientEmail: input("email", project.client_email),
+					clientPhone: input("text", project.client_phone),
+					notes: el("textarea", { rows: "2" })
+				};
+				f.venueAddress.value = project.venue_address || "";
+				f.notes.value = project.notes || "";
+				if (!editable) { f.venueAddress.disabled = true; f.notes.disabled = true; }
+
+				// Status-Zeile: Badge + Wechsel-Buttons (alle außer aktuellem; cancelled = Endstatus).
+				var statusRow = el("div", { class: "pp-row" }, [projectBadge(project.status)]);
+				if (editable && project.status !== "cancelled") {
+					Object.keys(PROJECT_STATUS).forEach(function (key) {
+						if (key === project.status) return;
+						statusRow.appendChild(el("button", {
+							class: "pp-btn pp-btn-sm", text: PROJECT_STATUS[key], type: "button",
+							onclick: function () {
+								api("/projects/" + projectId + "/status", { method: "POST", body: JSON.stringify({ status: key }) })
+									.then(function () { close(); load(); }).catch(function (e) { toast(e.message, "error"); });
+							}
+						}));
+					});
+				}
+
+				var info = el("div", { class: "pp-modal-grid" }, [
+					field(__("Name *", "project-prepper"), f.name), field(__("From", "project-prepper"), f.start), field(__("To", "project-prepper"), f.end),
+					field(__("Venue", "project-prepper"), f.venueName), field(__("Venue address", "project-prepper"), f.venueAddress),
+					field(__("Client", "project-prepper"), f.clientName), field(__("Email", "project-prepper"), f.clientEmail), field(__("Phone", "project-prepper"), f.clientPhone),
+					field(__("Notes", "project-prepper"), f.notes)
+				]);
+
+				// Nach Sektions-Mutationen das Projekt neu laden (eine Quelle der Wahrheit).
+				function reload(then) {
+					api("/projects/" + projectId).then(function (updated) {
+						project = updated;
+						if (then) then();
+					}).catch(function (e) { toast(e.message, "error"); });
+				}
+
+				/* --- Buchungen (Equipment) --- */
+
+				var bookingsSection = el("div", { class: "pp-modal-section" });
+				function renderBookings() {
+					bookingsSection.innerHTML = "";
+					bookingsSection.appendChild(el("h3", { text: __("Bookings", "project-prepper") }));
+					var list = el("ul", { class: "pp-lines" });
+					(project.items || []).forEach(function (line) {
+						if (!editable) {
+							list.appendChild(el("li", null, [
+								el("code", { text: line.inventory_number || "#" + line.item_id }),
+								el("span", { text: (line.item_name || "") + " × " + line.quantity }),
+								el("span", { class: "pp-muted", text: line.date_from ? rangeText(line.date_from, line.date_to) : __("project period", "project-prepper") })
+							]));
+							return;
+						}
+						var qty = el("input", { type: "number", min: "1", value: line.quantity, class: "pp-input-sm", title: __("Quantity", "project-prepper") });
+						var from = el("input", { type: "date", value: line.date_from || "", title: __("From", "project-prepper") });
+						var to = el("input", { type: "date", value: line.date_to || "", title: __("To", "project-prepper") });
+						function saveLine() {
+							api("/projects/" + projectId + "/items/" + line.id, {
+								method: "PUT",
+								body: JSON.stringify({ quantity: parseInt(qty.value, 10) || 1, date_from: from.value, date_to: to.value })
+							}).then(function () {
+								reload(renderBookings); load();
+							}).catch(function (e) {
+								toast(e.message, "error");
+								reload(renderBookings);
+							});
+						}
+						[qty, from, to].forEach(function (control) { control.addEventListener("change", saveLine); });
+						list.appendChild(el("li", null, [
+							el("code", { text: line.inventory_number || "#" + line.item_id }),
+							el("span", { text: line.item_name || "" }),
+							qty, from, to,
+							el("button", {
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/items/" + line.id, { method: "DELETE" })
+										.then(function () { reload(renderBookings); load(); })
+										.catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					});
+					if (!(project.items || []).length) list.appendChild(el("li", { class: "pp-muted", text: __("No bookings.", "project-prepper") }));
+					bookingsSection.appendChild(list);
+
+					if (!editable) return;
+					var addItem = el("select", { class: "pp-input-lg" });
+					addItem.appendChild(el("option", { value: "", text: __("— select item —", "project-prepper") }));
+					items.forEach(function (item) {
+						addItem.appendChild(el("option", { value: item.id, text: item.inventory_number + " — " + item.name }));
+					});
+					var addQty = el("input", { type: "number", value: "1", min: "1", class: "pp-input-sm", title: __("Quantity", "project-prepper") });
+					var addFrom = el("input", { type: "date", title: __("From", "project-prepper") });
+					var addTo = el("input", { type: "date", title: __("To", "project-prepper") });
+					var availInfo = el("span");
+					// Verfügbarkeit für den effektiven Zeitraum (Zeile, sonst Projekt) anzeigen.
+					function checkAvailability() {
+						availInfo.textContent = "";
+						availInfo.className = "";
+						var effFrom = addFrom.value || project.date_start || "";
+						var effTo = addTo.value || project.date_end || "";
+						if (!addItem.value || !effFrom || !effTo) return;
+						api("/items/" + addItem.value + "/availability?from=" + effFrom + "&to=" + effTo).then(function (result) {
+							availInfo.textContent = result.available + "× " + __("available", "project-prepper");
+							availInfo.className = result.available > 0 ? "pp-avail-ok" : "pp-avail-none";
+						}).catch(function () {});
+					}
+					[addItem, addFrom, addTo].forEach(function (control) { control.addEventListener("change", checkAvailability); });
+					bookingsSection.appendChild(el("div", { class: "pp-row" }, [
+						addItem, addQty, addFrom, addTo,
+						el("button", {
+							class: "pp-btn pp-btn-sm", text: __("+ Booking", "project-prepper"), type: "button",
+							onclick: function () {
+								if (!addItem.value) return;
+								api("/projects/" + projectId + "/items", {
+									method: "POST",
+									body: JSON.stringify({ item_id: parseInt(addItem.value, 10), quantity: parseInt(addQty.value, 10) || 1, date_from: addFrom.value, date_to: addTo.value })
+								}).then(function () {
+									reload(renderBookings); load();
+								}).catch(function (e) { toast(e.message, "error"); });
+							}
+						}),
+						availInfo
+					]));
+					bookingsSection.appendChild(el("div", { class: "pp-muted", text: __("Without dates the booking inherits the project period.", "project-prepper") }));
+				}
+				renderBookings();
+
+				/* --- Checklisten --- */
+
+				var checklistsSection = el("div", { class: "pp-modal-section" });
+				function renderChecklists() {
+					checklistsSection.innerHTML = "";
+					checklistsSection.appendChild(el("h3", { text: __("Checklists", "project-prepper") }));
+					(project.checklists || []).forEach(function (checklist) {
+						var header = el("div", { class: "pp-row" });
+						if (editable) {
+							var nameInput = el("input", { type: "text", value: checklist.name, class: "pp-input-md" });
+							nameInput.addEventListener("change", function () {
+								api("/checklists/" + checklist.id, { method: "PUT", body: JSON.stringify({ name: nameInput.value }) })
+									.then(function () { reload(null); }).catch(function (e) { toast(e.message, "error"); });
+							});
+							header.appendChild(nameInput);
+							header.appendChild(el("button", {
+								class: "pp-link pp-link-danger", text: __("delete", "project-prepper"), type: "button",
+								onclick: function () {
+									/* translators: %s: checklist name */
+									if (!confirm(sprintf(__('Delete checklist "%s"?', "project-prepper"), checklist.name))) return;
+									api("/checklists/" + checklist.id, { method: "DELETE" })
+										.then(function () { reload(renderChecklists); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							}));
+						} else {
+							header.appendChild(el("strong", { text: checklist.name }));
+						}
+						checklistsSection.appendChild(header);
+
+						var list = el("ul", { class: "pp-lines" });
+						(checklist.items || []).forEach(function (item) {
+							var checkbox = el("input", { type: "checkbox" });
+							checkbox.checked = !!parseInt(item.is_checked, 10);
+							if (!editable) checkbox.disabled = true;
+							checkbox.addEventListener("change", function () {
+								api("/checklist-items/" + item.id, { method: "PUT", body: JSON.stringify({ is_checked: checkbox.checked }) })
+									.then(function () { reload(null); }).catch(function (e) { toast(e.message, "error"); });
+							});
+							var entry = el("li", null, [el("label", { class: "pp-toggle" }, [checkbox, el("span", { text: item.label })])]);
+							if (editable) {
+								entry.appendChild(el("button", {
+									class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+									onclick: function () {
+										api("/checklist-items/" + item.id, { method: "DELETE" })
+											.then(function () { reload(renderChecklists); }).catch(function (e) { toast(e.message, "error"); });
+									}
+								}));
+							}
+							list.appendChild(entry);
+						});
+						if (!(checklist.items || []).length) list.appendChild(el("li", { class: "pp-muted", text: __("No entries.", "project-prepper") }));
+						checklistsSection.appendChild(list);
+
+						if (editable) {
+							var newLabel = el("input", { type: "text", placeholder: __("New entry", "project-prepper"), class: "pp-input-md" });
+							checklistsSection.appendChild(el("div", { class: "pp-row" }, [
+								newLabel,
+								el("button", {
+									class: "pp-btn pp-btn-sm", text: __("+ Entry", "project-prepper"), type: "button",
+									onclick: function () {
+										if (!newLabel.value.trim()) return;
+										api("/checklists/" + checklist.id + "/items", { method: "POST", body: JSON.stringify({ label: newLabel.value.trim() }) })
+											.then(function () { reload(renderChecklists); }).catch(function (e) { toast(e.message, "error"); });
+									}
+								})
+							]));
+						}
+					});
+					if (!(project.checklists || []).length) {
+						checklistsSection.appendChild(el("div", { class: "pp-muted", text: __("No checklists.", "project-prepper") }));
+					}
+					if (editable) {
+						var newName = el("input", { type: "text", placeholder: __("Checklist name", "project-prepper"), class: "pp-input-md" });
+						checklistsSection.appendChild(el("div", { class: "pp-row", style: "margin-top:8px" }, [
+							newName,
+							el("button", {
+								class: "pp-btn pp-btn-sm", text: __("+ Checklist", "project-prepper"), type: "button",
+								onclick: function () {
+									if (!newName.value.trim()) return;
+									api("/projects/" + projectId + "/checklists", { method: "POST", body: JSON.stringify({ name: newName.value.trim() }) })
+										.then(function () { reload(renderChecklists); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					}
+				}
+				renderChecklists();
+
+				/* --- Aufgaben --- */
+
+				var tasksSection = el("div", { class: "pp-modal-section" });
+				function renderTasks() {
+					tasksSection.innerHTML = "";
+					tasksSection.appendChild(el("h3", { text: __("Tasks", "project-prepper") }));
+					var list = el("ul", { class: "pp-lines" });
+					(project.tasks || []).forEach(function (task) {
+						if (!editable) {
+							list.appendChild(el("li", null, [
+								el("span", { class: "pp-badge pp-badge-" + (task.task_status === "done" ? "returned" : task.task_status === "doing" ? "active" : "reserved"), text: TASK_STATUS[task.task_status] || task.task_status }),
+								el("span", { text: task.title }),
+								el("span", { class: "pp-muted", text: TASK_PRIORITY[task.priority] + (task.due_date ? " · " + dateDe(task.due_date) : "") })
+							]));
+							return;
+						}
+						// Status-Toggle open→doing→done (→open).
+						var statusBtn = el("button", {
+							class: "pp-btn pp-btn-sm", text: TASK_STATUS[task.task_status] || task.task_status, type: "button",
+							title: __("Change status", "project-prepper"),
+							onclick: function () {
+								api("/tasks/" + task.id, { method: "PUT", body: JSON.stringify({ task_status: TASK_NEXT[task.task_status] || "open" }) })
+									.then(function () { reload(renderTasks); }).catch(function (e) { toast(e.message, "error"); });
+							}
+						});
+						var prio = el("select", { title: __("Priority", "project-prepper") }, Object.keys(TASK_PRIORITY).map(function (key) {
+							return el("option", { value: key, text: TASK_PRIORITY[key] });
+						}));
+						prio.value = task.priority || "normal";
+						prio.addEventListener("change", function () {
+							api("/tasks/" + task.id, { method: "PUT", body: JSON.stringify({ priority: prio.value }) })
+								.then(function () { reload(null); }).catch(function (e) { toast(e.message, "error"); });
+						});
+						var due = el("input", { type: "date", value: task.due_date || "", title: __("Due date", "project-prepper") });
+						due.addEventListener("change", function () {
+							api("/tasks/" + task.id, { method: "PUT", body: JSON.stringify({ due_date: due.value }) })
+								.then(function () { reload(null); }).catch(function (e) { toast(e.message, "error"); });
+						});
+						list.appendChild(el("li", null, [
+							statusBtn,
+							el("span", { text: task.title }),
+							prio, due,
+							el("button", {
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/tasks/" + task.id, { method: "DELETE" })
+										.then(function () { reload(renderTasks); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					});
+					if (!(project.tasks || []).length) list.appendChild(el("li", { class: "pp-muted", text: __("No tasks.", "project-prepper") }));
+					tasksSection.appendChild(list);
+
+					if (!editable) return;
+					var newTitle = el("input", { type: "text", placeholder: __("Task title", "project-prepper"), class: "pp-input-md" });
+					var newPrio = el("select", { title: __("Priority", "project-prepper") }, Object.keys(TASK_PRIORITY).map(function (key) {
+						return el("option", { value: key, text: TASK_PRIORITY[key] });
+					}));
+					newPrio.value = "normal";
+					var newDue = el("input", { type: "date", title: __("Due date", "project-prepper") });
+					tasksSection.appendChild(el("div", { class: "pp-row" }, [
+						newTitle, newPrio, newDue,
+						el("button", {
+							class: "pp-btn pp-btn-sm", text: __("+ Task", "project-prepper"), type: "button",
+							onclick: function () {
+								if (!newTitle.value.trim()) return;
+								api("/projects/" + projectId + "/tasks", {
+									method: "POST",
+									body: JSON.stringify({ title: newTitle.value.trim(), priority: newPrio.value, due_date: newDue.value })
+								}).then(function () {
+									newTitle.value = ""; newDue.value = ""; newPrio.value = "normal";
+									reload(renderTasks);
+								}).catch(function (e) { toast(e.message, "error"); });
+							}
+						})
+					]));
+				}
+				renderTasks();
+
+				var body = el("div", null, [statusRow, info, bookingsSection, checklistsSection, tasksSection]);
+
+				var close;
+				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);
+				if (editable) {
+					footerButtons.insertBefore(el("button", {
+						class: "pp-btn pp-btn-primary", text: __("Save", "project-prepper"),
+						onclick: function () {
+							api("/projects/" + projectId, {
+								method: "PUT",
+								body: JSON.stringify({
+									name: f.name.value.trim(),
+									date_start: f.start.value,
+									date_end: f.end.value,
+									venue_name: f.venueName.value.trim(),
+									venue_address: f.venueAddress.value,
+									client_name: f.clientName.value.trim(),
+									client_email: f.clientEmail.value.trim(),
+									client_phone: f.clientPhone.value.trim(),
+									notes: f.notes.value
+								})
+							}).then(function () {
+								toast(__("Saved.", "project-prepper")); close(); load();
+							}).catch(function (e) { toast(e.message, "error"); });
+						}
+					}), footerButtons.firstChild);
+				}
+				var footer = el("div", { class: "pp-modal-footer" }, [
+					editable ? el("button", {
+						class: "pp-btn pp-btn-danger", text: __("Delete project", "project-prepper"),
+						onclick: function () {
+							/* translators: %s: project name */
+							if (!confirm(sprintf(__('Delete project "%s"? Bookings, checklists and tasks will be deleted too.', "project-prepper"), project.name))) return;
+							api("/projects/" + projectId, { method: "DELETE" }).then(function () { close(); load(); });
+						}
+					}) : el("span"),
+					footerButtons
+				]);
+				close = openModal(project.project_number + " — " + project.name, body, footer);
+			}).catch(function (e) { toast(e.message, "error"); });
+		}
+
+		/* ----- Neues Projekt ----- */
+
+		if (ppConfig.canEdit.projects) {
+			var cName = el("input", { type: "text", placeholder: __("Name *", "project-prepper"), class: "pp-input-lg" });
+			var cStatus = statusSelect("draft");
+			var cFrom = el("input", { type: "date", title: __("From", "project-prepper") });
+			var cTo = el("input", { type: "date", title: __("To", "project-prepper") });
+			var cVenue = el("input", { type: "text", placeholder: __("Venue", "project-prepper"), class: "pp-input-md" });
+			var cClient = el("input", { type: "text", placeholder: __("Client", "project-prepper"), class: "pp-input-md" });
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("New project", "project-prepper") }),
+				el("form", {
+					onsubmit: function (e) {
+						e.preventDefault();
+						if (!cName.value.trim()) return;
+						api("/projects", {
+							method: "POST",
+							body: JSON.stringify({
+								name: cName.value.trim(),
+								status: cStatus.value,
+								date_start: cFrom.value,
+								date_end: cTo.value,
+								venue_name: cVenue.value.trim(),
+								client_name: cClient.value.trim()
+							})
+						}).then(function (project) {
+							/* translators: %s: project number */
+							toast(sprintf(__("Project %s created.", "project-prepper"), project.project_number));
+							cName.value = cVenue.value = cClient.value = ""; cFrom.value = cTo.value = ""; cStatus.value = "draft";
+							load();
+						}).catch(function (e2) { toast(e2.message, "error"); });
+					}
+				}, [
+					el("div", { class: "pp-row" }, [
+						field(__("Name *", "project-prepper"), cName), field(__("Status", "project-prepper"), cStatus),
+						field(__("From", "project-prepper"), cFrom), field(__("To", "project-prepper"), cTo),
+						field(__("Venue", "project-prepper"), cVenue), field(__("Client", "project-prepper"), cClient),
+						el("button", { class: "pp-btn pp-btn-primary", text: __("Create project", "project-prepper") })
+					])
+				])
+			]));
+		}
+
+		api("/items").then(function (result) { items = result; }).catch(function () {});
+
+		root.appendChild(pillBox);
+		root.appendChild(listBox);
+		renderPills();
+		load();
+
+		// Deep-Link aufs Detail (Pendant zur App-Route /projects/[id]): #pp-project-{id}.
+		var hashMatch = window.location.hash.match(/^#pp-project-(\d+)$/);
+		if (hashMatch) openProjectModal(parseInt(hashMatch[1], 10));
+	}
+
 	/* ================= Seite: Kategorien ================= */
 
 	function renderCategories() {
@@ -1507,6 +1991,7 @@
 	/* ================= Routing ================= */
 
 	if (page === "categories") renderCategories();
+	else if (page === "projects") renderProjects();
 	else if (page === "rentals") renderRentals();
 	else if (page === "inquiries") renderInquiries();
 	else if (page === "settings") renderSettings();

@@ -340,6 +340,8 @@
 	white-space: nowrap;
 }
 
+/* Projekt-Status "Entwurf" — neutral/grau; übrige Projekt-Stati nutzen die bestehenden Klassen. */
+.pp-badge-draft { background: var(--pp-muted); color: var(--pp-muted-foreground); }
 .pp-badge-reserved { background: var(--pp-warning-light); color: var(--pp-warning); }
 .pp-badge-active { background: var(--pp-info-light); color: var(--pp-info); }
 .pp-badge-returned { background: var(--pp-success-light); color: var(--pp-success); }

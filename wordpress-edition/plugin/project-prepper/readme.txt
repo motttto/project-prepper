@@ -4,11 +4,11 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.8.2
+Stable tag: 0.9.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Equipment inventory & rentals for teams — categories with number ranges, availability checks and rental management.
+Equipment inventory, projects & rentals for teams — categories with number ranges, availability checks and rental management.
 
 == Description ==
 
@@ -17,8 +17,9 @@ Project Prepper manages equipment inventory and rentals directly in WordPress:
 * Inventory items with automatic inventory numbers (number range per category prefix)
 * Categories with icon and prefix
 * Search and filters across name, number, manufacturer, tags
+* Projects: plan events with equipment bookings, checklists and tasks — confirmed projects block inventory just like rentals
 * Rental management: borrower, period, deposit, fee
-* Availability checks across overlapping rental periods
+* Availability checks across overlapping rental and project booking periods
 * Status flow: Reserved → On loan → Returned (or Cancelled)
 * Inquiry pipeline: public request form feeds an admin pipeline (New → Contacted → Offer → Won/Lost), one-click conversion into a rental
 * Public frontend via shortcodes and Gutenberg blocks: equipment list, availability check, request form, item detail pages
@@ -73,6 +74,14 @@ for the XLSX import/export in the admin. SheetJS CE is licensed under the Apache
 (https://www.apache.org/licenses/LICENSE-2.0), Copyright (C) 2013-present SheetJS LLC.
 
 == Changelog ==
+
+= 0.9.0 =
+* New Projects module: projects with their own number range (P-YYYY-NNNN), status flow Draft → Planned → Confirmed → Running → Done (or Cancelled), venue and client data
+* Equipment bookings per project — line items with optional own period (otherwise inheriting the project period) and availability checks
+* Availability is now checked across rentals AND confirmed/running projects: a confirmed project blocks inventory for overlapping rentals and vice versa
+* Checklists per project: multiple lists with checkable entries
+* Tasks per project: title, priority, due date and an open → in progress → done status toggle
+* New capabilities pp_projects_view and pp_projects_edit (Administrator and Prepper Manager get both, Prepper Member can view)
 
 = 0.8.2 =
 * Directory assets for wordpress.org (banner, icon, screenshots) and a Screenshots section in the readme

@@ -6,20 +6,27 @@ use ProjectPrepper\Schema;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Verfügbarkeitsprüfung — Pendant zu check_inventory_availability() der App.
+ * Verfügbarkeitsprüfung — Pendant zu check_inventory_availability() der App
+ * (dort über Bookings + Rentals, hier über Verleihe + Projekt-Buchungen).
  *
- * Verfügbar = Artikel-Menge minus Summe der Positionen aus überlappenden
- * Verleihen mit Status reserved/active.
+ * Verfügbar = Artikel-Menge
+ *   − Σ Positionen überlappender Verleihe mit Status reserved/active
+ *   − Σ Buchungen aus Projekten mit Status confirmed/running, deren effektiver
+ *     Zeitraum (Zeilen-Datum, sonst geerbt vom Projekt) überlappt.
+ *
+ * Buchungen ohne bestimmbaren Zeitraum (Zeile UND Projekt ohne Termine)
+ * blockieren nichts.
  */
 class Availability {
 
 	/**
-	 * @param int    $item_id           Artikel.
-	 * @param string $from              Y-m-d.
-	 * @param string $to                Y-m-d.
-	 * @param int    $exclude_rental_id Eigener Verleih beim Bearbeiten ausnehmen.
+	 * @param int    $item_id            Artikel.
+	 * @param string $from               Y-m-d.
+	 * @param string $to                 Y-m-d.
+	 * @param int    $exclude_rental_id  Eigener Verleih beim Bearbeiten ausnehmen.
+	 * @param int    $exclude_project_id Eigenes Projekt beim Bearbeiten von Buchungszeilen ausnehmen.
 	 */
-	public static function available_quantity( int $item_id, string $from, string $to, int $exclude_rental_id = 0 ): int {
+	public static function available_quantity( int $item_id, string $from, string $to, int $exclude_rental_id = 0, int $exclude_project_id = 0 ): int {
 		global $wpdb;
 
 		$item = Inventory::get_item( $item_id );
@@ -27,7 +34,7 @@ class Availability {
 			return 0;
 		}
 
-		$booked = (int) $wpdb->get_var( $wpdb->prepare(
+		$rented = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT COALESCE(SUM(ri.quantity), 0)
 			 FROM %i ri
 			 INNER JOIN %i r ON r.id = ri.rental_id
@@ -44,7 +51,28 @@ class Availability {
 			$from
 		) );
 
-		return max( 0, (int) $item->quantity - $booked );
+		// Projekt-Buchungen: nur confirmed/running blockieren; effektiver Zeitraum
+		// = Zeilen-Datum mit Fallback auf den Projekt-Zeitraum (COALESCE).
+		$booked = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COALESCE(SUM(pi.quantity), 0)
+			 FROM %i pi
+			 INNER JOIN %i p ON p.id = pi.project_id
+			 WHERE pi.item_id = %d
+			   AND p.id != %d
+			   AND p.status IN ('confirmed', 'running')
+			   AND COALESCE(pi.date_from, p.date_start) IS NOT NULL
+			   AND COALESCE(pi.date_to, p.date_end) IS NOT NULL
+			   AND COALESCE(pi.date_from, p.date_start) <= %s
+			   AND COALESCE(pi.date_to, p.date_end) >= %s",
+			Schema::table( 'project_items' ),
+			Schema::table( 'projects' ),
+			$item_id,
+			$exclude_project_id,
+			$to,
+			$from
+		) );
+
+		return max( 0, (int) $item->quantity - $rented - $booked );
 	}
 
 	public static function is_valid_range( string $from, string $to ): bool {
@@ -54,5 +82,10 @@ class Availability {
 			&& $d_from->format( 'Y-m-d' ) === $from
 			&& $d_to->format( 'Y-m-d' ) === $to
 			&& $from <= $to;
+	}
+
+	public static function is_valid_date( string $date ): bool {
+		$d = \DateTime::createFromFormat( 'Y-m-d', $date );
+		return $d && $d->format( 'Y-m-d' ) === $date;
 	}
 }

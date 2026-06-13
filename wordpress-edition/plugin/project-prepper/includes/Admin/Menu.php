@@ -40,6 +40,15 @@ class Menu {
 
 		add_submenu_page(
 			'project-prepper',
+			__( 'Projects', 'project-prepper' ),
+			__( 'Projects', 'project-prepper' ),
+			Capabilities::VIEW_PROJECTS,
+			'pp-projects',
+			[ self::class, 'render_projects' ]
+		);
+
+		add_submenu_page(
+			'project-prepper',
 			__( 'Rentals', 'project-prepper' ),
 			__( 'Rentals', 'project-prepper' ),
 			Capabilities::VIEW_RENTALS,
@@ -91,6 +100,7 @@ class Menu {
 			'nonce'   => wp_create_nonce( 'wp_rest' ),
 			'canEdit' => [
 				'inventory'    => current_user_can( Capabilities::EDIT_INVENTORY ),
+				'projects'     => current_user_can( Capabilities::EDIT_PROJECTS ),
 				'rentals'      => current_user_can( Capabilities::EDIT_RENTALS ),
 				'inquiries'    => current_user_can( Capabilities::EDIT_INQUIRIES ),
 				'importExport' => current_user_can( Capabilities::IMPORT_EXPORT ),
@@ -101,6 +111,10 @@ class Menu {
 
 	public static function render_inventory(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Inventory', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="inventory"></div></div>';
+	}
+
+	public static function render_projects(): void {
+		echo '<div class="wrap"><h1>' . esc_html__( 'Projects', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="projects"></div></div>';
 	}
 
 	public static function render_rentals(): void {

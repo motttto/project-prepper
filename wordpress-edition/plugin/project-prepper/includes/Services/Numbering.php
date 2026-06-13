@@ -10,6 +10,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * Inventarnummern: {PREFIX}-{0001} (Prefix aus Kategorie, Fallback "PP").
  * Verleihnummern:  V-{JAHR}-{0001}.
+ * Projektnummern:  P-{JAHR}-{0001}.
  */
 class Numbering {
 
@@ -40,6 +41,22 @@ class Numbering {
 		) );
 
 		return sprintf( '%s-%04d', $prefix, $max + 1 );
+	}
+
+	public static function next_project_number(): string {
+		global $wpdb;
+
+		$year = current_time( 'Y' );
+		$like = $wpdb->esc_like( 'P-' . $year . '-' ) . '%';
+		$max  = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT MAX(CAST(SUBSTRING_INDEX(project_number, '-', -1) AS UNSIGNED))
+			 FROM %i
+			 WHERE project_number LIKE %s",
+			Schema::table( 'projects' ),
+			$like
+		) );
+
+		return sprintf( 'P-%s-%04d', $year, $max + 1 );
 	}
 
 	public static function next_rental_number(): string {

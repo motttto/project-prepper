@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.4.0';
+	const VERSION    = '0.5.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -35,6 +35,11 @@ class Schema {
 		$lines      = self::table( 'rental_items' );
 		$log        = self::table( 'activity_log' );
 		$inquiries  = self::table( 'inquiries' );
+		$projects   = self::table( 'projects' );
+		$p_items    = self::table( 'project_items' );
+		$p_lists    = self::table( 'project_checklists' );
+		$p_checks   = self::table( 'project_checklist_items' );
+		$p_tasks    = self::table( 'project_tasks' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -160,6 +165,79 @@ class Schema {
 			PRIMARY KEY  (id),
 			KEY status (status),
 			KEY created_at (created_at)
+		) {$charset};" );
+
+		// Projekte (Kern + Planung, v0.9.0) — Subset der App-Tabelle `projects`:
+		// Single-Site/Single-Owner, daher keine Owner-/Mitglieder-/Budget-Felder.
+		dbDelta( "CREATE TABLE {$projects} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			project_number varchar(50) NOT NULL,
+			name varchar(190) NOT NULL,
+			status varchar(20) NOT NULL DEFAULT 'draft',
+			date_start date DEFAULT NULL,
+			date_end date DEFAULT NULL,
+			venue_name varchar(190) NOT NULL DEFAULT '',
+			venue_address text,
+			client_name varchar(190) NOT NULL DEFAULT '',
+			client_email varchar(190) NOT NULL DEFAULT '',
+			client_phone varchar(64) NOT NULL DEFAULT '',
+			notes text,
+			created_by bigint(20) unsigned DEFAULT NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY project_number (project_number),
+			KEY status (status),
+			KEY date_start (date_start)
+		) {$charset};" );
+
+		// Equipment-Buchungen pro Projekt (Pendant zu `bookings` der App).
+		// date_from/date_to NULL = Zeile erbt den Projekt-Zeitraum.
+		dbDelta( "CREATE TABLE {$p_items} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			project_id bigint(20) unsigned NOT NULL,
+			item_id bigint(20) unsigned NOT NULL,
+			quantity int(11) NOT NULL DEFAULT 1,
+			date_from date DEFAULT NULL,
+			date_to date DEFAULT NULL,
+			notes text,
+			PRIMARY KEY  (id),
+			KEY project_id (project_id),
+			KEY item_id (item_id)
+		) {$charset};" );
+
+		dbDelta( "CREATE TABLE {$p_lists} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			project_id bigint(20) unsigned NOT NULL,
+			name varchar(190) NOT NULL,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			KEY project_id (project_id)
+		) {$charset};" );
+
+		dbDelta( "CREATE TABLE {$p_checks} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			checklist_id bigint(20) unsigned NOT NULL,
+			label varchar(190) NOT NULL,
+			is_checked tinyint(1) NOT NULL DEFAULT 0,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			KEY checklist_id (checklist_id)
+		) {$charset};" );
+
+		dbDelta( "CREATE TABLE {$p_tasks} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			project_id bigint(20) unsigned NOT NULL,
+			title varchar(190) NOT NULL,
+			task_status varchar(20) NOT NULL DEFAULT 'open',
+			priority varchar(20) NOT NULL DEFAULT 'normal',
+			due_date date DEFAULT NULL,
+			assigned_user bigint(20) unsigned DEFAULT NULL,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY project_id (project_id),
+			KEY task_status (task_status)
 		) {$charset};" );
 
 		self::upgrade_data();

@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       Project Prepper
  * Plugin URI:        https://project-prepper.dunkelstrom.net
- * Description:       Equipment inventory & rentals for teams — categories with number ranges, unit tracking, availability checks and rental management.
- * Version:           0.8.2
+ * Description:       Equipment inventory, projects & rentals for teams — categories with number ranges, unit tracking, availability checks and rental management.
+ * Version:           0.9.0
  * Requires at least: 6.4
  * Requires PHP:      8.0
  * Author:            motttto
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PP_VERSION', '0.8.2' );
+define( 'PP_VERSION', '0.9.0' );
 define( 'PP_PLUGIN_FILE', __FILE__ );
 define( 'PP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
