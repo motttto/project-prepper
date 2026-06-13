@@ -58,6 +58,9 @@ Eine Installation = eine **Plattform/Architektur** (self-hosted, Datenhoheit, op
   - Portal: „In deinen Kollektiven verfügbar" (geteilte Items je Gruppe, Owner sichtbar) + **Leih-Anfrage** (Zeitraum + Nachricht); „Meine Leih-Anfragen" (abbrechen) und „Leih-Anfragen für deine Artikel" (annehmen/ablehnen/zurückgegeben). Status requested→approved|declined|cancelled→returned.
   - Guards: nur im eigenen Kollektiv + nur dort geteilte Items, nie eigene; nur der Eigentümer entscheidet; Eigentümer/Leiher markieren Rückgabe.
   - de_DE per POMO; Plugin Check 0 echte Errors; Leih-Lifecycle in wp-env getestet (Anfrage/Guards/Annahme/Listen/Rückgabe/eigenes-Item-blockiert) + Screenshot.
+- **Feinschliff-Lauf umgesetzt (Plugin v0.29.0, 2026-06-14):**
+  - **Verfügbarkeit:** Leih-Anfrage nur genehmigbar, wenn im Zeitraum eine Einheit frei ist (`Borrowing::available_units()`, überlappende genehmigte Leihen zählen gegen die Menge → keine Überbuchung).
+  - **E-Mail-Benachrichtigungen** (über bestehendes `Email\Notifications` + editierbare Templates + on/off-Schalter): Einladung → Eingeladene/r; neue Leih-Anfrage → Eigentümer; Entscheidung → Anfragende/r. Hooks `pp_group_invited` / `pp_borrow_requested` / `pp_borrow_decided`. de_DE/POMO; in wp-env verifiziert (Überlappung blockiert/erlaubt bei qty 1↔2, Mail-Versand an korrekte Empfänger, deutsche Betreffs).
 - **Offen / als Nächstes:** Phase 5+ (Föderation — Instanz-Discovery via PLZ/Thema, weit später). Damit ist das **Member-Portal-Kernpaket (Phase 0–4) vollständig**: Plattform-Landing, Login, Kollektiv gründen/beitreten+Voting, eigenes Inventar+Teilen, Stöbern+Leihen. Sinnvolle Zwischenschritte vor Föderation: Sicherheits-Lauf (2FA/Härtung, [[grundkonzept]]-Backlog), Verfügbarkeits-/Überlappungsprüfung bei Leihen, E-Mail-Benachrichtigungen für Einladungen/Leih-Anfragen.
 
 ## Roadmap (gestuft, jede Phase testbar/ausrollbar)

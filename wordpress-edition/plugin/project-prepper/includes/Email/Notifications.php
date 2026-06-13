@@ -2,6 +2,11 @@
 namespace ProjectPrepper\Email;
 
 use ProjectPrepper\Services\Rentals;
+use ProjectPrepper\Services\Groups;
+use ProjectPrepper\Services\GroupGovernance;
+use ProjectPrepper\Services\Borrowing;
+use ProjectPrepper\Services\Inventory;
+use ProjectPrepper\Frontend\MemberPortal;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -20,6 +25,10 @@ class Notifications {
 		add_action( 'pp_rental_status_changed', [ self::class, 'on_rental_status_changed' ], 10, 3 );
 		add_action( 'pp_rental_created', [ self::class, 'on_rental_created' ], 10, 1 );
 		add_action( 'pp_inquiry_created', [ self::class, 'on_inquiry_created' ], 10, 1 );
+		// Member-Portal (Phase 4.1): Kollektiv-Einladung + Leih-Anfragen.
+		add_action( 'pp_group_invited', [ self::class, 'on_group_invited' ], 10, 1 );
+		add_action( 'pp_borrow_requested', [ self::class, 'on_borrow_requested' ], 10, 1 );
+		add_action( 'pp_borrow_decided', [ self::class, 'on_borrow_decided' ], 10, 2 );
 	}
 
 	public static function default_templates(): array {
@@ -47,6 +56,24 @@ class Notifications {
 				'subject' => __( 'New inquiry from {{name}} — {{site_name}}', 'project-prepper' ),
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
 				'body'    => __( "New inquiry via the website:\n\nName: {{name}}\nEmail: {{email}}\nPhone: {{phone}}\nPeriod: {{date_from}} to {{date_to}}\n\nRequested equipment:\n{{items}}\n\nMessage:\n{{message}}\n\n→ Manage: {{admin_url}}", 'project-prepper' ),
+			],
+			'group_invitation' => [
+				/* translators: Email subject. Keep the {{group_name}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'You have been invited to {{group_name}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello,\n\n{{inviter_name}} has invited you to join the collective \"{{group_name}}\".\n\nSign in to accept the invitation:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
+			'borrow_requested' => [
+				/* translators: Email subject. Keep the {{item_name}} placeholder unchanged. */
+				'subject' => __( 'Borrow request for {{item_name}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello,\n\n{{requester_name}} would like to borrow your item \"{{item_name}}\" ({{date_from}} to {{date_to}}).\n\nMessage:\n{{message}}\n\nReview the request:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
+			'borrow_decided' => [
+				/* translators: Email subject. Keep the {{item_name}} and {{status}} placeholders unchanged. */
+				'subject' => __( 'Your borrow request for {{item_name}} was {{status}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello,\n\nyour request to borrow \"{{item_name}}\" ({{date_from}} to {{date_to}}) was {{status}}.\n\nDetails:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
 		];
 	}
@@ -102,6 +129,81 @@ class Notifications {
 			self::render( $template['subject'], $vars ),
 			self::render( $template['body'], $vars )
 		);
+	}
+
+	/* ---------- Member-Portal (Phase 4.1) ---------- */
+
+	public static function on_group_invited( int $invitation_id ): void {
+		if ( ! self::enabled() ) {
+			return;
+		}
+		$inv = GroupGovernance::get( $invitation_id );
+		if ( ! $inv || empty( $inv->invited_email ) || ! is_email( $inv->invited_email ) ) {
+			return;
+		}
+		$group   = Groups::get( (int) $inv->group_id );
+		$inviter = $inv->invited_by ? get_userdata( (int) $inv->invited_by ) : null;
+		$tpl     = self::templates()['group_invitation'];
+		$vars    = [
+			'group_name'   => $group ? $group->name : '',
+			'inviter_name' => $inviter ? $inviter->display_name : get_bloginfo( 'name' ),
+			'portal_url'   => MemberPortal::portal_url(),
+			'site_name'    => get_bloginfo( 'name' ),
+		];
+		wp_mail( $inv->invited_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
+	}
+
+	public static function on_borrow_requested( int $request_id ): void {
+		if ( ! self::enabled() ) {
+			return;
+		}
+		$req = Borrowing::get( $request_id );
+		if ( ! $req || ! $req->owner_id ) {
+			return;
+		}
+		$owner = get_userdata( (int) $req->owner_id );
+		if ( ! $owner || ! is_email( $owner->user_email ) ) {
+			return;
+		}
+		$item      = Inventory::get_item( (int) $req->item_id );
+		$requester = get_userdata( (int) $req->requester_id );
+		$tpl       = self::templates()['borrow_requested'];
+		$vars      = [
+			'item_name'      => $item ? $item->name : '',
+			'requester_name' => $requester ? $requester->display_name : '',
+			'date_from'      => $req->date_from ? mysql2date( 'd.m.Y', $req->date_from ) : '—',
+			'date_to'        => $req->date_to ? mysql2date( 'd.m.Y', $req->date_to ) : '—',
+			'message'        => trim( (string) $req->message ) !== '' ? $req->message : '—',
+			'portal_url'     => MemberPortal::portal_url(),
+			'site_name'      => get_bloginfo( 'name' ),
+		];
+		wp_mail( $owner->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
+	}
+
+	public static function on_borrow_decided( int $request_id, string $status ): void {
+		if ( ! self::enabled() || ! in_array( $status, [ 'approved', 'declined' ], true ) ) {
+			return;
+		}
+		$req = Borrowing::get( $request_id );
+		if ( ! $req ) {
+			return;
+		}
+		$requester = get_userdata( (int) $req->requester_id );
+		if ( ! $requester || ! is_email( $requester->user_email ) ) {
+			return;
+		}
+		$item        = Inventory::get_item( (int) $req->item_id );
+		$status_text = 'approved' === $status ? __( 'approved', 'project-prepper' ) : __( 'declined', 'project-prepper' );
+		$tpl         = self::templates()['borrow_decided'];
+		$vars        = [
+			'item_name'  => $item ? $item->name : '',
+			'status'     => $status_text,
+			'date_from'  => $req->date_from ? mysql2date( 'd.m.Y', $req->date_from ) : '—',
+			'date_to'    => $req->date_to ? mysql2date( 'd.m.Y', $req->date_to ) : '—',
+			'portal_url' => MemberPortal::portal_url(),
+			'site_name'  => get_bloginfo( 'name' ),
+		];
+		wp_mail( $requester->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
 	}
 
 	public static function on_rental_status_changed( int $rental_id, string $from, string $to ): void {

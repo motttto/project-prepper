@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.28.0
+Stable tag: 0.29.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.29.0 =
+* Availability for borrowing: a request can only be approved if a unit of the item is actually free in that period — overlapping approved loans are counted against the item quantity, so no overbooking
+* Email notifications (member portal): the invitee is emailed on a collective invitation, the owner on a new borrow request, and the borrower when their request is approved or declined — all via wp_mail with editable templates, and all respecting the global notifications on/off switch
 
 = 0.28.0 =
 * Browse & borrow in the member portal: members see the equipment their collectives share and can request to borrow an item for a period — non-commercial, no fees

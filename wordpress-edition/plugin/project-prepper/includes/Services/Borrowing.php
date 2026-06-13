@@ -84,7 +84,33 @@ class Borrowing {
 		] );
 		$id = (int) $wpdb->insert_id;
 		ActivityLog::log( 'borrow_requested', 'item', $item_id, [ 'request_id' => $id, 'group_id' => $group_id ] );
+		do_action( 'pp_borrow_requested', $id );
 		return $id;
+	}
+
+	/**
+	 * Verfügbare Einheiten eines Items in einem Zeitraum: Menge minus überlappende
+	 * genehmigte Leihen (eine Anfrage = eine Einheit). $exclude lässt die eigene
+	 * Anfrage außen vor.
+	 */
+	public static function available_units( int $item_id, string $from, string $to, int $exclude = 0 ): int {
+		global $wpdb;
+		$item = Inventory::get_item( $item_id );
+		if ( ! $item ) {
+			return 0;
+		}
+		$qty  = max( 1, (int) $item->quantity );
+		$used = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM %i
+			 WHERE item_id = %d AND status = 'approved' AND id <> %d
+			   AND date_from <= %s AND date_to >= %s",
+			Schema::table( 'borrow_requests' ),
+			$item_id,
+			$exclude,
+			$to,
+			$from
+		) );
+		return max( 0, $qty - $used );
 	}
 
 	/** Eigentümer nimmt an. @return true|WP_Error */
@@ -110,6 +136,11 @@ class Borrowing {
 		if ( 'requested' !== $req->status ) {
 			return new WP_Error( 'pp_bad_state', __( 'This request is already resolved.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
+		// Beim Genehmigen Verfügbarkeit prüfen (keine Überbuchung über die Menge hinaus).
+		if ( 'approved' === $status
+			&& self::available_units( (int) $req->item_id, (string) $req->date_from, (string) $req->date_to, $request_id ) < 1 ) {
+			return new WP_Error( 'pp_no_units', __( 'No units of this item are free in that period.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
 		$wpdb->update(
 			Schema::table( 'borrow_requests' ),
 			[ 'status' => $status, 'decided_at' => current_time( 'mysql' ), 'decided_by' => $user_id ],
@@ -118,6 +149,7 @@ class Borrowing {
 			[ '%d' ]
 		);
 		ActivityLog::log( 'borrow_' . $status, 'item', (int) $req->item_id, [ 'request_id' => $request_id ] );
+		do_action( 'pp_borrow_decided', $request_id, $status );
 		return true;
 	}
 

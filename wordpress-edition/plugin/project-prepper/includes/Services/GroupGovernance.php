@@ -98,6 +98,7 @@ class GroupGovernance {
 		$invitation_id = (int) $wpdb->insert_id;
 
 		ActivityLog::log( 'group_invited', 'group', $group_id, [ 'email' => $email, 'invitation_id' => $invitation_id ] );
+		do_action( 'pp_group_invited', $invitation_id );
 		return $invitation_id;
 	}
 
