@@ -60,6 +60,7 @@ class Projects {
 			return null;
 		}
 		$project->items      = self::items_for( $id );
+		$project->schedule   = Schedule::for_project( $id );
 		$project->checklists = Checklists::for_project( $id );
 		$project->tasks      = Tasks::for_project( $id );
 		return $project;
@@ -222,6 +223,7 @@ class Projects {
 		}
 		$wpdb->delete( Schema::table( 'project_checklists' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_tasks' ), [ 'project_id' => $id ], [ '%d' ] );
+		$wpdb->delete( Schema::table( 'project_schedule' ), [ 'project_id' => $id ], [ '%d' ] );
 		$wpdb->delete( Schema::table( 'project_items' ), [ 'project_id' => $id ], [ '%d' ] );
 		$ok = false !== $wpdb->delete( Schema::table( 'projects' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {

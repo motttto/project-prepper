@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.5.0';
+	const VERSION    = '0.6.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -40,6 +40,7 @@ class Schema {
 		$p_lists    = self::table( 'project_checklists' );
 		$p_checks   = self::table( 'project_checklist_items' );
 		$p_tasks    = self::table( 'project_tasks' );
+		$p_sched    = self::table( 'project_schedule' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -238,6 +239,23 @@ class Schema {
 			PRIMARY KEY  (id),
 			KEY project_id (project_id),
 			KEY task_status (task_status)
+		) {$charset};" );
+
+		// Zeitplan pro Projekt (Pendant zu `project_schedule` der App).
+		// Datum + optionale Zeitspanne pro Programmpunkt; location/notes als
+		// WP-Ergänzung. Alle Zeitfelder nullable (z. B. nur grobes Tagesdatum).
+		dbDelta( "CREATE TABLE {$p_sched} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			project_id bigint(20) unsigned NOT NULL,
+			schedule_date date DEFAULT NULL,
+			time_start time DEFAULT NULL,
+			time_end time DEFAULT NULL,
+			title varchar(190) NOT NULL,
+			location varchar(190) NOT NULL DEFAULT '',
+			notes text,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			KEY project_id (project_id)
 		) {$charset};" );
 
 		self::upgrade_data();

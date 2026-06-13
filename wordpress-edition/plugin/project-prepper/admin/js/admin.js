@@ -106,6 +106,15 @@
 		return parts[2] + "." + parts[1] + "." + parts[0];
 	}
 
+	// Zeitspanne als " · HH:MM–HH:MM" (führendes Trennzeichen, da hinter dem Datum). Leer = "".
+	function timeRange(start, end) {
+		var s = start ? String(start).slice(0, 5) : "";
+		var e = end ? String(end).slice(0, 5) : "";
+		if (!s && !e) return "";
+		if (s && e) return " · " + s + "–" + e;
+		return " · " + (s || e);
+	}
+
 	var CONDITIONS = { new: __("New", "project-prepper"), good: __("Good", "project-prepper"), fair: __("Used", "project-prepper"), poor: __("Poor", "project-prepper"), broken: __("Broken", "project-prepper"), retired: __("Retired", "project-prepper") };
 	var STATUS_LABELS = { reserved: __("Reserved", "project-prepper"), active: __("On loan", "project-prepper"), returned: __("Returned", "project-prepper"), cancelled: __("Cancelled", "project-prepper") };
 	var STATUS_ACTIONS = { active: __("Hand out", "project-prepper"), returned: __("Take back", "project-prepper"), cancelled: _x("Cancel", "rental status action", "project-prepper") };
@@ -1348,6 +1357,62 @@
 				}
 				renderBookings();
 
+				/* --- Zeitplan --- */
+
+				var scheduleSection = el("div", { class: "pp-modal-section" });
+				function renderSchedule() {
+					scheduleSection.innerHTML = "";
+					scheduleSection.appendChild(el("h3", { text: __("Schedule", "project-prepper") }));
+					var schedList = el("ul", { class: "pp-lines" });
+					(project.schedule || []).forEach(function (entry) {
+						var meta = el("span", { class: "pp-muted", text: dateDe(entry.schedule_date) + timeRange(entry.time_start, entry.time_end) });
+						var label = el("span", { text: entry.title + (entry.location ? " · " + entry.location : "") });
+						if (!editable) {
+							schedList.appendChild(el("li", null, [meta, label]));
+							return;
+						}
+						schedList.appendChild(el("li", null, [
+							meta, label,
+							el("button", {
+								class: "pp-link pp-link-danger", text: __("remove", "project-prepper"), type: "button",
+								onclick: function () {
+									api("/projects/" + projectId + "/schedule/" + entry.id, { method: "DELETE" })
+										.then(function () { reload(renderSchedule); }).catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						]));
+					});
+					if (!(project.schedule || []).length) schedList.appendChild(el("li", { class: "pp-muted", text: __("No schedule entries.", "project-prepper") }));
+					scheduleSection.appendChild(schedList);
+
+					if (!editable) return;
+					var schedDate = el("input", { type: "date", title: __("Date", "project-prepper") });
+					var schedStart = el("input", { type: "time", title: __("From", "project-prepper") });
+					var schedEnd = el("input", { type: "time", title: __("To", "project-prepper") });
+					var schedTitle = el("input", { type: "text", placeholder: __("Title", "project-prepper"), class: "pp-input-md" });
+					var schedLocation = el("input", { type: "text", placeholder: __("Location", "project-prepper"), class: "pp-input-md" });
+					scheduleSection.appendChild(el("div", { class: "pp-row" }, [
+						schedDate, schedStart, schedEnd, schedTitle, schedLocation,
+						el("button", {
+							class: "pp-btn pp-btn-sm", text: __("+ Entry", "project-prepper"), type: "button",
+							onclick: function () {
+								if (!schedTitle.value.trim()) return;
+								api("/projects/" + projectId + "/schedule", {
+									method: "POST",
+									body: JSON.stringify({
+										schedule_date: schedDate.value, time_start: schedStart.value, time_end: schedEnd.value,
+										title: schedTitle.value.trim(), location: schedLocation.value.trim()
+									})
+								}).then(function () {
+									schedDate.value = ""; schedStart.value = ""; schedEnd.value = ""; schedTitle.value = ""; schedLocation.value = "";
+									reload(renderSchedule);
+								}).catch(function (e) { toast(e.message, "error"); });
+							}
+						})
+					]));
+				}
+				renderSchedule();
+
 				/* --- Checklisten --- */
 
 				var checklistsSection = el("div", { class: "pp-modal-section" });
@@ -1516,7 +1581,7 @@
 				}
 				renderTasks();
 
-				var body = el("div", null, [statusRow, info, bookingsSection, checklistsSection, tasksSection]);
+				var body = el("div", null, [statusRow, info, bookingsSection, scheduleSection, checklistsSection, tasksSection]);
 
 				var close;
 				var footerButtons = el("div", { class: "pp-right" }, [el("button", { class: "pp-btn", text: __("Close", "project-prepper"), onclick: function () { close(); } })]);

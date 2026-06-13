@@ -4,6 +4,7 @@ namespace ProjectPrepper\Rest;
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Services\Checklists;
 use ProjectPrepper\Services\Projects;
+use ProjectPrepper\Services\Schedule;
 use ProjectPrepper\Services\Tasks;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -79,6 +80,32 @@ class ProjectsController extends BaseController {
 			[
 				'methods'             => 'DELETE',
 				'callback'            => [ $this, 'remove_item' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/schedule', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'schedule' ],
+				'permission_callback' => $this->require_cap( Capabilities::VIEW_PROJECTS ),
+			],
+			[
+				'methods'             => 'POST',
+				'callback'            => [ $this, 'add_schedule' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+		] );
+
+		register_rest_route( self::REST_NAMESPACE, '/projects/(?P<id>\d+)/schedule/(?P<entry_id>\d+)', [
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'update_schedule' ],
+				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
+			],
+			[
+				'methods'             => 'DELETE',
+				'callback'            => [ $this, 'remove_schedule' ],
 				'permission_callback' => $this->require_cap( Capabilities::EDIT_PROJECTS ),
 			],
 		] );
@@ -254,6 +281,74 @@ class ProjectsController extends BaseController {
 			$line['notes'] = sanitize_textarea_field( (string) $json['notes'] );
 		}
 		return $line;
+	}
+
+	/* ---------- Zeitplan ---------- */
+
+	public function schedule( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return new WP_REST_Response( Schedule::for_project( (int) $request['id'] ) );
+	}
+
+	public function add_schedule( WP_REST_Request $request ) {
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$result = Schedule::create( (int) $request['id'], $this->schedule_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Schedule::for_project( (int) $request['id'] ), 201 );
+	}
+
+	public function update_schedule( WP_REST_Request $request ) {
+		$owner = $this->schedule_entry_in_project( (int) $request['id'], (int) $request['entry_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Schedule::update( (int) $request['entry_id'], $this->schedule_payload( $request->get_json_params() ?: [] ) );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Schedule::for_project( (int) $request['id'] ) );
+	}
+
+	public function remove_schedule( WP_REST_Request $request ) {
+		$owner = $this->schedule_entry_in_project( (int) $request['id'], (int) $request['entry_id'] );
+		if ( is_wp_error( $owner ) ) {
+			return $owner;
+		}
+		$result = Schedule::delete( (int) $request['entry_id'] );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+		return new WP_REST_Response( Schedule::for_project( (int) $request['id'] ) );
+	}
+
+	/**
+	 * Sicherstellen, dass der Eintrag zum Projekt der URL gehört (nested route).
+	 *
+	 * @return true|WP_Error
+	 */
+	private function schedule_entry_in_project( int $project_id, int $entry_id ) {
+		$entry = Schedule::get( $entry_id );
+		if ( ! $entry || (int) $entry->project_id !== $project_id ) {
+			return new WP_Error( 'pp_not_found', __( 'Schedule entry not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return true;
+	}
+
+	private function schedule_payload( array $json ): array {
+		$data = $this->sanitize_text_fields( $json, [ 'title', 'schedule_date', 'time_start', 'time_end', 'location' ] );
+		if ( array_key_exists( 'notes', $json ) ) {
+			$data['notes'] = sanitize_textarea_field( (string) $json['notes'] );
+		}
+		if ( array_key_exists( 'sort_order', $json ) ) {
+			$data['sort_order'] = (int) $json['sort_order'];
+		}
+		return $data;
 	}
 
 	/* ---------- Checklisten ---------- */
