@@ -652,16 +652,20 @@ class MemberPortal {
 		return in_array( $view, $allowed, true ) ? $view : 'dashboard';
 	}
 
-	/** Sidebar-Navigationspunkte (nur gebaute Member-Features). */
-	private static function nav_items(): array {
+	/**
+	 * Sidebar-Navigationspunkte. Die Labels wechseln mit dem Arbeitsbereich (wie
+	 * in der App): Solo → „Mein/Meine …", Gruppe → schlicht „…" / „Alle Gruppen".
+	 */
+	private static function nav_items( int $active ): array {
+		$solo = ( 0 === $active );
 		return [
 			[ 'view' => 'dashboard',   'icon' => 'dashboard', 'label' => __( 'Dashboard', 'project-prepper' ) ],
-			[ 'view' => 'inventory',   'icon' => 'inventory', 'label' => __( 'My inventory', 'project-prepper' ) ],
-			[ 'view' => 'lending',     'icon' => 'package',   'label' => __( 'Lending', 'project-prepper' ) ],
-			[ 'view' => 'projects',    'icon' => 'projects',  'label' => __( 'My projects', 'project-prepper' ) ],
+			[ 'view' => 'inventory',   'icon' => 'inventory', 'label' => $solo ? __( 'My inventory', 'project-prepper' ) : __( 'Inventory', 'project-prepper' ) ],
+			[ 'view' => 'lending',     'icon' => 'package',   'label' => $solo ? __( 'My lending', 'project-prepper' ) : __( 'Lending', 'project-prepper' ) ],
+			[ 'view' => 'projects',    'icon' => 'projects',  'label' => $solo ? __( 'My projects', 'project-prepper' ) : __( 'Projects', 'project-prepper' ) ],
 			[ 'view' => 'calendar',    'icon' => 'calendar',  'label' => __( 'Calendar', 'project-prepper' ) ],
 			[ 'view' => 'network',     'icon' => 'globe',     'label' => __( 'Network', 'project-prepper' ) ],
-			[ 'view' => 'collectives', 'icon' => 'users',     'label' => __( 'My collectives', 'project-prepper' ) ],
+			[ 'view' => 'collectives', 'icon' => 'users',     'label' => $solo ? __( 'My groups', 'project-prepper' ) : __( 'All groups', 'project-prepper' ) ],
 		];
 	}
 
@@ -717,7 +721,7 @@ class MemberPortal {
 			</details>
 
 			<nav class="pp-app__nav">
-				<?php foreach ( self::nav_items() as $item ) :
+				<?php foreach ( self::nav_items( $active ) as $item ) :
 					$active = ( $item['view'] === $view ); ?>
 					<a class="pp-app__nav-item<?php echo $active ? ' is-active' : ''; ?>" href="<?php echo esc_url( self::view_url( $item['view'] ) ); ?>"<?php echo $active ? ' aria-current="page"' : ''; ?>>
 						<?php self::nav_icon( $item['icon'] ); ?>
