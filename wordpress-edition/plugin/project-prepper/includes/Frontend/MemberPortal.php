@@ -471,18 +471,19 @@ class MemberPortal {
 		if ( ! in_array( $type, [ 'date', 'choice' ], true ) ) {
 			$type = 'choice';
 		}
-		$lines   = preg_split( '/\r\n|\r|\n/', (string) wp_unslash( $_POST['pp_options'] ?? '' ) );
+		// Je Option eine eigene Box (pp_opt[]); leere werden ignoriert.
+		$boxes   = isset( $_POST['pp_opt'] ) && is_array( $_POST['pp_opt'] ) ? wp_unslash( $_POST['pp_opt'] ) : [];
 		$options = [];
-		foreach ( (array) $lines as $line ) {
-			$line = trim( (string) $line );
-			if ( '' === $line ) {
+		foreach ( $boxes as $box ) {
+			$box = trim( (string) $box );
+			if ( '' === $box ) {
 				continue;
 			}
 			if ( 'date' === $type ) {
-				$parts     = preg_split( '/\s+/', $line );
+				$parts     = preg_split( '/\s+/', $box );
 				$options[] = [ 'option_date' => sanitize_text_field( $parts[0] ), 'option_time' => isset( $parts[1] ) ? sanitize_text_field( $parts[1] ) : '' ];
 			} else {
-				$options[] = [ 'label' => sanitize_text_field( $line ) ];
+				$options[] = [ 'label' => sanitize_text_field( $box ) ];
 			}
 		}
 		return [
@@ -1535,9 +1536,16 @@ class MemberPortal {
 						<option value="date"><?php esc_html_e( 'Date poll', 'project-prepper' ); ?></option>
 					</select>
 				</label>
-				<label><?php esc_html_e( 'Options (one per line)', 'project-prepper' ); ?>
-					<textarea name="pp_options" rows="3" placeholder="<?php esc_attr_e( 'Date polls: YYYY-MM-DD (optionally HH:MM)', 'project-prepper' ); ?>" required></textarea>
-				</label>
+				<fieldset class="pp-poll-optset">
+					<legend><?php esc_html_e( 'Options', 'project-prepper' ); ?></legend>
+					<?php for ( $i = 1; $i <= 6; $i++ ) : ?>
+						<input type="text" name="pp_opt[]" class="pp-poll-optbox" placeholder="<?php
+							/* translators: %d: option number. */
+							echo esc_attr( sprintf( __( 'Option %d', 'project-prepper' ), $i ) );
+						?>">
+					<?php endfor; ?>
+					<p class="pp-poll-opthint"><?php esc_html_e( 'At least two options. For date polls enter YYYY-MM-DD (optionally HH:MM). Empty boxes are ignored.', 'project-prepper' ); ?></p>
+				</fieldset>
 				<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
 					<textarea name="pp_description" rows="2"></textarea>
 				</label>
