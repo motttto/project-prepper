@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.20.0';
+	const VERSION    = '0.21.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -526,7 +526,8 @@ class Schema {
 				// status: open|closed. created_by = Ersteller (für Schließen/Löschen).
 				dbDelta( "CREATE TABLE {$p_polls} (
 					id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-					project_id bigint(20) unsigned NOT NULL,
+					project_id bigint(20) unsigned NOT NULL DEFAULT 0,
+					group_id bigint(20) unsigned NOT NULL DEFAULT 0,
 					title varchar(190) NOT NULL,
 					description text,
 					poll_type varchar(10) NOT NULL DEFAULT 'date',
@@ -535,7 +536,8 @@ class Schema {
 					created_at datetime NOT NULL,
 					closed_at datetime DEFAULT NULL,
 					PRIMARY KEY  (id),
-					KEY project_id (project_id)
+					KEY project_id (project_id),
+					KEY group_id (group_id)
 				) {$charset};" );
 
 				// Optionen je Umfrage (Pendant zu `org_poll_options`). Bei date-

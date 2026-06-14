@@ -74,6 +74,40 @@ class Polls {
 	}
 
 	/**
+	 * Gruppen-weite Umfragen (v0.21.0) — nicht an ein Projekt gebunden, sondern
+	 * direkt an eine Gruppe (group_id). Gleiche Optionen/Stimmen-Mechanik wie die
+	 * Projekt-Umfragen; Stimmberechtigte = aktive Mitglieder der Gruppe.
+	 *
+	 * @return array<object>
+	 */
+	public static function for_group( int $group_id, ?int $current_user_id = null ): array {
+		global $wpdb;
+
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM %i WHERE group_id = %d
+			 ORDER BY (status = 'open') DESC, created_at DESC, id DESC",
+			Schema::table( 'project_polls' ),
+			$group_id
+		) ) ?: [];
+		if ( ! $rows ) {
+			return [];
+		}
+
+		$total_members = count( Groups::members( $group_id ) );
+		$can_vote      = ( $current_user_id && Groups::is_member( $group_id, $current_user_id ) );
+
+		foreach ( $rows as $row ) {
+			$row->id            = (int) $row->id;
+			$row->group_id      = (int) $row->group_id;
+			$row->total_members = $total_members;
+			$row->can_vote      = $can_vote;
+			$row->options       = self::options( $row->id, $row->poll_type );
+			$row->my_votes      = $current_user_id ? self::my_votes( $row->id, $current_user_id ) : new \stdClass();
+		}
+		return $rows;
+	}
+
+	/**
 	 * Eine Umfrage (ohne Optionen/Stimmen) — für nested-Route-Guards.
 	 */
 	public static function get( int $id ): ?object {
@@ -131,31 +165,7 @@ class Polls {
 		}
 
 		// Optionen normalisieren + validieren.
-		$raw     = isset( $data['options'] ) && is_array( $data['options'] ) ? $data['options'] : [];
-		$options = [];
-		foreach ( $raw as $opt ) {
-			if ( ! is_array( $opt ) ) {
-				continue;
-			}
-			if ( 'date' === $poll_type ) {
-				$date = isset( $opt['option_date'] ) ? trim( (string) $opt['option_date'] ) : '';
-				if ( '' === $date || ! Availability::is_valid_date( $date ) ) {
-					continue;
-				}
-				$time = isset( $opt['option_time'] ) ? trim( (string) $opt['option_time'] ) : '';
-				if ( '' !== $time && ! preg_match( '/^([01]\d|2[0-3]):[0-5]\d$/', $time ) ) {
-					$time = '';
-				}
-				$options[] = [ 'label' => '', 'option_date' => $date, 'option_time' => $time ];
-			} else {
-				$label = isset( $opt['label'] ) ? trim( (string) $opt['label'] ) : '';
-				if ( '' === $label ) {
-					continue;
-				}
-				$options[] = [ 'label' => $label, 'option_date' => null, 'option_time' => '' ];
-			}
-		}
-
+		$options = self::normalize_options( $poll_type, $data['options'] ?? [] );
 		if ( count( $options ) < 2 ) {
 			return new WP_Error(
 				'pp_need_options',
@@ -197,6 +207,90 @@ class Polls {
 	}
 
 	/**
+	 * Gruppen-weite Umfrage anlegen (v0.21.0). group_id direkt, project_id = 0.
+	 * Nur ein aktives Mitglied der Gruppe darf anlegen.
+	 *
+	 * @return int|WP_Error
+	 */
+	public static function create_group( int $group_id, array $data ) {
+		global $wpdb;
+
+		if ( ! $group_id || ! Groups::is_member( $group_id, get_current_user_id() ) ) {
+			return new WP_Error( 'pp_not_group_member', __( 'Only members of the project group may vote.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$title = isset( $data['title'] ) ? trim( (string) $data['title'] ) : '';
+		if ( '' === $title ) {
+			return new WP_Error( 'pp_missing_title', __( 'A title is required.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$poll_type = ( isset( $data['poll_type'] ) && in_array( $data['poll_type'], self::TYPES, true ) ) ? (string) $data['poll_type'] : 'date';
+		$options   = self::normalize_options( $poll_type, $data['options'] ?? [] );
+		if ( count( $options ) < 2 ) {
+			return new WP_Error( 'pp_need_options', __( 'A poll needs at least two valid options.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		$wpdb->insert( Schema::table( 'project_polls' ), [
+			'project_id'  => 0,
+			'group_id'    => $group_id,
+			'title'       => $title,
+			'description' => isset( $data['description'] ) ? (string) $data['description'] : '',
+			'poll_type'   => $poll_type,
+			'status'      => 'open',
+			'created_by'  => get_current_user_id() ?: null,
+			'created_at'  => current_time( 'mysql' ),
+			'closed_at'   => null,
+		] );
+		$poll_id = (int) $wpdb->insert_id;
+
+		$sort = 0;
+		foreach ( $options as $opt ) {
+			$wpdb->insert( Schema::table( 'project_poll_options' ), [
+				'poll_id'     => $poll_id,
+				'label'       => $opt['label'],
+				'option_date' => $opt['option_date'],
+				'option_time' => $opt['option_time'],
+				'sort_order'  => $sort++,
+			] );
+		}
+
+		ActivityLog::log( 'poll_created', 'group', $group_id, [ 'poll_id' => $poll_id, 'title' => $title, 'poll_type' => $poll_type, 'options' => count( $options ) ] );
+		return $poll_id;
+	}
+
+	/**
+	 * Optionen aus dem Eingabe-Array normalisieren + validieren (date|choice).
+	 *
+	 * @param mixed $raw
+	 * @return array<array{label:string,option_date:?string,option_time:string}>
+	 */
+	private static function normalize_options( string $poll_type, $raw ): array {
+		$raw     = is_array( $raw ) ? $raw : [];
+		$options = [];
+		foreach ( $raw as $opt ) {
+			if ( ! is_array( $opt ) ) {
+				continue;
+			}
+			if ( 'date' === $poll_type ) {
+				$date = isset( $opt['option_date'] ) ? trim( (string) $opt['option_date'] ) : '';
+				if ( '' === $date || ! Availability::is_valid_date( $date ) ) {
+					continue;
+				}
+				$time = isset( $opt['option_time'] ) ? trim( (string) $opt['option_time'] ) : '';
+				if ( '' !== $time && ! preg_match( '/^([01]\d|2[0-3]):[0-5]\d$/', $time ) ) {
+					$time = '';
+				}
+				$options[] = [ 'label' => '', 'option_date' => $date, 'option_time' => $time ];
+			} else {
+				$label = isset( $opt['label'] ) ? trim( (string) $opt['label'] ) : '';
+				if ( '' === $label ) {
+					continue;
+				}
+				$options[] = [ 'label' => $label, 'option_date' => null, 'option_time' => '' ];
+			}
+		}
+		return $options;
+	}
+
+	/**
 	 * Stimme zu EINER Option abgeben oder ändern (Upsert über UNIQUE
 	 * option_user). KEIN Auto-Resolve.
 	 *
@@ -232,7 +326,7 @@ class Polls {
 			return new WP_Error( 'pp_invalid_vote', __( 'Invalid vote.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
-		$group_id = self::project_group_id( $poll->project_id );
+		$group_id = self::owning_group( $poll );
 		if ( ! $group_id || ! Groups::is_member( $group_id, $user_id ) ) {
 			return new WP_Error(
 				'pp_not_group_member',
@@ -472,6 +566,15 @@ class Polls {
 			Schema::table( 'projects' ),
 			$project_id
 		) );
+	}
+
+	/**
+	 * Stimmberechtigte Gruppe einer Umfrage: direkt gebundene group_id (gruppen-
+	 * weite Umfrage, v0.21.0) ODER die Eigentümer-Gruppe des Projekts.
+	 */
+	private static function owning_group( object $poll ): int {
+		$gid = (int) ( $poll->group_id ?? 0 );
+		return $gid ? $gid : self::project_group_id( (int) ( $poll->project_id ?? 0 ) );
 	}
 
 	/**

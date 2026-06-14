@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.45.0
+Stable tag: 0.46.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.46.0 =
+* Member portal: a standalone "Polls" tab now appears in group mode (like the web app) — group-wide polls (appointment finding / decisions) that are not tied to a project; members vote yes/no/maybe per option and can create or close polls
+* Reuses the existing poll mechanics; a poll can now belong to a group directly (group_id) as well as to a project
 
 = 0.45.0 =
 * Member portal: the sidebar labels now follow the active workspace, like the web app — in Solo they read "My inventory / My lending / My projects / My groups", in a group they read "Inventory / Lending / Projects / All groups"

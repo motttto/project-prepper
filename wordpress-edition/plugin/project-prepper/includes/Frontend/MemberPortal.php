@@ -233,6 +233,10 @@ class MemberPortal {
 			$v    = sanitize_key( wp_unslash( (string) ( $_POST['pp_view'] ?? 'dashboard' ) ) );
 			$back = 'dashboard' === $v ? self::portal_url() : add_query_arg( 'pp_view', $v, self::portal_url() );
 		}
+		// Gruppen-Umfrage-Aktionen kehren zum Umfragen-Tab zurück.
+		if ( in_array( $do, [ 'gpoll_vote', 'gpoll_create', 'gpoll_close', 'gpoll_reopen' ], true ) ) {
+			$back = add_query_arg( 'pp_view', 'polls', self::portal_url() );
+		}
 
 		$result = new \WP_Error( 'pp_unknown', 'unknown' );
 		$ok_msg = 'ok';
@@ -349,6 +353,26 @@ class MemberPortal {
 				$ok_msg = 'poll_closed';
 				break;
 			case 'poll_reopen':
+				$result = Polls::reopen( (int) ( $_POST['pp_poll'] ?? 0 ), get_current_user_id() );
+				$ok_msg = 'poll_reopened';
+				break;
+			case 'gpoll_vote':
+				$result = Polls::cast_vote(
+					(int) ( $_POST['pp_option'] ?? 0 ),
+					get_current_user_id(),
+					sanitize_key( wp_unslash( (string) ( $_POST['pp_vote'] ?? '' ) ) )
+				);
+				$ok_msg = 'voted';
+				break;
+			case 'gpoll_create':
+				$result = Polls::create_group( (int) ( $_POST['pp_group'] ?? 0 ), self::poll_input() );
+				$ok_msg = 'poll_created';
+				break;
+			case 'gpoll_close':
+				$result = Polls::close( (int) ( $_POST['pp_poll'] ?? 0 ), get_current_user_id() );
+				$ok_msg = 'poll_closed';
+				break;
+			case 'gpoll_reopen':
 				$result = Polls::reopen( (int) ( $_POST['pp_poll'] ?? 0 ), get_current_user_id() );
 				$ok_msg = 'poll_reopened';
 				break;
@@ -626,6 +650,9 @@ class MemberPortal {
 							case 'calendar':
 								self::view_calendar( $user, $groups );
 								break;
+							case 'polls':
+								self::view_polls( $groups );
+								break;
 							case 'network':
 								self::view_network();
 								break;
@@ -648,7 +675,7 @@ class MemberPortal {
 	private static function current_view(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$view    = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : 'dashboard';
-		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'calendar', 'network', 'collectives' ];
+		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'calendar', 'polls', 'network', 'collectives' ];
 		return in_array( $view, $allowed, true ) ? $view : 'dashboard';
 	}
 
@@ -657,16 +684,21 @@ class MemberPortal {
 	 * in der App): Solo → „Mein/Meine …", Gruppe → schlicht „…" / „Alle Gruppen".
 	 */
 	private static function nav_items( int $active ): array {
-		$solo = ( 0 === $active );
-		return [
-			[ 'view' => 'dashboard',   'icon' => 'dashboard', 'label' => __( 'Dashboard', 'project-prepper' ) ],
-			[ 'view' => 'inventory',   'icon' => 'inventory', 'label' => $solo ? __( 'My inventory', 'project-prepper' ) : __( 'Inventory', 'project-prepper' ) ],
-			[ 'view' => 'lending',     'icon' => 'package',   'label' => $solo ? __( 'My lending', 'project-prepper' ) : __( 'Lending', 'project-prepper' ) ],
-			[ 'view' => 'projects',    'icon' => 'projects',  'label' => $solo ? __( 'My projects', 'project-prepper' ) : __( 'Projects', 'project-prepper' ) ],
-			[ 'view' => 'calendar',    'icon' => 'calendar',  'label' => __( 'Calendar', 'project-prepper' ) ],
-			[ 'view' => 'network',     'icon' => 'globe',     'label' => __( 'Network', 'project-prepper' ) ],
-			[ 'view' => 'collectives', 'icon' => 'users',     'label' => $solo ? __( 'My groups', 'project-prepper' ) : __( 'All groups', 'project-prepper' ) ],
+		$solo  = ( 0 === $active );
+		$items = [
+			[ 'view' => 'dashboard', 'icon' => 'dashboard', 'label' => __( 'Dashboard', 'project-prepper' ) ],
+			[ 'view' => 'inventory', 'icon' => 'inventory', 'label' => $solo ? __( 'My inventory', 'project-prepper' ) : __( 'Inventory', 'project-prepper' ) ],
+			[ 'view' => 'lending',   'icon' => 'package',   'label' => $solo ? __( 'My lending', 'project-prepper' ) : __( 'Lending', 'project-prepper' ) ],
+			[ 'view' => 'projects',  'icon' => 'projects',  'label' => $solo ? __( 'My projects', 'project-prepper' ) : __( 'Projects', 'project-prepper' ) ],
+			[ 'view' => 'calendar',  'icon' => 'calendar',  'label' => __( 'Calendar', 'project-prepper' ) ],
 		];
+		// Eigenständige Umfragen NUR im Gruppen-Modus (wie die App).
+		if ( ! $solo ) {
+			$items[] = [ 'view' => 'polls', 'icon' => 'clipboard', 'label' => __( 'Polls', 'project-prepper' ) ];
+		}
+		$items[] = [ 'view' => 'network',     'icon' => 'globe', 'label' => __( 'Network', 'project-prepper' ) ];
+		$items[] = [ 'view' => 'collectives', 'icon' => 'users', 'label' => $solo ? __( 'My groups', 'project-prepper' ) : __( 'All groups', 'project-prepper' ) ];
+		return $items;
 	}
 
 	/** URL einer View auf der Portal-Seite. */
@@ -792,6 +824,7 @@ class MemberPortal {
 			'projects'  => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/>',
 			'calendar'  => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
 			'globe'     => '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+			'clipboard' => '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h6"/>',
 			'admin'     => '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
 			'logout'    => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
 			'info'      => '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
@@ -1408,87 +1441,129 @@ class MemberPortal {
 		<?php
 	}
 
+	/** Projekt-Umfragen (im Projekt-Detail, im Card-Rahmen). */
 	private static function render_polls( object $p ): void {
-		$polls      = (array) ( $p->polls ?? [] );
-		$project_id = (int) $p->id;
 		?>
 		<section class="pp-card">
 			<h3 class="pp-card__title"><?php esc_html_e( 'Polls', 'project-prepper' ); ?></h3>
-			<?php if ( ! $polls ) : ?>
-				<p class="pp-portal__empty pp-gov__empty"><?php esc_html_e( 'No polls yet.', 'project-prepper' ); ?></p>
-			<?php else :
-				foreach ( $polls as $poll ) :
-					$open = ( 'open' === $poll->status ); ?>
-					<div class="pp-gov">
-						<div class="pp-gov__head">
-							<span class="pp-gov__title"><?php echo esc_html( $poll->title ); ?></span>
-							<span class="pp-status pp-status--<?php echo $open ? 'open' : 'done'; ?>"><?php echo esc_html( $open ? __( 'Open', 'project-prepper' ) : __( 'Closed', 'project-prepper' ) ); ?></span>
-							<span class="pp-gov__mode"><?php echo esc_html( 'date' === $poll->poll_type ? __( 'Date poll', 'project-prepper' ) : __( 'Choice poll', 'project-prepper' ) ); ?></span>
-						</div>
-						<?php if ( '' !== (string) $poll->description ) : ?>
-							<p class="pp-gov__desc"><?php echo nl2br( esc_html( $poll->description ) ); ?></p>
-						<?php endif; ?>
-						<div class="pp-poll-opts">
-							<?php foreach ( (array) $poll->options as $opt ) :
-								$mine = $poll->my_votes->{(string) $opt->id} ?? ''; ?>
-								<div class="pp-poll-opt">
-									<span class="pp-poll-opt__label"><?php echo esc_html( self::poll_option_label( $poll->poll_type, $opt ) ); ?></span>
-									<span class="pp-poll-opt__tally">
-										<span class="pp-poll-c pp-poll-c--yes"><?php echo (int) $opt->yes; ?></span>
-										<span class="pp-poll-c pp-poll-c--maybe"><?php echo (int) $opt->maybe; ?></span>
-										<span class="pp-poll-c pp-poll-c--no"><?php echo (int) $opt->no; ?></span>
-									</span>
-									<?php if ( $open && $poll->can_vote ) : ?>
-										<span class="pp-poll-opt__vote">
-											<?php foreach ( [ 'yes' => __( 'Yes', 'project-prepper' ), 'maybe' => __( 'Maybe', 'project-prepper' ), 'no' => __( 'No', 'project-prepper' ) ] as $v => $vl ) : ?>
-												<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-													<?php self::action_fields( 'poll_vote' ); ?>
-													<input type="hidden" name="pp_project" value="<?php echo (int) $project_id; ?>">
-													<input type="hidden" name="pp_option" value="<?php echo (int) $opt->id; ?>">
-													<input type="hidden" name="pp_vote" value="<?php echo esc_attr( $v ); ?>">
-													<button type="submit" class="pp-poll-btn pp-poll-btn--<?php echo esc_attr( $v ); ?><?php echo $mine === $v ? ' is-active' : ''; ?>"><?php echo esc_html( $vl ); ?></button>
-												</form>
-											<?php endforeach; ?>
-										</span>
-									<?php endif; ?>
-								</div>
-							<?php endforeach; ?>
-						</div>
-						<?php if ( self::gov_can_manage( $poll ) ) : ?>
-							<form class="pp-gov__manage" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-								<?php self::action_fields( $open ? 'poll_close' : 'poll_reopen' ); ?>
-								<input type="hidden" name="pp_project" value="<?php echo (int) $project_id; ?>">
-								<input type="hidden" name="pp_poll" value="<?php echo (int) $poll->id; ?>">
-								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php echo esc_html( $open ? __( 'Close', 'project-prepper' ) : __( 'Reopen', 'project-prepper' ) ); ?></button>
-							</form>
-						<?php endif; ?>
-					</div>
-				<?php endforeach;
-			endif; ?>
+			<?php self::render_polls_list( (array) ( $p->polls ?? [] ), [ 'prefix' => 'poll', 'project' => (int) $p->id ] ); ?>
+		</section>
+		<?php
+	}
 
-			<details class="pp-portal__add">
-				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New poll', 'project-prepper' ); ?></summary>
-				<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<?php self::action_fields( 'poll_create' ); ?>
-					<input type="hidden" name="pp_project" value="<?php echo (int) $project_id; ?>">
-					<label><?php esc_html_e( 'Title', 'project-prepper' ); ?>
-						<input type="text" name="pp_title" required>
-					</label>
-					<label><?php esc_html_e( 'Poll type', 'project-prepper' ); ?>
-						<select name="pp_poll_type">
-							<option value="choice"><?php esc_html_e( 'Choice poll', 'project-prepper' ); ?></option>
-							<option value="date"><?php esc_html_e( 'Date poll', 'project-prepper' ); ?></option>
-						</select>
-					</label>
-					<label><?php esc_html_e( 'Options (one per line)', 'project-prepper' ); ?>
-						<textarea name="pp_options" rows="3" placeholder="<?php esc_attr_e( 'Date polls: YYYY-MM-DD (optionally HH:MM)', 'project-prepper' ); ?>" required></textarea>
-					</label>
-					<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
-						<textarea name="pp_description" rows="2"></textarea>
-					</label>
-					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create poll', 'project-prepper' ); ?></button>
-				</form>
-			</details>
+	/** Hidden-Felder, die das Redirect-Ziel der Umfrage-Formulare bestimmen. */
+	private static function poll_ctx_hidden( array $ctx ): void {
+		if ( isset( $ctx['project'] ) ) {
+			echo '<input type="hidden" name="pp_project" value="' . (int) $ctx['project'] . '">';
+		}
+		if ( isset( $ctx['group'] ) ) {
+			echo '<input type="hidden" name="pp_group" value="' . (int) $ctx['group'] . '">';
+			echo '<input type="hidden" name="pp_view" value="polls">';
+		}
+	}
+
+	/**
+	 * Umfrage-Liste + „Neue Umfrage"-Formular — von Projekt- UND Gruppen-Umfragen
+	 * genutzt. $ctx['prefix'] = 'poll' (Projekt) | 'gpoll' (Gruppe) wählt die
+	 * Dispatcher-Aktionen; poll_ctx_hidden() setzt das Redirect-Ziel.
+	 */
+	private static function render_polls_list( array $polls, array $ctx ): void {
+		$pre = $ctx['prefix'];
+		if ( ! $polls ) : ?>
+			<p class="pp-portal__empty pp-gov__empty"><?php esc_html_e( 'No polls yet.', 'project-prepper' ); ?></p>
+		<?php else :
+			foreach ( $polls as $poll ) :
+				$open = ( 'open' === $poll->status ); ?>
+				<div class="pp-gov">
+					<div class="pp-gov__head">
+						<span class="pp-gov__title"><?php echo esc_html( $poll->title ); ?></span>
+						<span class="pp-status pp-status--<?php echo $open ? 'open' : 'done'; ?>"><?php echo esc_html( $open ? __( 'Open', 'project-prepper' ) : __( 'Closed', 'project-prepper' ) ); ?></span>
+						<span class="pp-gov__mode"><?php echo esc_html( 'date' === $poll->poll_type ? __( 'Date poll', 'project-prepper' ) : __( 'Choice poll', 'project-prepper' ) ); ?></span>
+					</div>
+					<?php if ( '' !== (string) $poll->description ) : ?>
+						<p class="pp-gov__desc"><?php echo nl2br( esc_html( $poll->description ) ); ?></p>
+					<?php endif; ?>
+					<div class="pp-poll-opts">
+						<?php foreach ( (array) $poll->options as $opt ) :
+							$mine = $poll->my_votes->{(string) $opt->id} ?? ''; ?>
+							<div class="pp-poll-opt">
+								<span class="pp-poll-opt__label"><?php echo esc_html( self::poll_option_label( $poll->poll_type, $opt ) ); ?></span>
+								<span class="pp-poll-opt__tally">
+									<span class="pp-poll-c pp-poll-c--yes"><?php echo (int) $opt->yes; ?></span>
+									<span class="pp-poll-c pp-poll-c--maybe"><?php echo (int) $opt->maybe; ?></span>
+									<span class="pp-poll-c pp-poll-c--no"><?php echo (int) $opt->no; ?></span>
+								</span>
+								<?php if ( $open && $poll->can_vote ) : ?>
+									<span class="pp-poll-opt__vote">
+										<?php foreach ( [ 'yes' => __( 'Yes', 'project-prepper' ), 'maybe' => __( 'Maybe', 'project-prepper' ), 'no' => __( 'No', 'project-prepper' ) ] as $v => $vl ) : ?>
+											<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+												<?php self::action_fields( $pre . '_vote' ); ?>
+												<?php self::poll_ctx_hidden( $ctx ); ?>
+												<input type="hidden" name="pp_option" value="<?php echo (int) $opt->id; ?>">
+												<input type="hidden" name="pp_vote" value="<?php echo esc_attr( $v ); ?>">
+												<button type="submit" class="pp-poll-btn pp-poll-btn--<?php echo esc_attr( $v ); ?><?php echo $mine === $v ? ' is-active' : ''; ?>"><?php echo esc_html( $vl ); ?></button>
+											</form>
+										<?php endforeach; ?>
+									</span>
+								<?php endif; ?>
+							</div>
+						<?php endforeach; ?>
+					</div>
+					<?php if ( self::gov_can_manage( $poll ) ) : ?>
+						<form class="pp-gov__manage" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<?php self::action_fields( $open ? $pre . '_close' : $pre . '_reopen' ); ?>
+							<?php self::poll_ctx_hidden( $ctx ); ?>
+							<input type="hidden" name="pp_poll" value="<?php echo (int) $poll->id; ?>">
+							<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php echo esc_html( $open ? __( 'Close', 'project-prepper' ) : __( 'Reopen', 'project-prepper' ) ); ?></button>
+						</form>
+					<?php endif; ?>
+				</div>
+			<?php endforeach;
+		endif; ?>
+
+		<details class="pp-portal__add">
+			<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New poll', 'project-prepper' ); ?></summary>
+			<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php self::action_fields( $pre . '_create' ); ?>
+				<?php self::poll_ctx_hidden( $ctx ); ?>
+				<label><?php esc_html_e( 'Title', 'project-prepper' ); ?>
+					<input type="text" name="pp_title" required>
+				</label>
+				<label><?php esc_html_e( 'Poll type', 'project-prepper' ); ?>
+					<select name="pp_poll_type">
+						<option value="choice"><?php esc_html_e( 'Choice poll', 'project-prepper' ); ?></option>
+						<option value="date"><?php esc_html_e( 'Date poll', 'project-prepper' ); ?></option>
+					</select>
+				</label>
+				<label><?php esc_html_e( 'Options (one per line)', 'project-prepper' ); ?>
+					<textarea name="pp_options" rows="3" placeholder="<?php esc_attr_e( 'Date polls: YYYY-MM-DD (optionally HH:MM)', 'project-prepper' ); ?>" required></textarea>
+				</label>
+				<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
+					<textarea name="pp_description" rows="2"></textarea>
+				</label>
+				<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create poll', 'project-prepper' ); ?></button>
+			</form>
+		</details>
+		<?php
+	}
+
+	/** Eigenständiger „Umfragen"-Tab (gruppen-weit, nur im Gruppen-Modus). */
+	private static function view_polls( array $groups ): void {
+		$active = self::active_group_id( $groups );
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'Polls', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Polls for your active group — appointment finding and decisions, independent of a project.', 'project-prepper' ); ?></p>
+		</header>
+		<?php
+		if ( ! $active ) {
+			echo '<p class="pp-portal__empty">' . esc_html__( 'You are in Solo. Pick a group in the workspace switcher (top left) to run polls.', 'project-prepper' ) . '</p>';
+			return;
+		}
+		$polls = Polls::for_group( $active, get_current_user_id() ?: null );
+		?>
+		<section class="pp-card">
+			<?php self::render_polls_list( $polls, [ 'prefix' => 'gpoll', 'group' => $active ] ); ?>
 		</section>
 		<?php
 	}
