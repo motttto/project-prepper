@@ -1336,6 +1336,9 @@
             "Accept borrow requests from partner instances (members moderate each request).": [
                 "Leih-Anfragen von Partner-Instanzen annehmen (Mitglieder moderieren jede Anfrage)."
             ],
+            "Nothing needs your attention right now.": [
+                "Aktuell gibt es nichts zu erledigen."
+            ],
             "Member login & sign-up": [
                 "Mitglieder-Login & Registrierung"
             ],
@@ -1470,6 +1473,30 @@
             ],
             "Members must accept these terms (enforcement in the portal follows in a later step).": [
                 "Mitglieder m\u00fcssen diese Bedingungen akzeptieren (Durchsetzung im Portal folgt in einem sp\u00e4teren Schritt)."
+            ],
+            "Open join votes": [
+                "Offene Beitritts-Abstimmungen"
+            ],
+            "Overdue loans": [
+                "\u00dcberf\u00e4llige Ausleihen"
+            ],
+            "Incoming network requests": [
+                "Eingehende Netzwerk-Anfragen"
+            ],
+            "Unreachable partners": [
+                "Unerreichbare Partner"
+            ],
+            "Needs attention": [
+                "Braucht Aufmerksamkeit"
+            ],
+            "At a glance": [
+                "Auf einen Blick"
+            ],
+            "Due": [
+                "F\u00e4llig"
+            ],
+            "None.": [
+                "Keine."
             ]
         }
     }

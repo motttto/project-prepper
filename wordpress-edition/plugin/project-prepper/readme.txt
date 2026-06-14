@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.71.0
+Stable tag: 0.72.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.72.0 =
+* Admin: the Platform page now opens with a "Needs attention" cockpit — open join votes, open and overdue borrow requests, incoming network requests and unreachable partners at a glance
 
 = 0.71.0 =
 * Member portal: when the operator requires it, members must read and accept the terms of use before using the portal; re-acceptance is requested whenever the terms change

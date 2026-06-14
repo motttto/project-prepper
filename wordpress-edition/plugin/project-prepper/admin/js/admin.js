@@ -3122,6 +3122,27 @@
 		root.appendChild(el("p", { class: "pp-muted", text: __("Where the member portal comes together: collectives, join voting, member inventory and borrow requests. Manage members under Groups.", "project-prepper") }));
 
 		api("/platform").then(function (d) {
+			var att = d.attention || {};
+			var attCards = [
+				[att.open_votings || 0, __("Open join votes", "project-prepper")],
+				[att.open_requests || 0, __("Open borrow requests", "project-prepper")],
+				[att.overdue || 0, __("Overdue loans", "project-prepper")],
+				[att.fed_incoming || 0, __("Incoming network requests", "project-prepper")],
+				[att.partners_unreachable || 0, __("Unreachable partners", "project-prepper")]
+			];
+			var totalAtt = attCards.reduce(function (s, c) { return s + c[0]; }, 0);
+			root.appendChild(el("h2", { text: __("Needs attention", "project-prepper") }));
+			if (!totalAtt) {
+				root.appendChild(el("p", { class: "pp-muted", text: __("Nothing needs your attention right now.", "project-prepper") }));
+			}
+			root.appendChild(el("div", { class: "pp-kpis" }, attCards.map(function (c) {
+				return el("div", { class: "pp-kpi" }, [
+					el("div", { class: "pp-kpi-value", style: c[0] > 0 ? "color:#b45309" : "", text: String(c[0]) }),
+					el("div", { class: "pp-kpi-label", text: c[1] })
+				]);
+			})));
+
+			root.appendChild(el("h2", { text: __("At a glance", "project-prepper"), style: "margin-top:1.5rem" }));
 			var kpis = [
 				[__("Collectives", "project-prepper"), d.kpis.collectives],
 				[__("Member inventory", "project-prepper"), d.kpis.member_items],
@@ -3149,6 +3170,15 @@
 				d.borrows.map(function (b) { return [b.item, b.owner, b.borrower, b.period, STATUS[b.status] || b.status]; }),
 				__("No borrow requests yet.", "project-prepper")
 			));
+
+			if (d.overdue && d.overdue.length) {
+				root.appendChild(tableCard(
+					__("Overdue loans", "project-prepper"),
+					[__("Item", "project-prepper"), __("Owner", "project-prepper"), __("Borrower", "project-prepper"), __("Due", "project-prepper")],
+					d.overdue.map(function (o) { return [o.item, o.owner, o.borrower, o.due]; }),
+					__("None.", "project-prepper")
+				));
+			}
 
 			root.appendChild(tableCard(
 				__("Recent activity", "project-prepper"),

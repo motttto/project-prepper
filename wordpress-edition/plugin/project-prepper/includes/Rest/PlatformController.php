@@ -30,8 +30,25 @@ class PlatformController extends BaseController {
 		$groups  = Groups::all();
 		$invites = GroupGovernance::all_pending();
 		$borrows = Borrowing::all_recent( 30 );
+		$overdue = $this->overdue_loans();
+
+		// „Braucht Aufmerksamkeit" — die aktionablen/auflauenden Posten des Betreibers.
+		$unreachable = 0;
+		foreach ( \ProjectPrepper\Federation::directory() as $entry ) {
+			if ( empty( $entry['profile'] ) ) {
+				$unreachable++;
+			}
+		}
 
 		return new WP_REST_Response( [
+			'attention' => [
+				'open_votings'         => count( array_filter( $invites, static fn( $i ) => 'voting' === $i->status ) ),
+				'open_requests'        => $this->count( 'borrow_requests', "status = 'requested'" ),
+				'overdue'              => count( $overdue ),
+				'fed_incoming'         => $this->count( 'fed_borrow_in', "status = 'requested'" ),
+				'partners_unreachable' => $unreachable,
+			],
+			'overdue' => $overdue,
 			'kpis' => [
 				'collectives'    => count( $groups ),
 				'member_items'   => $this->count( 'items', 'owner_user_id IS NOT NULL' ),
@@ -71,6 +88,38 @@ class PlatformController extends BaseController {
 				];
 			}, $groups ),
 		] );
+	}
+
+	/**
+	 * Überfällige Ausleihen: genehmigt, Rückgabedatum in der Vergangenheit, noch
+	 * nicht zurückgegeben. Für die Betreiber-Aufsicht (read-only).
+	 *
+	 * @return array<array<string,string>>
+	 */
+	private function overdue_loans(): array {
+		global $wpdb;
+		$today = current_time( 'Y-m-d' );
+		$rows  = $wpdb->get_results( $wpdb->prepare(
+			"SELECT b.item_id, b.owner_id, b.requester_id, b.date_to, i.name AS item_name
+			 FROM %i b JOIN %i i ON i.id = b.item_id
+			 WHERE b.status = 'approved' AND b.date_to IS NOT NULL AND b.date_to < %s
+			 ORDER BY b.date_to ASC LIMIT 50",
+			Schema::table( 'borrow_requests' ),
+			Schema::table( 'items' ),
+			$today
+		) ) ?: [];
+		$out = [];
+		foreach ( $rows as $r ) {
+			$owner    = get_userdata( (int) $r->owner_id );
+			$borrower = get_userdata( (int) $r->requester_id );
+			$out[] = [
+				'item'     => (string) $r->item_name,
+				'owner'    => $owner ? $owner->display_name : '',
+				'borrower' => $borrower ? $borrower->display_name : '',
+				'due'      => mysql2date( 'd.m.Y', (string) $r->date_to ),
+			];
+		}
+		return $out;
 	}
 
 	private function count( string $table, string $where = '' ): int {
