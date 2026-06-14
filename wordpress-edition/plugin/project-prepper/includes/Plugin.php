@@ -13,6 +13,7 @@ class Plugin {
 		if ( get_option( Schema::OPTION_KEY ) !== Schema::VERSION ) {
 			Schema::migrate();
 			Capabilities::install();
+			Platform::maybe_seed();
 			// Portal-Seite erst auf 'init' anlegen (wp_insert_post ist auf
 			// plugins_loaded zu früh) — Flag setzen, MemberPortal erledigt es.
 			update_option( Frontend\MemberPortal::ENSURE_FLAG, 1 );
@@ -60,5 +61,6 @@ class Plugin {
 		( new Rest\SecurityController() )->register_routes();
 		( new Rest\UsersController() )->register_routes();
 		( new Rest\EmailTemplatesController() )->register_routes();
+		( new Rest\InstanceController() )->register_routes();
 	}
 }

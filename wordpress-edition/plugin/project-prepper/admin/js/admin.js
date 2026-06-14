@@ -3241,21 +3241,19 @@
 
 				var enabled = el("input", { type: "checkbox" }); enabled.checked = !!f.enabled;
 				var acceptBorrows = el("input", { type: "checkbox" }); acceptBorrows.checked = !!f.accept_borrows;
-				var postal = el("input", { type: "text", value: f.postal_code, style: "width:140px" });
-				var topic = el("input", { type: "text", value: f.topic, style: "width:100%" });
-				var contact = el("input", { type: "email", value: f.contact_email, style: "width:100%" });
 				var partners = el("textarea", { rows: "4", style: "width:100%;font-family:monospace", placeholder: "https://other-collective.example" });
 				partners.value = f.partners;
 
 				root.appendChild(el("div", { class: "pp-card" }, [
 					el("h2", { text: __("Public profile", "project-prepper") }),
-					el("label", { class: "pp-toggle" }, [enabled, el("span", { text: __("List this instance in the federation (publish the public profile below).", "project-prepper") })]),
+					el("label", { class: "pp-toggle" }, [enabled, el("span", { text: __("List this instance in the federation (publish the public profile).", "project-prepper") })]),
 					el("label", { class: "pp-toggle", style: "margin-top:10px" }, [acceptBorrows, el("span", { text: __("Accept borrow requests from partner instances (members moderate each request).", "project-prepper") })]),
-					field(__("Postal code", "project-prepper"), postal),
-					field(__("Topic", "project-prepper"), topic),
-					el("div", { class: "pp-muted", style: "margin-top:-6px;margin-bottom:8px", text: __('E.g. "event tech", "community garden", "makerspace".', "project-prepper") }),
-					field(__("Contact email", "project-prepper"), contact),
-					el("div", { class: "pp-field" }, [
+					el("div", { class: "pp-muted", style: "margin-top:8px" }, [
+						document.createTextNode(__("The published name, topic, postal code and contact come from the", "project-prepper") + " "),
+						el("a", { class: "pp-link", href: "admin.php?page=pp-instance", text: __("Instance page", "project-prepper") }),
+						document.createTextNode(".")
+					]),
+					el("div", { class: "pp-field", style: "margin-top:8px" }, [
 						el("label", { text: __("Discovery endpoint", "project-prepper") }),
 						el("code", { text: f.discovery_url })
 					])
@@ -3275,9 +3273,6 @@
 							body: JSON.stringify({
 								enabled: enabled.checked,
 								accept_borrows: acceptBorrows.checked,
-								postal_code: postal.value,
-								topic: topic.value,
-								contact_email: contact.value,
 								partners: partners.value
 							})
 						}).then(function () { toast(__("Federation settings saved.", "project-prepper")); load(); }).catch(function (e) { toast(e.message, "error"); });
@@ -3449,6 +3444,68 @@
 		}).catch(function (e) { toast(e.message, "error"); });
 	}
 
+	/* ================= Seite: Instanz ================= */
+
+	function renderInstance() {
+		root.innerHTML = "";
+		root.appendChild(el("p", { class: "pp-muted", text: __("Who you are, how your instance is funded, and your terms. The federation publishes your identity from here.", "project-prepper") }));
+
+		api("/instance").then(function (d) {
+			var name = el("input", { type: "text", value: d.name, style: "width:100%" });
+			var purpose = el("textarea", { style: "width:100%; min-height:70px" }); purpose.value = d.purpose;
+			var topic = el("input", { type: "text", value: d.topic, style: "width:100%" });
+			var postal = el("input", { type: "text", value: d.postal_code, style: "width:140px" });
+			var contact = el("input", { type: "email", value: d.contact_email, style: "width:100%" });
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Identity & purpose", "project-prepper") }),
+				field(__("Name", "project-prepper"), name),
+				field(__("Purpose", "project-prepper"), purpose),
+				field(__("Topic", "project-prepper"), topic),
+				field(__("Postal code", "project-prepper"), postal),
+				field(__("Contact email", "project-prepper"), contact)
+			]));
+
+			var model = el("select", null, d.economy_models.map(function (m) { return el("option", { value: m.value, text: m.label }); }));
+			model.value = d.economy.model;
+			var amount = el("input", { type: "number", min: "0", step: "0.01", value: d.economy.amount, style: "width:110px" });
+			var interval = el("select", null, [el("option", { value: "year", text: __("per year", "project-prepper") }), el("option", { value: "month", text: __("per month", "project-prepper") })]);
+			interval.value = d.economy.interval;
+			var currency = el("input", { type: "text", value: d.economy.currency, style: "width:70px" });
+			var note = el("textarea", { style: "width:100%; min-height:60px" }); note.value = d.economy.note;
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Economy model", "project-prepper") }),
+				el("div", { class: "pp-muted", style: "margin-bottom:8px", text: __("Declare how your instance is funded. Payment processing and tracking are a separate, later step — this just records the model.", "project-prepper") }),
+				field(__("Model", "project-prepper"), model),
+				el("div", { class: "pp-row", style: "gap:14px; flex-wrap:wrap" }, [field(__("Amount", "project-prepper"), amount), field(__("Interval", "project-prepper"), interval), field(__("Currency", "project-prepper"), currency)]),
+				field(__("Note for members", "project-prepper"), note)
+			]));
+
+			var agb = el("textarea", { style: "width:100%; min-height:160px; font-family:monospace" }); agb.value = d.legal.agb_text;
+			var requireAcc = el("input", { type: "checkbox" }); requireAcc.checked = !!d.legal.require_acceptance;
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Terms (legal basis)", "project-prepper") }),
+				el("div", { class: "pp-muted", style: "margin-bottom:8px", text: __("Your terms of use.", "project-prepper") + " " + __("Current version:", "project-prepper") + " " + (d.legal.agb_version || 0) }),
+				field(__("Terms text", "project-prepper"), agb),
+				el("label", { class: "pp-toggle" }, [requireAcc, el("span", { text: __("Members must accept these terms (enforcement in the portal follows in a later step).", "project-prepper") })])
+			]));
+
+			var saveBtn = el("button", {
+				class: "pp-btn pp-btn-primary", text: __("Save", "project-prepper"),
+				onclick: function () {
+					api("/instance", {
+						method: "PUT",
+						body: JSON.stringify({
+							name: name.value, purpose: purpose.value, topic: topic.value, postal_code: postal.value, contact_email: contact.value,
+							economy: { model: model.value, amount: amount.value, interval: interval.value, currency: currency.value, note: note.value },
+							legal: { agb_text: agb.value, require_acceptance: requireAcc.checked }
+						})
+					}).then(function () { toast(__("Saved.", "project-prepper")); }).catch(function (e) { toast(e.message, "error"); });
+				}
+			});
+			root.appendChild(el("div", { class: "pp-row" }, [saveBtn]));
+		}).catch(function (e) { toast(e.message, "error"); });
+	}
+
 	/* ================= Routing ================= */
 
 	if (page === "calendar") renderCalendar();
@@ -3459,6 +3516,7 @@
 	else if (page === "rentals") renderRentals();
 	else if (page === "inquiries") renderInquiries();
 	else if (page === "settings") renderSettings();
+	else if (page === "instance") renderInstance();
 	else if (page === "platform") renderPlatform();
 	else if (page === "security") renderSecurity();
 	else if (page === "federation") renderFederation();

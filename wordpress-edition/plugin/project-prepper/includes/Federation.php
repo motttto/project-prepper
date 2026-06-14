@@ -63,15 +63,15 @@ class Federation {
 	 * Öffentliches Profil für den Discovery-Endpoint — nur grobe Eckdaten.
 	 */
 	public static function public_profile(): array {
-		$cfg = self::all();
+		// Identität (Name/Thema/PLZ/Kontakt) wohnt jetzt in der Instanz-Konfiguration.
 		return [
-			'name'        => get_bloginfo( 'name' ),
+			'name'        => Platform::name(),
 			'url'         => home_url( '/' ),
-			'postal_code' => (string) $cfg['postal_code'],
-			'topic'       => (string) $cfg['topic'],
+			'postal_code' => Platform::postal_code(),
+			'topic'       => Platform::topic(),
 			'collectives' => count( Groups::all() ),
 			'members'     => self::member_count(),
-			'contact'     => (string) $cfg['contact_email'],
+			'contact'     => Platform::contact_email(),
 		];
 	}
 
@@ -238,11 +238,10 @@ class Federation {
 	 * @return array Die gespeicherten Werte (= all()).
 	 */
 	public static function save_from( array $in ): array {
+		// Identität (Thema/PLZ/Kontakt) wird auf der Instanz-Seite gepflegt — hier nur
+		// noch Discovery an/aus, föderiertes Leihen und die Partner-Liste.
 		update_option( self::OPTION, [
 			'enabled'        => ! empty( $in['enabled'] ),
-			'postal_code'    => sanitize_text_field( (string) ( $in['postal_code'] ?? '' ) ),
-			'topic'          => sanitize_text_field( (string) ( $in['topic'] ?? '' ) ),
-			'contact_email'  => sanitize_email( (string) ( $in['contact_email'] ?? '' ) ),
 			'partners'       => self::clean_partners( $in['partners'] ?? '' ),
 			'accept_borrows' => ! empty( $in['accept_borrows'] ),
 		] );

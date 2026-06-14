@@ -54,6 +54,16 @@ class Menu {
 
 		// ----- Steuerzentrale (Betreiber, Cap pp_operate) -----
 
+		// Instanz: Identität & Zweck + Ökonomie-Modell + AGB/Recht (Konfiguration).
+		add_submenu_page(
+			'project-prepper',
+			__( 'Instance', 'project-prepper' ),
+			__( 'Instance', 'project-prepper' ),
+			Capabilities::OPERATE,
+			'pp-instance',
+			[ self::class, 'render_instance' ]
+		);
+
 		// Plattform-Übersicht: Member-Portal-Systemprozesse für Betreiber/Moderation.
 		add_submenu_page(
 			'project-prepper',
@@ -215,6 +225,10 @@ class Menu {
 	/* ===================== Steuerzentrale (Betreiber) =====================
 	 * Reine JS-App-Shells gegen die REST-API (PlatformController,
 	 * SecurityController, …). Föderation läuft als Reiter unter „Manage". */
+
+	public static function render_instance(): void {
+		echo '<div class="wrap"><h1>' . esc_html__( 'Instance', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="instance"></div></div>';
+	}
 
 	public static function render_platform(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Platform', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="platform"></div></div>';

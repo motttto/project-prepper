@@ -55,6 +55,9 @@
             "Description": [
                 "Beschreibung"
             ],
+            "Model": [
+                "Modell"
+            ],
             "Quantity": [
                 "Menge"
             ],
@@ -1240,17 +1243,11 @@
             "Federation settings saved.": [
                 "F\u00f6derations-Einstellungen gespeichert."
             ],
-            "List this instance in the federation (publish the public profile below).": [
-                "Diese Instanz in der F\u00f6deration listen (\u00f6ffentliches Profil unten ver\u00f6ffentlichen)."
-            ],
             "Postal code": [
                 "Postleitzahl"
             ],
             "Topic": [
                 "Thema"
-            ],
-            "E.g. \"event tech\", \"community garden\", \"makerspace\".": [
-                "Z. B. \u201eVeranstaltungstechnik\", \u201eGemeinschaftsgarten\", \u201eMakerspace\"."
             ],
             "Contact email": [
                 "Kontakt-E-Mail"
@@ -1416,6 +1413,63 @@
             ],
             "Delete this item? This cannot be undone.": [
                 "Diesen Artikel l\u00f6schen? Das kann nicht r\u00fcckg\u00e4ngig gemacht werden."
+            ],
+            "List this instance in the federation (publish the public profile).": [
+                "Diese Instanz in der F\u00f6deration listen (\u00f6ffentliches Profil ver\u00f6ffentlichen)."
+            ],
+            "The published name, topic, postal code and contact come from the": [
+                "Ver\u00f6ffentlichter Name, Thema, PLZ und Kontakt stammen von der"
+            ],
+            "Instance page": [
+                "Instanz-Seite"
+            ],
+            "Who you are, how your instance is funded, and your terms. The federation publishes your identity from here.": [
+                "Wer du bist, wie deine Instanz finanziert wird und deine Bedingungen. Die F\u00f6deration ver\u00f6ffentlicht deine Identit\u00e4t von hier."
+            ],
+            "Identity & purpose": [
+                "Identit\u00e4t & Zweck"
+            ],
+            "Purpose": [
+                "Zweck"
+            ],
+            "per year": [
+                "pro Jahr"
+            ],
+            "per month": [
+                "pro Monat"
+            ],
+            "Economy model": [
+                "\u00d6konomie-Modell"
+            ],
+            "Declare how your instance is funded. Payment processing and tracking are a separate, later step \u2014 this just records the model.": [
+                "Lege fest, wie deine Instanz finanziert wird. Zahlungsabwicklung und Tracking sind ein eigener sp\u00e4terer Schritt \u2014 hier wird nur das Modell festgehalten."
+            ],
+            "Amount": [
+                "Betrag"
+            ],
+            "Interval": [
+                "Intervall"
+            ],
+            "Currency": [
+                "W\u00e4hrung"
+            ],
+            "Note for members": [
+                "Hinweis f\u00fcr Mitglieder"
+            ],
+            "Terms (legal basis)": [
+                "Bedingungen (Rechtsgrundlage)"
+            ],
+            "Your terms of use.": [
+                "Deine Nutzungsbedingungen."
+            ],
+            "Current version:": [
+                "Aktuelle Version:"
+            ],
+            "Terms text": [
+                "Bedingungs-Text"
+            ],
+            "Members must accept these terms (enforcement in the portal follows in a later step).": [
+                "Mitglieder m\u00fcssen diese Bedingungen akzeptieren (Durchsetzung im Portal folgt in einem sp\u00e4teren Schritt)."
             ]
         }
     }

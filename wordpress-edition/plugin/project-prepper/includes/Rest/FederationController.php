@@ -81,9 +81,6 @@ class FederationController extends BaseController {
 		return [
 			'enabled'        => (bool) $cfg['enabled'],
 			'accept_borrows' => ! empty( $cfg['accept_borrows'] ),
-			'postal_code'    => (string) $cfg['postal_code'],
-			'topic'          => (string) $cfg['topic'],
-			'contact_email'  => (string) $cfg['contact_email'],
 			'partners'       => implode( "\n", Federation::partners() ),
 			'discovery_url'  => rest_url( self::REST_NAMESPACE . '/federation/info' ),
 			'directory'      => array_map( static function ( $entry ) {
