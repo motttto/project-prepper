@@ -860,6 +860,29 @@ class MemberPortal {
 				<span></span><span></span><span></span>
 			</label>
 			<div class="pp-app__topbar-right">
+				<?php
+				$notifs = self::notifications( $user );
+				$ncount = count( $notifs );
+				?>
+				<details class="pp-notif">
+					<summary class="pp-app__icon-btn pp-notif__bell" aria-label="<?php esc_attr_e( 'Notifications', 'project-prepper' ); ?>" title="<?php esc_attr_e( 'Notifications', 'project-prepper' ); ?>">
+						<?php self::nav_icon( 'bell' ); ?>
+						<?php if ( $ncount > 0 ) : ?>
+							<span class="pp-notif__badge"><?php echo (int) $ncount; ?></span>
+						<?php endif; ?>
+					</summary>
+					<div class="pp-notif__menu">
+						<?php if ( $notifs ) : ?>
+							<ul class="pp-notif__list">
+								<?php foreach ( $notifs as $n ) : ?>
+									<li><a href="<?php echo esc_url( $n['url'] ); ?>"><?php echo esc_html( $n['label'] ); ?></a></li>
+								<?php endforeach; ?>
+							</ul>
+						<?php else : ?>
+							<p class="pp-notif__empty"><?php esc_html_e( 'Nothing needs your attention right now.', 'project-prepper' ); ?></p>
+						<?php endif; ?>
+					</div>
+				</details>
 				<div class="pp-app__user">
 					<?php $topbar_avatar = self::avatar_url( (int) $user->ID, 'thumbnail' ); ?>
 					<?php if ( $topbar_avatar ) : ?>
@@ -907,6 +930,70 @@ class MemberPortal {
 	}
 
 	/**
+	 * Aktionable In-App-Benachrichtigungen für die Topbar-Glocke: offene
+	 * Einladungen, ausstehende Beitritts-Abstimmungen und eingehende
+	 * (lokale + föderierte) Leih-Anfragen für die eigenen Artikel.
+	 *
+	 * @return array<array{label:string,url:string}>
+	 */
+	private static function notifications( WP_User $user ): array {
+		$uid   = (int) $user->ID;
+		$items = [];
+
+		// Offene Einladungen an mich (annehmen/ablehnen).
+		foreach ( Governance::my_pending_invitations( $uid ) as $inv ) {
+			if ( 'pending' === $inv->status ) {
+				$items[] = [
+					/* translators: %s: collective name. */
+					'label' => sprintf( __( 'Invitation to “%s”', 'project-prepper' ), $inv->group_name ),
+					'url'   => self::view_url( 'collectives' ),
+				];
+			}
+		}
+
+		// Beitritts-Abstimmungen, bei denen meine Stimme noch fehlt.
+		foreach ( Groups::user_group_ids( $uid ) as $gid ) {
+			foreach ( Governance::invitations_for_group( $gid, [ 'voting' ] ) as $inv ) {
+				if ( (int) $inv->invited_user_id !== $uid && empty( $inv->my_vote ) ) {
+					$items[] = [
+						/* translators: %s: invited email address. */
+						'label' => sprintf( __( 'Vote on joining: %s', 'project-prepper' ), $inv->invited_email ),
+						'url'   => self::view_url( 'collectives' ),
+					];
+				}
+			}
+		}
+
+		// Eingehende Leih-Anfragen für meine Artikel.
+		$borrow = count( array_filter(
+			Borrowing::incoming_requests( $uid ),
+			static fn( $r ) => 'requested' === $r->status
+		) );
+		if ( $borrow > 0 ) {
+			$items[] = [
+				/* translators: %d: number of borrow requests. */
+				'label' => sprintf( _n( '%d borrow request for your items', '%d borrow requests for your items', $borrow, 'project-prepper' ), $borrow ),
+				'url'   => self::view_url( 'lending' ),
+			];
+		}
+
+		// Eingehende föderierte Leih-Anfragen.
+		$fed = count( array_filter(
+			FederatedBorrow::inbound_for_owner( $uid ),
+			static fn( $r ) => 'requested' === $r->status
+		) );
+		if ( $fed > 0 ) {
+			$items[] = [
+				/* translators: %d: number of network requests. */
+				'label' => sprintf( _n( '%d network borrow request', '%d network borrow requests', $fed, 'project-prepper' ), $fed ),
+				'url'   => self::view_url( 'lending' ),
+			];
+		}
+
+		return $items;
+	}
+
+	/**
 	 * Eigenes Profilfoto als WP-Avatar durchreichen (überall wo get_avatar()
 	 * greift). $id_or_email kann ID, Objekt mit ->user_id oder E-Mail sein.
 	 *
@@ -949,6 +1036,7 @@ class MemberPortal {
 			'admin'     => '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
 			'logout'    => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
 			'info'      => '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+			'bell'      => '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
 		];
 		$path = $icons[ $name ] ?? '';
 		echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $path . '</svg>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statisches Icon-Markup.

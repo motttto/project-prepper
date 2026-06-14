@@ -684,6 +684,70 @@ a.pp-front-card-media { text-decoration: none; }
 	font-size: .8rem;
 	color: var(--pp-muted-foreground);
 }
+.pp-notif {
+	position: relative;
+}
+.pp-notif__bell {
+	position: relative;
+	cursor: pointer;
+	list-style: none;
+}
+.pp-notif__bell::-webkit-details-marker {
+	display: none;
+}
+.pp-notif__badge {
+	position: absolute;
+	top: -4px;
+	right: -4px;
+	min-width: 16px;
+	height: 16px;
+	padding: 0 4px;
+	border-radius: 8px;
+	background: var(--pp-destructive, #b91c1c);
+	color: #fff;
+	font-size: .65rem;
+	line-height: 16px;
+	text-align: center;
+	font-weight: 600;
+}
+.pp-notif__menu {
+	position: absolute;
+	right: 0;
+	top: calc(100% + .4rem);
+	z-index: 50;
+	width: 280px;
+	max-width: 80vw;
+	background: var(--pp-card, #fff);
+	border: 1px solid var(--pp-border);
+	border-radius: 10px;
+	box-shadow: 0 8px 24px rgba(0, 0, 0, .12);
+	padding: .5rem;
+}
+.pp-notif__list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: .15rem;
+}
+.pp-notif__list a {
+	display: block;
+	padding: .5rem .6rem;
+	border-radius: 7px;
+	font-size: .85rem;
+	color: var(--pp-foreground);
+	text-decoration: none;
+}
+.pp-notif__list a:hover {
+	background: var(--pp-muted);
+}
+.pp-notif__empty {
+	margin: 0;
+	padding: .5rem .6rem;
+	font-size: .82rem;
+	color: var(--pp-muted-foreground);
+}
 .pp-profile {
 	display: flex;
 	align-items: flex-start;
