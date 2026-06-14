@@ -1046,7 +1046,8 @@ msgid "— select —"
 msgstr "— wählen —"
 
 #: includes/Frontend/MemberPortal.php:1992
-#: includes/Frontend/MemberPortal.php:2900
+#: includes/Frontend/MemberPortal.php:2913
+#: includes/Frontend/MemberPortal.php:2940
 #: templates/availability.php:33
 #: templates/request-form.php:41
 #: admin/js/admin.js:840
@@ -1062,7 +1063,8 @@ msgid "From"
 msgstr "Von"
 
 #: includes/Frontend/MemberPortal.php:1995
-#: includes/Frontend/MemberPortal.php:2903
+#: includes/Frontend/MemberPortal.php:2916
+#: includes/Frontend/MemberPortal.php:2943
 #: templates/availability.php:37
 #: templates/request-form.php:45
 #: admin/js/admin.js:840
@@ -1077,6 +1079,7 @@ msgstr "Von"
 msgid "To"
 msgstr "Bis"
 
+#: includes/Frontend/MemberPortal.php:2946
 #: templates/availability.php:40
 msgid "Check availability"
 msgstr "Verfügbarkeit prüfen"
@@ -1161,7 +1164,7 @@ msgid "On loan"
 msgstr "Verliehen"
 
 #: includes/Admin/Menu.php:248
-#: includes/Frontend/MemberPortal.php:3007
+#: includes/Frontend/MemberPortal.php:3038
 #: admin/js/admin.js:119
 msgid "Returned"
 msgstr "Zurückgegeben"
@@ -1169,7 +1172,7 @@ msgstr "Zurückgegeben"
 #: includes/Admin/Menu.php:247
 #: includes/Frontend/MemberPortal.php:1666
 #: includes/Frontend/MemberPortal.php:1711
-#: includes/Frontend/MemberPortal.php:3006
+#: includes/Frontend/MemberPortal.php:3037
 #: admin/js/admin.js:119
 #: admin/js/admin.js:439
 #: admin/js/admin.js:1174
@@ -2147,7 +2150,7 @@ msgstr "Mitglied hinzufügen"
 
 #: includes/Admin/Menu.php:245
 #: includes/Frontend/MemberPortal.php:1664
-#: includes/Frontend/MemberPortal.php:3004
+#: includes/Frontend/MemberPortal.php:3035
 #: admin/js/admin.js:2121
 msgid "Approved"
 msgstr "Angenommen"
@@ -2160,7 +2163,7 @@ msgstr "Abgelehnt"
 #: includes/Frontend/MemberPortal.php:1081
 #: includes/Frontend/MemberPortal.php:1465
 #: includes/Frontend/MemberPortal.php:2182
-#: includes/Frontend/MemberPortal.php:2979
+#: includes/Frontend/MemberPortal.php:3010
 #: admin/js/admin.js:2123
 msgid "Approve"
 msgstr "Zustimmen"
@@ -2373,7 +2376,7 @@ msgid "Signed"
 msgstr "Unterschrieben"
 
 #: includes/Admin/Menu.php:246
-#: includes/Frontend/MemberPortal.php:3005
+#: includes/Frontend/MemberPortal.php:3036
 #: admin/js/admin.js:2564
 msgid "Declined"
 msgstr "Abgelehnt"
@@ -2432,7 +2435,7 @@ msgstr "Unterschreiben"
 
 #: includes/Frontend/MemberPortal.php:1086
 #: includes/Frontend/MemberPortal.php:2113
-#: includes/Frontend/MemberPortal.php:2980
+#: includes/Frontend/MemberPortal.php:3011
 #: admin/js/admin.js:2654
 msgid "Decline"
 msgstr "Ablehnen"
@@ -2512,7 +2515,7 @@ msgid "Target category for \"%s\""
 msgstr "Ziel-Kategorie für \"%s\""
 
 #: includes/Frontend/MemberPortal.php:2196
-#: includes/Frontend/MemberPortal.php:2944
+#: includes/Frontend/MemberPortal.php:2975
 #: admin/js/admin.js:2903
 msgid "Cancel"
 msgstr "Abbrechen"
@@ -3521,49 +3524,49 @@ msgstr "Anfrage abgebrochen."
 msgid "Marked as returned."
 msgstr "Als zurückgegeben markiert."
 
-#: includes/Frontend/MemberPortal.php:2924
+#: includes/Frontend/MemberPortal.php:2937
 msgid "Available in your collectives"
 msgstr "In deinen Gruppen verfügbar"
 
 #. translators: %s: owner display name.
-#: includes/Frontend/MemberPortal.php:2882
+#: includes/Frontend/MemberPortal.php:2889
 #, php-format
 msgid "from %s"
 msgstr "von %s"
 
-#: includes/Frontend/MemberPortal.php:2892
+#: includes/Frontend/MemberPortal.php:2905
 msgid "Your item"
 msgstr "Dein Artikel"
 
-#: includes/Frontend/MemberPortal.php:2895
+#: includes/Frontend/MemberPortal.php:2908
 msgid "Borrow"
 msgstr "Ausleihen"
 
 #: includes/Frontend/MemberPortal.php:1998
-#: includes/Frontend/MemberPortal.php:2906
+#: includes/Frontend/MemberPortal.php:2919
 msgid "Message (optional)"
 msgstr "Nachricht (optional)"
 
 #: includes/Frontend/MemberPortal.php:2001
-#: includes/Frontend/MemberPortal.php:2909
+#: includes/Frontend/MemberPortal.php:2922
 msgid "Send request"
 msgstr "Anfrage senden"
 
-#: includes/Frontend/MemberPortal.php:2937
+#: includes/Frontend/MemberPortal.php:2968
 msgid "My borrow requests"
 msgstr "Meine Leih-Anfragen"
 
-#: includes/Frontend/MemberPortal.php:2946
-#: includes/Frontend/MemberPortal.php:2982
+#: includes/Frontend/MemberPortal.php:2977
+#: includes/Frontend/MemberPortal.php:3013
 msgid "Mark returned"
 msgstr "Als zurückgegeben markieren"
 
-#: includes/Frontend/MemberPortal.php:2961
+#: includes/Frontend/MemberPortal.php:2992
 msgid "Borrow requests for your items"
 msgstr "Leih-Anfragen für deine Artikel"
 
 #: includes/Admin/Menu.php:244
-#: includes/Frontend/MemberPortal.php:3003
+#: includes/Frontend/MemberPortal.php:3034
 msgid "Requested"
 msgstr "Angefragt"
 
@@ -4468,7 +4471,7 @@ msgid "No units of this item are free in that period. Please pick other dates."
 msgstr "In diesem Zeitraum ist kein Stück dieses Artikels frei. Bitte andere Daten wählen."
 
 #. translators: 1: free units today, 2: total quantity.
-#: includes/Frontend/MemberPortal.php:2887
+#: includes/Frontend/MemberPortal.php:2899
 #, php-format
 msgid "%1$d of %2$d free today"
 msgstr "%1$d von %2$d heute frei"
@@ -4546,3 +4549,13 @@ msgstr "Lade eine Kopie der Daten herunter, die diese Plattform über dich speic
 #: includes/Frontend/MemberPortal.php:970
 msgid "Download my data (JSON)"
 msgstr "Meine Daten herunterladen (JSON)"
+
+#. translators: 1: free units, 2: total quantity, 3: start date, 4: end date.
+#: includes/Frontend/MemberPortal.php:2894
+#, php-format
+msgid "%1$d of %2$d free (%3$s – %4$s)"
+msgstr "%1$d von %2$d frei (%3$s – %4$s)"
+
+#: includes/Frontend/MemberPortal.php:2948
+msgid "Reset"
+msgstr "Zurücksetzen"

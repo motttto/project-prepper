@@ -2856,7 +2856,14 @@ class MemberPortal {
 			return;
 		}
 		$conditions = Shortcodes::condition_labels();
-		$any        = false;
+		// Optionaler Zeitraum-Filter (GET) — zeigt die Verfügbarkeit für genau diese
+		// Tage statt nur „heute" und belegt das Leih-Formular vor.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reiner Anzeige-Filter ohne Schreibvorgang.
+		$pf = isset( $_GET['pp_bfrom'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_bfrom'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reiner Anzeige-Filter ohne Schreibvorgang.
+		$pt        = isset( $_GET['pp_bto'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_bto'] ) ) : '';
+		$period_ok = self::is_ymd( $pf ) && self::is_ymd( $pt ) && $pf <= $pt;
+		$any       = false;
 		ob_start();
 		foreach ( $groups as $group ) {
 			$items = Borrowing::browse( (int) $group->id );
@@ -2880,11 +2887,17 @@ class MemberPortal {
 								echo ' · ';
 								/* translators: %s: owner display name. */
 								printf( esc_html__( 'from %s', 'project-prepper' ), esc_html( $item->owner_name ) );
-								$pp_today = current_time( 'Y-m-d' );
-								$pp_avail = Borrowing::available_units( (int) $item->id, $pp_today, $pp_today );
 								echo ' · ';
-								/* translators: 1: free units today, 2: total quantity. */
-								printf( esc_html__( '%1$d of %2$d free today', 'project-prepper' ), (int) $pp_avail, (int) $item->quantity );
+								if ( $period_ok ) {
+									$pp_avail = Borrowing::available_units( (int) $item->id, $pf, $pt );
+									/* translators: 1: free units, 2: total quantity, 3: start date, 4: end date. */
+									printf( esc_html__( '%1$d of %2$d free (%3$s – %4$s)', 'project-prepper' ), (int) $pp_avail, (int) $item->quantity, esc_html( $pf ), esc_html( $pt ) );
+								} else {
+									$pp_today = current_time( 'Y-m-d' );
+									$pp_avail = Borrowing::available_units( (int) $item->id, $pp_today, $pp_today );
+									/* translators: 1: free units today, 2: total quantity. */
+									printf( esc_html__( '%1$d of %2$d free today', 'project-prepper' ), (int) $pp_avail, (int) $item->quantity );
+								}
 								?>
 							</span>
 						</div>
@@ -2898,10 +2911,10 @@ class MemberPortal {
 									<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
 									<input type="hidden" name="pp_group" value="<?php echo (int) $group->id; ?>">
 									<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
-										<input type="date" name="pp_from" required>
+										<input type="date" name="pp_from" value="<?php echo $period_ok ? esc_attr( $pf ) : ''; ?>" required>
 									</label>
 									<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
-										<input type="date" name="pp_to" required>
+										<input type="date" name="pp_to" value="<?php echo $period_ok ? esc_attr( $pt ) : ''; ?>" required>
 									</label>
 									<label><?php esc_html_e( 'Message (optional)', 'project-prepper' ); ?>
 										<textarea name="pp_message" rows="2"></textarea>
@@ -2922,9 +2935,27 @@ class MemberPortal {
 		?>
 		<section class="pp-portal__section">
 			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Available in your collectives', 'project-prepper' ); ?></h3>
+			<form class="pp-browse-period" method="get">
+				<input type="hidden" name="pp_view" value="lending">
+				<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+					<input type="date" name="pp_bfrom" value="<?php echo esc_attr( $pf ); ?>">
+				</label>
+				<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+					<input type="date" name="pp_bto" value="<?php echo esc_attr( $pt ); ?>">
+				</label>
+				<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Check availability', 'project-prepper' ); ?></button>
+				<?php if ( $period_ok ) : ?>
+					<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::view_url( 'lending' ) ); ?>"><?php esc_html_e( 'Reset', 'project-prepper' ); ?></a>
+				<?php endif; ?>
+			</form>
 			<?php echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- intern erzeugtes, bereits escaptes Markup. ?>
 		</section>
 		<?php
+	}
+
+	/** Strikte YYYY-MM-DD-Prüfung (für GET-Datums-Filter). */
+	private static function is_ymd( string $v ): bool {
+		return (bool) preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v );
 	}
 
 	private static function render_my_borrows( WP_User $user ): void {

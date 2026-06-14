@@ -684,6 +684,22 @@ a.pp-front-card-media { text-decoration: none; }
 	font-size: .8rem;
 	color: var(--pp-muted-foreground);
 }
+.pp-browse-period {
+	display: flex;
+	align-items: flex-end;
+	flex-wrap: wrap;
+	gap: .6rem;
+	margin-bottom: .9rem;
+	padding-bottom: .9rem;
+	border-bottom: 1px solid var(--pp-border);
+}
+.pp-browse-period label {
+	display: flex;
+	flex-direction: column;
+	gap: .2rem;
+	font-size: .8rem;
+	color: var(--pp-muted-foreground);
+}
 .pp-portal__docs {
 	list-style: none;
 	margin: 0 0 .5rem;
