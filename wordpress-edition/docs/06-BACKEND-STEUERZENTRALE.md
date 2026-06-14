@@ -222,3 +222,48 @@ kann — ohne Editierfelder. Getrennt von den Mechanik-Seiten.
    — Reihenfolge Inventar (inkl. Template-Kategorien §10.3) → Kalender → Projekte.
 4. **Anfragen** ins Frontend heben (§10.1) + Backend-Aggregat.
 5. **Verleih** separat entscheiden (§6).
+
+## 12. Distributions- & Erlösmodell (Ebene 1, Entwickler) — ⚠️ anwaltlich zu prüfen
+
+> Betrifft NUR die Entwickler-/Distributor-Ebene (wie *du* das Plugin
+> herausgibst), unabhängig von Betreiber-Ökonomie (Ebene 2) und Pro-User-
+> Vermittlung (Ebene 3, §10.2). Stand 2026-06-15, Recherche-Synthese.
+
+### Entscheidung / Empfehlung
+- **Kern gratis & GPL auf GitHub** (optional zusätzlich wordpress.org) — minimaler
+  Aufwand, minimale Haftung, maximale Verbreitung (passt zum Föderations-Fernziel).
+- **Den „hohen Wert" auf einen Service legen, nicht auf den Code.** GPL erlaubt
+  Verkauf, aber Käufer dürfen den Code legal weitergeben → ein hoher Einmalpreis
+  nur auf den Bits ist fragil. Premium-Erlös daher über **Managed Hosting** oder
+  ein **Pro-Add-on**, nicht über den Core.
+- **Gegen „Einzelabrechnungs-Aufwand": Merchant of Record** (z.B. Lemon Squeezy,
+  Gumroad, oder WP-spezifisch Freemius). Die Plattform stellt jede Rechnung,
+  erledigt **EU-USt/OSS**, Rückerstattungen, Chargebacks — du bekommst nur die
+  Auszahlung. Ein Produkt, ein Preis, keine Einzelrechnung von dir.
+- **Spenden/Sponsoring** (GitHub Sponsors / Open Collective) als no-effort-Baseline.
+
+### Optionen im Vergleich
+
+| Modell | Aufwand | Einnahmen | Haftung |
+|---|---|---|---|
+| Gratis GitHub (GPL) | ~0 | indirekt (Service/Support später) | am niedrigsten |
+| Gratis wordpress.org | gering, Community-Support-Erwartung | indirekt + Sichtbarkeit | niedrig |
+| Spenden/Sponsoring | ~0 | freiwillig, gering | niedrig (kein Kaufvertrag) |
+| Verkauf via Merchant of Record | gering (Plattform rechnet ab) | direkt, hoch möglich | **höher** (kommerzieller Verkauf) |
+
+### Gewährleistung / Haftung (⚠️ KEINE Rechtsberatung — Fachanwalt IT-Recht klären)
+- Open-Source-Lizenzen schließen Gewährleistung aus („AS IS"). Das ist die Lizenz-Ebene.
+- **Verkauf an EU-Verbraucher** kann **gesetzliche** Gewährleistung (Digital-Content-
+  Richtlinie) + Informationspflichten auslösen, die per Lizenz nicht wegdrückbar sind.
+  B2B ist flexibler als B2C.
+- **EU Cyber Resilience Act**: trifft *kommerziell* in Verkehr gebrachte Software
+  (u.a. Pflicht zu Sicherheits-Updates); nicht-kommerzielle OSS weitgehend ausgenommen.
+  → Verkaufen erhöht Pflichten, Gratis-OSS minimiert sie.
+- DSGVO/Daten liegt beim **Betreiber** (er hostet = Verantwortlicher), nicht beim Entwickler.
+
+### Konsequenz fürs Produkt
+- **Update-Auslieferung** wird zur Pflicht-Mechanik: Da der Vertrieb über GitHub läuft
+  (nicht wordpress.org), brauchen Instanzen einen **eigenen Auto-Updater**, der neue
+  Releases zieht (sonst lädt jeder Betreiber manuell ZIPs hoch — bei Föderation
+  unhaltbar). Deckt zugleich die CRA-Sicherheits-Update-Erwartung ab. Siehe
+  separates Bau-Thema „Update-Mechanik".
