@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.34.0
+Stable tag: 0.35.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.35.0 =
+* Federation directory: operators can list partner instance URLs on the Federation page; the plugin fetches each one's public profile and shows a "Known instances" table with postal code, topic and counts (cached for an hour, unreachable instances are flagged)
+* Outbound requests go only to operator-configured URLs and read just the public discovery endpoint — no personal data leaves the site
 
 = 0.34.0 =
 * Federation (first step): a new "Federation" admin page lets an instance opt in to being discoverable by other Project Prepper instances via postal code and topic — OFF by default

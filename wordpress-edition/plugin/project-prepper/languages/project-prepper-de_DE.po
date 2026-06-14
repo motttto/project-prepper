@@ -3343,3 +3343,21 @@ msgstr "Discovery-Endpoint"
 
 msgid "Save federation settings"
 msgstr "Föderations-Einstellungen speichern"
+
+msgid "Partner instances"
+msgstr "Partner-Instanzen"
+
+msgid "One instance URL per line. Their public profiles are fetched and listed below (cached for an hour)."
+msgstr "Eine Instanz-URL pro Zeile. Ihre öffentlichen Profile werden abgerufen und unten gelistet (1 Stunde gecacht)."
+
+msgid "Known instances"
+msgstr "Bekannte Instanzen"
+
+msgid "Instance"
+msgstr "Instanz"
+
+msgid "unreachable"
+msgstr "nicht erreichbar"
+
+msgid "No partner instances configured yet."
+msgstr "Noch keine Partner-Instanzen konfiguriert."

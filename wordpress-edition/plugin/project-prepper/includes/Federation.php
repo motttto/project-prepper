@@ -27,6 +27,7 @@ class Federation {
 			'postal_code'   => '',
 			'topic'         => '',
 			'contact_email' => '',
+			'partners'      => [], // URLs anderer Instanzen (vom Betreiber gepflegt).
 		];
 	}
 
@@ -60,6 +61,60 @@ class Federation {
 		return (int) $q->get_total();
 	}
 
+	/* ===================== Partner-Verzeichnis (Slice 2) ===================== */
+
+	/** @return string[] Konfigurierte Partner-Instanz-URLs. */
+	public static function partners(): array {
+		$p = self::all()['partners'];
+		return is_array( $p ) ? $p : [];
+	}
+
+	/**
+	 * Öffentliches Profil einer Partner-Instanz abrufen (1 h gecacht).
+	 *
+	 * Outbound nur an vom Betreiber konfigurierte URLs; liest ausschließlich den
+	 * öffentlichen Discovery-Endpoint. Nicht erreichbar/aus → null.
+	 *
+	 * @return array|null
+	 */
+	public static function fetch( string $url ): ?array {
+		$url = untrailingslashit( $url );
+		$key = 'pp_fed_' . md5( $url );
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+		if ( 'none' === $cached ) {
+			return null;
+		}
+
+		$resp = wp_remote_get( $url . '/wp-json/project-prepper/v1/federation/info', [ 'timeout' => 5 ] );
+		if ( is_wp_error( $resp ) || 200 !== (int) wp_remote_retrieve_response_code( $resp ) ) {
+			set_transient( $key, 'none', HOUR_IN_SECONDS );
+			return null;
+		}
+		$data = json_decode( wp_remote_retrieve_body( $resp ), true );
+		if ( ! is_array( $data ) ) {
+			set_transient( $key, 'none', HOUR_IN_SECONDS );
+			return null;
+		}
+		set_transient( $key, $data, HOUR_IN_SECONDS );
+		return $data;
+	}
+
+	/**
+	 * Verzeichnis aller Partner mit (gecachtem) Live-Profil.
+	 *
+	 * @return array<array{url:string,profile:array|null}>
+	 */
+	public static function directory(): array {
+		$out = [];
+		foreach ( self::partners() as $url ) {
+			$out[] = [ 'url' => $url, 'profile' => self::fetch( $url ) ];
+		}
+		return $out;
+	}
+
 	/* ===================== Admin-Formular ===================== */
 
 	public static function init(): void {
@@ -73,11 +128,29 @@ class Federation {
 			wp_die( esc_html__( 'Permission denied.', 'project-prepper' ) );
 		}
 
+		// Partner-URLs (eine pro Zeile) säubern + validieren.
+		$raw      = (string) ( $_POST['partners'] ?? '' );
+		$partners = [];
+		foreach ( preg_split( '/\r\n|\r|\n/', wp_unslash( $raw ) ) as $line ) {
+			$line = trim( $line );
+			// Nur Zeilen, die explizit mit http(s):// beginnen (kein DNS-Check beim
+			// Speichern — Erreichbarkeit zeigt sich später im Verzeichnis).
+			if ( ! preg_match( '#^https?://#i', $line ) ) {
+				continue;
+			}
+			$clean = esc_url_raw( $line, [ 'http', 'https' ] );
+			if ( $clean ) {
+				$partners[] = untrailingslashit( $clean );
+			}
+		}
+		$partners = array_values( array_unique( $partners ) );
+
 		update_option( self::OPTION, [
 			'enabled'       => ! empty( $_POST['enabled'] ),
 			'postal_code'   => sanitize_text_field( wp_unslash( (string) ( $_POST['postal_code'] ?? '' ) ) ),
 			'topic'         => sanitize_text_field( wp_unslash( (string) ( $_POST['topic'] ?? '' ) ) ),
 			'contact_email' => sanitize_email( wp_unslash( (string) ( $_POST['contact_email'] ?? '' ) ) ),
+			'partners'      => $partners,
 		] );
 
 		wp_safe_redirect( add_query_arg( 'pp_fed', 'saved', admin_url( 'admin.php?page=pp-federation' ) ) );

@@ -448,9 +448,51 @@ class Menu {
 						<th scope="row"><?php esc_html_e( 'Discovery endpoint', 'project-prepper' ); ?></th>
 						<td><code><?php echo esc_html( $api_url ); ?></code></td>
 					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Partner instances', 'project-prepper' ); ?></th>
+						<td>
+							<textarea name="partners" rows="4" class="large-text code" placeholder="https://other-collective.example"><?php echo esc_textarea( implode( "\n", $f['partners'] ) ); ?></textarea>
+							<p class="description"><?php esc_html_e( 'One instance URL per line. Their public profiles are fetched and listed below (cached for an hour).', 'project-prepper' ); ?></p>
+						</td>
+					</tr>
 				</table>
 				<?php submit_button( __( 'Save federation settings', 'project-prepper' ) ); ?>
 			</form>
+
+			<h2 style="margin-top:28px;"><?php esc_html_e( 'Known instances', 'project-prepper' ); ?></h2>
+			<table class="wp-list-table widefat fixed striped">
+				<thead><tr>
+					<th><?php esc_html_e( 'Instance', 'project-prepper' ); ?></th>
+					<th><?php esc_html_e( 'Postal code', 'project-prepper' ); ?></th>
+					<th><?php esc_html_e( 'Topic', 'project-prepper' ); ?></th>
+					<th><?php esc_html_e( 'Collectives', 'project-prepper' ); ?></th>
+					<th><?php esc_html_e( 'Members', 'project-prepper' ); ?></th>
+				</tr></thead>
+				<tbody>
+				<?php
+				$directory = Federation::directory();
+				if ( $directory ) :
+					foreach ( $directory as $entry ) :
+						$p = $entry['profile'];
+						?>
+						<tr>
+							<td>
+								<?php if ( $p ) : ?>
+									<a href="<?php echo esc_url( $entry['url'] ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $p['name'] ?: $entry['url'] ); ?></a>
+								<?php else : ?>
+									<?php echo esc_html( $entry['url'] ); ?> <span style="color:#b32d2e;">(<?php esc_html_e( 'unreachable', 'project-prepper' ); ?>)</span>
+								<?php endif; ?>
+							</td>
+							<td><?php echo $p ? esc_html( $p['postal_code'] ) : '—'; ?></td>
+							<td><?php echo $p ? esc_html( $p['topic'] ) : '—'; ?></td>
+							<td><?php echo $p ? (int) $p['collectives'] : '—'; ?></td>
+							<td><?php echo $p ? (int) $p['members'] : '—'; ?></td>
+						</tr>
+					<?php endforeach; else : ?>
+					<tr><td colspan="5"><?php esc_html_e( 'No partner instances configured yet.', 'project-prepper' ); ?></td></tr>
+				<?php endif; ?>
+				</tbody>
+			</table>
 		</div>
 		<?php
 	}
