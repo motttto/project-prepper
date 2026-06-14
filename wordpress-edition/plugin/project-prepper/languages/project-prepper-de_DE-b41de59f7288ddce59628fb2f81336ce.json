@@ -49,23 +49,11 @@
             "Status": [
                 "Status"
             ],
-            "Inventory number": [
-                "Inventarnummer"
-            ],
             "Category": [
                 "Kategorie"
             ],
             "Description": [
                 "Beschreibung"
-            ],
-            "Manufacturer": [
-                "Hersteller"
-            ],
-            "Model": [
-                "Modell"
-            ],
-            "Serial number": [
-                "Seriennummer"
             ],
             "Quantity": [
                 "Menge"
@@ -76,35 +64,8 @@
             "Location": [
                 "Lagerort"
             ],
-            "Daily rate": [
-                "Tagessatz"
-            ],
-            "Purchase price": [
-                "Kaufpreis"
-            ],
-            "Purchase date": [
-                "Kaufdatum"
-            ],
-            "Current value": [
-                "Aktueller Wert"
-            ],
-            "Dimensions": [
-                "Ma\u00dfe"
-            ],
-            "Power (W)": [
-                "Leistung (W)"
-            ],
-            "Accessories": [
-                "Zubeh\u00f6r"
-            ],
-            "Tags": [
-                "Tags"
-            ],
             "Notes": [
                 "Notizen"
-            ],
-            "inventory": [
-                "inventar"
             ],
             "\u2014": [
                 "\u2014"
@@ -151,9 +112,6 @@
             "rental status action\u0004Cancel": [
                 "Abbrechen"
             ],
-            "Search: name, number, manufacturer, serial number, tags \u2026": [
-                "Suchen: Name, Nummer, Hersteller, Seriennummer, Tags \u2026"
-            ],
             "Items": [
                 "Artikel"
             ],
@@ -166,131 +124,26 @@
             "Daily inventory value": [
                 "Tageswert Inventar"
             ],
-            "Out now": [
-                "Unterwegs"
-            ],
             "All": [
                 "Alle"
             ],
             "Number": [
                 "Nummer"
             ],
-            "Docs": [
-                "Doku"
-            ],
             "out": [
                 "unterwegs"
-            ],
-            "View PDF": [
-                "PDF anzeigen"
-            ],
-            "View documents": [
-                "Dokumente anzeigen"
-            ],
-            "No items found.": [
-                "Keine Artikel gefunden."
-            ],
-            "\u2014 category \u2014": [
-                "\u2014 Kategorie \u2014"
-            ],
-            "Comma-separated": [
-                "Komma-getrennt"
-            ],
-            "Own": [
-                "Eigen"
-            ],
-            "Loaned": [
-                "Geliehen"
-            ],
-            "Funded": [
-                "Gef\u00f6rdert"
             ],
             "Other": [
                 "Sonstiges"
             ],
-            "Linear": [
-                "Linear"
-            ],
-            "Declining balance": [
-                "Degressiv"
-            ],
-            "None": [
-                "Keine"
-            ],
-            "e.g. funding program, donation": [
-                "z. B. F\u00f6rderprogramm, Spende"
-            ],
             "Daily rate \u20ac": [
                 "Tagessatz \u20ac"
-            ],
-            "Purchase price \u20ac": [
-                "Kaufpreis \u20ac"
-            ],
-            "Current value \u20ac": [
-                "Aktueller Wert \u20ac"
-            ],
-            "Manufacturer URL": [
-                "Hersteller-URL"
-            ],
-            "Manual URL": [
-                "Manual-URL"
-            ],
-            "Texts": [
-                "Texte"
-            ],
-            "Ownership & depreciation": [
-                "Eigentum & Abschreibung"
-            ],
-            "Ownership": [
-                "Eigentum"
-            ],
-            "Funding source": [
-                "Finanzierungsquelle"
-            ],
-            "Depreciation": [
-                "Abschreibung"
-            ],
-            "Useful life (years)": [
-                "Nutzungsdauer (Jahre)"
-            ],
-            "Residual value \u20ac": [
-                "Restwert \u20ac"
-            ],
-            "Photo": [
-                "Foto"
-            ],
-            "Photo saved.": [
-                "Foto gespeichert."
-            ],
-            "Remove photo": [
-                "Foto entfernen"
-            ],
-            "PDF documents": [
-                "PDF-Dokumente"
-            ],
-            "Document": [
-                "Dokument"
             ],
             "remove": [
                 "entfernen"
             ],
-            "No documents.": [
-                "Keine Dokumente."
-            ],
-            "PDF uploaded.": [
-                "PDF hochgeladen."
-            ],
-            "Units": [
-                "Einzelst\u00fccke"
-            ],
             "delete": [
                 "l\u00f6schen"
-            ],
-            "No unit tracking.": [
-                "Kein Einzelst\u00fcck-Tracking."
-            ],
-            "+ Unit": [
-                "+ Einzelst\u00fcck"
             ],
             "Draft": [
                 "Entwurf"
@@ -307,18 +160,6 @@
             "Done": [
                 "Erledigt"
             ],
-            "Booked in projects": [
-                "In Projekten gebucht"
-            ],
-            "no date": [
-                "kein Datum"
-            ],
-            "Delete item": [
-                "Artikel l\u00f6schen"
-            ],
-            "Delete item \"%s\"?": [
-                "Artikel \"%s\" l\u00f6schen?"
-            ],
             "Item deleted.": [
                 "Artikel gel\u00f6scht."
             ],
@@ -331,62 +172,8 @@
             "Saved.": [
                 "Gespeichert."
             ],
-            "Photo upload failed:": [
-                "Foto-Upload fehlgeschlagen:"
-            ],
-            "PDF \"%1$s\" failed: %2$s": [
-                "PDF \"%1$s\" fehlgeschlagen: %2$s"
-            ],
-            "New item": [
-                "Neuer Artikel"
-            ],
-            "Item %s created.": [
-                "Artikel %s angelegt."
-            ],
             "Create": [
                 "Anlegen"
-            ],
-            "Export": [
-                "Export"
-            ],
-            "CSV export": [
-                "CSV-Export"
-            ],
-            "Export failed": [
-                "Export fehlgeschlagen"
-            ],
-            "Import": [
-                "Import"
-            ],
-            "\u2014 ignore \u2014": [
-                "\u2014 ignorieren \u2014"
-            ],
-            "File (.xlsx, .xls or .csv \u2014 first row = headers)": [
-                "Datei (.xlsx, .xls oder .csv \u2014 erste Zeile = \u00dcberschriften)"
-            ],
-            "Import inventory": [
-                "Inventar importieren"
-            ],
-            "Could not read file:": [
-                "Datei konnte nicht gelesen werden:"
-            ],
-            "File contains no data rows.": [
-                "Datei enth\u00e4lt keine Datenzeilen."
-            ],
-            "Map columns (preview: first 5 of %d rows)": [
-                "Spalten zuordnen (Vorschau: erste 5 von %d Zeilen)"
-            ],
-            "Import %d rows": [
-                "%d Zeilen importieren"
-            ],
-            "%d items imported": [
-                "%d Artikel importiert"
-            ],
-            "%d errors": [
-                "%d Fehler"
-            ],
-            "Row %d:": [
-                "Zeile %d:"
             ],
             "Borrower": [
                 "Leiher"
@@ -1605,6 +1392,30 @@
             ],
             "Templates saved.": [
                 "Templates gespeichert."
+            ],
+            "Read-only oversight of all inventory. Members add and edit their own items in the member portal \u2014 here you review and, for moderation, remove items.": [
+                "Read-only-Aufsicht \u00fcber das gesamte Inventar. Mitglieder legen ihre eigenen Artikel im Mitglieder-Portal an und bearbeiten sie \u2014 hier pr\u00fcfst du sie und entfernst sie zur Moderation."
+            ],
+            "Search items \u2026": [
+                "Artikel suchen \u2026"
+            ],
+            "All categories": [
+                "Alle Kategorien"
+            ],
+            "item": [
+                "Artikel"
+            ],
+            "items": [
+                "Artikel"
+            ],
+            "No items.": [
+                "Keine Artikel."
+            ],
+            "Qty": [
+                "Menge"
+            ],
+            "Delete this item? This cannot be undone.": [
+                "Diesen Artikel l\u00f6schen? Das kann nicht r\u00fcckg\u00e4ngig gemacht werden."
             ]
         }
     }

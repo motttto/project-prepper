@@ -63,11 +63,17 @@ class ItemsController extends BaseController {
 	}
 
 	public function index( WP_REST_Request $request ): WP_REST_Response {
-		return new WP_REST_Response( Inventory::items( [
+		$items = Inventory::items( [
 			'search'      => sanitize_text_field( (string) $request->get_param( 'search' ) ),
 			'category_id' => (int) $request->get_param( 'category_id' ),
 			'out_only'    => rest_sanitize_boolean( $request->get_param( 'out_only' ) ),
-		] ) );
+		] );
+		// Owner-Name für die read-only Moderationsliste (Admin-Liste, kein Hot-Path).
+		foreach ( $items as $item ) {
+			$owner            = ! empty( $item->owner_user_id ) ? get_userdata( (int) $item->owner_user_id ) : null;
+			$item->owner_name = $owner ? $owner->display_name : '';
+		}
+		return new WP_REST_Response( $items );
 	}
 
 	public function show( WP_REST_Request $request ) {

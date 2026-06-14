@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.68.0
+Stable tag: 0.69.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.69.0 =
+* Admin: the Inventory tab is now a read-only moderation list (search, filter, remove) — members add and edit their own items in the member portal; the backend is for oversight, not data entry
 
 = 0.68.0 =
 * Admin: inventory, projects, groups, rentals, inquiries, calendar, categories and federation are now combined into a single "Manage" menu item with tabs — a much shorter menu
