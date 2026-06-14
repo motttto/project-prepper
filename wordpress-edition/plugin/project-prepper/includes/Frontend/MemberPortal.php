@@ -461,13 +461,21 @@ class MemberPortal {
 	/** Sanitisierte Item-Felder aus dem Inventar-Formular (Nonce bereits geprüft). */
 	private static function item_input(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		$tags_raw = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_tags'] ?? '' ) ) );
+		$tags     = '' !== $tags_raw ? array_values( array_filter( array_map( 'trim', explode( ',', $tags_raw ) ) ) ) : [];
 		return [
-			'name'         => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
-			'category_id'  => (int) ( $_POST['pp_category'] ?? 0 ),
-			'quantity'     => max( 1, (int) ( $_POST['pp_quantity'] ?? 1 ) ),
-			'condition'    => sanitize_key( wp_unslash( (string) ( $_POST['pp_condition'] ?? 'good' ) ) ),
-			'cost_per_day' => '' !== ( $_POST['pp_cost'] ?? '' ) ? (float) $_POST['pp_cost'] : '',
-			'description'  => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
+			'name'          => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+			'category_id'   => (int) ( $_POST['pp_category'] ?? 0 ),
+			'quantity'      => max( 1, (int) ( $_POST['pp_quantity'] ?? 1 ) ),
+			'condition'     => sanitize_key( wp_unslash( (string) ( $_POST['pp_condition'] ?? 'good' ) ) ),
+			'cost_per_day'  => '' !== ( $_POST['pp_cost'] ?? '' ) ? (float) $_POST['pp_cost'] : '',
+			'manufacturer'  => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_manufacturer'] ?? '' ) ) ),
+			'model'         => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_model'] ?? '' ) ) ),
+			'serial_number' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_serial'] ?? '' ) ) ),
+			'location'      => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_location'] ?? '' ) ) ),
+			'dimensions'    => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_dimensions'] ?? '' ) ) ),
+			'tags'          => $tags,
+			'description'   => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
 		];
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
@@ -2298,6 +2306,24 @@ class MemberPortal {
 			</label>
 			<label><?php esc_html_e( 'Daily rate (€, optional)', 'project-prepper' ); ?>
 				<input type="number" name="pp_cost" step="0.01" min="0" value="<?php echo esc_attr( (string) $val( 'cost_per_day' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Manufacturer', 'project-prepper' ); ?>
+				<input type="text" name="pp_manufacturer" value="<?php echo esc_attr( (string) $val( 'manufacturer' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Model', 'project-prepper' ); ?>
+				<input type="text" name="pp_model" value="<?php echo esc_attr( (string) $val( 'model' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Serial number', 'project-prepper' ); ?>
+				<input type="text" name="pp_serial" value="<?php echo esc_attr( (string) $val( 'serial_number' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Location', 'project-prepper' ); ?>
+				<input type="text" name="pp_location" value="<?php echo esc_attr( (string) $val( 'location' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Dimensions', 'project-prepper' ); ?>
+				<input type="text" name="pp_dimensions" value="<?php echo esc_attr( (string) $val( 'dimensions' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Tags (comma-separated)', 'project-prepper' ); ?>
+				<input type="text" name="pp_tags" value="<?php echo esc_attr( $item && isset( $item->tags ) ? implode( ', ', (array) $item->tags ) : '' ); ?>">
 			</label>
 			<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
 				<textarea name="pp_description" rows="2"><?php echo esc_textarea( (string) $val( 'description' ) ); ?></textarea>
