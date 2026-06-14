@@ -8,6 +8,7 @@ use ProjectPrepper\Services\GroupGovernance as Governance;
 use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Services\MemberInventory;
 use ProjectPrepper\Services\Borrowing;
+use ProjectPrepper\Services\Projects;
 use WP_User;
 
 defined( 'ABSPATH' ) || exit;
@@ -459,6 +460,9 @@ class MemberPortal {
 							case 'lending':
 								self::view_lending( $user, $groups );
 								break;
+							case 'projects':
+								self::view_projects( $user, $groups );
+								break;
 							case 'collectives':
 								self::view_collectives( $user, $groups );
 								break;
@@ -478,7 +482,7 @@ class MemberPortal {
 	private static function current_view(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$view    = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : 'dashboard';
-		$allowed = [ 'dashboard', 'inventory', 'lending', 'collectives' ];
+		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'collectives' ];
 		return in_array( $view, $allowed, true ) ? $view : 'dashboard';
 	}
 
@@ -488,6 +492,7 @@ class MemberPortal {
 			[ 'view' => 'dashboard',   'icon' => 'dashboard', 'label' => __( 'Dashboard', 'project-prepper' ) ],
 			[ 'view' => 'inventory',   'icon' => 'inventory', 'label' => __( 'My inventory', 'project-prepper' ) ],
 			[ 'view' => 'lending',     'icon' => 'package',   'label' => __( 'Lending', 'project-prepper' ) ],
+			[ 'view' => 'projects',    'icon' => 'projects',  'label' => __( 'My projects', 'project-prepper' ) ],
 			[ 'view' => 'collectives', 'icon' => 'users',     'label' => __( 'My collectives', 'project-prepper' ) ],
 		];
 	}
@@ -581,6 +586,8 @@ class MemberPortal {
 			'inventory' => '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
 			'package'   => '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
 			'users'     => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+			'projects'  => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/>',
+			'calendar'  => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
 			'admin'     => '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
 			'logout'    => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
 			'info'      => '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
@@ -592,10 +599,11 @@ class MemberPortal {
 	/* ---------- Views ---------- */
 
 	private static function view_dashboard( WP_User $user, array $groups ): void {
-		$inv_count = count( MemberInventory::my_items( (int) $user->ID ) );
-		$grp_count = count( $groups );
-		$incoming  = Borrowing::incoming_requests( (int) $user->ID );
-		$open_reqs = count( array_filter( $incoming, static fn( $r ) => 'requested' === $r->status ) );
+		$inv_count  = count( MemberInventory::my_items( (int) $user->ID ) );
+		$grp_count  = count( $groups );
+		$proj_count = count( self::member_projects( $groups ) );
+		$incoming   = Borrowing::incoming_requests( (int) $user->ID );
+		$open_reqs  = count( array_filter( $incoming, static fn( $r ) => 'requested' === $r->status ) );
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title">
@@ -621,8 +629,9 @@ class MemberPortal {
 		<div class="pp-kpi-grid">
 			<?php
 			self::kpi_card( 'inventory', $inv_count, __( 'Inventory items', 'project-prepper' ), 'warning', 'inventory' );
-			self::kpi_card( 'collectives', $grp_count, __( 'Collectives', 'project-prepper' ), 'primary', 'users' );
-			self::kpi_card( 'lending', $open_reqs, __( 'Open borrow requests', 'project-prepper' ), 'info', 'package' );
+			self::kpi_card( 'projects', $proj_count, __( 'Projects', 'project-prepper' ), 'primary', 'projects' );
+			self::kpi_card( 'collectives', $grp_count, __( 'Collectives', 'project-prepper' ), 'info', 'users' );
+			self::kpi_card( 'lending', $open_reqs, __( 'Open borrow requests', 'project-prepper' ), 'success', 'package' );
 			?>
 		</div>
 
@@ -752,6 +761,335 @@ class MemberPortal {
 			</form>
 		</section>
 		<?php
+	}
+
+	/* ---------- Meine Projekte (Gruppen-Projekte, read-only) ---------- */
+
+	/** Projekte der Kollektive des Mitglieds (ohne Site-Ebene). */
+	private static function member_projects( array $groups ): array {
+		if ( ! $groups ) {
+			return [];
+		}
+		$gids = array_map( static fn( $g ) => (int) $g->id, $groups );
+		return array_values( array_filter(
+			Projects::all(),
+			static fn( $p ) => in_array( (int) $p->owner_group_id, $gids, true )
+		) );
+	}
+
+	private static function view_projects( WP_User $user, array $groups ): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
+		$pid = isset( $_GET['pp_project'] ) ? (int) $_GET['pp_project'] : 0;
+		if ( $pid ) {
+			self::view_project_detail( $pid, $groups );
+			return;
+		}
+
+		$projects    = self::member_projects( $groups );
+		$group_names = [];
+		foreach ( $groups as $g ) {
+			$group_names[ (int) $g->id ] = $g->name;
+		}
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'My projects', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Projects of the collectives you belong to.', 'project-prepper' ); ?></p>
+		</header>
+		<?php if ( ! $projects ) : ?>
+			<p class="pp-portal__empty"><?php esc_html_e( 'No projects yet. Projects created in your collectives will appear here.', 'project-prepper' ); ?></p>
+		<?php else : ?>
+			<div class="pp-proj-list">
+				<?php foreach ( $projects as $p ) :
+					$bits  = [];
+					$range = self::fmt_range( $p->date_start, $p->date_end );
+					if ( '' !== $range ) {
+						$bits[] = $range;
+					}
+					if ( '' !== (string) $p->venue_name ) {
+						$bits[] = $p->venue_name;
+					}
+					if ( isset( $group_names[ (int) $p->owner_group_id ] ) ) {
+						$bits[] = $group_names[ (int) $p->owner_group_id ];
+					}
+					?>
+					<a class="pp-proj-card" href="<?php echo esc_url( add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $p->id ], self::portal_url() ) ); ?>">
+						<span class="pp-proj-card__num"><?php echo esc_html( $p->project_number ); ?></span>
+						<div class="pp-proj-card__head">
+							<span class="pp-proj-card__name"><?php echo esc_html( $p->name ); ?></span>
+							<span class="pp-status pp-status--<?php echo esc_attr( $p->status ); ?>"><?php echo esc_html( self::project_status_label( $p->status ) ); ?></span>
+						</div>
+						<div class="pp-proj-card__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></div>
+					</a>
+				<?php endforeach; ?>
+			</div>
+		<?php endif;
+	}
+
+	private static function view_project_detail( int $pid, array $groups ): void {
+		$p    = Projects::get( $pid );
+		$back = add_query_arg( 'pp_view', 'projects', self::portal_url() );
+
+		// Nur Gruppen-Projekte der eigenen Kollektive (Site-Ebene zählt hier nicht
+		// als „mein Projekt" — verhindert Sicht auf reine Plattform-Projekte).
+		$gids = array_map( static fn( $g ) => (int) $g->id, $groups );
+		if ( ! $p || ! in_array( (int) $p->owner_group_id, $gids, true ) ) {
+			?>
+			<p class="pp-proj-back"><a href="<?php echo esc_url( $back ); ?>"><?php esc_html_e( '← Back to projects', 'project-prepper' ); ?></a></p>
+			<p class="pp-portal__empty"><?php esc_html_e( 'This project is not available.', 'project-prepper' ); ?></p>
+			<?php
+			return;
+		}
+		$range = self::fmt_range( $p->date_start, $p->date_end );
+		?>
+		<p class="pp-proj-back"><a href="<?php echo esc_url( $back ); ?>"><?php esc_html_e( '← Back to projects', 'project-prepper' ); ?></a></p>
+		<header class="pp-app__page-head">
+			<div class="pp-proj-detail-head">
+				<h1 class="pp-app__page-title"><?php echo esc_html( $p->name ); ?></h1>
+				<span class="pp-status pp-status--<?php echo esc_attr( $p->status ); ?>"><?php echo esc_html( self::project_status_label( $p->status ) ); ?></span>
+			</div>
+			<p class="pp-app__page-sub"><?php echo esc_html( $p->project_number . ( '' !== $range ? ' · ' . $range : '' ) ); ?></p>
+		</header>
+
+		<?php
+		// 1) Übersicht (Veranstaltungsort / Kunde / Notizen) — nur wenn etwas da ist.
+		$has_overview = '' !== (string) $p->venue_name || '' !== (string) $p->venue_address
+			|| '' !== (string) $p->client_name || '' !== (string) $p->notes;
+		if ( $has_overview ) :
+			?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Overview', 'project-prepper' ); ?></h3>
+				<dl class="pp-dl">
+					<?php
+					if ( '' !== (string) $p->venue_name || '' !== (string) $p->venue_address ) {
+						$venue = trim( $p->venue_name . ( '' !== (string) $p->venue_address ? ', ' . $p->venue_address : '' ), ', ' );
+						self::dl_row( __( 'Venue', 'project-prepper' ), $venue );
+					}
+					if ( '' !== (string) $p->client_name ) {
+						self::dl_row( __( 'Client', 'project-prepper' ), $p->client_name );
+					}
+					if ( '' !== (string) $p->notes ) {
+						self::dl_row( __( 'Notes', 'project-prepper' ), $p->notes );
+					}
+					?>
+				</dl>
+			</section>
+			<?php
+		endif;
+
+		// 2) Gebuchtes Equipment.
+		if ( ! empty( $p->items ) ) : ?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Booked equipment', 'project-prepper' ); ?></h3>
+				<div class="pp-rows">
+					<?php foreach ( $p->items as $line ) :
+						$lrange = self::fmt_range( $line->date_from, $line->date_to ); ?>
+						<div class="pp-row">
+							<span class="pp-row__main"><?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?></span>
+							<?php if ( ! empty( $line->inventory_number ) ) : ?>
+								<span class="pp-portal__item-num"><?php echo esc_html( $line->inventory_number ); ?></span>
+							<?php endif; ?>
+							<span class="pp-row__meta">
+								<?php
+								/* translators: %d: quantity. */
+								printf( esc_html__( 'Qty %d', 'project-prepper' ), (int) $line->quantity );
+								if ( '' !== $lrange ) {
+									echo ' · ' . esc_html( $lrange );
+								}
+								?>
+							</span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</section>
+		<?php endif;
+
+		// 3) Zeitplan.
+		if ( ! empty( $p->schedule ) ) : ?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Schedule', 'project-prepper' ); ?></h3>
+				<div class="pp-rows">
+					<?php foreach ( $p->schedule as $s ) :
+						$time = trim( (string) $s->time_start . ( ! empty( $s->time_end ) ? '–' . $s->time_end : '' ) );
+						$meta = trim( self::fmt_date( $s->schedule_date ) . ( '' !== $time ? ' ' . $time : '' ) ); ?>
+						<div class="pp-row">
+							<span class="pp-row__main"><?php echo esc_html( $s->title ); ?></span>
+							<?php if ( ! empty( $s->location ) ) : ?>
+								<span class="pp-muted-inline"><?php echo esc_html( $s->location ); ?></span>
+							<?php endif; ?>
+							<?php if ( '' !== $meta ) : ?>
+								<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</section>
+		<?php endif;
+
+		// 4) Aufgaben.
+		if ( ! empty( $p->tasks ) ) : ?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Tasks', 'project-prepper' ); ?></h3>
+				<div class="pp-rows">
+					<?php foreach ( $p->tasks as $t ) :
+						$assignee = $t->assigned_user ? get_userdata( (int) $t->assigned_user ) : null;
+						$meta     = self::task_priority_label( (string) $t->priority );
+						if ( ! empty( $t->due_date ) ) {
+							$meta .= ' · ' . self::fmt_date( $t->due_date );
+						}
+						if ( $assignee ) {
+							$meta .= ' · ' . $assignee->display_name;
+						} ?>
+						<div class="pp-row">
+							<span class="pp-status pp-status--<?php echo esc_attr( $t->task_status ); ?>"><?php echo esc_html( self::task_status_label( (string) $t->task_status ) ); ?></span>
+							<span class="pp-row__main"><?php echo esc_html( $t->title ); ?></span>
+							<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</section>
+		<?php endif;
+
+		// 5) Checklisten.
+		if ( ! empty( $p->checklists ) ) : ?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Checklists', 'project-prepper' ); ?></h3>
+				<?php foreach ( $p->checklists as $list ) : ?>
+					<div class="pp-checklist">
+						<p class="pp-checklist__name"><?php echo esc_html( $list->name ); ?></p>
+						<?php foreach ( (array) $list->items as $ci ) :
+							$done = ! empty( $ci->is_checked ); ?>
+							<div class="pp-checkitem<?php echo $done ? ' pp-checkitem--done' : ''; ?>">
+								<span class="pp-checkitem__box<?php echo $done ? ' pp-checkitem__box--on' : ''; ?>"><?php echo $done ? '✓' : ''; ?></span>
+								<span class="pp-checkitem__label"><?php echo esc_html( $ci->label ); ?></span>
+							</div>
+						<?php endforeach; ?>
+					</div>
+				<?php endforeach; ?>
+			</section>
+		<?php endif;
+
+		// 6) Material.
+		if ( ! empty( $p->consumables ) ) : ?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Materials', 'project-prepper' ); ?></h3>
+				<div class="pp-rows">
+					<?php foreach ( $p->consumables as $c ) : ?>
+						<div class="pp-row">
+							<span class="pp-row__main"><?php echo esc_html( $c->name ); ?></span>
+							<span class="pp-row__meta"><?php echo esc_html( trim( (string) $c->quantity . ' ' . (string) $c->unit ) ); ?></span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</section>
+		<?php endif;
+
+		// 7) Team.
+		if ( ! empty( $p->team ) ) : ?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Team', 'project-prepper' ); ?></h3>
+				<div class="pp-rows">
+					<?php foreach ( $p->team as $m ) :
+						$meta = trim( (string) $m->role . ( '' !== (string) $m->department ? ' · ' . $m->department : '' ) ); ?>
+						<div class="pp-row">
+							<span class="pp-row__main"><?php echo esc_html( $m->name ); ?></span>
+							<?php if ( '' !== $meta ) : ?>
+								<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</section>
+		<?php endif;
+
+		// 8) Kontakte.
+		if ( ! empty( $p->contacts ) ) : ?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Contacts', 'project-prepper' ); ?></h3>
+				<div class="pp-rows">
+					<?php foreach ( $p->contacts as $c ) :
+						$meta = implode( ' · ', array_filter( [ $c->role, $c->company, $c->email, $c->phone ] ) ); ?>
+						<div class="pp-row">
+							<span class="pp-row__main"><?php echo esc_html( $c->name ); ?></span>
+							<?php if ( '' !== $meta ) : ?>
+								<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</section>
+		<?php endif;
+
+		// 9) Dateien.
+		if ( ! empty( $p->files ) ) : ?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Files', 'project-prepper' ); ?></h3>
+				<div class="pp-rows">
+					<?php foreach ( $p->files as $f ) :
+						$label = '' !== (string) $f->title ? $f->title : ( $f->filename ?: __( 'File', 'project-prepper' ) ); ?>
+						<div class="pp-row">
+							<?php if ( ! empty( $f->url ) ) : ?>
+								<a class="pp-row__main" href="<?php echo esc_url( $f->url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $label ); ?></a>
+							<?php else : ?>
+								<span class="pp-row__main"><?php echo esc_html( $label ); ?></span>
+								<span class="pp-row__meta"><?php esc_html_e( 'missing', 'project-prepper' ); ?></span>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</section>
+		<?php endif;
+	}
+
+	/** Eine Zeile in der Übersichts-Definitionsliste (Label + Wert). */
+	private static function dl_row( string $label, string $value ): void {
+		echo '<dt>' . esc_html( $label ) . '</dt><dd>' . nl2br( esc_html( $value ) ) . '</dd>';
+	}
+
+	private static function fmt_date( ?string $date ): string {
+		if ( empty( $date ) || '0000-00-00' === $date ) {
+			return '';
+		}
+		$ts = strtotime( $date );
+		return $ts ? date_i18n( (string) get_option( 'date_format' ), $ts ) : (string) $date;
+	}
+
+	private static function fmt_range( ?string $from, ?string $to ): string {
+		$a = self::fmt_date( $from );
+		$b = self::fmt_date( $to );
+		if ( '' !== $a && '' !== $b ) {
+			return $a . ' – ' . $b;
+		}
+		return '' !== $a ? $a : $b;
+	}
+
+	private static function project_status_label( string $s ): string {
+		$map = [
+			'draft'     => __( 'Draft', 'project-prepper' ),
+			'planned'   => __( 'Planned', 'project-prepper' ),
+			'confirmed' => __( 'Confirmed', 'project-prepper' ),
+			'running'   => __( 'Running', 'project-prepper' ),
+			'done'      => __( 'Done', 'project-prepper' ),
+			'cancelled' => __( 'Cancelled', 'project-prepper' ),
+		];
+		return $map[ $s ] ?? $s;
+	}
+
+	private static function task_status_label( string $s ): string {
+		$map = [
+			'open'  => __( 'Open', 'project-prepper' ),
+			'doing' => __( 'In progress', 'project-prepper' ),
+			'done'  => __( 'Done', 'project-prepper' ),
+		];
+		return $map[ $s ] ?? $s;
+	}
+
+	private static function task_priority_label( string $s ): string {
+		$map = [
+			'low'    => __( 'Low', 'project-prepper' ),
+			'normal' => __( 'Normal', 'project-prepper' ),
+			'high'   => __( 'High', 'project-prepper' ),
+		];
+		return $map[ $s ] ?? $s;
 	}
 
 	/* ---------- Render-Bausteine ---------- */

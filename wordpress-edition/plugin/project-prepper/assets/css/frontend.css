@@ -1061,6 +1061,109 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-hiw__col h3 { margin: 0 0 4px; font-size: .95rem; }
 .pp-hiw__col p { margin: 0; font-size: .83rem; color: #475569; line-height: 1.5; }
 
+.pp-kpi--success .pp-kpi__icon { background: #ecfdf5; color: #10b981; }
+
+/* Status-Badges (Projekt- + Task-Status) */
+.pp-status {
+	display: inline-block;
+	font-size: .72rem;
+	font-weight: 600;
+	border-radius: 999px;
+	padding: .15rem .55rem;
+	background: #f1f5f9;
+	color: #475569;
+	white-space: nowrap;
+}
+.pp-status--planned,
+.pp-status--open { background: #eff6ff; color: #2563eb; }
+.pp-status--confirmed { background: #eef2ff; color: #4f46e5; }
+.pp-status--running { background: #ecfdf5; color: #059669; }
+.pp-status--doing { background: #fffbeb; color: #b45309; }
+.pp-status--done { background: #f1f5f9; color: #475569; }
+.pp-status--cancelled { background: #fef2f2; color: #dc2626; }
+
+/* Projekt-Liste */
+.pp-proj-list { display: flex; flex-direction: column; gap: 10px; }
+.pp-proj-card {
+	position: relative;
+	display: block;
+	background: #fff;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	padding: 14px 16px;
+	text-decoration: none;
+	color: inherit;
+	box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+	transition: box-shadow .15s, transform .15s;
+}
+.pp-proj-card:hover { box-shadow: 0 10px 15px -3px rgb(0 0 0 / .08); transform: translateY(-1px); }
+.pp-proj-card__head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+.pp-proj-card__name { font-weight: 600; font-size: 1rem; }
+.pp-proj-card__meta { font-size: .85rem; color: #64748b; }
+.pp-proj-card__num {
+	position: absolute;
+	top: 14px;
+	right: 16px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: .72rem;
+	color: #94a3b8;
+}
+
+/* Projekt-Detail */
+.pp-proj-back { margin: 0 0 12px; }
+.pp-proj-back a { color: #4f46e5; text-decoration: none; font-size: .875rem; }
+.pp-proj-back a:hover { text-decoration: underline; }
+.pp-proj-detail-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+.pp-card {
+	background: #fff;
+	border: 1px solid #e2e8f0;
+	border-radius: 12px;
+	padding: 16px 18px;
+	margin-bottom: 16px;
+	box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
+}
+.pp-card__title { font-size: 1rem; font-weight: 600; margin: 0 0 12px; }
+
+.pp-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: .9rem; }
+.pp-dl dt { color: #64748b; }
+.pp-dl dd { margin: 0; }
+
+.pp-rows { display: flex; flex-direction: column; gap: 8px; }
+.pp-row {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	flex-wrap: wrap;
+	font-size: .9rem;
+	padding-bottom: 8px;
+	border-bottom: 1px solid #f1f5f9;
+}
+.pp-row:last-child { border-bottom: none; padding-bottom: 0; }
+.pp-row__main { font-weight: 500; }
+.pp-row__main[href] { color: #4f46e5; text-decoration: none; }
+.pp-row__main[href]:hover { text-decoration: underline; }
+.pp-row__meta { color: #64748b; font-size: .82rem; margin-left: auto; }
+.pp-muted-inline { color: #64748b; font-size: .82rem; }
+
+.pp-checklist + .pp-checklist { margin-top: 12px; }
+.pp-checklist__name { font-weight: 600; font-size: .9rem; margin: 0 0 6px; }
+.pp-checkitem { display: flex; align-items: center; gap: 8px; font-size: .9rem; padding: 3px 0; }
+.pp-checkitem__box {
+	width: 16px;
+	height: 16px;
+	border: 1px solid #cbd5e1;
+	border-radius: 4px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: .7rem;
+	color: #fff;
+	flex: none;
+}
+.pp-checkitem__box--on { background: #10b981; border-color: #10b981; }
+.pp-checkitem--done .pp-checkitem__label { color: #94a3b8; text-decoration: line-through; }
+
 /* Mobile: Off-Canvas-Sidebar (reines CSS, Checkbox-Toggle) */
 .pp-app__overlay { display: none; }
 @media (max-width: 1023px) {

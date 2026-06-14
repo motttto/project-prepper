@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.37.0
+Stable tag: 0.38.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.38.0 =
+* Member portal: new "My projects" page — members can browse the projects of the collectives they belong to and open a read-only detail view (overview, booked equipment, schedule, tasks, checklists, materials, team, contacts and files)
+* A "Projects" KPI card was added to the member dashboard
+* Financial and governance sections (costs, budget, profit shares, decisions, polls, agreement) are intentionally not shown to members in this view
 
 = 0.37.0 =
 * Member portal redesigned as a full-screen app, matching the look of the web app: a dark sidebar with navigation (Dashboard, My inventory, Lending, My collectives), a top bar with the member's name and sign-out, and a dashboard landing page with KPI cards and a "How the platform works" panel
