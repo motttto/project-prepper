@@ -67,11 +67,14 @@ class MemberPortal {
 	public static function register_assets(): void {
 		// Portal nutzt das gemeinsame Frontend-Stylesheet (enthält die .pp-portal-Regeln).
 		wp_register_style( 'pp-frontend', PP_PLUGIN_URL . 'assets/css/frontend.css', [], PP_VERSION );
+		// Kleine progressive Erweiterung (z. B. „+ Option" beim Umfrage-Anlegen).
+		wp_register_script( 'pp-portal', PP_PLUGIN_URL . 'assets/js/portal.js', [], PP_VERSION, true );
 
 		// Auf der Portal-Seite das Stylesheet hier einreihen — das Vollbild-Template
 		// rendert erst nach wp_head(), ein späteres enqueue käme zu spät.
 		if ( self::is_portal_page() ) {
 			wp_enqueue_style( 'pp-frontend' );
+			wp_enqueue_script( 'pp-portal' );
 		}
 	}
 
@@ -1538,12 +1541,15 @@ class MemberPortal {
 				</label>
 				<fieldset class="pp-poll-optset">
 					<legend><?php esc_html_e( 'Options', 'project-prepper' ); ?></legend>
-					<?php for ( $i = 1; $i <= 6; $i++ ) : ?>
-						<input type="text" name="pp_opt[]" class="pp-poll-optbox" placeholder="<?php
-							/* translators: %d: option number. */
-							echo esc_attr( sprintf( __( 'Option %d', 'project-prepper' ), $i ) );
-						?>">
-					<?php endfor; ?>
+					<div class="pp-poll-optbox-list">
+						<?php for ( $i = 1; $i <= 3; $i++ ) : ?>
+							<input type="text" name="pp_opt[]" class="pp-poll-optbox" placeholder="<?php
+								/* translators: %d: option number. */
+								echo esc_attr( sprintf( __( 'Option %d', 'project-prepper' ), $i ) );
+							?>">
+						<?php endfor; ?>
+					</div>
+					<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-poll-add" data-label="<?php esc_attr_e( 'Option', 'project-prepper' ); ?>"><?php esc_html_e( '+ Add option', 'project-prepper' ); ?></button>
 					<p class="pp-poll-opthint"><?php esc_html_e( 'At least two options. For date polls enter YYYY-MM-DD (optionally HH:MM). Empty boxes are ignored.', 'project-prepper' ); ?></p>
 				</fieldset>
 				<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>

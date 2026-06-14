@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.47.0
+Stable tag: 0.48.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.48.0 =
+* Member portal: the poll form now starts with three option boxes and an "+ Add option" button to add more (small enhancement script; without JavaScript the starting boxes still work)
 
 = 0.47.0 =
 * Member portal: when creating a poll, each option now has its own input box instead of one textarea with one option per line (applies to project and group polls)

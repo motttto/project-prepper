@@ -1277,7 +1277,9 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 	gap: 6px;
 }
 .pp-poll-optset legend { font-size: .85rem; font-weight: 500; padding: 0 4px; }
+.pp-poll-optbox-list { display: flex; flex-direction: column; gap: 6px; }
 .pp-poll-optbox { width: 100%; box-sizing: border-box; }
+.pp-poll-add { align-self: flex-start; }
 .pp-poll-opthint { margin: 2px 0 0; font-size: .75rem; color: var(--pp-muted-foreground); }
 
 /* Netzwerk (Föderation Slice 3 — geteiltes Inventar von Partner-Instanzen) */
