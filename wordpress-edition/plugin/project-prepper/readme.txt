@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.30.0
+Stable tag: 0.31.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.31.0 =
+* Two-factor login for members is now live (Security → "Two-factor for members", still OFF by default): when enabled, members sign in on the portal in two steps — password, then a one-time 6-digit code sent to their email
+* Hardened: codes are stored only as a hash, expire after 10 minutes, allow at most 5 attempts, and use generic error messages (no account enumeration)
+* Admins and managers are unaffected and keep the normal wp-admin login; with 2FA off the portal login is unchanged
 
 = 0.30.0 =
 * New "Platform" admin page: the member-portal processes come together for operators — KPIs (collectives, member inventory, open invitations, active loans, open requests), open join invitations with voting status, recent borrow requests, and all collectives with member counts

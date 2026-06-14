@@ -2,6 +2,7 @@
 namespace ProjectPrepper\Frontend;
 
 use ProjectPrepper\Capabilities;
+use ProjectPrepper\Security;
 use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance as Governance;
 use ProjectPrepper\Services\Inventory;
@@ -299,20 +300,56 @@ class MemberPortal {
 	}
 
 	private static function render_login(): string {
+		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- reine Status-Anzeige
+		$login_msg = isset( $_GET['pp_login'] ) ? sanitize_key( wp_unslash( $_GET['pp_login'] ) ) : '';
+		$two_factor = Security::on( 'member_2fa' );
+		$pending   = $two_factor && MemberAuth::has_pending() && isset( $_GET['pp_2fa'] );
+		// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
 		ob_start();
 		?>
 		<div class="pp-front pp-portal pp-portal--login">
 			<h2 class="pp-portal__title"><?php esc_html_e( 'Member login', 'project-prepper' ); ?></h2>
-			<p class="pp-portal__lead"><?php esc_html_e( 'Sign in to manage your inventory, your collectives and shared resources.', 'project-prepper' ); ?></p>
-			<?php
-			wp_login_form( [
-				'redirect'       => self::portal_url(),
-				'label_username' => __( 'Email or username', 'project-prepper' ),
-				'label_password' => __( 'Password', 'project-prepper' ),
-				'label_log_in'   => __( 'Sign in', 'project-prepper' ),
-				'remember'       => true,
-			] );
-			?>
+
+			<?php if ( 'failed' === $login_msg ) : ?>
+				<div class="pp-portal__notice pp-portal__notice--err"><?php esc_html_e( 'Login failed. Please check your details and try again.', 'project-prepper' ); ?></div>
+			<?php elseif ( 'code' === $login_msg ) : ?>
+				<div class="pp-portal__notice pp-portal__notice--err"><?php esc_html_e( 'That code was not correct. Please try again.', 'project-prepper' ); ?></div>
+			<?php endif; ?>
+
+			<?php if ( $pending ) : /* ---- Schritt 2: Code ---- */ ?>
+				<p class="pp-portal__lead"><?php esc_html_e( 'We sent a one-time code to your email. Enter it to finish signing in.', 'project-prepper' ); ?></p>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="pp_member_2fa">
+					<?php wp_nonce_field( 'pp_member_2fa', 'pp_nonce' ); ?>
+					<label for="pp-2fa-code"><?php esc_html_e( 'Login code', 'project-prepper' ); ?></label>
+					<input type="text" id="pp-2fa-code" name="pp_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" required>
+					<button type="submit" class="pp-portal__btn"><?php esc_html_e( 'Confirm code', 'project-prepper' ); ?></button>
+				</form>
+
+			<?php elseif ( $two_factor ) : /* ---- Schritt 1: eigenes Formular (2FA aktiv) ---- */ ?>
+				<p class="pp-portal__lead"><?php esc_html_e( 'Sign in to manage your inventory, your collectives and shared resources.', 'project-prepper' ); ?></p>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="pp_member_login">
+					<?php wp_nonce_field( 'pp_member_login', 'pp_nonce' ); ?>
+					<label for="pp-login-user"><?php esc_html_e( 'Email or username', 'project-prepper' ); ?></label>
+					<input type="text" id="pp-login-user" name="log" required>
+					<label for="pp-login-pass"><?php esc_html_e( 'Password', 'project-prepper' ); ?></label>
+					<input type="password" id="pp-login-pass" name="pwd" required>
+					<p class="login-remember"><label><input type="checkbox" name="rememberme" value="1"> <?php esc_html_e( 'Remember me', 'project-prepper' ); ?></label></p>
+					<button type="submit" class="pp-portal__btn"><?php esc_html_e( 'Sign in', 'project-prepper' ); ?></button>
+				</form>
+
+			<?php else : /* ---- Standard-Login (2FA aus) ---- */
+				wp_login_form( [
+					'redirect'       => self::portal_url(),
+					'label_username' => __( 'Email or username', 'project-prepper' ),
+					'label_password' => __( 'Password', 'project-prepper' ),
+					'label_log_in'   => __( 'Sign in', 'project-prepper' ),
+					'remember'       => true,
+				] );
+			endif; ?>
+
 			<p class="pp-portal__note">
 				<?php esc_html_e( 'Access is by invitation only. Ask the platform operators to set up an account for you.', 'project-prepper' ); ?>
 				<br>

@@ -31,6 +31,7 @@ class Plugin {
 		Frontend\Blocks::init();
 		Frontend\ItemDetail::init();
 		Frontend\MemberPortal::init();
+		Frontend\MemberAuth::init();
 
 		if ( is_admin() ) {
 			Admin\Menu::init();

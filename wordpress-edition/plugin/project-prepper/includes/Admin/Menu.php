@@ -385,7 +385,7 @@ class Menu {
 						<th scope="row"><?php esc_html_e( 'Two-factor for members', 'project-prepper' ); ?></th>
 						<td>
 							<label><input type="checkbox" name="member_2fa" value="1" <?php checked( $s['member_2fa'] ); ?>> <?php esc_html_e( 'Require a second factor at member login.', 'project-prepper' ); ?></label>
-							<p class="description"><strong><?php esc_html_e( 'Prepared — not enforced yet.', 'project-prepper' ); ?></strong> <?php esc_html_e( 'The switch is saved; the actual 2FA flow is delivered in a dedicated security run.', 'project-prepper' ); ?></p>
+							<p class="description"><?php esc_html_e( 'When on, members get a one-time code by email at portal sign-in. Admins and managers keep the normal wp-admin login.', 'project-prepper' ); ?></p>
 						</td>
 					</tr>
 				</table>

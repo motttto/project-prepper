@@ -3235,3 +3235,36 @@ msgstr "Der Schalter wird gespeichert; der eigentliche 2FA-Ablauf folgt in einem
 
 msgid "Save security settings"
 msgstr "Sicherheits-Einstellungen speichern"
+
+msgid "Your login code — %s"
+msgstr "Dein Login-Code — %s"
+
+msgid ""
+"Your one-time login code is: %1$s\n"
+"\n"
+"It is valid for %2$d minutes. If you did not try to sign in, you can ignore this email."
+msgstr ""
+"Dein Einmal-Login-Code lautet: %1$s\n"
+"\n"
+"Er ist %2$d Minuten gültig. Falls du dich nicht anmelden wolltest, kannst du diese E-Mail ignorieren."
+
+msgid "Login failed. Please check your details and try again."
+msgstr "Anmeldung fehlgeschlagen. Bitte prüfe deine Angaben und versuche es erneut."
+
+msgid "That code was not correct. Please try again."
+msgstr "Dieser Code war nicht korrekt. Bitte versuche es erneut."
+
+msgid "We sent a one-time code to your email. Enter it to finish signing in."
+msgstr "Wir haben dir einen Einmal-Code per E-Mail geschickt. Gib ihn ein, um die Anmeldung abzuschließen."
+
+msgid "Login code"
+msgstr "Login-Code"
+
+msgid "Confirm code"
+msgstr "Code bestätigen"
+
+msgid "Remember me"
+msgstr "Angemeldet bleiben"
+
+msgid "When on, members get a one-time code by email at portal sign-in. Admins and managers keep the normal wp-admin login."
+msgstr "Wenn aktiv, erhalten Mitglieder beim Portal-Login einen Einmal-Code per E-Mail. Admins und Manager nutzen weiter den normalen wp-admin-Login."
