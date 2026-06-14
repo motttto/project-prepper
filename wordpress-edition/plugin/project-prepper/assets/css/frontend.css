@@ -684,6 +684,15 @@ a.pp-front-card-media { text-decoration: none; }
 	font-size: .8rem;
 	color: var(--pp-muted-foreground);
 }
+.pp-history__summary {
+	cursor: pointer;
+}
+.pp-history {
+	display: flex;
+	flex-direction: column;
+	gap: .4rem;
+	margin-top: .6rem;
+}
 .pp-notif {
 	position: relative;
 }

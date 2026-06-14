@@ -1243,6 +1243,7 @@ class MemberPortal {
 		self::render_my_borrows( $user );
 		self::render_incoming_borrows( $user );
 		self::render_incoming_fed_borrows( $fed_incoming );
+		self::render_borrow_history( $user );
 	}
 
 	/** Eingehende föderierte Leih-Anfragen für die eigenen Artikel (Slice 4). */
@@ -3212,8 +3213,15 @@ class MemberPortal {
 		return (bool) preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v );
 	}
 
+	/** Aktive Vorgänge (offen/laufend) vs. abgeschlossene (Historie). */
+	private const BORROW_ACTIVE = [ 'requested', 'approved' ];
+	private const BORROW_CLOSED = [ 'returned', 'declined', 'cancelled' ];
+
 	private static function render_my_borrows( WP_User $user ): void {
-		$requests = Borrowing::my_requests( (int) $user->ID );
+		$requests = array_filter(
+			Borrowing::my_requests( (int) $user->ID ),
+			static fn( $r ) => in_array( $r->status, self::BORROW_ACTIVE, true )
+		);
 		if ( ! $requests ) {
 			return;
 		}
@@ -3237,7 +3245,10 @@ class MemberPortal {
 	}
 
 	private static function render_incoming_borrows( WP_User $user ): void {
-		$requests = Borrowing::incoming_requests( (int) $user->ID );
+		$requests = array_filter(
+			Borrowing::incoming_requests( (int) $user->ID ),
+			static fn( $r ) => in_array( $r->status, self::BORROW_ACTIVE, true )
+		);
 		if ( ! $requests ) {
 			return;
 		}
@@ -3269,6 +3280,59 @@ class MemberPortal {
 					</div>
 				</div>
 			<?php endforeach; ?>
+		</section>
+		<?php
+	}
+
+	/**
+	 * Ausleih-Historie: abgeschlossene Vorgänge (zurückgegeben/abgelehnt/storniert)
+	 * aus beiden Richtungen, eingeklappt und nach Enddatum absteigend sortiert.
+	 */
+	private static function render_borrow_history( WP_User $user ): void {
+		$uid  = (int) $user->ID;
+		$rows = [];
+
+		foreach ( Borrowing::my_requests( $uid ) as $r ) {
+			if ( in_array( $r->status, self::BORROW_CLOSED, true ) ) {
+				$r->pp_dir = 'out';
+				$rows[]    = $r;
+			}
+		}
+		foreach ( Borrowing::incoming_requests( $uid ) as $r ) {
+			if ( in_array( $r->status, self::BORROW_CLOSED, true ) ) {
+				$r->pp_dir = 'in';
+				$rows[]    = $r;
+			}
+		}
+		if ( ! $rows ) {
+			return;
+		}
+		usort( $rows, static fn( $a, $b ) => strcmp( (string) $b->date_to, (string) $a->date_to ) );
+		?>
+		<section class="pp-portal__section">
+			<details class="pp-portal__edit">
+				<summary class="pp-portal__subtitle pp-history__summary"><?php esc_html_e( 'Borrowing history', 'project-prepper' ); ?> (<?php echo (int) count( $rows ); ?>)</summary>
+				<div class="pp-history">
+					<?php foreach ( $rows as $r ) : ?>
+						<div class="pp-portal__invite">
+							<span class="pp-portal__group-name"><?php echo esc_html( $r->item_name ); ?></span>
+							<span class="pp-portal__item-meta">
+								<?php
+								echo esc_html( $r->date_from . ' – ' . $r->date_to );
+								echo ' · ';
+								echo 'out' === $r->pp_dir
+									? esc_html__( 'borrowed', 'project-prepper' )
+									: esc_html__( 'lent out', 'project-prepper' );
+								if ( '' !== (string) ( $r->counterpart_name ?? '' ) ) {
+									echo ' · ' . esc_html( $r->counterpart_name );
+								}
+								?>
+							</span>
+							<span class="pp-portal__tag <?php echo esc_attr( self::borrow_status_class( $r->status ) ); ?>"><?php echo esc_html( self::borrow_status_label( $r->status ) ); ?></span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</details>
 		</section>
 		<?php
 	}
