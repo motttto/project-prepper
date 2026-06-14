@@ -3310,3 +3310,36 @@ msgstr "Du hast zu viele Codes angefordert. Bitte warte einen Moment und versuch
 
 msgid "Resend code"
 msgstr "Code erneut senden"
+
+msgid "Federation"
+msgstr "Föderation"
+
+msgid "Make this instance discoverable to other Project Prepper instances by postal code and topic. Opt-in and OFF by default — while off, nothing is published and the discovery endpoint returns 404. Only coarse, non-personal data is shared (name, postal code, topic, counts)."
+msgstr "Mache diese Instanz für andere Project-Prepper-Instanzen per Postleitzahl und Thema auffindbar. Opt-in und standardmäßig AUS — solange aus, wird nichts veröffentlicht und der Discovery-Endpoint liefert 404. Es werden nur grobe, nicht-personenbezogene Daten geteilt (Name, PLZ, Thema, Anzahlen)."
+
+msgid "Federation settings saved."
+msgstr "Föderations-Einstellungen gespeichert."
+
+msgid "Discoverable"
+msgstr "Auffindbar"
+
+msgid "List this instance in the federation (publish the public profile below)."
+msgstr "Diese Instanz in der Föderation listen (öffentliches Profil unten veröffentlichen)."
+
+msgid "Postal code"
+msgstr "Postleitzahl"
+
+msgid "Topic"
+msgstr "Thema"
+
+msgid "E.g. \"event tech\", \"community garden\", \"makerspace\"."
+msgstr "Z. B. „Veranstaltungstechnik\", „Gemeinschaftsgarten\", „Makerspace\"."
+
+msgid "Contact email"
+msgstr "Kontakt-E-Mail"
+
+msgid "Discovery endpoint"
+msgstr "Discovery-Endpoint"
+
+msgid "Save federation settings"
+msgstr "Föderations-Einstellungen speichern"

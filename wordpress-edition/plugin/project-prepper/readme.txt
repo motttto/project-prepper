@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.33.0
+Stable tag: 0.34.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.34.0 =
+* Federation (first step): a new "Federation" admin page lets an instance opt in to being discoverable by other Project Prepper instances via postal code and topic — OFF by default
+* Public discovery endpoint /wp-json/project-prepper/v1/federation/info returns the instance's coarse public profile (name, postal code, topic, collective and member counts) only when enabled; otherwise 404 — no personal data is ever exposed
+* Cross-instance browsing/borrowing will build on this in a later step
 
 = 0.33.0 =
 * Two-factor polish: members can now resend the login code from the code screen (limited to 3 resends per attempt), and the 2FA email now uses an editable template like the other notifications

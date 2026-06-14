@@ -4,6 +4,7 @@ namespace ProjectPrepper\Admin;
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Schema;
 use ProjectPrepper\Security;
+use ProjectPrepper\Federation;
 use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance;
 use ProjectPrepper\Services\Borrowing;
@@ -138,6 +139,16 @@ class Menu {
 			Capabilities::MANAGE_SETTINGS,
 			'pp-security',
 			[ self::class, 'render_security' ]
+		);
+
+		// Föderation: Instanz für andere auffindbar machen (Opt-in, default aus).
+		add_submenu_page(
+			'project-prepper',
+			__( 'Federation', 'project-prepper' ),
+			__( 'Federation', 'project-prepper' ),
+			Capabilities::MANAGE_SETTINGS,
+			'pp-federation',
+			[ self::class, 'render_federation' ]
 		);
 	}
 
@@ -391,6 +402,54 @@ class Menu {
 				</table>
 
 				<?php submit_button( __( 'Save security settings', 'project-prepper' ) ); ?>
+			</form>
+		</div>
+		<?php
+	}
+
+	/* ===================== Föderation (Slice 1) ===================== */
+
+	public static function render_federation(): void {
+		$f       = Federation::all();
+		$api_url = rest_url( 'project-prepper/v1/federation/info' );
+		?>
+		<div class="wrap">
+			<h1><?php esc_html_e( 'Federation', 'project-prepper' ); ?></h1>
+			<p class="description"><?php esc_html_e( 'Make this instance discoverable to other Project Prepper instances by postal code and topic. Opt-in and OFF by default — while off, nothing is published and the discovery endpoint returns 404. Only coarse, non-personal data is shared (name, postal code, topic, counts).', 'project-prepper' ); ?></p>
+
+			<?php if ( isset( $_GET['pp_fed'] ) && 'saved' === sanitize_key( wp_unslash( $_GET['pp_fed'] ) ) ) : // phpcs:ignore WordPress.Security.NonceVerification.Recommended ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Federation settings saved.', 'project-prepper' ); ?></p></div>
+			<?php endif; ?>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<input type="hidden" name="action" value="pp_save_federation">
+				<?php wp_nonce_field( 'pp_save_federation', 'pp_fed_nonce' ); ?>
+				<table class="form-table" role="presentation">
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Discoverable', 'project-prepper' ); ?></th>
+						<td><label><input type="checkbox" name="enabled" value="1" <?php checked( $f['enabled'] ); ?>> <?php esc_html_e( 'List this instance in the federation (publish the public profile below).', 'project-prepper' ); ?></label></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Postal code', 'project-prepper' ); ?></th>
+						<td><input type="text" name="postal_code" value="<?php echo esc_attr( $f['postal_code'] ); ?>" style="width:120px;"></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Topic', 'project-prepper' ); ?></th>
+						<td>
+							<input type="text" name="topic" value="<?php echo esc_attr( $f['topic'] ); ?>" class="regular-text">
+							<p class="description"><?php esc_html_e( 'E.g. "event tech", "community garden", "makerspace".', 'project-prepper' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Contact email', 'project-prepper' ); ?></th>
+						<td><input type="email" name="contact_email" value="<?php echo esc_attr( $f['contact_email'] ); ?>" class="regular-text"></td>
+					</tr>
+					<tr>
+						<th scope="row"><?php esc_html_e( 'Discovery endpoint', 'project-prepper' ); ?></th>
+						<td><code><?php echo esc_html( $api_url ); ?></code></td>
+					</tr>
+				</table>
+				<?php submit_button( __( 'Save federation settings', 'project-prepper' ) ); ?>
 			</form>
 		</div>
 		<?php

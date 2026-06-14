@@ -27,6 +27,7 @@ class Plugin {
 		Email\Notifications::init();
 		Privacy::init();
 		Security::init();
+		Federation::init();
 		Frontend\Shortcodes::init();
 		Frontend\Blocks::init();
 		Frontend\ItemDetail::init();
@@ -52,5 +53,6 @@ class Plugin {
 		( new Rest\CalendarController() )->register_routes();
 		( new Rest\CalendarViewController() )->register_routes();
 		( new Rest\SettingsController() )->register_routes();
+		( new Rest\FederationController() )->register_routes();
 	}
 }
