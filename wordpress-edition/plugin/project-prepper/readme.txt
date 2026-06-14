@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.36.0
+Stable tag: 0.37.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.37.0 =
+* Member portal redesigned as a full-screen app, matching the look of the web app: a dark sidebar with navigation (Dashboard, My inventory, Lending, My collectives), a top bar with the member's name and sign-out, and a dashboard landing page with KPI cards and a "How the platform works" panel
+* The portal is now navigable view by view instead of one long scrolling page; the existing features (collectives, inventory sharing, browsing and borrowing) keep working unchanged
+* The shell renders through its own page template, so it looks the same regardless of the active theme
 
 = 0.36.0 =
 * The Platform admin page now shows a "Recent activity" feed — who founded a collective, invited someone, shared an item, requested or returned a loan, and more — so operators can follow what is happening across the member portal at a glance

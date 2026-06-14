@@ -52,11 +52,32 @@ class MemberPortal {
 
 		// Offene E-Mail-Einladungen beim Registrieren verknüpfen.
 		add_action( 'user_register', [ Governance::class, 'link_user_on_register' ] );
+
+		// Vollbild-App-Shell: die Portal-Seite bekommt ein eigenes Template
+		// (theme-unabhängig, Sidebar + Topbar wie die Next.js-App).
+		add_filter( 'template_include', [ self::class, 'portal_template' ], 99 );
 	}
 
 	public static function register_assets(): void {
 		// Portal nutzt das gemeinsame Frontend-Stylesheet (enthält die .pp-portal-Regeln).
 		wp_register_style( 'pp-frontend', PP_PLUGIN_URL . 'assets/css/frontend.css', [], PP_VERSION );
+
+		// Auf der Portal-Seite das Stylesheet hier einreihen — das Vollbild-Template
+		// rendert erst nach wp_head(), ein späteres enqueue käme zu spät.
+		if ( self::is_portal_page() ) {
+			wp_enqueue_style( 'pp-frontend' );
+		}
+	}
+
+	/** Aktuelle Anfrage ist die (singuläre) Portal-Seite? */
+	public static function is_portal_page(): bool {
+		$page_id = (int) get_option( self::PAGE_OPTION );
+		return $page_id > 0 && is_page( $page_id );
+	}
+
+	/** template_include: Portal-Seite über das Vollbild-Shell-Template rendern. */
+	public static function portal_template( string $template ): string {
+		return self::is_portal_page() ? PP_PLUGIN_DIR . 'templates/portal-app.php' : $template;
 	}
 
 	/* ===================== Rollen-Helper ===================== */
@@ -290,13 +311,18 @@ class MemberPortal {
 
 	/* ===================== Rendering ===================== */
 
+	/** Shortcode-Einstieg (eingebettet). Die Portal-Seite nutzt portal-app.php. */
 	public static function render(): string {
 		wp_enqueue_style( 'pp-frontend' );
+		return self::render_body();
+	}
 
+	/** Body-Inhalt — vom Vollbild-Template UND vom eingebetteten Shortcode genutzt. */
+	public static function render_body(): string {
 		if ( ! is_user_logged_in() ) {
 			return self::render_login();
 		}
-		return self::render_member();
+		return self::render_app();
 	}
 
 	private static function render_login(): string {
@@ -406,73 +432,326 @@ class MemberPortal {
 		return (string) ob_get_clean();
 	}
 
-	private static function render_member(): string {
+	/* ===================== App-Shell (Vollbild, 1:1 zur Next.js-App) ===================== */
+
+	/** Komplette App-Shell: dunkle Sidebar + Topbar + view-basierter Inhalt. */
+	private static function render_app(): string {
 		$user   = wp_get_current_user();
 		$groups = Groups::user_groups( (int) $user->ID );
+		$view   = self::current_view();
 
 		ob_start();
 		?>
-		<div class="pp-front pp-portal">
-			<header class="pp-portal__header">
-				<h2 class="pp-portal__title">
-					<?php
-					/* translators: %s: member display name. */
-					printf( esc_html__( 'Hello %s', 'project-prepper' ), esc_html( $user->display_name ) );
-					?>
-				</h2>
-				<p class="pp-portal__lead"><?php esc_html_e( 'Welcome to your collective platform.', 'project-prepper' ); ?></p>
-			</header>
-
-			<?php
-			self::render_message();
-
-			if ( self::has_backend_access( $user ) ) :
-				?>
-				<div class="pp-portal__banner">
-					<span><?php esc_html_e( 'You have management access to this platform.', 'project-prepper' ); ?></span>
-					<a class="pp-portal__btn pp-portal__btn--ghost" href="<?php echo esc_url( admin_url( 'admin.php?page=project-prepper' ) ); ?>"><?php esc_html_e( 'Open admin area', 'project-prepper' ); ?></a>
-				</div>
-			<?php endif; ?>
-
-			<?php self::render_my_invitations( $user ); ?>
-
-			<section class="pp-portal__section">
-				<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Your collectives', 'project-prepper' ); ?></h3>
-				<?php if ( $groups ) : ?>
-					<?php foreach ( $groups as $group ) {
-						self::render_collective( (int) $group->id, $group->name, $group->member_role, (int) $user->ID );
-					} ?>
-				<?php else : ?>
-					<p class="pp-portal__empty"><?php esc_html_e( 'You are not part of any collective yet. Found one below or accept an invitation to start sharing inventory.', 'project-prepper' ); ?></p>
-				<?php endif; ?>
-			</section>
-
-			<section class="pp-portal__section">
-				<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Found a collective', 'project-prepper' ); ?></h3>
-				<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<?php self::action_fields( 'found' ); ?>
-					<label for="pp-found-name"><?php esc_html_e( 'Collective name', 'project-prepper' ); ?></label>
-					<input type="text" id="pp-found-name" name="pp_name" required>
-					<label for="pp-found-desc"><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?></label>
-					<textarea id="pp-found-desc" name="pp_description" rows="2"></textarea>
-					<button type="submit" class="pp-portal__btn"><?php esc_html_e( 'Found collective', 'project-prepper' ); ?></button>
-				</form>
-			</section>
-
-			<?php self::render_my_inventory( $user, $groups ); ?>
-
-			<?php self::render_browse( $user, $groups ); ?>
-
-			<?php self::render_my_borrows( $user ); ?>
-
-			<?php self::render_incoming_borrows( $user ); ?>
-
-			<footer class="pp-portal__footer">
-				<a class="pp-portal__btn pp-portal__btn--ghost" href="<?php echo esc_url( wp_logout_url( self::portal_url() ) ); ?>"><?php esc_html_e( 'Sign out', 'project-prepper' ); ?></a>
-			</footer>
+		<div class="pp-app">
+			<input type="checkbox" id="pp-nav-toggle" class="pp-app__nav-cb" hidden>
+			<label for="pp-nav-toggle" class="pp-app__overlay" aria-hidden="true"></label>
+			<?php self::render_sidebar( $user, $groups, $view ); ?>
+			<div class="pp-app__main-wrap">
+				<?php self::render_topbar( $user ); ?>
+				<main class="pp-app__main">
+					<div class="pp-front pp-app__content">
+						<?php
+						self::render_message();
+						switch ( $view ) {
+							case 'inventory':
+								self::view_inventory( $user, $groups );
+								break;
+							case 'lending':
+								self::view_lending( $user, $groups );
+								break;
+							case 'collectives':
+								self::view_collectives( $user, $groups );
+								break;
+							default:
+								self::view_dashboard( $user, $groups );
+						}
+						?>
+					</div>
+				</main>
+			</div>
 		</div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/** Erlaubte Views — Default Dashboard. */
+	private static function current_view(): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
+		$view    = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : 'dashboard';
+		$allowed = [ 'dashboard', 'inventory', 'lending', 'collectives' ];
+		return in_array( $view, $allowed, true ) ? $view : 'dashboard';
+	}
+
+	/** Sidebar-Navigationspunkte (nur gebaute Member-Features). */
+	private static function nav_items(): array {
+		return [
+			[ 'view' => 'dashboard',   'icon' => 'dashboard', 'label' => __( 'Dashboard', 'project-prepper' ) ],
+			[ 'view' => 'inventory',   'icon' => 'inventory', 'label' => __( 'My inventory', 'project-prepper' ) ],
+			[ 'view' => 'lending',     'icon' => 'package',   'label' => __( 'Lending', 'project-prepper' ) ],
+			[ 'view' => 'collectives', 'icon' => 'users',     'label' => __( 'My collectives', 'project-prepper' ) ],
+		];
+	}
+
+	/** URL einer View auf der Portal-Seite. */
+	private static function view_url( string $view ): string {
+		$base = self::portal_url();
+		return 'dashboard' === $view ? $base : add_query_arg( 'pp_view', $view, $base );
+	}
+
+	private static function render_sidebar( WP_User $user, array $groups, string $view ): void {
+		$count = count( $groups );
+		?>
+		<aside class="pp-app__sidebar">
+			<a class="pp-app__brand" href="<?php echo esc_url( self::view_url( 'dashboard' ) ); ?>">
+				<span class="pp-app__brand-mark">P</span>
+				<span class="pp-app__brand-name">Project Prepper</span>
+			</a>
+
+			<div class="pp-app__workspace">
+				<span class="pp-app__workspace-label"><?php esc_html_e( 'Member workspace', 'project-prepper' ); ?></span>
+				<span class="pp-app__workspace-name"><?php echo esc_html( $user->display_name ); ?></span>
+			</div>
+
+			<nav class="pp-app__nav">
+				<?php foreach ( self::nav_items() as $item ) :
+					$active = ( $item['view'] === $view ); ?>
+					<a class="pp-app__nav-item<?php echo $active ? ' is-active' : ''; ?>" href="<?php echo esc_url( self::view_url( $item['view'] ) ); ?>"<?php echo $active ? ' aria-current="page"' : ''; ?>>
+						<?php self::nav_icon( $item['icon'] ); ?>
+						<span><?php echo esc_html( $item['label'] ); ?></span>
+						<?php if ( 'collectives' === $item['view'] && $count > 0 ) : ?>
+							<span class="pp-app__nav-badge"><?php echo (int) $count; ?></span>
+						<?php endif; ?>
+					</a>
+				<?php endforeach; ?>
+			</nav>
+
+			<div class="pp-app__sidebar-foot">
+				<?php if ( self::has_backend_access( $user ) ) : ?>
+					<a class="pp-app__nav-item pp-app__nav-item--muted" href="<?php echo esc_url( admin_url( 'admin.php?page=project-prepper' ) ); ?>">
+						<?php self::nav_icon( 'admin' ); ?>
+						<span><?php esc_html_e( 'Admin area', 'project-prepper' ); ?></span>
+					</a>
+				<?php endif; ?>
+			</div>
+		</aside>
+		<?php
+	}
+
+	private static function render_topbar( WP_User $user ): void {
+		$role = self::has_backend_access( $user )
+			? __( 'Manager', 'project-prepper' )
+			: __( 'Member', 'project-prepper' );
+		?>
+		<header class="pp-app__topbar">
+			<label for="pp-nav-toggle" class="pp-app__burger" aria-label="<?php esc_attr_e( 'Toggle menu', 'project-prepper' ); ?>">
+				<span></span><span></span><span></span>
+			</label>
+			<div class="pp-app__topbar-right">
+				<div class="pp-app__user">
+					<span class="pp-app__avatar"><?php echo esc_html( self::initials( $user->display_name ) ); ?></span>
+					<span class="pp-app__user-meta">
+						<span class="pp-app__user-name"><?php echo esc_html( $user->display_name ); ?></span>
+						<span class="pp-app__user-role"><?php echo esc_html( $role ); ?></span>
+					</span>
+				</div>
+				<a class="pp-app__icon-btn" href="<?php echo esc_url( wp_logout_url( self::portal_url() ) ); ?>" aria-label="<?php esc_attr_e( 'Sign out', 'project-prepper' ); ?>" title="<?php esc_attr_e( 'Sign out', 'project-prepper' ); ?>">
+					<?php self::nav_icon( 'logout' ); ?>
+				</a>
+			</div>
+		</header>
+		<?php
+	}
+
+	/** Initialen aus dem Anzeigenamen (1–2 Buchstaben). */
+	private static function initials( string $name ): string {
+		$name = trim( $name );
+		if ( '' === $name ) {
+			return '?';
+		}
+		$parts = preg_split( '/\s+/', $name );
+		$first = mb_substr( $parts[0], 0, 1 );
+		$last  = count( $parts ) > 1 ? mb_substr( (string) end( $parts ), 0, 1 ) : '';
+		return mb_strtoupper( $first . $last );
+	}
+
+	/** Inline-SVG-Icon (stroke=currentColor) — passend zur App-Sidebar. */
+	private static function nav_icon( string $name ): void {
+		$icons = [
+			'dashboard' => '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+			'inventory' => '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+			'package'   => '<path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>',
+			'users'     => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+			'admin'     => '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
+			'logout'    => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+			'info'      => '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+		];
+		$path = $icons[ $name ] ?? '';
+		echo '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $path . '</svg>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- statisches Icon-Markup.
+	}
+
+	/* ---------- Views ---------- */
+
+	private static function view_dashboard( WP_User $user, array $groups ): void {
+		$inv_count = count( MemberInventory::my_items( (int) $user->ID ) );
+		$grp_count = count( $groups );
+		$incoming  = Borrowing::incoming_requests( (int) $user->ID );
+		$open_reqs = count( array_filter( $incoming, static fn( $r ) => 'requested' === $r->status ) );
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title">
+				<?php
+				/* translators: %s: member display name. */
+				printf( esc_html__( 'Hello %s', 'project-prepper' ), esc_html( $user->display_name ) );
+				?>
+			</h1>
+			<p class="pp-app__page-sub">
+				<?php
+				if ( $grp_count > 0 ) {
+					/* translators: %d: number of collectives. */
+					printf( esc_html( _n( 'Member of %d collective', 'Member of %d collectives', $grp_count, 'project-prepper' ) ), (int) $grp_count );
+				} else {
+					esc_html_e( 'Welcome to your collective platform.', 'project-prepper' );
+				}
+				?>
+			</p>
+		</header>
+
+		<?php self::render_how_it_works(); ?>
+
+		<div class="pp-kpi-grid">
+			<?php
+			self::kpi_card( 'inventory', $inv_count, __( 'Inventory items', 'project-prepper' ), 'warning', 'inventory' );
+			self::kpi_card( 'collectives', $grp_count, __( 'Collectives', 'project-prepper' ), 'primary', 'users' );
+			self::kpi_card( 'lending', $open_reqs, __( 'Open borrow requests', 'project-prepper' ), 'info', 'package' );
+			?>
+		</div>
+
+		<?php self::render_my_invitations( $user ); ?>
+
+		<section class="pp-app__section">
+			<div class="pp-app__section-head">
+				<h2 class="pp-portal__subtitle"><?php esc_html_e( 'Your collectives', 'project-prepper' ); ?></h2>
+				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::view_url( 'collectives' ) ); ?>"><?php esc_html_e( 'Manage', 'project-prepper' ); ?></a>
+			</div>
+			<?php if ( $groups ) : ?>
+				<ul class="pp-portal__groups">
+					<?php foreach ( $groups as $g ) : ?>
+						<li class="pp-portal__group">
+							<span class="pp-portal__group-name"><?php echo esc_html( $g->name ); ?></span>
+							<?php if ( 'founder' === $g->member_role ) : ?>
+								<span class="pp-portal__tag"><?php esc_html_e( 'Founder', 'project-prepper' ); ?></span>
+							<?php else : ?>
+								<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Member', 'project-prepper' ); ?></span>
+							<?php endif; ?>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			<?php else : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'You are not part of any collective yet. Go to “My collectives” to found one or accept an invitation.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
+	private static function kpi_card( string $view, int $value, string $label, string $tone, string $icon ): void {
+		?>
+		<a class="pp-kpi pp-kpi--<?php echo esc_attr( $tone ); ?>" href="<?php echo esc_url( self::view_url( $view ) ); ?>">
+			<span class="pp-kpi__icon"><?php self::nav_icon( $icon ); ?></span>
+			<span class="pp-kpi__value"><?php echo (int) $value; ?></span>
+			<span class="pp-kpi__label"><?php echo esc_html( $label ); ?></span>
+		</a>
+		<?php
+	}
+
+	/** „So funktioniert die Plattform" — einklappbar (WP-nativ, ohne JS). */
+	private static function render_how_it_works(): void {
+		?>
+		<details class="pp-hiw" open>
+			<summary class="pp-hiw__summary">
+				<?php self::nav_icon( 'info' ); ?>
+				<span><?php esc_html_e( 'How the platform works', 'project-prepper' ); ?></span>
+			</summary>
+			<div class="pp-hiw__body">
+				<div class="pp-hiw__cols">
+					<div class="pp-hiw__col">
+						<span class="pp-hiw__step">1</span>
+						<h3><?php esc_html_e( 'Your own inventory', 'project-prepper' ); ?></h3>
+						<p><?php esc_html_e( 'Add the equipment you own. It stays yours — you decide who may use it.', 'project-prepper' ); ?></p>
+					</div>
+					<div class="pp-hiw__col">
+						<span class="pp-hiw__step">2</span>
+						<h3><?php esc_html_e( 'Share with collectives', 'project-prepper' ); ?></h3>
+						<p><?php esc_html_e( 'Found or join a collective and share selected items with its members.', 'project-prepper' ); ?></p>
+					</div>
+					<div class="pp-hiw__col">
+						<span class="pp-hiw__step">3</span>
+						<h3><?php esc_html_e( 'Browse & borrow', 'project-prepper' ); ?></h3>
+						<p><?php esc_html_e( 'Borrow what others share, and lend out your own — non-commercial, among members.', 'project-prepper' ); ?></p>
+					</div>
+				</div>
+			</div>
+		</details>
+		<?php
+	}
+
+	private static function view_inventory( WP_User $user, array $groups ): void {
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'My inventory', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Your personal equipment — share items with your collectives.', 'project-prepper' ); ?></p>
+		</header>
+		<?php
+		self::render_my_inventory( $user, $groups, false );
+	}
+
+	private static function view_lending( WP_User $user, array $groups ): void {
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'Borrowing & lending', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Browse what your collectives share, request items and manage requests for your own.', 'project-prepper' ); ?></p>
+		</header>
+		<?php
+		if ( ! $groups
+			&& ! Borrowing::my_requests( (int) $user->ID )
+			&& ! Borrowing::incoming_requests( (int) $user->ID ) ) {
+			echo '<p class="pp-portal__empty">' . esc_html__( 'Join a collective to browse and borrow shared equipment.', 'project-prepper' ) . '</p>';
+			return;
+		}
+		self::render_browse( $user, $groups );
+		self::render_my_borrows( $user );
+		self::render_incoming_borrows( $user );
+	}
+
+	private static function view_collectives( WP_User $user, array $groups ): void {
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'My collectives', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Found or join collectives and invite members to share resources.', 'project-prepper' ); ?></p>
+		</header>
+		<?php self::render_my_invitations( $user ); ?>
+		<section class="pp-portal__section">
+			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Your collectives', 'project-prepper' ); ?></h3>
+			<?php if ( $groups ) : ?>
+				<?php foreach ( $groups as $group ) {
+					self::render_collective( (int) $group->id, $group->name, $group->member_role, (int) $user->ID );
+				} ?>
+			<?php else : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'You are not part of any collective yet. Found one below or accept an invitation to start sharing inventory.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+		</section>
+
+		<section class="pp-portal__section">
+			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Found a collective', 'project-prepper' ); ?></h3>
+			<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php self::action_fields( 'found' ); ?>
+				<label for="pp-found-name"><?php esc_html_e( 'Collective name', 'project-prepper' ); ?></label>
+				<input type="text" id="pp-found-name" name="pp_name" required>
+				<label for="pp-found-desc"><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?></label>
+				<textarea id="pp-found-desc" name="pp_description" rows="2"></textarea>
+				<button type="submit" class="pp-portal__btn"><?php esc_html_e( 'Found collective', 'project-prepper' ); ?></button>
+			</form>
+		</section>
+		<?php
 	}
 
 	/* ---------- Render-Bausteine ---------- */
@@ -626,13 +905,15 @@ class MemberPortal {
 	/* ---------- Mein Inventar (Phase 3) ---------- */
 
 	/** @param array<object> $groups Kollektive des Users (id, name, member_role). */
-	private static function render_my_inventory( WP_User $user, array $groups ): void {
+	private static function render_my_inventory( WP_User $user, array $groups, bool $heading = true ): void {
 		$items      = MemberInventory::my_items( (int) $user->ID );
 		$categories = Inventory::categories();
 		$conditions = Shortcodes::condition_labels();
 		?>
 		<section class="pp-portal__section">
-			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'My inventory', 'project-prepper' ); ?></h3>
+			<?php if ( $heading ) : ?>
+				<h3 class="pp-portal__subtitle"><?php esc_html_e( 'My inventory', 'project-prepper' ); ?></h3>
+			<?php endif; ?>
 
 			<?php if ( $items ) : ?>
 				<?php foreach ( $items as $item ) : ?>
