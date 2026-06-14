@@ -2,6 +2,8 @@
 namespace ProjectPrepper;
 
 use ProjectPrepper\Services\Groups;
+use ProjectPrepper\Services\Inventory;
+use ProjectPrepper\Frontend\Shortcodes;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -113,6 +115,73 @@ class Federation {
 			$out[] = [ 'url' => $url, 'profile' => self::fetch( $url ) ];
 		}
 		return $out;
+	}
+
+	/* ===================== Geteiltes Inventar (Slice 3) ===================== */
+
+	/**
+	 * Öffentlich teilbarer Inventar-Katalog DIESER Instanz für die Föderation.
+	 *
+	 * Bewusst dieselbe Whitelist wie das öffentliche Frontend
+	 * (Shortcodes::public_item) — nur nutzbare Artikel (kein broken/retired),
+	 * KEINE personenbezogenen/internen Felder (kein Owner, keine Seriennummer,
+	 * keine Notizen). Der Tagessatz reist nur mit, wenn der Betreiber ihn
+	 * öffentlich freigegeben hat (Option pp_public_show_rates). detail_url ist
+	 * absolut (zeigt auf die öffentliche Artikelseite dieser Instanz).
+	 *
+	 * @param int $limit Obergrenze der Payload (Schutz vor Riesen-Antworten).
+	 * @return array<array<string,mixed>>
+	 */
+	public static function public_inventory( int $limit = 200 ): array {
+		$items      = Inventory::items( [ 'usable_only' => true ] );
+		$show_rates = (bool) get_option( 'pp_public_show_rates', false );
+		$out        = [];
+		foreach ( array_slice( $items, 0, max( 1, $limit ) ) as $item ) {
+			$row = Shortcodes::public_item( $item );
+			if ( ! $show_rates ) {
+				$row['cost_per_day'] = null;
+			}
+			$out[] = $row;
+		}
+		return $out;
+	}
+
+	/**
+	 * Geteilten Katalog einer Partner-Instanz abrufen (1 h gecacht).
+	 *
+	 * Outbound nur an vom Betreiber konfigurierte URLs (SSRF-Schutz wie fetch()),
+	 * liest ausschließlich den öffentlichen /federation/inventory-Endpoint.
+	 * Nicht erreichbar/aus → null.
+	 *
+	 * @return array{profile:array,items:array}|null
+	 */
+	public static function partner_catalog( string $url ): ?array {
+		$url    = untrailingslashit( $url );
+		$key    = 'pp_fedinv_' . md5( $url );
+		$cached = get_transient( $key );
+		if ( is_array( $cached ) ) {
+			return $cached;
+		}
+		if ( 'none' === $cached ) {
+			return null;
+		}
+
+		$resp = wp_remote_get( $url . '/wp-json/project-prepper/v1/federation/inventory', [ 'timeout' => 5 ] );
+		if ( is_wp_error( $resp ) || 200 !== (int) wp_remote_retrieve_response_code( $resp ) ) {
+			set_transient( $key, 'none', HOUR_IN_SECONDS );
+			return null;
+		}
+		$data = json_decode( wp_remote_retrieve_body( $resp ), true );
+		if ( ! is_array( $data ) || ! isset( $data['items'] ) || ! is_array( $data['items'] ) ) {
+			set_transient( $key, 'none', HOUR_IN_SECONDS );
+			return null;
+		}
+		$catalog = [
+			'profile' => ( isset( $data['instance'] ) && is_array( $data['instance'] ) ) ? $data['instance'] : [],
+			'items'   => $data['items'],
+		];
+		set_transient( $key, $catalog, HOUR_IN_SECONDS );
+		return $catalog;
 	}
 
 	/* ===================== Admin-Formular ===================== */

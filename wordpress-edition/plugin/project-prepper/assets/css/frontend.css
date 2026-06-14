@@ -1233,6 +1233,35 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-poll-btn--maybe.is-active { background: #fffbeb; border-color: #f59e0b; color: #b45309; }
 .pp-poll-btn--no.is-active { background: #fef2f2; border-color: #ef4444; color: #b91c1c; }
 
+/* Netzwerk (Föderation Slice 3 — geteiltes Inventar von Partner-Instanzen) */
+.pp-net-search { display: flex; gap: 8px; margin-bottom: 18px; max-width: 520px; }
+.pp-net-search input[type="search"] { flex: 1; }
+.pp-net-inst { margin-bottom: 26px; }
+.pp-net-inst__head {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	flex-wrap: wrap;
+	margin-bottom: 12px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid #e2e8f0;
+}
+.pp-net-inst__name { font-weight: 600; font-size: 1.05rem; color: #0f172a; text-decoration: none; }
+.pp-net-inst__name:hover { color: #4f46e5; }
+.pp-net-inst__meta { font-size: .85rem; color: #64748b; }
+.pp-net-inst__count { margin-left: auto; font-size: .8rem; color: #94a3b8; }
+.pp-net-inst--down {
+	display: flex;
+	gap: 10px;
+	align-items: center;
+	padding: 10px 0;
+	border-bottom: 1px solid #f1f5f9;
+	opacity: .75;
+}
+.pp-net-inst--down .pp-net-inst__meta { color: #dc2626; }
+.pp-net-inst__empty { color: #94a3b8; font-size: .85rem; margin: 0; }
+.pp-net-note { margin-top: 8px; font-size: .8rem; color: #94a3b8; }
+
 /* Kalender (read-only Monatsraster) */
 .pp-cal__bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
 .pp-cal__title { font-size: 1.05rem; font-weight: 600; min-width: 9rem; }

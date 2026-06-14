@@ -12,6 +12,7 @@ use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\Schedule;
 use ProjectPrepper\Services\Decisions;
 use ProjectPrepper\Services\Polls;
+use ProjectPrepper\Federation;
 use WP_User;
 
 defined( 'ABSPATH' ) || exit;
@@ -574,6 +575,9 @@ class MemberPortal {
 							case 'calendar':
 								self::view_calendar( $user, $groups );
 								break;
+							case 'network':
+								self::view_network();
+								break;
 							case 'collectives':
 								self::view_collectives( $user, $groups );
 								break;
@@ -593,7 +597,7 @@ class MemberPortal {
 	private static function current_view(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$view    = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : 'dashboard';
-		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'calendar', 'collectives' ];
+		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'calendar', 'network', 'collectives' ];
 		return in_array( $view, $allowed, true ) ? $view : 'dashboard';
 	}
 
@@ -605,6 +609,7 @@ class MemberPortal {
 			[ 'view' => 'lending',     'icon' => 'package',   'label' => __( 'Lending', 'project-prepper' ) ],
 			[ 'view' => 'projects',    'icon' => 'projects',  'label' => __( 'My projects', 'project-prepper' ) ],
 			[ 'view' => 'calendar',    'icon' => 'calendar',  'label' => __( 'Calendar', 'project-prepper' ) ],
+			[ 'view' => 'network',     'icon' => 'globe',     'label' => __( 'Network', 'project-prepper' ) ],
 			[ 'view' => 'collectives', 'icon' => 'users',     'label' => __( 'My collectives', 'project-prepper' ) ],
 		];
 	}
@@ -700,6 +705,7 @@ class MemberPortal {
 			'users'     => '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
 			'projects'  => '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 13h6"/><path d="M9 17h6"/>',
 			'calendar'  => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
+			'globe'     => '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
 			'admin'     => '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
 			'logout'    => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
 			'info'      => '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
@@ -1557,6 +1563,124 @@ class MemberPortal {
 		for ( $t = strtotime( $start ); $t <= strtotime( $end ); $t = strtotime( '+1 day', $t ) ) {
 			$by_day[ gmdate( 'Y-m-d', $t ) ][] = $event;
 		}
+	}
+
+	/* ---------- Netzwerk (Föderation Slice 3, read-only) ---------- */
+
+	private static function view_network(): void {
+		$partners   = Federation::partners();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reiner Filter
+		$q          = isset( $_GET['pp_q'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_q'] ) ) : '';
+		$conditions = Shortcodes::condition_labels();
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'Network', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Shared inventory from connected partner instances.', 'project-prepper' ); ?></p>
+		</header>
+
+		<?php if ( ! $partners ) : ?>
+			<p class="pp-portal__empty"><?php esc_html_e( 'No partner instances are connected yet. Ask the platform operators to add other instances on the Federation page.', 'project-prepper' ); ?></p>
+			<?php
+			return;
+		endif;
+		?>
+
+		<form class="pp-net-search" method="get">
+			<input type="hidden" name="pp_view" value="network">
+			<input type="search" name="pp_q" value="<?php echo esc_attr( $q ); ?>" placeholder="<?php esc_attr_e( 'Filter by item, postal code or topic …', 'project-prepper' ); ?>">
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Filter', 'project-prepper' ); ?></button>
+		</form>
+
+		<?php
+		$needle    = mb_strtolower( $q );
+		$any_shown = false;
+		foreach ( $partners as $url ) {
+			$catalog = Federation::partner_catalog( $url );
+			if ( null === $catalog ) {
+				?>
+				<div class="pp-net-inst pp-net-inst--down">
+					<span class="pp-net-inst__name"><?php echo esc_html( self::pretty_host( $url ) ); ?></span>
+					<span class="pp-net-inst__meta"><?php esc_html_e( 'not reachable', 'project-prepper' ); ?></span>
+				</div>
+				<?php
+				continue;
+			}
+			$profile = (array) $catalog['profile'];
+			$items   = (array) $catalog['items'];
+
+			// Filter: passt die Instanz selbst (Name/PLZ/Thema), zeigen wir ihren
+			// ganzen Katalog; sonst nur die namentlich passenden Artikel — und die
+			// Instanz nur, wenn überhaupt ein Artikel übrig bleibt.
+			if ( '' !== $needle ) {
+				$inst_hay = mb_strtolower( ( $profile['name'] ?? '' ) . ' ' . ( $profile['postal_code'] ?? '' ) . ' ' . ( $profile['topic'] ?? '' ) );
+				if ( false === mb_strpos( $inst_hay, $needle ) ) {
+					$items = array_values( array_filter( $items, static fn( $it ) => false !== mb_strpos( mb_strtolower( (string) ( $it['name'] ?? '' ) ), $needle ) ) );
+					if ( ! $items ) {
+						continue;
+					}
+				}
+			}
+			$any_shown = true;
+			$inst_url  = (string) ( $profile['url'] ?? $url );
+			?>
+			<section class="pp-net-inst">
+				<div class="pp-net-inst__head">
+					<a class="pp-net-inst__name" href="<?php echo esc_url( $inst_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $profile['name'] ?? self::pretty_host( $url ) ); ?></a>
+					<span class="pp-net-inst__meta"><?php echo esc_html( implode( ' · ', array_filter( [ (string) ( $profile['postal_code'] ?? '' ), (string) ( $profile['topic'] ?? '' ) ] ) ) ); ?></span>
+					<span class="pp-net-inst__count">
+						<?php
+						/* translators: %d: number of shared items. */
+						printf( esc_html( _n( '%d item', '%d items', count( $items ), 'project-prepper' ) ), count( $items ) );
+						?>
+					</span>
+				</div>
+				<?php if ( $items ) : ?>
+					<div class="pp-front-grid">
+						<?php foreach ( $items as $it ) :
+							$cond = (string) ( $it['condition'] ?? '' );
+							$rate = $it['cost_per_day'] ?? null; ?>
+							<a class="pp-front-card" href="<?php echo esc_url( (string) ( $it['detail_url'] ?? $inst_url ) ); ?>" target="_blank" rel="noopener">
+								<div class="pp-front-card-media">
+									<?php if ( ! empty( $it['image_url'] ) ) : ?>
+										<img src="<?php echo esc_url( (string) $it['image_url'] ); ?>" alt="">
+									<?php else : ?>
+										<span class="pp-front-card-icon"><?php echo esc_html( (string) ( $it['category_icon'] ?? '📦' ) ); ?></span>
+									<?php endif; ?>
+								</div>
+								<div class="pp-front-card-body">
+									<h4 class="pp-front-card-title"><?php echo esc_html( (string) ( $it['name'] ?? '' ) ); ?></h4>
+									<div class="pp-front-card-meta">
+										<?php if ( '' !== $cond ) : ?>
+											<span class="pp-front-chip pp-front-chip-<?php echo esc_attr( $cond ); ?>"><?php echo esc_html( $conditions[ $cond ] ?? $cond ); ?></span>
+										<?php endif; ?>
+										<span class="pp-front-chip">×<?php echo (int) ( $it['quantity'] ?? 1 ); ?></span>
+									</div>
+									<?php if ( null !== $rate && '' !== $rate ) : ?>
+										<div class="pp-front-card-rate"><?php echo esc_html( number_format_i18n( (float) $rate, 2 ) ); ?> €<span> / <?php esc_html_e( 'day', 'project-prepper' ); ?></span></div>
+									<?php endif; ?>
+								</div>
+							</a>
+						<?php endforeach; ?>
+					</div>
+				<?php else : ?>
+					<p class="pp-net-inst__empty"><?php esc_html_e( 'No shared items.', 'project-prepper' ); ?></p>
+				<?php endif; ?>
+			</section>
+			<?php
+		}
+
+		if ( ! $any_shown && '' !== $needle ) {
+			echo '<p class="pp-portal__empty">' . esc_html__( 'Nothing matched your filter.', 'project-prepper' ) . '</p>';
+		}
+		?>
+		<p class="pp-net-note"><?php esc_html_e( 'Borrowing across instances isn’t available yet — open an item to view it on the partner instance.', 'project-prepper' ); ?></p>
+		<?php
+	}
+
+	/** Host einer URL für die Anzeige (ohne Schema/Pfad). */
+	private static function pretty_host( string $url ): string {
+		$host = wp_parse_url( $url, PHP_URL_HOST );
+		return $host ? (string) $host : $url;
 	}
 
 	/* ---------- Render-Bausteine ---------- */

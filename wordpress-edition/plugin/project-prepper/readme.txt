@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.40.0
+Stable tag: 0.41.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.41.0 =
+* Federation (cross-instance): members get a new "Network" page that shows the shared inventory of connected partner instances, grouped by instance with postal code and topic, and a filter by item, postal code or topic
+* A new public, opt-in endpoint exposes this instance's usable catalogue as anonymised whitelist data (no owner, serial numbers, prices unless rates are made public) for partner instances to read
+* Read-only for now — items link to the partner instance's public page; borrowing across instances is not yet available
 
 = 0.40.0 =
 * Member portal: decisions and polls are now interactive inside a project — members of the owning collective can vote on decisions (approve/reject/abstain) and on polls (yes/no/maybe per option), and can create new decisions and polls themselves

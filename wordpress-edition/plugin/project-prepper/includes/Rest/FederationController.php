@@ -23,6 +23,13 @@ class FederationController extends BaseController {
 			'callback'            => [ $this, 'info' ],
 			'permission_callback' => '__return_true',
 		] );
+
+		// Slice 3: öffentlich geteilter Inventar-Katalog (anonymisiert).
+		register_rest_route( self::REST_NAMESPACE, '/federation/inventory', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'inventory' ],
+			'permission_callback' => '__return_true',
+		] );
 	}
 
 	public function info() {
@@ -30,5 +37,15 @@ class FederationController extends BaseController {
 			return new WP_REST_Response( [ 'federation' => 'disabled' ], 404 );
 		}
 		return new WP_REST_Response( Federation::public_profile(), 200 );
+	}
+
+	public function inventory() {
+		if ( ! Federation::enabled() ) {
+			return new WP_REST_Response( [ 'federation' => 'disabled' ], 404 );
+		}
+		return new WP_REST_Response( [
+			'instance' => Federation::public_profile(),
+			'items'    => Federation::public_inventory(),
+		], 200 );
 	}
 }

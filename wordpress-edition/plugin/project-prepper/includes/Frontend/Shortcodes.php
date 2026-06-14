@@ -106,8 +106,10 @@ class Shortcodes {
 
 	/**
 	 * Öffentliche Sicht auf einen Artikel — Whitelist statt Vollobjekt.
+	 * Public, damit die Föderation (Federation::public_inventory) dieselbe
+	 * Whitelist als einzige Quelle nutzt (kein Daten-Leak, keine Dublette).
 	 */
-	private static function public_item( object $item ): array {
+	public static function public_item( object $item ): array {
 		return [
 			'id'            => (int) $item->id,
 			'name'          => $item->name,
