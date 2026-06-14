@@ -3725,6 +3725,231 @@
 		load();
 	}
 
+	/* ================= Seite: Plattform ================= */
+
+	// Kleine Tabellen-Karte (h2 + wp-list-table) — für die read-only Übersichten.
+	function tableCard(title, headers, rows, emptyText) {
+		var thead = el("thead", null, [el("tr", null, headers.map(function (h) { return el("th", { text: h }); }))]);
+		var body;
+		if (rows.length) {
+			body = el("tbody", null, rows.map(function (cells) {
+				return el("tr", null, cells.map(function (c) { return el("td", { text: c === null || c === undefined || c === "" ? "—" : String(c) }); }));
+			}));
+		} else {
+			body = el("tbody", null, [el("tr", null, [el("td", { colspan: String(headers.length), text: emptyText })])]);
+		}
+		return el("div", { class: "pp-card" }, [
+			el("h2", { text: title }),
+			el("table", { class: "wp-list-table widefat fixed striped" }, [thead, body])
+		]);
+	}
+
+	function renderPlatform() {
+		root.innerHTML = "";
+		var STATUS = {
+			pending: __("Pending acceptance", "project-prepper"), voting: __("In voting", "project-prepper"),
+			requested: __("Requested", "project-prepper"), approved: __("Approved", "project-prepper"),
+			declined: __("Declined", "project-prepper"), cancelled: __("Cancelled", "project-prepper"),
+			returned: __("Returned", "project-prepper")
+		};
+		var ACTIONS = {
+			group_created: __("founded a collective", "project-prepper"),
+			group_invited: __("invited someone", "project-prepper"),
+			group_invitation_accepted: __("accepted an invitation", "project-prepper"),
+			group_invitation_approved: __("was approved to join", "project-prepper"),
+			group_invitation_rejected: __("was rejected", "project-prepper"),
+			group_member_added: __("added a member", "project-prepper"),
+			group_member_removed: __("removed a member", "project-prepper"),
+			member_item_created: __("added an item", "project-prepper"),
+			member_item_deleted: __("deleted an item", "project-prepper"),
+			item_shared: __("shared an item", "project-prepper"),
+			item_unshared: __("stopped sharing an item", "project-prepper"),
+			borrow_requested: __("requested to borrow an item", "project-prepper"),
+			borrow_approved: __("approved a borrow request", "project-prepper"),
+			borrow_declined: __("declined a borrow request", "project-prepper"),
+			borrow_returned: __("marked a loan returned", "project-prepper")
+		};
+
+		root.appendChild(el("p", { class: "pp-muted", text: __("Where the member portal comes together: collectives, join voting, member inventory and borrow requests. Manage members under Groups.", "project-prepper") }));
+
+		api("/platform").then(function (d) {
+			var kpis = [
+				[__("Collectives", "project-prepper"), d.kpis.collectives],
+				[__("Member inventory", "project-prepper"), d.kpis.member_items],
+				[__("Open invitations", "project-prepper"), d.kpis.open_invites],
+				[__("Active loans", "project-prepper"), d.kpis.active_loans],
+				[__("Open borrow requests", "project-prepper"), d.kpis.open_requests]
+			];
+			root.appendChild(el("div", { class: "pp-kpis" }, kpis.map(function (k) {
+				return el("div", { class: "pp-kpi" }, [
+					el("div", { class: "pp-kpi-value", text: String(k[1]) }),
+					el("div", { class: "pp-kpi-label", text: k[0] })
+				]);
+			})));
+
+			root.appendChild(tableCard(
+				__("Open join invitations", "project-prepper"),
+				[__("Collective", "project-prepper"), __("Invited", "project-prepper"), __("Status", "project-prepper"), __("Approvals", "project-prepper")],
+				d.invitations.map(function (i) { return [i.group, i.email, STATUS[i.status] || i.status, i.approvals]; }),
+				__("No open invitations.", "project-prepper")
+			));
+
+			root.appendChild(tableCard(
+				__("Recent borrow requests", "project-prepper"),
+				[__("Item", "project-prepper"), __("Owner", "project-prepper"), __("Borrower", "project-prepper"), __("Period", "project-prepper"), __("Status", "project-prepper")],
+				d.borrows.map(function (b) { return [b.item, b.owner, b.borrower, b.period, STATUS[b.status] || b.status]; }),
+				__("No borrow requests yet.", "project-prepper")
+			));
+
+			root.appendChild(tableCard(
+				__("Recent activity", "project-prepper"),
+				[__("When", "project-prepper"), __("Who", "project-prepper"), __("Action", "project-prepper")],
+				d.activity.map(function (a) { return [a.when, a.who, ACTIONS[a.action] || a.action]; }),
+				__("No activity recorded yet.", "project-prepper")
+			));
+
+			root.appendChild(tableCard(
+				__("Collectives", "project-prepper"),
+				[__("Name", "project-prepper"), __("Members", "project-prepper")],
+				d.collectives.map(function (g) { return [g.name, g.members]; }),
+				__("No collectives yet.", "project-prepper")
+			));
+		}).catch(function (e) { toast(e.message, "error"); });
+	}
+
+	/* ================= Seite: Sicherheit ================= */
+
+	function renderSecurity() {
+		root.innerHTML = "";
+		root.appendChild(el("p", { class: "pp-muted", text: __("Frontend hardening for the member portal. Everything is OFF by default — nothing changes until you enable it here.", "project-prepper") }));
+
+		api("/security").then(function (s) {
+			function check(checked) { var c = el("input", { type: "checkbox" }); c.checked = !!checked; return c; }
+			function num(value, min) { var n = el("input", { type: "number", min: String(min), value: String(value), style: "width:80px" }); return n; }
+
+			var loginThrottle = check(s.login_throttle);
+			var maxAttempts = num(s.login_max_attempts, 1);
+			var lockoutMin = num(s.login_lockout_minutes, 1);
+			var groupsPerUser = num(s.groups_per_user, 0);
+			var invitesPerDay = num(s.invites_per_day, 0);
+			var selfReg = check(s.allow_self_registration);
+			var member2fa = check(s.member_2fa);
+
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Member login & sign-up", "project-prepper") }),
+				el("label", { class: "pp-toggle" }, [loginThrottle, el("span", { text: __("Lock out repeated failed logins (per IP).", "project-prepper") })]),
+				el("div", { class: "pp-row", style: "margin-top:8px;gap:18px" }, [
+					field(__("Max attempts", "project-prepper"), maxAttempts),
+					field(__("Lockout (minutes)", "project-prepper"), lockoutMin)
+				]),
+				el("label", { class: "pp-toggle", style: "margin-top:12px" }, [selfReg, el("span", { text: __("Allow open sign-up (new accounts become members). Off = invitation only.", "project-prepper") })]),
+				el("label", { class: "pp-toggle", style: "margin-top:12px" }, [member2fa, el("span", { text: __("Require a second factor at member login.", "project-prepper") })]),
+				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("When on, members get a one-time code by email at portal sign-in. Admins and managers keep the normal wp-admin login.", "project-prepper") })
+			]));
+
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Anti-snowball limits", "project-prepper") }),
+				el("div", { class: "pp-row", style: "gap:18px" }, [
+					field(__("Collectives per user", "project-prepper"), groupsPerUser),
+					field(__("Invitations per day", "project-prepper"), invitesPerDay)
+				]),
+				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("0 = unlimited. Invitations counted per member over a rolling 24 hours.", "project-prepper") })
+			]));
+
+			var saveBtn = el("button", {
+				class: "pp-btn pp-btn-primary", text: __("Save security settings", "project-prepper"),
+				onclick: function () {
+					api("/security", {
+						method: "PUT",
+						body: JSON.stringify({
+							login_throttle: loginThrottle.checked,
+							login_max_attempts: parseInt(maxAttempts.value, 10) || 1,
+							login_lockout_minutes: parseInt(lockoutMin.value, 10) || 1,
+							groups_per_user: parseInt(groupsPerUser.value, 10) || 0,
+							invites_per_day: parseInt(invitesPerDay.value, 10) || 0,
+							allow_self_registration: selfReg.checked,
+							member_2fa: member2fa.checked
+						})
+					}).then(function () { toast(__("Security settings saved.", "project-prepper")); }).catch(function (e) { toast(e.message, "error"); });
+				}
+			});
+			root.appendChild(el("div", { class: "pp-row" }, [saveBtn]));
+		}).catch(function (e) { toast(e.message, "error"); });
+	}
+
+	/* ================= Seite: Föderation ================= */
+
+	function renderFederation() {
+		root.innerHTML = "";
+		root.appendChild(el("p", { class: "pp-muted", text: __("Make this instance discoverable to other Project Prepper instances by postal code and topic. Opt-in and OFF by default — while off, nothing is published and the discovery endpoint returns 404. Only coarse, non-personal data is shared (name, postal code, topic, counts).", "project-prepper") }));
+
+		var dirBox = el("div");
+
+		function load() {
+			api("/federation/admin").then(function (f) {
+				root.innerHTML = "";
+				root.appendChild(el("p", { class: "pp-muted", text: __("Make this instance discoverable to other Project Prepper instances by postal code and topic. Opt-in and OFF by default — while off, nothing is published and the discovery endpoint returns 404. Only coarse, non-personal data is shared (name, postal code, topic, counts).", "project-prepper") }));
+
+				var enabled = el("input", { type: "checkbox" }); enabled.checked = !!f.enabled;
+				var acceptBorrows = el("input", { type: "checkbox" }); acceptBorrows.checked = !!f.accept_borrows;
+				var postal = el("input", { type: "text", value: f.postal_code, style: "width:140px" });
+				var topic = el("input", { type: "text", value: f.topic, style: "width:100%" });
+				var contact = el("input", { type: "email", value: f.contact_email, style: "width:100%" });
+				var partners = el("textarea", { rows: "4", style: "width:100%;font-family:monospace", placeholder: "https://other-collective.example" });
+				partners.value = f.partners;
+
+				root.appendChild(el("div", { class: "pp-card" }, [
+					el("h2", { text: __("Public profile", "project-prepper") }),
+					el("label", { class: "pp-toggle" }, [enabled, el("span", { text: __("List this instance in the federation (publish the public profile below).", "project-prepper") })]),
+					el("label", { class: "pp-toggle", style: "margin-top:10px" }, [acceptBorrows, el("span", { text: __("Accept borrow requests from partner instances (members moderate each request).", "project-prepper") })]),
+					field(__("Postal code", "project-prepper"), postal),
+					field(__("Topic", "project-prepper"), topic),
+					el("div", { class: "pp-muted", style: "margin-top:-6px;margin-bottom:8px", text: __('E.g. "event tech", "community garden", "makerspace".', "project-prepper") }),
+					field(__("Contact email", "project-prepper"), contact),
+					el("div", { class: "pp-field" }, [
+						el("label", { text: __("Discovery endpoint", "project-prepper") }),
+						el("code", { text: f.discovery_url })
+					])
+				]));
+
+				root.appendChild(el("div", { class: "pp-card" }, [
+					el("h2", { text: __("Partner instances", "project-prepper") }),
+					partners,
+					el("div", { class: "pp-muted", style: "margin-top:6px", text: __("One instance URL per line. Their public profiles are fetched and listed below (cached for an hour).", "project-prepper") })
+				]));
+
+				var saveBtn = el("button", {
+					class: "pp-btn pp-btn-primary", text: __("Save federation settings", "project-prepper"),
+					onclick: function () {
+						api("/federation/admin", {
+							method: "PUT",
+							body: JSON.stringify({
+								enabled: enabled.checked,
+								accept_borrows: acceptBorrows.checked,
+								postal_code: postal.value,
+								topic: topic.value,
+								contact_email: contact.value,
+								partners: partners.value
+							})
+						}).then(function () { toast(__("Federation settings saved.", "project-prepper")); load(); }).catch(function (e) { toast(e.message, "error"); });
+					}
+				});
+				root.appendChild(el("div", { class: "pp-row" }, [saveBtn]));
+
+				root.appendChild(tableCard(
+					__("Known instances", "project-prepper"),
+					[__("Instance", "project-prepper"), __("Postal code", "project-prepper"), __("Topic", "project-prepper"), __("Collectives", "project-prepper"), __("Members", "project-prepper")],
+					f.directory.map(function (d) {
+						var label = d.reachable ? (d.name || d.url) : (d.url + " (" + __("unreachable", "project-prepper") + ")");
+						return [label, d.postal_code, d.topic, d.collectives, d.members];
+					}),
+					__("No partner instances configured yet.", "project-prepper")
+				));
+			}).catch(function (e) { toast(e.message, "error"); });
+		}
+		load();
+	}
+
 	/* ================= Routing ================= */
 
 	if (page === "calendar") renderCalendar();
@@ -3735,5 +3960,8 @@
 	else if (page === "rentals") renderRentals();
 	else if (page === "inquiries") renderInquiries();
 	else if (page === "settings") renderSettings();
+	else if (page === "platform") renderPlatform();
+	else if (page === "security") renderSecurity();
+	else if (page === "federation") renderFederation();
 	else renderInventory();
 })();

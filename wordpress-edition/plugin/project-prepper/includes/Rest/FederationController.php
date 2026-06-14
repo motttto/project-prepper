@@ -1,6 +1,7 @@
 <?php
 namespace ProjectPrepper\Rest;
 
+use ProjectPrepper\Capabilities;
 use ProjectPrepper\Federation;
 use ProjectPrepper\Services\FederatedBorrow;
 use WP_REST_Request;
@@ -48,6 +49,56 @@ class FederationController extends BaseController {
 			'callback'            => [ $this, 'borrow_status' ],
 			'permission_callback' => '__return_true',
 		] );
+
+		// Admin-UI: Einstellungen lesen/speichern + Partner-Verzeichnis (nur Betreiber).
+		register_rest_route( self::REST_NAMESPACE, '/federation/admin', [
+			[
+				'methods'             => 'GET',
+				'callback'            => [ $this, 'admin_show' ],
+				'permission_callback' => $this->require_cap( Capabilities::MANAGE_SETTINGS ),
+			],
+			[
+				'methods'             => 'PUT',
+				'callback'            => [ $this, 'admin_update' ],
+				'permission_callback' => $this->require_cap( Capabilities::MANAGE_SETTINGS ),
+			],
+		] );
+	}
+
+	public function admin_show(): WP_REST_Response {
+		return new WP_REST_Response( $this->admin_payload() );
+	}
+
+	public function admin_update( WP_REST_Request $request ): WP_REST_Response {
+		$json = $request->get_json_params() ?: [];
+		Federation::save_from( $json );
+		return new WP_REST_Response( $this->admin_payload() );
+	}
+
+	/** Einstellungen + Discovery-URL + (gecachtes) Partner-Verzeichnis. */
+	private function admin_payload(): array {
+		$cfg = Federation::all();
+		return [
+			'enabled'        => (bool) $cfg['enabled'],
+			'accept_borrows' => ! empty( $cfg['accept_borrows'] ),
+			'postal_code'    => (string) $cfg['postal_code'],
+			'topic'          => (string) $cfg['topic'],
+			'contact_email'  => (string) $cfg['contact_email'],
+			'partners'       => implode( "\n", Federation::partners() ),
+			'discovery_url'  => rest_url( self::REST_NAMESPACE . '/federation/info' ),
+			'directory'      => array_map( static function ( $entry ) {
+				$p = $entry['profile'];
+				return [
+					'url'         => $entry['url'],
+					'reachable'   => (bool) $p,
+					'name'        => $p ? (string) ( $p['name'] ?? '' ) : '',
+					'postal_code' => $p ? (string) ( $p['postal_code'] ?? '' ) : '',
+					'topic'       => $p ? (string) ( $p['topic'] ?? '' ) : '',
+					'collectives' => $p ? (int) ( $p['collectives'] ?? 0 ) : null,
+					'members'     => $p ? (int) ( $p['members'] ?? 0 ) : null,
+				];
+			}, Federation::directory() ),
+		];
 	}
 
 	public function info() {

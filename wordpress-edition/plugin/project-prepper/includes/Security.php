@@ -111,6 +111,27 @@ class Security {
 
 	/* ===================== Admin-Formular ===================== */
 
+	/**
+	 * Werte aus einem (assoziativen) Eingabe-Array säubern + speichern. Quelle
+	 * egal — $_POST (Admin-Formular) oder JSON (REST). Gibt die gespeicherten
+	 * Werte zurück. Permission/Nonce prüft der Aufrufer.
+	 *
+	 * @return array Die gespeicherten Werte (= all()).
+	 */
+	public static function save_from( array $in ): array {
+		$data = [
+			'login_throttle'          => ! empty( $in['login_throttle'] ),
+			'login_max_attempts'      => max( 1, (int) ( $in['login_max_attempts'] ?? 5 ) ),
+			'login_lockout_minutes'   => max( 1, (int) ( $in['login_lockout_minutes'] ?? 15 ) ),
+			'groups_per_user'         => max( 0, (int) ( $in['groups_per_user'] ?? 0 ) ),
+			'invites_per_day'         => max( 0, (int) ( $in['invites_per_day'] ?? 0 ) ),
+			'allow_self_registration' => ! empty( $in['allow_self_registration'] ),
+			'member_2fa'              => ! empty( $in['member_2fa'] ),
+		];
+		update_option( self::OPTION, $data );
+		return self::all();
+	}
+
 	public static function handle_save(): void {
 		if ( ! current_user_can( Capabilities::MANAGE_SETTINGS ) ||
 			! isset( $_POST['pp_sec_nonce'] ) ||
@@ -118,16 +139,7 @@ class Security {
 			wp_die( esc_html__( 'Permission denied.', 'project-prepper' ) );
 		}
 
-		$data = [
-			'login_throttle'          => ! empty( $_POST['login_throttle'] ),
-			'login_max_attempts'      => max( 1, (int) ( $_POST['login_max_attempts'] ?? 5 ) ),
-			'login_lockout_minutes'   => max( 1, (int) ( $_POST['login_lockout_minutes'] ?? 15 ) ),
-			'groups_per_user'         => max( 0, (int) ( $_POST['groups_per_user'] ?? 0 ) ),
-			'invites_per_day'         => max( 0, (int) ( $_POST['invites_per_day'] ?? 0 ) ),
-			'allow_self_registration' => ! empty( $_POST['allow_self_registration'] ),
-			'member_2fa'              => ! empty( $_POST['member_2fa'] ),
-		];
-		update_option( self::OPTION, $data );
+		self::save_from( wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- save_from() casts/sanitisiert jedes Feld einzeln.
 
 		wp_safe_redirect( add_query_arg( 'pp_sec', 'saved', admin_url( 'admin.php?page=pp-security' ) ) );
 		exit;

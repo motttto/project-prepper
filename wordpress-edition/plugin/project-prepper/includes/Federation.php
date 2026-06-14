@@ -207,20 +207,18 @@ class Federation {
 		add_action( 'admin_post_pp_save_federation', [ self::class, 'handle_save' ] );
 	}
 
-	public static function handle_save(): void {
-		if ( ! current_user_can( Capabilities::MANAGE_SETTINGS ) ||
-			! isset( $_POST['pp_fed_nonce'] ) ||
-			! wp_verify_nonce( sanitize_key( $_POST['pp_fed_nonce'] ), 'pp_save_federation' ) ) {
-			wp_die( esc_html__( 'Permission denied.', 'project-prepper' ) );
-		}
-
-		// Partner-URLs (eine pro Zeile) säubern + validieren.
-		$raw      = (string) ( $_POST['partners'] ?? '' );
+	/**
+	 * Partner-URLs aus einer Zeilen-Liste (String) ODER einem Array säubern.
+	 * Nur explizite http(s)://-Zeilen, dedupliziert, ohne Trailing-Slash.
+	 *
+	 * @param string|array $raw
+	 * @return string[]
+	 */
+	public static function clean_partners( $raw ): array {
+		$lines    = is_array( $raw ) ? $raw : preg_split( '/\r\n|\r|\n/', (string) $raw );
 		$partners = [];
-		foreach ( preg_split( '/\r\n|\r|\n/', wp_unslash( $raw ) ) as $line ) {
-			$line = trim( $line );
-			// Nur Zeilen, die explizit mit http(s):// beginnen (kein DNS-Check beim
-			// Speichern — Erreichbarkeit zeigt sich später im Verzeichnis).
+		foreach ( (array) $lines as $line ) {
+			$line = trim( (string) $line );
 			if ( ! preg_match( '#^https?://#i', $line ) ) {
 				continue;
 			}
@@ -229,16 +227,36 @@ class Federation {
 				$partners[] = untrailingslashit( $clean );
 			}
 		}
-		$partners = array_values( array_unique( $partners ) );
+		return array_values( array_unique( $partners ) );
+	}
 
+	/**
+	 * Föderations-Einstellungen aus einem Eingabe-Array säubern + speichern.
+	 * Quelle egal ($_POST oder JSON); `partners` darf String (Zeilen) oder Array
+	 * sein. Permission/Nonce prüft der Aufrufer.
+	 *
+	 * @return array Die gespeicherten Werte (= all()).
+	 */
+	public static function save_from( array $in ): array {
 		update_option( self::OPTION, [
-			'enabled'        => ! empty( $_POST['enabled'] ),
-			'postal_code'    => sanitize_text_field( wp_unslash( (string) ( $_POST['postal_code'] ?? '' ) ) ),
-			'topic'          => sanitize_text_field( wp_unslash( (string) ( $_POST['topic'] ?? '' ) ) ),
-			'contact_email'  => sanitize_email( wp_unslash( (string) ( $_POST['contact_email'] ?? '' ) ) ),
-			'partners'       => $partners,
-			'accept_borrows' => ! empty( $_POST['accept_borrows'] ),
+			'enabled'        => ! empty( $in['enabled'] ),
+			'postal_code'    => sanitize_text_field( (string) ( $in['postal_code'] ?? '' ) ),
+			'topic'          => sanitize_text_field( (string) ( $in['topic'] ?? '' ) ),
+			'contact_email'  => sanitize_email( (string) ( $in['contact_email'] ?? '' ) ),
+			'partners'       => self::clean_partners( $in['partners'] ?? '' ),
+			'accept_borrows' => ! empty( $in['accept_borrows'] ),
 		] );
+		return self::all();
+	}
+
+	public static function handle_save(): void {
+		if ( ! current_user_can( Capabilities::MANAGE_SETTINGS ) ||
+			! isset( $_POST['pp_fed_nonce'] ) ||
+			! wp_verify_nonce( sanitize_key( $_POST['pp_fed_nonce'] ), 'pp_save_federation' ) ) {
+			wp_die( esc_html__( 'Permission denied.', 'project-prepper' ) );
+		}
+
+		self::save_from( wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- save_from() säubert jedes Feld einzeln.
 
 		wp_safe_redirect( add_query_arg( 'pp_fed', 'saved', admin_url( 'admin.php?page=pp-federation' ) ) );
 		exit;

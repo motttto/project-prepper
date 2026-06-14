@@ -1,1 +1,1581 @@
-{"translation-revision-date":"YEAR-MO-DA HO:MI+ZONE","generator":"WP-CLI\/2.12.0","source":"admin\/js\/admin.js","domain":"messages","locale_data":{"messages":{"":{"domain":"messages","lang":"de_DE","plural-forms":"nplurals=2; plural=(n != 1);"},"Inventory":["Inventar"],"New":["Neu"],"Good":["Gut"],"Used":["Gebraucht"],"Poor":["Schlecht"],"Broken":["Defekt"],"Retired":["Ausgemustert"],"Name":["Name"],"Email":["E-Mail"],"Phone":["Telefon"],"Address":["Adresse"],"Period":["Zeitraum"],"Status":["Status"],"Inventory number":["Inventarnummer"],"Category":["Kategorie"],"Description":["Beschreibung"],"Manufacturer":["Hersteller"],"Model":["Modell"],"Serial number":["Seriennummer"],"Quantity":["Menge"],"Condition":["Zustand"],"Location":["Lagerort"],"Daily rate":["Tagessatz"],"Purchase price":["Kaufpreis"],"Purchase date":["Kaufdatum"],"Current value":["Aktueller Wert"],"Dimensions":["Ma\u00dfe"],"Power (W)":["Leistung (W)"],"Accessories":["Zubeh\u00f6r"],"Tags":["Tags"],"Notes":["Notizen"],"inventory":["inventar"],"\u2014":["\u2014"],"A poll needs at least two valid options.":["Eine Umfrage braucht mindestens zwei g\u00fcltige Optionen."],"Equipment":["Equipment"],"From":["Von"],"To":["Bis"],"Name *":["Name *"],"Message":["Nachricht"],"Error":["Fehler"],"Reserved":["Reserviert"],"On loan":["Verliehen"],"Returned":["Zur\u00fcckgegeben"],"Cancelled":["Storniert"],"Hand out":["Ausgeben"],"Take back":["R\u00fccknahme"],"rental status action\u0004Cancel":["Abbrechen"],"Search: name, number, manufacturer, serial number, tags \u2026":["Suchen: Name, Nummer, Hersteller, Seriennummer, Tags \u2026"],"Items":["Artikel"],"Total pieces":["Teile gesamt"],"Out today":["Heute unterwegs"],"Daily inventory value":["Tageswert Inventar"],"Out now":["Unterwegs"],"All":["Alle"],"Number":["Nummer"],"Docs":["Doku"],"out":["unterwegs"],"View PDF":["PDF anzeigen"],"View documents":["Dokumente anzeigen"],"No items found.":["Keine Artikel gefunden."],"\u2014 category \u2014":["\u2014 Kategorie \u2014"],"Comma-separated":["Komma-getrennt"],"Own":["Eigen"],"Loaned":["Geliehen"],"Funded":["Gef\u00f6rdert"],"Other":["Sonstiges"],"Linear":["Linear"],"Declining balance":["Degressiv"],"None":["Keine"],"e.g. funding program, donation":["z. B. F\u00f6rderprogramm, Spende"],"Daily rate \u20ac":["Tagessatz \u20ac"],"Purchase price \u20ac":["Kaufpreis \u20ac"],"Current value \u20ac":["Aktueller Wert \u20ac"],"Manufacturer URL":["Hersteller-URL"],"Manual URL":["Manual-URL"],"Texts":["Texte"],"Ownership & depreciation":["Eigentum & Abschreibung"],"Ownership":["Eigentum"],"Funding source":["Finanzierungsquelle"],"Depreciation":["Abschreibung"],"Useful life (years)":["Nutzungsdauer (Jahre)"],"Residual value \u20ac":["Restwert \u20ac"],"Photo":["Foto"],"Photo saved.":["Foto gespeichert."],"Remove photo":["Foto entfernen"],"PDF documents":["PDF-Dokumente"],"Document":["Dokument"],"remove":["entfernen"],"No documents.":["Keine Dokumente."],"PDF uploaded.":["PDF hochgeladen."],"Units":["Einzelst\u00fccke"],"delete":["l\u00f6schen"],"No unit tracking.":["Kein Einzelst\u00fcck-Tracking."],"+ Unit":["+ Einzelst\u00fcck"],"Draft":["Entwurf"],"Planned":["Geplant"],"Confirmed":["Best\u00e4tigt"],"Running":["Laufend"],"Done":["Erledigt"],"Booked in projects":["In Projekten gebucht"],"no date":["kein Datum"],"Delete item":["Artikel l\u00f6schen"],"Delete item \"%s\"?":["Artikel \"%s\" l\u00f6schen?"],"Item deleted.":["Artikel gel\u00f6scht."],"Close":["Schlie\u00dfen"],"Save":["Speichern"],"Saved.":["Gespeichert."],"Photo upload failed:":["Foto-Upload fehlgeschlagen:"],"PDF \"%1$s\" failed: %2$s":["PDF \"%1$s\" fehlgeschlagen: %2$s"],"New item":["Neuer Artikel"],"Item %s created.":["Artikel %s angelegt."],"Create":["Anlegen"],"Export":["Export"],"CSV export":["CSV-Export"],"Export failed":["Export fehlgeschlagen"],"Import":["Import"],"\u2014 ignore \u2014":["\u2014 ignorieren \u2014"],"File (.xlsx, .xls or .csv \u2014 first row = headers)":["Datei (.xlsx, .xls oder .csv \u2014 erste Zeile = \u00dcberschriften)"],"Import inventory":["Inventar importieren"],"Could not read file:":["Datei konnte nicht gelesen werden:"],"File contains no data rows.":["Datei enth\u00e4lt keine Datenzeilen."],"Map columns (preview: first 5 of %d rows)":["Spalten zuordnen (Vorschau: erste 5 von %d Zeilen)"],"Import %d rows":["%d Zeilen importieren"],"%d items imported":["%d Artikel importiert"],"%d errors":["%d Fehler"],"Row %d:":["Zeile %d:"],"Borrower":["Leiher"],"Line items":["Positionen"],"Fee":["Geb\u00fchr"],"No rentals yet.":["Noch keine Verleihe."],"Borrower *":["Leiher *"],"Fee \u20ac":["Geb\u00fchr \u20ac"],"Deposit \u20ac":["Kaution \u20ac"],"VAT %":["MwSt %"],"day":["Tag"],"No line items.":["Keine Positionen."],"\u2014 select item \u2014":["\u2014 Artikel w\u00e4hlen \u2014"],"+ Line item":["+ Position"],"%d days":["%d Tage"],"Net":["Netto"],"VAT":["USt"],"Gross":["Brutto"],"Deposit (pass-through)":["Kaution (durchlaufend)"],"Billing":["Abrechnung"],"Delete":["L\u00f6schen"],"Delete rental %s?":["Verleih %s l\u00f6schen?"],"available":["verf\u00fcgbar"],"Rental %s created.":["Verleih %s angelegt."],"Item":["Artikel"],"Create rental":["Verleih anlegen"],"New rental":["Neuer Verleih"],"Open":["Offen"],"In progress":["In Arbeit"],"Low":["Niedrig"],"Normal":["Normal"],"High":["Hoch"],"Personnel":["Personal"],"Material":["Material"],"External services":["Fremdleistung"],"\u2014 site level \u2014":["\u2014 Site-Ebene \u2014"],"Venue":["Veranstaltungsort"],"Client":["Kunde"],"Bookings":["Buchungen"],"No projects yet.":["Noch keine Projekte."],"Venue address":["Adresse Veranstaltungsort"],"Budget (net)":["Budget (netto)"],"Revenue (net)":["Umsatz (netto)"],"Group":["Gruppe"],"project period":["Projekt-Zeitraum"],"No bookings.":["Keine Buchungen."],"+ Booking":["+ Buchung"],"Without dates the booking inherits the project period.":["Ohne Datum erbt die Buchung den Projekt-Zeitraum."],"Costs":["Kosten"],"Planned (net)":["Geplant (netto)"],"Actual (net)":["Ist (netto)"],"Not in profit":["nicht im Gewinn"],"No cost items.":["Keine Kostenposten."],"+ Cost item":["+ Kostenposten"],"Planned net":["Geplant netto"],"Planned gross":["Geplant brutto"],"Actual net":["Ist netto"],"Actual gross":["Ist brutto"],"Budget":["Budget"],"Variance":["Abweichung"],"Revenue":["Umsatz"],"Profit":["Gewinn"],"Percentage":["Prozent"],"Fixed":["Fest"],"Profit sharing":["Gewinnverteilung"],"Assign a group to distribute profit.":["Ordne erst eine Gruppe zu, um den Gewinn zu verteilen."],"Profit pool":["Gewinn-Pool"],"Set project revenue to calculate amounts.":["Hinterlege den Umsatz, um Betr\u00e4ge zu berechnen."],"Participant":["Beteiligter"],"Type":["Typ"],"Share":["Anteil"],"Calculated":["Berechnet"],"(removed user)":["(entfernter Benutzer)"],"No profit shares yet.":["Noch keine Anteile."],"Allocated":["Zugeteilt"],"Unallocated":["Nicht zugeteilt"],"Over-allocated":["\u00dcberverteilt"],"All group members already have a share.":["Alle Gruppenmitglieder haben bereits einen Anteil."],"\u2014 select group member \u2014":["\u2014 Gruppenmitglied w\u00e4hlen \u2014"],"Value":["Wert"],"Add share":["Anteil hinzuf\u00fcgen"],"Materials":["Material"],"Unit":["Einheit"],"Cost":["Kosten"],"No materials.":["Kein Material."],"Total material cost":["Materialkosten gesamt"],"+ Material":["+ Material"],"Files":["Dateien"],"(file missing)":["(Datei fehlt)"],"No files.":["Keine Dateien."],"Add file":["Datei hinzuf\u00fcgen"],"Media library is not available.":["Die Medienbibliothek ist nicht verf\u00fcgbar."],"Select files":["Dateien ausw\u00e4hlen"],"Schedule":["Zeitplan"],"No schedule entries.":["Keine Zeitplan-Eintr\u00e4ge."],"Date":["Datum"],"Title":["Titel"],"+ Entry":["+ Eintrag"],"Checklists":["Checklisten"],"Delete checklist \"%s\"?":["Checkliste \"%s\" l\u00f6schen?"],"No entries.":["Keine Eintr\u00e4ge."],"New entry":["Neuer Eintrag"],"No checklists.":["Keine Checklisten."],"Checklist name":["Name der Checkliste"],"+ Checklist":["+ Checkliste"],"Tasks":["Aufgaben"],"Change status":["Status \u00e4ndern"],"Priority":["Priorit\u00e4t"],"Due date":["F\u00e4llig am"],"No tasks.":["Keine Aufgaben."],"Task title":["Aufgaben-Titel"],"+ Task":["+ Aufgabe"],"Project members":["Beteiligte"],"Assign a group to add members.":["Ordne erst eine Gruppe zu, um Beteiligte hinzuzuf\u00fcgen."],"No members yet.":["Noch keine Beteiligten."],"All group members are already listed.":["Alle Gruppenmitglieder sind bereits aufgef\u00fchrt."],"Role":["Rolle"],"Add member":["Mitglied hinzuf\u00fcgen"],"Approved":["Angenommen"],"Rejected":["Abgelehnt"],"Approve":["Zustimmen"],"Reject":["Ablehnen"],"Abstain":["Enthalten"],"Decisions":["Beschl\u00fcsse"],"Assign a group to hold votes.":["Ordne erst eine Gruppe zu, um abzustimmen."],"Unanimous":["Einstimmig"],"Majority":["Mehrheit"],"Approve %1$d \u00b7 Reject %2$d \u00b7 Abstain %3$d of %4$d":["Zustimmung %1$d \u00b7 Ablehnung %2$d \u00b7 Enthaltung %3$d von %4$d"],"%d votes":["%d Stimmen"],"Close this decision early?":["Diesen Beschluss vorzeitig schlie\u00dfen?"],"Delete this decision and all votes?":["Diesen Beschluss und alle Stimmen l\u00f6schen?"],"No decisions yet.":["Noch keine Beschl\u00fcsse."],"Requires unanimous":["Einstimmigkeit erforderlich"],"New decision":["Neuer Beschluss"],"Date poll":["Terminumfrage"],"Choice poll":["Auswahl-Umfrage"],"Yes":["Ja"],"Maybe":["Vielleicht"],"No":["Nein"],"Polls":["Umfragen"],"Assign a group to run polls.":["Ordne erst eine Gruppe zu, um Umfragen durchzuf\u00fchren."],"Closed":["Abgeschlossen"],"Best option":["Beste Option"],"\u2713 %1$d \u00b7 \u25cb %2$d \u00b7 \u2717 %3$d":["\u2713 %1$d \u00b7 \u25cb %2$d \u00b7 \u2717 %3$d"],"Reopen":["Wieder \u00f6ffnen"],"Delete this poll and all votes?":["Diese Umfrage und alle Stimmen l\u00f6schen?"],"No polls yet.":["Noch keine Umfragen."],"Option":["Option"],"Add option":["Option hinzuf\u00fcgen"],"Create poll":["Umfrage anlegen"],"Team & Contacts":["Team & Kontakte"],"Team":["Team"],"No team members.":["Keine Team-Mitglieder."],"Department":["Abteilung"],"+ Team member":["+ Team-Mitglied"],"Contacts":["Kontakte"],"No contacts.":["Keine Kontakte."],"Company":["Firma"],"+ Contact":["+ Kontakt"],"In signing":["In Unterzeichnung"],"Active":["Aktiv"],"Terminated":["Beendet"],"Signed":["Unterschrieben"],"Declined":["Abgelehnt"],"Pending":["Ausstehend"],"Cooperation agreement":["Kooperationsvereinbarung"],"Assign a group to set up an agreement.":["Ordne erst eine Gruppe zu, um eine Vereinbarung zu erstellen."],"No agreement yet.":["Noch keine Vereinbarung."],"Contract text":["Vertragstext"],"Create agreement":["Vereinbarung anlegen"],"Version %d":["Version %d"],"Open for signing":["Zur Unterzeichnung freigeben"],"Active since %s":["Aktiv seit %s"],"Signed %1$d of %2$d":["%1$d von %2$d unterschrieben"],"Sign":["Unterschreiben"],"Decline":["Ablehnen"],"No group members.":["Keine Gruppenmitglieder."],"Revise":["\u00dcberarbeiten"],"Revise this agreement? All signatures will be cleared.":["Diese Vereinbarung \u00fcberarbeiten? Alle Unterschriften werden verworfen."],"Terminate":["Beenden"],"Terminate this agreement?":["Diese Vereinbarung beenden?"],"Delete this agreement and all signatures?":["Diese Vereinbarung samt aller Unterschriften l\u00f6schen?"],"Delete project":["Projekt l\u00f6schen"],"Delete project \"%s\"? Bookings, checklists and tasks will be deleted too.":["Projekt \"%s\" l\u00f6schen? Buchungen, Checklisten und Aufgaben werden mit gel\u00f6scht."],"New project":["Neues Projekt"],"Project %s created.":["Projekt %s angelegt."],"Create project":["Projekt anlegen"],"No other category available as target.":["Keine andere Kategorie als Ziel vorhanden."],"Counting items \u2026":["Artikel werden gez\u00e4hlt \u2026"],"%1$d items will be moved to the target category, then \"%2$s\" will be deleted.":["%1$d Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%2$s\" gel\u00f6scht."],"All items will be moved to the target category, then \"%s\" will be deleted.":["Alle Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%s\" gel\u00f6scht."],"Target category for \"%s\"":["Ziel-Kategorie f\u00fcr \"%s\""],"Cancel":["Abbrechen"],"Merge":["Zusammenf\u00fchren"],"%d items moved, category deleted.":["%d Artikel verschoben, Kategorie gel\u00f6scht."],"Merge category":["Kategorie zusammenf\u00fchren"],"Icon":["Icon"],"Prefix":["Prefix"],"Merge\u2026":["Zusammenf\u00fchren\u2026"],"Delete category \"%s\"? Items will be kept.":["Kategorie \"%s\" l\u00f6schen? Artikel bleiben erhalten."],"Icon (emoji)":["Icon (Emoji)"],"New category":["Neue Kategorie"],"Category created.":["Kategorie angelegt."],"Contacted":["Kontaktiert"],"Offer":["Angebot"],"Won":["Gewonnen"],"Lost":["Verloren"],"Convert to rental":["In Verleih \u00fcbernehmen"],"Convert the inquiry from \"%s\" into a rental? The inquiry will be marked as won.":["Anfrage von \"%s\" in einen Verleih \u00fcbernehmen? Die Anfrage wird als gewonnen markiert."],"Date range missing \u2014 cannot convert":["Zeitraum fehlt \u2014 Konvertierung nicht m\u00f6glich"],"Delete the inquiry from \"%s\"?":["Anfrage von \"%s\" l\u00f6schen?"],"Received on":["Eingegangen am"],"Item #%d":["Artikel #%d"],"No equipment requested.":["Kein Equipment angefragt."],"Inquiry from %s":["Anfrage von %s"],"Contact":["Kontakt"],"No inquiries yet. Add the form to any page with the [pp_request_form] shortcode.":["Noch keine Anfragen. Das Formular kommt per Shortcode [pp_request_form] auf jede Seite."],"Reservation confirmed":["Reservierung best\u00e4tigt"],"Equipment handed out":["Equipment ausgegeben"],"Return confirmed":["R\u00fcckgabe best\u00e4tigt"],"Subject":["Betreff"],"Text":["Text"],"Settings saved.":["Einstellungen gespeichert."],"Email notifications":["E-Mail-Benachrichtigungen"],"Send emails to borrowers (reservation, handout, return)":["E-Mails an Leiher senden (Reservierung, Ausgabe, R\u00fcckgabe)"],"Placeholders:":["Platzhalter:"],"Calendar feed (iCal)":["Kalender-Feed (iCal)"],"Read-only feed of all reserved\/active rentals \u2014 subscribe in Apple\/Google\/Outlook.":["Read-only Feed aller reservierten\/aktiven Verleihe \u2014 in Apple\/Google\/Outlook abonnierbar."],"Copy URL":["URL kopieren"],"Copied.":["Kopiert."],"Regenerate token":["Token erneuern"],"Regenerate token? Existing calendar subscriptions will lose access.":["Token erneuern? Bestehende Kalender-Abos verlieren den Zugriff."],"Token regenerated.":["Token erneuert."],"Public frontend":["\u00d6ffentliches Frontend"],"Show daily rates publicly (item detail page \/equipment-item\/\u2026)":["Tagess\u00e4tze \u00f6ffentlich zeigen (Artikel-Detailseite \/equipment-item\/\u2026)"],"Inventory cards link to a public detail page per item. Purchase price and serial number are never shown there.":["Die Inventar-Karten verlinken auf eine \u00f6ffentliche Detailseite pro Artikel. Kaufpreis und Seriennummer sind dort nie sichtbar."],"Data":["Daten"],"Delete all plugin data on uninstall":["Alle Plugin-Daten beim Deinstallieren l\u00f6schen"],"GDPR: export & anonymization of borrower data via Tools \u2192 Personal Data (search by email address).":["DSGVO: Export & Anonymisierung von Leiher-Daten \u00fcber Werkzeuge \u2192 Personenbezogene Daten (Suche per E-Mail-Adresse)."],"Founder":["Gr\u00fcnder"],"Member":["Mitglied"],"Members":["Mitglieder"],"No groups yet.":["Noch keine Gruppen."],"Group name":["Gruppenname"],"No members.":["Keine Mitglieder."],"\u2014 select user \u2014":["\u2014 Benutzer w\u00e4hlen \u2014"],"Delete group":["Gruppe l\u00f6schen"],"Delete group \"%s\"? Projects of this group return to site level.":["Gruppe \u201e%s\u201c l\u00f6schen? Projekte dieser Gruppe fallen auf die Site-Ebene zur\u00fcck."],"New group":["Neue Gruppe"],"Create group":["Gruppe anlegen"],"Item created":["Artikel angelegt"],"Item updated":["Artikel aktualisiert"],"Item deleted":["Artikel gel\u00f6scht"],"Category created":["Kategorie angelegt"],"Category updated":["Kategorie aktualisiert"],"Category deleted":["Kategorie gel\u00f6scht"],"Categories merged":["Kategorien zusammengef\u00fchrt"],"Rental created":["Verleih angelegt"],"Rental updated":["Verleih aktualisiert"],"Rental status changed":["Verleih-Status ge\u00e4ndert"],"Rental deleted":["Verleih gel\u00f6scht"],"Project created":["Projekt angelegt"],"Project updated":["Projekt aktualisiert"],"Project deleted":["Projekt gel\u00f6scht"],"Inquiry created":["Anfrage angelegt"],"Inquiry status changed":["Anfrage-Status ge\u00e4ndert"],"Inquiry converted":["Anfrage umgewandelt"],"Inquiry deleted":["Anfrage gel\u00f6scht"],"Group created":["Gruppe angelegt"],"Group updated":["Gruppe aktualisiert"],"Group deleted":["Gruppe gel\u00f6scht"],"Participant added":["Beteiligter hinzugef\u00fcgt"],"Decision created":["Beschluss angelegt"],"Profit share added":["Gewinnanteil hinzugef\u00fcgt"],"Agreement created":["Vereinbarung angelegt"],"Agreement opened for signing":["Vereinbarung zur Unterzeichnung freigegeben"],"Agreement signed":["Vereinbarung unterschrieben"],"Agreement declined":["Vereinbarung abgelehnt"],"Agreement revised":["Vereinbarung \u00fcberarbeitet"],"Agreement terminated":["Vereinbarung beendet"],"Rental":["Verleih"],"Project":["Projekt"],"Inquiry":["Anfrage"],"Decision":["Beschluss"],"Agreement":["Vereinbarung"],"Active rentals":["Aktive Verleihe"],"Reserved rentals":["Reservierte Verleihe"],"Open inquiries":["Offene Anfragen"],"Running \/ planned projects":["Laufende \/ geplante Projekte"],"Upcoming (next 14 days)":["Anstehend (n\u00e4chste 14 Tage)"],"Nothing scheduled.":["Nichts geplant."],"(untitled)":["(ohne Titel)"],"Recent activity":["Letzte Aktivit\u00e4t"],"No activity yet.":["Noch keine Aktivit\u00e4t."],"Calendar":["Kalender"],"Today":["Heute"],"Previous month":["Voriger Monat"],"Next month":["N\u00e4chster Monat"],"available in the settings.":["in den Einstellungen verf\u00fcgbar."],"weekday\u0004Mon":["Mo"],"weekday\u0004Tue":["Di"],"weekday\u0004Wed":["Mi"],"weekday\u0004Thu":["Do"],"weekday\u0004Fri":["Fr"],"weekday\u0004Sat":["Sa"],"weekday\u0004Sun":["So"],"January":["Januar"],"February":["Februar"],"March":["M\u00e4rz"],"April":["April"],"May":["Mai"],"June":["Juni"],"July":["Juli"],"August":["August"],"September":["September"],"October":["Oktober"],"November":["November"],"December":["Dezember"],"Overview":["\u00dcbersicht"],"Team & contacts":["Team & Kontakte"],"Material & transport":["Material & Transport"],"Hello %s":["Hallo %s"],"How Project Prepper works":["So funktioniert Project Prepper"],"Got it, hide":["Verstanden, ausblenden"],"Build your inventory":["Inventar aufbauen"],"Items with number ranges, conditions and daily rates.":["Artikel mit Nummernkreisen, Zustand und Tagess\u00e4tzen."],"Plan projects":["Projekte planen"],"Bookings, schedule, checklists, tasks and a cost breakdown.":["Buchungen, Zeitplan, Checklisten, Aufgaben und Kostenaufstellung."],"Work as a group":["Im Kollektiv arbeiten"],"Share a project with a team: members, decisions and polls.":["Ein Projekt im Team teilen: Beteiligte, Beschl\u00fcsse und Umfragen."],"Settle the profit":["Gewinn abrechnen"],"Distribute the profit and record a signed agreement.":["Gewinn verteilen und eine unterschriebene Vereinbarung festhalten."]}}}
+{
+    "translation-revision-date": "YEAR-MO-DA HO:MI+ZONE",
+    "generator": "WP-CLI\/2.12.0",
+    "source": "admin\/js\/a.js",
+    "domain": "messages",
+    "locale_data": {
+        "messages": {
+            "": {
+                "domain": "messages",
+                "lang": "de_DE",
+                "plural-forms": "nplurals=2; plural=(n != 1);"
+            },
+            "Inventory": [
+                "Inventar"
+            ],
+            "New": [
+                "Neu"
+            ],
+            "Good": [
+                "Gut"
+            ],
+            "Used": [
+                "Gebraucht"
+            ],
+            "Poor": [
+                "Schlecht"
+            ],
+            "Broken": [
+                "Defekt"
+            ],
+            "Retired": [
+                "Ausgemustert"
+            ],
+            "Name": [
+                "Name"
+            ],
+            "Email": [
+                "E-Mail"
+            ],
+            "Phone": [
+                "Telefon"
+            ],
+            "Address": [
+                "Adresse"
+            ],
+            "Period": [
+                "Zeitraum"
+            ],
+            "Status": [
+                "Status"
+            ],
+            "Inventory number": [
+                "Inventarnummer"
+            ],
+            "Category": [
+                "Kategorie"
+            ],
+            "Description": [
+                "Beschreibung"
+            ],
+            "Manufacturer": [
+                "Hersteller"
+            ],
+            "Model": [
+                "Modell"
+            ],
+            "Serial number": [
+                "Seriennummer"
+            ],
+            "Quantity": [
+                "Menge"
+            ],
+            "Condition": [
+                "Zustand"
+            ],
+            "Location": [
+                "Lagerort"
+            ],
+            "Daily rate": [
+                "Tagessatz"
+            ],
+            "Purchase price": [
+                "Kaufpreis"
+            ],
+            "Purchase date": [
+                "Kaufdatum"
+            ],
+            "Current value": [
+                "Aktueller Wert"
+            ],
+            "Dimensions": [
+                "Ma\u00dfe"
+            ],
+            "Power (W)": [
+                "Leistung (W)"
+            ],
+            "Accessories": [
+                "Zubeh\u00f6r"
+            ],
+            "Tags": [
+                "Tags"
+            ],
+            "Notes": [
+                "Notizen"
+            ],
+            "inventory": [
+                "inventar"
+            ],
+            "\u2014": [
+                "\u2014"
+            ],
+            "A poll needs at least two valid options.": [
+                "Eine Umfrage braucht mindestens zwei g\u00fcltige Optionen."
+            ],
+            "Equipment": [
+                "Equipment"
+            ],
+            "From": [
+                "Von"
+            ],
+            "To": [
+                "Bis"
+            ],
+            "Name *": [
+                "Name *"
+            ],
+            "Message": [
+                "Nachricht"
+            ],
+            "Error": [
+                "Fehler"
+            ],
+            "Reserved": [
+                "Reserviert"
+            ],
+            "On loan": [
+                "Verliehen"
+            ],
+            "Returned": [
+                "Zur\u00fcckgegeben"
+            ],
+            "Cancelled": [
+                "Storniert"
+            ],
+            "Hand out": [
+                "Ausgeben"
+            ],
+            "Take back": [
+                "R\u00fccknahme"
+            ],
+            "rental status action\u0004Cancel": [
+                "Abbrechen"
+            ],
+            "Search: name, number, manufacturer, serial number, tags \u2026": [
+                "Suchen: Name, Nummer, Hersteller, Seriennummer, Tags \u2026"
+            ],
+            "Items": [
+                "Artikel"
+            ],
+            "Total pieces": [
+                "Teile gesamt"
+            ],
+            "Out today": [
+                "Heute unterwegs"
+            ],
+            "Daily inventory value": [
+                "Tageswert Inventar"
+            ],
+            "Out now": [
+                "Unterwegs"
+            ],
+            "All": [
+                "Alle"
+            ],
+            "Number": [
+                "Nummer"
+            ],
+            "Docs": [
+                "Doku"
+            ],
+            "out": [
+                "unterwegs"
+            ],
+            "View PDF": [
+                "PDF anzeigen"
+            ],
+            "View documents": [
+                "Dokumente anzeigen"
+            ],
+            "No items found.": [
+                "Keine Artikel gefunden."
+            ],
+            "\u2014 category \u2014": [
+                "\u2014 Kategorie \u2014"
+            ],
+            "Comma-separated": [
+                "Komma-getrennt"
+            ],
+            "Own": [
+                "Eigen"
+            ],
+            "Loaned": [
+                "Geliehen"
+            ],
+            "Funded": [
+                "Gef\u00f6rdert"
+            ],
+            "Other": [
+                "Sonstiges"
+            ],
+            "Linear": [
+                "Linear"
+            ],
+            "Declining balance": [
+                "Degressiv"
+            ],
+            "None": [
+                "Keine"
+            ],
+            "e.g. funding program, donation": [
+                "z. B. F\u00f6rderprogramm, Spende"
+            ],
+            "Daily rate \u20ac": [
+                "Tagessatz \u20ac"
+            ],
+            "Purchase price \u20ac": [
+                "Kaufpreis \u20ac"
+            ],
+            "Current value \u20ac": [
+                "Aktueller Wert \u20ac"
+            ],
+            "Manufacturer URL": [
+                "Hersteller-URL"
+            ],
+            "Manual URL": [
+                "Manual-URL"
+            ],
+            "Texts": [
+                "Texte"
+            ],
+            "Ownership & depreciation": [
+                "Eigentum & Abschreibung"
+            ],
+            "Ownership": [
+                "Eigentum"
+            ],
+            "Funding source": [
+                "Finanzierungsquelle"
+            ],
+            "Depreciation": [
+                "Abschreibung"
+            ],
+            "Useful life (years)": [
+                "Nutzungsdauer (Jahre)"
+            ],
+            "Residual value \u20ac": [
+                "Restwert \u20ac"
+            ],
+            "Photo": [
+                "Foto"
+            ],
+            "Photo saved.": [
+                "Foto gespeichert."
+            ],
+            "Remove photo": [
+                "Foto entfernen"
+            ],
+            "PDF documents": [
+                "PDF-Dokumente"
+            ],
+            "Document": [
+                "Dokument"
+            ],
+            "remove": [
+                "entfernen"
+            ],
+            "No documents.": [
+                "Keine Dokumente."
+            ],
+            "PDF uploaded.": [
+                "PDF hochgeladen."
+            ],
+            "Units": [
+                "Einzelst\u00fccke"
+            ],
+            "delete": [
+                "l\u00f6schen"
+            ],
+            "No unit tracking.": [
+                "Kein Einzelst\u00fcck-Tracking."
+            ],
+            "+ Unit": [
+                "+ Einzelst\u00fcck"
+            ],
+            "Draft": [
+                "Entwurf"
+            ],
+            "Planned": [
+                "Geplant"
+            ],
+            "Confirmed": [
+                "Best\u00e4tigt"
+            ],
+            "Running": [
+                "Laufend"
+            ],
+            "Done": [
+                "Erledigt"
+            ],
+            "Booked in projects": [
+                "In Projekten gebucht"
+            ],
+            "no date": [
+                "kein Datum"
+            ],
+            "Delete item": [
+                "Artikel l\u00f6schen"
+            ],
+            "Delete item \"%s\"?": [
+                "Artikel \"%s\" l\u00f6schen?"
+            ],
+            "Item deleted.": [
+                "Artikel gel\u00f6scht."
+            ],
+            "Close": [
+                "Schlie\u00dfen"
+            ],
+            "Save": [
+                "Speichern"
+            ],
+            "Saved.": [
+                "Gespeichert."
+            ],
+            "Photo upload failed:": [
+                "Foto-Upload fehlgeschlagen:"
+            ],
+            "PDF \"%1$s\" failed: %2$s": [
+                "PDF \"%1$s\" fehlgeschlagen: %2$s"
+            ],
+            "New item": [
+                "Neuer Artikel"
+            ],
+            "Item %s created.": [
+                "Artikel %s angelegt."
+            ],
+            "Create": [
+                "Anlegen"
+            ],
+            "Export": [
+                "Export"
+            ],
+            "CSV export": [
+                "CSV-Export"
+            ],
+            "Export failed": [
+                "Export fehlgeschlagen"
+            ],
+            "Import": [
+                "Import"
+            ],
+            "\u2014 ignore \u2014": [
+                "\u2014 ignorieren \u2014"
+            ],
+            "File (.xlsx, .xls or .csv \u2014 first row = headers)": [
+                "Datei (.xlsx, .xls oder .csv \u2014 erste Zeile = \u00dcberschriften)"
+            ],
+            "Import inventory": [
+                "Inventar importieren"
+            ],
+            "Could not read file:": [
+                "Datei konnte nicht gelesen werden:"
+            ],
+            "File contains no data rows.": [
+                "Datei enth\u00e4lt keine Datenzeilen."
+            ],
+            "Map columns (preview: first 5 of %d rows)": [
+                "Spalten zuordnen (Vorschau: erste 5 von %d Zeilen)"
+            ],
+            "Import %d rows": [
+                "%d Zeilen importieren"
+            ],
+            "%d items imported": [
+                "%d Artikel importiert"
+            ],
+            "%d errors": [
+                "%d Fehler"
+            ],
+            "Row %d:": [
+                "Zeile %d:"
+            ],
+            "Borrower": [
+                "Leiher"
+            ],
+            "Line items": [
+                "Positionen"
+            ],
+            "Fee": [
+                "Geb\u00fchr"
+            ],
+            "No rentals yet.": [
+                "Noch keine Verleihe."
+            ],
+            "Borrower *": [
+                "Leiher *"
+            ],
+            "Fee \u20ac": [
+                "Geb\u00fchr \u20ac"
+            ],
+            "Deposit \u20ac": [
+                "Kaution \u20ac"
+            ],
+            "VAT %": [
+                "MwSt %"
+            ],
+            "day": [
+                "Tag"
+            ],
+            "No line items.": [
+                "Keine Positionen."
+            ],
+            "\u2014 select item \u2014": [
+                "\u2014 Artikel w\u00e4hlen \u2014"
+            ],
+            "+ Line item": [
+                "+ Position"
+            ],
+            "%d days": [
+                "%d Tage"
+            ],
+            "Net": [
+                "Netto"
+            ],
+            "VAT": [
+                "USt"
+            ],
+            "Gross": [
+                "Brutto"
+            ],
+            "Deposit (pass-through)": [
+                "Kaution (durchlaufend)"
+            ],
+            "Billing": [
+                "Abrechnung"
+            ],
+            "Delete": [
+                "L\u00f6schen"
+            ],
+            "Delete rental %s?": [
+                "Verleih %s l\u00f6schen?"
+            ],
+            "available": [
+                "verf\u00fcgbar"
+            ],
+            "Rental %s created.": [
+                "Verleih %s angelegt."
+            ],
+            "Item": [
+                "Artikel"
+            ],
+            "Create rental": [
+                "Verleih anlegen"
+            ],
+            "New rental": [
+                "Neuer Verleih"
+            ],
+            "Open": [
+                "Offen"
+            ],
+            "In progress": [
+                "In Arbeit"
+            ],
+            "Low": [
+                "Niedrig"
+            ],
+            "Normal": [
+                "Normal"
+            ],
+            "High": [
+                "Hoch"
+            ],
+            "Personnel": [
+                "Personal"
+            ],
+            "Material": [
+                "Material"
+            ],
+            "External services": [
+                "Fremdleistung"
+            ],
+            "\u2014 site level \u2014": [
+                "\u2014 Site-Ebene \u2014"
+            ],
+            "Venue": [
+                "Veranstaltungsort"
+            ],
+            "Client": [
+                "Kunde"
+            ],
+            "Bookings": [
+                "Buchungen"
+            ],
+            "No projects yet.": [
+                "Noch keine Projekte."
+            ],
+            "Venue address": [
+                "Adresse Veranstaltungsort"
+            ],
+            "Budget (net)": [
+                "Budget (netto)"
+            ],
+            "Revenue (net)": [
+                "Umsatz (netto)"
+            ],
+            "Group": [
+                "Gruppe"
+            ],
+            "project period": [
+                "Projekt-Zeitraum"
+            ],
+            "No bookings.": [
+                "Keine Buchungen."
+            ],
+            "+ Booking": [
+                "+ Buchung"
+            ],
+            "Without dates the booking inherits the project period.": [
+                "Ohne Datum erbt die Buchung den Projekt-Zeitraum."
+            ],
+            "Costs": [
+                "Kosten"
+            ],
+            "Planned (net)": [
+                "Geplant (netto)"
+            ],
+            "Actual (net)": [
+                "Ist (netto)"
+            ],
+            "Not in profit": [
+                "nicht im Gewinn"
+            ],
+            "No cost items.": [
+                "Keine Kostenposten."
+            ],
+            "+ Cost item": [
+                "+ Kostenposten"
+            ],
+            "Planned net": [
+                "Geplant netto"
+            ],
+            "Planned gross": [
+                "Geplant brutto"
+            ],
+            "Actual net": [
+                "Ist netto"
+            ],
+            "Actual gross": [
+                "Ist brutto"
+            ],
+            "Budget": [
+                "Budget"
+            ],
+            "Variance": [
+                "Abweichung"
+            ],
+            "Revenue": [
+                "Umsatz"
+            ],
+            "Profit": [
+                "Gewinn"
+            ],
+            "Percentage": [
+                "Prozent"
+            ],
+            "Fixed": [
+                "Fest"
+            ],
+            "Profit sharing": [
+                "Gewinnverteilung"
+            ],
+            "Assign a group to distribute profit.": [
+                "Ordne erst eine Gruppe zu, um den Gewinn zu verteilen."
+            ],
+            "Profit pool": [
+                "Gewinn-Pool"
+            ],
+            "Set project revenue to calculate amounts.": [
+                "Hinterlege den Umsatz, um Betr\u00e4ge zu berechnen."
+            ],
+            "Participant": [
+                "Beteiligter"
+            ],
+            "Type": [
+                "Typ"
+            ],
+            "Share": [
+                "Anteil"
+            ],
+            "Calculated": [
+                "Berechnet"
+            ],
+            "(removed user)": [
+                "(entfernter Benutzer)"
+            ],
+            "No profit shares yet.": [
+                "Noch keine Anteile."
+            ],
+            "Allocated": [
+                "Zugeteilt"
+            ],
+            "Unallocated": [
+                "Nicht zugeteilt"
+            ],
+            "Over-allocated": [
+                "\u00dcberverteilt"
+            ],
+            "All group members already have a share.": [
+                "Alle Gruppenmitglieder haben bereits einen Anteil."
+            ],
+            "\u2014 select group member \u2014": [
+                "\u2014 Gruppenmitglied w\u00e4hlen \u2014"
+            ],
+            "Value": [
+                "Wert"
+            ],
+            "Add share": [
+                "Anteil hinzuf\u00fcgen"
+            ],
+            "Materials": [
+                "Material"
+            ],
+            "Unit": [
+                "Einheit"
+            ],
+            "Cost": [
+                "Kosten"
+            ],
+            "No materials.": [
+                "Kein Material."
+            ],
+            "Total material cost": [
+                "Materialkosten gesamt"
+            ],
+            "+ Material": [
+                "+ Material"
+            ],
+            "Files": [
+                "Dateien"
+            ],
+            "(file missing)": [
+                "(Datei fehlt)"
+            ],
+            "No files.": [
+                "Keine Dateien."
+            ],
+            "Add file": [
+                "Datei hinzuf\u00fcgen"
+            ],
+            "Media library is not available.": [
+                "Die Medienbibliothek ist nicht verf\u00fcgbar."
+            ],
+            "Select files": [
+                "Dateien ausw\u00e4hlen"
+            ],
+            "Schedule": [
+                "Zeitplan"
+            ],
+            "No schedule entries.": [
+                "Keine Zeitplan-Eintr\u00e4ge."
+            ],
+            "Date": [
+                "Datum"
+            ],
+            "Title": [
+                "Titel"
+            ],
+            "+ Entry": [
+                "+ Eintrag"
+            ],
+            "Checklists": [
+                "Checklisten"
+            ],
+            "Delete checklist \"%s\"?": [
+                "Checkliste \"%s\" l\u00f6schen?"
+            ],
+            "No entries.": [
+                "Keine Eintr\u00e4ge."
+            ],
+            "New entry": [
+                "Neuer Eintrag"
+            ],
+            "No checklists.": [
+                "Keine Checklisten."
+            ],
+            "Checklist name": [
+                "Name der Checkliste"
+            ],
+            "+ Checklist": [
+                "+ Checkliste"
+            ],
+            "Tasks": [
+                "Aufgaben"
+            ],
+            "Change status": [
+                "Status \u00e4ndern"
+            ],
+            "Priority": [
+                "Priorit\u00e4t"
+            ],
+            "Due date": [
+                "F\u00e4llig am"
+            ],
+            "No tasks.": [
+                "Keine Aufgaben."
+            ],
+            "Task title": [
+                "Aufgaben-Titel"
+            ],
+            "+ Task": [
+                "+ Aufgabe"
+            ],
+            "Project members": [
+                "Beteiligte"
+            ],
+            "Assign a group to add members.": [
+                "Ordne erst eine Gruppe zu, um Beteiligte hinzuzuf\u00fcgen."
+            ],
+            "No members yet.": [
+                "Noch keine Beteiligten."
+            ],
+            "All group members are already listed.": [
+                "Alle Gruppenmitglieder sind bereits aufgef\u00fchrt."
+            ],
+            "Role": [
+                "Rolle"
+            ],
+            "Add member": [
+                "Mitglied hinzuf\u00fcgen"
+            ],
+            "Approved": [
+                "Angenommen"
+            ],
+            "Rejected": [
+                "Abgelehnt"
+            ],
+            "Approve": [
+                "Zustimmen"
+            ],
+            "Reject": [
+                "Ablehnen"
+            ],
+            "Abstain": [
+                "Enthalten"
+            ],
+            "Decisions": [
+                "Beschl\u00fcsse"
+            ],
+            "Assign a group to hold votes.": [
+                "Ordne erst eine Gruppe zu, um abzustimmen."
+            ],
+            "Unanimous": [
+                "Einstimmig"
+            ],
+            "Majority": [
+                "Mehrheit"
+            ],
+            "Approve %1$d \u00b7 Reject %2$d \u00b7 Abstain %3$d of %4$d": [
+                "Zustimmung %1$d \u00b7 Ablehnung %2$d \u00b7 Enthaltung %3$d von %4$d"
+            ],
+            "%d votes": [
+                "%d Stimmen"
+            ],
+            "Close this decision early?": [
+                "Diesen Beschluss vorzeitig schlie\u00dfen?"
+            ],
+            "Delete this decision and all votes?": [
+                "Diesen Beschluss und alle Stimmen l\u00f6schen?"
+            ],
+            "No decisions yet.": [
+                "Noch keine Beschl\u00fcsse."
+            ],
+            "Requires unanimous": [
+                "Einstimmigkeit erforderlich"
+            ],
+            "New decision": [
+                "Neuer Beschluss"
+            ],
+            "Date poll": [
+                "Terminumfrage"
+            ],
+            "Choice poll": [
+                "Auswahl-Umfrage"
+            ],
+            "Yes": [
+                "Ja"
+            ],
+            "Maybe": [
+                "Vielleicht"
+            ],
+            "No": [
+                "Nein"
+            ],
+            "Polls": [
+                "Umfragen"
+            ],
+            "Assign a group to run polls.": [
+                "Ordne erst eine Gruppe zu, um Umfragen durchzuf\u00fchren."
+            ],
+            "Closed": [
+                "Abgeschlossen"
+            ],
+            "Best option": [
+                "Beste Option"
+            ],
+            "\u2713 %1$d \u00b7 \u25cb %2$d \u00b7 \u2717 %3$d": [
+                "\u2713 %1$d \u00b7 \u25cb %2$d \u00b7 \u2717 %3$d"
+            ],
+            "Reopen": [
+                "Wieder \u00f6ffnen"
+            ],
+            "Delete this poll and all votes?": [
+                "Diese Umfrage und alle Stimmen l\u00f6schen?"
+            ],
+            "No polls yet.": [
+                "Noch keine Umfragen."
+            ],
+            "Option": [
+                "Option"
+            ],
+            "Add option": [
+                "Option hinzuf\u00fcgen"
+            ],
+            "Create poll": [
+                "Umfrage anlegen"
+            ],
+            "Team & Contacts": [
+                "Team & Kontakte"
+            ],
+            "Team": [
+                "Team"
+            ],
+            "No team members.": [
+                "Keine Team-Mitglieder."
+            ],
+            "Department": [
+                "Abteilung"
+            ],
+            "+ Team member": [
+                "+ Team-Mitglied"
+            ],
+            "Contacts": [
+                "Kontakte"
+            ],
+            "No contacts.": [
+                "Keine Kontakte."
+            ],
+            "Company": [
+                "Firma"
+            ],
+            "+ Contact": [
+                "+ Kontakt"
+            ],
+            "In signing": [
+                "In Unterzeichnung"
+            ],
+            "Active": [
+                "Aktiv"
+            ],
+            "Terminated": [
+                "Beendet"
+            ],
+            "Signed": [
+                "Unterschrieben"
+            ],
+            "Declined": [
+                "Abgelehnt"
+            ],
+            "Pending": [
+                "Ausstehend"
+            ],
+            "Cooperation agreement": [
+                "Kooperationsvereinbarung"
+            ],
+            "Assign a group to set up an agreement.": [
+                "Ordne erst eine Gruppe zu, um eine Vereinbarung zu erstellen."
+            ],
+            "No agreement yet.": [
+                "Noch keine Vereinbarung."
+            ],
+            "Contract text": [
+                "Vertragstext"
+            ],
+            "Create agreement": [
+                "Vereinbarung anlegen"
+            ],
+            "Version %d": [
+                "Version %d"
+            ],
+            "Open for signing": [
+                "Zur Unterzeichnung freigeben"
+            ],
+            "Active since %s": [
+                "Aktiv seit %s"
+            ],
+            "Signed %1$d of %2$d": [
+                "%1$d von %2$d unterschrieben"
+            ],
+            "Sign": [
+                "Unterschreiben"
+            ],
+            "Decline": [
+                "Ablehnen"
+            ],
+            "No group members.": [
+                "Keine Gruppenmitglieder."
+            ],
+            "Revise": [
+                "\u00dcberarbeiten"
+            ],
+            "Revise this agreement? All signatures will be cleared.": [
+                "Diese Vereinbarung \u00fcberarbeiten? Alle Unterschriften werden verworfen."
+            ],
+            "Terminate": [
+                "Beenden"
+            ],
+            "Terminate this agreement?": [
+                "Diese Vereinbarung beenden?"
+            ],
+            "Delete this agreement and all signatures?": [
+                "Diese Vereinbarung samt aller Unterschriften l\u00f6schen?"
+            ],
+            "Delete project": [
+                "Projekt l\u00f6schen"
+            ],
+            "Delete project \"%s\"? Bookings, checklists and tasks will be deleted too.": [
+                "Projekt \"%s\" l\u00f6schen? Buchungen, Checklisten und Aufgaben werden mit gel\u00f6scht."
+            ],
+            "New project": [
+                "Neues Projekt"
+            ],
+            "Project %s created.": [
+                "Projekt %s angelegt."
+            ],
+            "Create project": [
+                "Projekt anlegen"
+            ],
+            "No other category available as target.": [
+                "Keine andere Kategorie als Ziel vorhanden."
+            ],
+            "Counting items \u2026": [
+                "Artikel werden gez\u00e4hlt \u2026"
+            ],
+            "%1$d items will be moved to the target category, then \"%2$s\" will be deleted.": [
+                "%1$d Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%2$s\" gel\u00f6scht."
+            ],
+            "All items will be moved to the target category, then \"%s\" will be deleted.": [
+                "Alle Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%s\" gel\u00f6scht."
+            ],
+            "Target category for \"%s\"": [
+                "Ziel-Kategorie f\u00fcr \"%s\""
+            ],
+            "Cancel": [
+                "Abbrechen"
+            ],
+            "Merge": [
+                "Zusammenf\u00fchren"
+            ],
+            "%d items moved, category deleted.": [
+                "%d Artikel verschoben, Kategorie gel\u00f6scht."
+            ],
+            "Merge category": [
+                "Kategorie zusammenf\u00fchren"
+            ],
+            "Icon": [
+                "Icon"
+            ],
+            "Prefix": [
+                "Prefix"
+            ],
+            "Merge\u2026": [
+                "Zusammenf\u00fchren\u2026"
+            ],
+            "Delete category \"%s\"? Items will be kept.": [
+                "Kategorie \"%s\" l\u00f6schen? Artikel bleiben erhalten."
+            ],
+            "Icon (emoji)": [
+                "Icon (Emoji)"
+            ],
+            "New category": [
+                "Neue Kategorie"
+            ],
+            "Category created.": [
+                "Kategorie angelegt."
+            ],
+            "Contacted": [
+                "Kontaktiert"
+            ],
+            "Offer": [
+                "Angebot"
+            ],
+            "Won": [
+                "Gewonnen"
+            ],
+            "Lost": [
+                "Verloren"
+            ],
+            "Convert to rental": [
+                "In Verleih \u00fcbernehmen"
+            ],
+            "Convert the inquiry from \"%s\" into a rental? The inquiry will be marked as won.": [
+                "Anfrage von \"%s\" in einen Verleih \u00fcbernehmen? Die Anfrage wird als gewonnen markiert."
+            ],
+            "Date range missing \u2014 cannot convert": [
+                "Zeitraum fehlt \u2014 Konvertierung nicht m\u00f6glich"
+            ],
+            "Delete the inquiry from \"%s\"?": [
+                "Anfrage von \"%s\" l\u00f6schen?"
+            ],
+            "Received on": [
+                "Eingegangen am"
+            ],
+            "Item #%d": [
+                "Artikel #%d"
+            ],
+            "No equipment requested.": [
+                "Kein Equipment angefragt."
+            ],
+            "Inquiry from %s": [
+                "Anfrage von %s"
+            ],
+            "Contact": [
+                "Kontakt"
+            ],
+            "No inquiries yet. Add the form to any page with the [pp_request_form] shortcode.": [
+                "Noch keine Anfragen. Das Formular kommt per Shortcode [pp_request_form] auf jede Seite."
+            ],
+            "Reservation confirmed": [
+                "Reservierung best\u00e4tigt"
+            ],
+            "Equipment handed out": [
+                "Equipment ausgegeben"
+            ],
+            "Return confirmed": [
+                "R\u00fcckgabe best\u00e4tigt"
+            ],
+            "Subject": [
+                "Betreff"
+            ],
+            "Text": [
+                "Text"
+            ],
+            "Settings saved.": [
+                "Einstellungen gespeichert."
+            ],
+            "Email notifications": [
+                "E-Mail-Benachrichtigungen"
+            ],
+            "Send emails to borrowers (reservation, handout, return)": [
+                "E-Mails an Leiher senden (Reservierung, Ausgabe, R\u00fcckgabe)"
+            ],
+            "Placeholders:": [
+                "Platzhalter:"
+            ],
+            "Calendar feed (iCal)": [
+                "Kalender-Feed (iCal)"
+            ],
+            "Read-only feed of all reserved\/active rentals \u2014 subscribe in Apple\/Google\/Outlook.": [
+                "Read-only Feed aller reservierten\/aktiven Verleihe \u2014 in Apple\/Google\/Outlook abonnierbar."
+            ],
+            "Copy URL": [
+                "URL kopieren"
+            ],
+            "Copied.": [
+                "Kopiert."
+            ],
+            "Regenerate token": [
+                "Token erneuern"
+            ],
+            "Regenerate token? Existing calendar subscriptions will lose access.": [
+                "Token erneuern? Bestehende Kalender-Abos verlieren den Zugriff."
+            ],
+            "Token regenerated.": [
+                "Token erneuert."
+            ],
+            "Public frontend": [
+                "\u00d6ffentliches Frontend"
+            ],
+            "Show daily rates publicly (item detail page \/equipment-item\/\u2026)": [
+                "Tagess\u00e4tze \u00f6ffentlich zeigen (Artikel-Detailseite \/equipment-item\/\u2026)"
+            ],
+            "Inventory cards link to a public detail page per item. Purchase price and serial number are never shown there.": [
+                "Die Inventar-Karten verlinken auf eine \u00f6ffentliche Detailseite pro Artikel. Kaufpreis und Seriennummer sind dort nie sichtbar."
+            ],
+            "Data": [
+                "Daten"
+            ],
+            "Delete all plugin data on uninstall": [
+                "Alle Plugin-Daten beim Deinstallieren l\u00f6schen"
+            ],
+            "GDPR: export & anonymization of borrower data via Tools \u2192 Personal Data (search by email address).": [
+                "DSGVO: Export & Anonymisierung von Leiher-Daten \u00fcber Werkzeuge \u2192 Personenbezogene Daten (Suche per E-Mail-Adresse)."
+            ],
+            "Founder": [
+                "Gr\u00fcnder"
+            ],
+            "Member": [
+                "Mitglied"
+            ],
+            "Members": [
+                "Mitglieder"
+            ],
+            "No groups yet.": [
+                "Noch keine Gruppen."
+            ],
+            "Group name": [
+                "Gruppenname"
+            ],
+            "No members.": [
+                "Keine Mitglieder."
+            ],
+            "\u2014 select user \u2014": [
+                "\u2014 Benutzer w\u00e4hlen \u2014"
+            ],
+            "Delete group": [
+                "Gruppe l\u00f6schen"
+            ],
+            "Delete group \"%s\"? Projects of this group return to site level.": [
+                "Gruppe \u201e%s\u201c l\u00f6schen? Projekte dieser Gruppe fallen auf die Site-Ebene zur\u00fcck."
+            ],
+            "New group": [
+                "Neue Gruppe"
+            ],
+            "Create group": [
+                "Gruppe anlegen"
+            ],
+            "Item created": [
+                "Artikel angelegt"
+            ],
+            "Item updated": [
+                "Artikel aktualisiert"
+            ],
+            "Item deleted": [
+                "Artikel gel\u00f6scht"
+            ],
+            "Category created": [
+                "Kategorie angelegt"
+            ],
+            "Category updated": [
+                "Kategorie aktualisiert"
+            ],
+            "Category deleted": [
+                "Kategorie gel\u00f6scht"
+            ],
+            "Categories merged": [
+                "Kategorien zusammengef\u00fchrt"
+            ],
+            "Rental created": [
+                "Verleih angelegt"
+            ],
+            "Rental updated": [
+                "Verleih aktualisiert"
+            ],
+            "Rental status changed": [
+                "Verleih-Status ge\u00e4ndert"
+            ],
+            "Rental deleted": [
+                "Verleih gel\u00f6scht"
+            ],
+            "Project created": [
+                "Projekt angelegt"
+            ],
+            "Project updated": [
+                "Projekt aktualisiert"
+            ],
+            "Project deleted": [
+                "Projekt gel\u00f6scht"
+            ],
+            "Inquiry created": [
+                "Anfrage angelegt"
+            ],
+            "Inquiry status changed": [
+                "Anfrage-Status ge\u00e4ndert"
+            ],
+            "Inquiry converted": [
+                "Anfrage umgewandelt"
+            ],
+            "Inquiry deleted": [
+                "Anfrage gel\u00f6scht"
+            ],
+            "Group created": [
+                "Gruppe angelegt"
+            ],
+            "Group updated": [
+                "Gruppe aktualisiert"
+            ],
+            "Group deleted": [
+                "Gruppe gel\u00f6scht"
+            ],
+            "Participant added": [
+                "Beteiligter hinzugef\u00fcgt"
+            ],
+            "Decision created": [
+                "Beschluss angelegt"
+            ],
+            "Profit share added": [
+                "Gewinnanteil hinzugef\u00fcgt"
+            ],
+            "Agreement created": [
+                "Vereinbarung angelegt"
+            ],
+            "Agreement opened for signing": [
+                "Vereinbarung zur Unterzeichnung freigegeben"
+            ],
+            "Agreement signed": [
+                "Vereinbarung unterschrieben"
+            ],
+            "Agreement declined": [
+                "Vereinbarung abgelehnt"
+            ],
+            "Agreement revised": [
+                "Vereinbarung \u00fcberarbeitet"
+            ],
+            "Agreement terminated": [
+                "Vereinbarung beendet"
+            ],
+            "Rental": [
+                "Verleih"
+            ],
+            "Project": [
+                "Projekt"
+            ],
+            "Inquiry": [
+                "Anfrage"
+            ],
+            "Decision": [
+                "Beschluss"
+            ],
+            "Agreement": [
+                "Vereinbarung"
+            ],
+            "Active rentals": [
+                "Aktive Verleihe"
+            ],
+            "Reserved rentals": [
+                "Reservierte Verleihe"
+            ],
+            "Open inquiries": [
+                "Offene Anfragen"
+            ],
+            "Running \/ planned projects": [
+                "Laufende \/ geplante Projekte"
+            ],
+            "Upcoming (next 14 days)": [
+                "Anstehend (n\u00e4chste 14 Tage)"
+            ],
+            "Nothing scheduled.": [
+                "Nichts geplant."
+            ],
+            "(untitled)": [
+                "(ohne Titel)"
+            ],
+            "Recent activity": [
+                "Letzte Aktivit\u00e4t"
+            ],
+            "No activity yet.": [
+                "Noch keine Aktivit\u00e4t."
+            ],
+            "Today": [
+                "Heute"
+            ],
+            "Previous month": [
+                "Voriger Monat"
+            ],
+            "Next month": [
+                "N\u00e4chster Monat"
+            ],
+            "available in the settings.": [
+                "in den Einstellungen verf\u00fcgbar."
+            ],
+            "weekday\u0004Mon": [
+                "Mo"
+            ],
+            "weekday\u0004Tue": [
+                "Di"
+            ],
+            "weekday\u0004Wed": [
+                "Mi"
+            ],
+            "weekday\u0004Thu": [
+                "Do"
+            ],
+            "weekday\u0004Fri": [
+                "Fr"
+            ],
+            "weekday\u0004Sat": [
+                "Sa"
+            ],
+            "weekday\u0004Sun": [
+                "So"
+            ],
+            "January": [
+                "Januar"
+            ],
+            "February": [
+                "Februar"
+            ],
+            "March": [
+                "M\u00e4rz"
+            ],
+            "April": [
+                "April"
+            ],
+            "May": [
+                "Mai"
+            ],
+            "June": [
+                "Juni"
+            ],
+            "July": [
+                "Juli"
+            ],
+            "August": [
+                "August"
+            ],
+            "September": [
+                "September"
+            ],
+            "October": [
+                "Oktober"
+            ],
+            "November": [
+                "November"
+            ],
+            "December": [
+                "Dezember"
+            ],
+            "Overview": [
+                "\u00dcbersicht"
+            ],
+            "Team & contacts": [
+                "Team & Kontakte"
+            ],
+            "Material & transport": [
+                "Material & Transport"
+            ],
+            "How Project Prepper works": [
+                "So funktioniert Project Prepper"
+            ],
+            "Got it, hide": [
+                "Verstanden, ausblenden"
+            ],
+            "Build your inventory": [
+                "Inventar aufbauen"
+            ],
+            "Items with number ranges, conditions and daily rates.": [
+                "Artikel mit Nummernkreisen, Zustand und Tagess\u00e4tzen."
+            ],
+            "Plan projects": [
+                "Projekte planen"
+            ],
+            "Bookings, schedule, checklists, tasks and a cost breakdown.": [
+                "Buchungen, Zeitplan, Checklisten, Aufgaben und Kostenaufstellung."
+            ],
+            "Work as a group": [
+                "Als Gruppe arbeiten"
+            ],
+            "Share a project with a team: members, decisions and polls.": [
+                "Ein Projekt im Team teilen: Beteiligte, Beschl\u00fcsse und Umfragen."
+            ],
+            "Settle the profit": [
+                "Gewinn abrechnen"
+            ],
+            "Distribute the profit and record a signed agreement.": [
+                "Gewinn verteilen und eine unterschriebene Vereinbarung festhalten."
+            ],
+            "Requested": [
+                "Angefragt"
+            ],
+            "Where the member portal comes together: collectives, join voting, member inventory and borrow requests. Manage members under Groups.": [
+                "Hier laufen die Member-Portal-Prozesse zusammen: Gruppen, Beitritts-Voting, Mitglieder-Inventar und Leih-Anfragen. Mitglieder verwaltest du unter \u201eGruppen\"."
+            ],
+            "Collectives": [
+                "Gruppen"
+            ],
+            "Member inventory": [
+                "Mitglieder-Inventar"
+            ],
+            "Open invitations": [
+                "Offene Einladungen"
+            ],
+            "Active loans": [
+                "Aktive Leihen"
+            ],
+            "Open borrow requests": [
+                "Offene Leih-Anfragen"
+            ],
+            "Open join invitations": [
+                "Offene Beitritts-Einladungen"
+            ],
+            "Invited": [
+                "Eingeladen"
+            ],
+            "Approvals": [
+                "Zustimmungen"
+            ],
+            "Collective": [
+                "Gruppe"
+            ],
+            "No open invitations.": [
+                "Keine offenen Einladungen."
+            ],
+            "Recent borrow requests": [
+                "Letzte Leih-Anfragen"
+            ],
+            "Owner": [
+                "Eigent\u00fcmer"
+            ],
+            "No borrow requests yet.": [
+                "Noch keine Leih-Anfragen."
+            ],
+            "No collectives yet.": [
+                "Noch keine Gruppen."
+            ],
+            "Pending acceptance": [
+                "Wartet auf Annahme"
+            ],
+            "In voting": [
+                "In Abstimmung"
+            ],
+            "Frontend hardening for the member portal. Everything is OFF by default \u2014 nothing changes until you enable it here.": [
+                "Frontend-H\u00e4rtung f\u00fcr das Member-Portal. Standardm\u00e4\u00dfig ist alles AUS \u2014 es \u00e4ndert sich nichts, bis du es hier aktivierst."
+            ],
+            "Security settings saved.": [
+                "Sicherheits-Einstellungen gespeichert."
+            ],
+            "Lock out repeated failed logins (per IP).": [
+                "Wiederholte Fehl-Logins sperren (pro IP)."
+            ],
+            "Max attempts": [
+                "Max. Versuche"
+            ],
+            "Lockout (minutes)": [
+                "Sperre (Minuten)"
+            ],
+            "Collectives per user": [
+                "Gruppen pro User"
+            ],
+            "Invitations per day": [
+                "Einladungen pro Tag"
+            ],
+            "Allow open sign-up (new accounts become members). Off = invitation only.": [
+                "Offene Registrierung erlauben (neue Konten werden Mitglieder). Aus = nur per Einladung."
+            ],
+            "Require a second factor at member login.": [
+                "Beim Mitglieder-Login einen zweiten Faktor verlangen."
+            ],
+            "Save security settings": [
+                "Sicherheits-Einstellungen speichern"
+            ],
+            "When on, members get a one-time code by email at portal sign-in. Admins and managers keep the normal wp-admin login.": [
+                "Wenn aktiv, erhalten Mitglieder beim Portal-Login einen Einmal-Code per E-Mail. Admins und Manager nutzen weiter den normalen wp-admin-Login."
+            ],
+            "Make this instance discoverable to other Project Prepper instances by postal code and topic. Opt-in and OFF by default \u2014 while off, nothing is published and the discovery endpoint returns 404. Only coarse, non-personal data is shared (name, postal code, topic, counts).": [
+                "Mache diese Instanz f\u00fcr andere Project-Prepper-Instanzen per Postleitzahl und Thema auffindbar. Opt-in und standardm\u00e4\u00dfig AUS \u2014 solange aus, wird nichts ver\u00f6ffentlicht und der Discovery-Endpoint liefert 404. Es werden nur grobe, nicht-personenbezogene Daten geteilt (Name, PLZ, Thema, Anzahlen)."
+            ],
+            "Federation settings saved.": [
+                "F\u00f6derations-Einstellungen gespeichert."
+            ],
+            "List this instance in the federation (publish the public profile below).": [
+                "Diese Instanz in der F\u00f6deration listen (\u00f6ffentliches Profil unten ver\u00f6ffentlichen)."
+            ],
+            "Postal code": [
+                "Postleitzahl"
+            ],
+            "Topic": [
+                "Thema"
+            ],
+            "E.g. \"event tech\", \"community garden\", \"makerspace\".": [
+                "Z. B. \u201eVeranstaltungstechnik\", \u201eGemeinschaftsgarten\", \u201eMakerspace\"."
+            ],
+            "Contact email": [
+                "Kontakt-E-Mail"
+            ],
+            "Discovery endpoint": [
+                "Discovery-Endpoint"
+            ],
+            "Save federation settings": [
+                "F\u00f6derations-Einstellungen speichern"
+            ],
+            "Partner instances": [
+                "Partner-Instanzen"
+            ],
+            "One instance URL per line. Their public profiles are fetched and listed below (cached for an hour).": [
+                "Eine Instanz-URL pro Zeile. Ihre \u00f6ffentlichen Profile werden abgerufen und unten gelistet (1 Stunde gecacht)."
+            ],
+            "Known instances": [
+                "Bekannte Instanzen"
+            ],
+            "Instance": [
+                "Instanz"
+            ],
+            "unreachable": [
+                "nicht erreichbar"
+            ],
+            "No partner instances configured yet.": [
+                "Noch keine Partner-Instanzen konfiguriert."
+            ],
+            "When": [
+                "Wann"
+            ],
+            "Who": [
+                "Wer"
+            ],
+            "Action": [
+                "Aktion"
+            ],
+            "No activity recorded yet.": [
+                "Noch keine Aktivit\u00e4t aufgezeichnet."
+            ],
+            "founded a collective": [
+                "hat eine Gruppe gegr\u00fcndet"
+            ],
+            "invited someone": [
+                "hat jemanden eingeladen"
+            ],
+            "accepted an invitation": [
+                "hat eine Einladung angenommen"
+            ],
+            "was approved to join": [
+                "wurde zum Beitritt freigegeben"
+            ],
+            "was rejected": [
+                "wurde abgelehnt"
+            ],
+            "added a member": [
+                "hat ein Mitglied hinzugef\u00fcgt"
+            ],
+            "removed a member": [
+                "hat ein Mitglied entfernt"
+            ],
+            "added an item": [
+                "hat einen Artikel angelegt"
+            ],
+            "deleted an item": [
+                "hat einen Artikel gel\u00f6scht"
+            ],
+            "shared an item": [
+                "hat einen Artikel geteilt"
+            ],
+            "stopped sharing an item": [
+                "teilt einen Artikel nicht mehr"
+            ],
+            "requested to borrow an item": [
+                "hat einen Artikel angefragt"
+            ],
+            "approved a borrow request": [
+                "hat eine Leih-Anfrage angenommen"
+            ],
+            "declined a borrow request": [
+                "hat eine Leih-Anfrage abgelehnt"
+            ],
+            "marked a loan returned": [
+                "hat eine Leihe als zur\u00fcckgegeben markiert"
+            ],
+            "Accept borrow requests from partner instances (members moderate each request).": [
+                "Leih-Anfragen von Partner-Instanzen annehmen (Mitglieder moderieren jede Anfrage)."
+            ],
+            "Member login & sign-up": [
+                "Mitglieder-Login & Registrierung"
+            ],
+            "Anti-snowball limits": [
+                "Schneeball-Schutz (Limits)"
+            ],
+            "0 = unlimited. Invitations counted per member over a rolling 24 hours.": [
+                "0 = unbegrenzt. Einladungen werden pro Mitglied \u00fcber rollende 24 Stunden gez\u00e4hlt."
+            ],
+            "Public profile": [
+                "\u00d6ffentliches Profil"
+            ]
+        }
+    }
+}

@@ -34,57 +34,57 @@ msgstr "Equipment-Inventar, Projekte & Verleih für Teams — Kategorien mit Num
 msgid "motttto"
 msgstr "motttto"
 
-#: includes/Admin/Menu.php:43
-#: includes/Admin/Menu.php:44
+#: includes/Admin/Menu.php:36
+#: includes/Admin/Menu.php:37
 #: includes/Frontend/MemberPortal.php:766
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: includes/Admin/Menu.php:53
-#: includes/Admin/Menu.php:54
-#: includes/Admin/Menu.php:200
+#: includes/Admin/Menu.php:46
+#: includes/Admin/Menu.php:47
+#: includes/Admin/Menu.php:193
 #: includes/Frontend/MemberPortal.php:767
 #: admin/js/admin.js:630
 #: admin/js/admin.js:1179
 msgid "Inventory"
 msgstr "Inventar"
 
-#: includes/Admin/Menu.php:62
-#: includes/Admin/Menu.php:63
-#: includes/Admin/Menu.php:204
+#: includes/Admin/Menu.php:55
+#: includes/Admin/Menu.php:56
+#: includes/Admin/Menu.php:197
 #: includes/Frontend/MemberPortal.php:769
 #: includes/Frontend/MemberPortal.php:1092
 msgid "Projects"
 msgstr "Projekte"
 
-#: includes/Admin/Menu.php:71
-#: includes/Admin/Menu.php:72
-#: includes/Admin/Menu.php:208
+#: includes/Admin/Menu.php:64
+#: includes/Admin/Menu.php:65
+#: includes/Admin/Menu.php:201
 msgid "Groups"
 msgstr "Gruppen"
 
-#: includes/Admin/Menu.php:92
-#: includes/Admin/Menu.php:93
-#: includes/Admin/Menu.php:212
+#: includes/Admin/Menu.php:85
+#: includes/Admin/Menu.php:86
+#: includes/Admin/Menu.php:205
 #: includes/Rest/CalendarController.php:54
 msgid "Rentals"
 msgstr "Verleih"
 
-#: includes/Admin/Menu.php:101
-#: includes/Admin/Menu.php:102
-#: includes/Admin/Menu.php:228
+#: includes/Admin/Menu.php:94
+#: includes/Admin/Menu.php:95
+#: includes/Admin/Menu.php:221
 msgid "Inquiries"
 msgstr "Anfragen"
 
-#: includes/Admin/Menu.php:119
-#: includes/Admin/Menu.php:120
-#: includes/Admin/Menu.php:220
+#: includes/Admin/Menu.php:112
+#: includes/Admin/Menu.php:113
+#: includes/Admin/Menu.php:213
 msgid "Categories"
 msgstr "Kategorien"
 
-#: includes/Admin/Menu.php:128
-#: includes/Admin/Menu.php:129
-#: includes/Admin/Menu.php:224
+#: includes/Admin/Menu.php:121
+#: includes/Admin/Menu.php:122
+#: includes/Admin/Menu.php:217
 #: admin/js/blocks-editor.js:18
 msgid "Settings"
 msgstr "Einstellungen"
@@ -265,7 +265,6 @@ msgstr "Verleihvorgänge"
 msgid "Rental number"
 msgstr "Verleihnummer"
 
-#: includes/Admin/Menu.php:372
 #: includes/Frontend/MemberPortal.php:670
 #: includes/Frontend/MemberPortal.php:2707
 #: includes/Privacy.php:52
@@ -282,6 +281,7 @@ msgstr "Verleihnummer"
 #: admin/js/admin.js:3071
 #: admin/js/admin.js:3117
 #: admin/js/admin.js:3260
+#: admin/js/admin.js:3813
 msgid "Name"
 msgstr "Name"
 
@@ -314,22 +314,22 @@ msgstr "Telefon"
 msgid "Address"
 msgstr "Adresse"
 
-#: includes/Admin/Menu.php:327
 #: includes/Privacy.php:56
 #: admin/js/admin.js:982
 #: admin/js/admin.js:1232
 #: admin/js/admin.js:3074
 #: admin/js/admin.js:3117
+#: admin/js/admin.js:3799
 msgid "Period"
 msgstr "Zeitraum"
 
-#: includes/Admin/Menu.php:304
-#: includes/Admin/Menu.php:328
 #: includes/Privacy.php:57
 #: admin/js/admin.js:840
 #: admin/js/admin.js:1232
 #: admin/js/admin.js:2837
 #: admin/js/admin.js:3117
+#: admin/js/admin.js:3792
+#: admin/js/admin.js:3799
 msgid "Status"
 msgstr "Status"
 
@@ -818,7 +818,7 @@ msgstr "Ungültige Kostenkategorie."
 msgid "—"
 msgstr "—"
 
-#: includes/Admin/Menu.php:360
+#: includes/Rest/PlatformController.php:63
 #: includes/Services/Dashboard.php:153
 msgid "System"
 msgstr "System"
@@ -1163,13 +1163,12 @@ msgstr "Reserviert"
 msgid "On loan"
 msgstr "Verliehen"
 
-#: includes/Admin/Menu.php:248
 #: includes/Frontend/MemberPortal.php:3453
 #: admin/js/admin.js:119
+#: admin/js/admin.js:3753
 msgid "Returned"
 msgstr "Zurückgegeben"
 
-#: includes/Admin/Menu.php:247
 #: includes/Frontend/MemberPortal.php:1877
 #: includes/Frontend/MemberPortal.php:1922
 #: includes/Frontend/MemberPortal.php:3452
@@ -1177,6 +1176,7 @@ msgstr "Zurückgegeben"
 #: admin/js/admin.js:439
 #: admin/js/admin.js:1174
 #: admin/js/admin.js:2121
+#: admin/js/admin.js:3752
 msgid "Cancelled"
 msgstr "Storniert"
 
@@ -1599,8 +1599,8 @@ msgstr "%d Fehler"
 msgid "Row %d:"
 msgstr "Zeile %d:"
 
-#: includes/Admin/Menu.php:326
 #: admin/js/admin.js:840
+#: admin/js/admin.js:3799
 msgid "Borrower"
 msgstr "Leiher"
 
@@ -1712,9 +1712,9 @@ msgstr "verfügbar"
 msgid "Rental %s created."
 msgstr "Verleih %s angelegt."
 
-#: includes/Admin/Menu.php:324
 #: admin/js/admin.js:1135
 #: admin/js/admin.js:3467
+#: admin/js/admin.js:3799
 msgid "Item"
 msgstr "Artikel"
 
@@ -2149,10 +2149,10 @@ msgstr "Rolle"
 msgid "Add member"
 msgstr "Mitglied hinzufügen"
 
-#: includes/Admin/Menu.php:245
 #: includes/Frontend/MemberPortal.php:1875
 #: includes/Frontend/MemberPortal.php:3450
 #: admin/js/admin.js:2121
+#: admin/js/admin.js:3751
 msgid "Approved"
 msgstr "Angenommen"
 
@@ -2376,9 +2376,9 @@ msgstr "Beendet"
 msgid "Signed"
 msgstr "Unterschrieben"
 
-#: includes/Admin/Menu.php:246
 #: includes/Frontend/MemberPortal.php:3451
 #: admin/js/admin.js:2564
+#: admin/js/admin.js:3752
 msgid "Declined"
 msgstr "Abgelehnt"
 
@@ -2732,10 +2732,10 @@ msgstr "Gründer"
 msgid "Member"
 msgstr "Mitglied"
 
-#: includes/Admin/Menu.php:373
-#: includes/Admin/Menu.php:519
 #: admin/js/admin.js:3260
 #: admin/js/admin.js:3291
+#: admin/js/admin.js:3813
+#: admin/js/admin.js:3941
 msgid "Members"
 msgstr "Mitglieder"
 
@@ -2950,8 +2950,8 @@ msgstr "Nichts geplant."
 msgid "(untitled)"
 msgstr "(ohne Titel)"
 
-#: includes/Admin/Menu.php:345
 #: admin/js/admin.js:3547
+#: admin/js/admin.js:3805
 msgid "Recent activity"
 msgstr "Letzte Aktivität"
 
@@ -3007,9 +3007,9 @@ msgstr "Leih-/Projektanfrage-Formular für Besucher."
 msgid "Show equipment selection"
 msgstr "Equipment-Auswahl anzeigen"
 
-#: includes/Admin/Menu.php:110
-#: includes/Admin/Menu.php:111
-#: includes/Admin/Menu.php:216
+#: includes/Admin/Menu.php:103
+#: includes/Admin/Menu.php:104
+#: includes/Admin/Menu.php:209
 #: includes/Frontend/MemberPortal.php:770
 #: includes/Frontend/MemberPortal.php:1972
 #: includes/Frontend/MemberPortal.php:2047
@@ -3135,7 +3135,7 @@ msgstr "Material & Transport"
 
 #. translators: %s = display name of the current user.
 #. translators: %s: member display name.
-#: includes/Admin/Menu.php:193
+#: includes/Admin/Menu.php:186
 #: includes/Frontend/MemberPortal.php:1062
 #, php-format
 msgid "Hello %s"
@@ -3571,8 +3571,8 @@ msgstr "Als zurückgegeben markieren"
 msgid "Borrow requests for your items"
 msgstr "Leih-Anfragen für deine Artikel"
 
-#: includes/Admin/Menu.php:244
 #: includes/Frontend/MemberPortal.php:3449
+#: admin/js/admin.js:3751
 msgid "Requested"
 msgstr "Angefragt"
 
@@ -3693,157 +3693,136 @@ msgstr "Du hast die maximale Anzahl an Gruppen erreicht."
 msgid "You have reached your invitation limit for today."
 msgstr "Du hast dein Einladungs-Limit für heute erreicht."
 
-#: includes/Federation.php:214
-#: includes/Security.php:118
+#: includes/Federation.php:256
+#: includes/Security.php:139
 msgid "Permission denied."
 msgstr "Zugriff verweigert."
 
-#: includes/Admin/Menu.php:83
-#: includes/Admin/Menu.php:84
-#: includes/Admin/Menu.php:287
+#: includes/Admin/Menu.php:76
+#: includes/Admin/Menu.php:77
+#: includes/Admin/Menu.php:230
 msgid "Platform"
 msgstr "Plattform"
 
-#: includes/Admin/Menu.php:138
-#: includes/Admin/Menu.php:139
-#: includes/Admin/Menu.php:398
+#: includes/Admin/Menu.php:131
+#: includes/Admin/Menu.php:132
+#: includes/Admin/Menu.php:234
 msgid "Security"
 msgstr "Sicherheit"
 
-#: includes/Admin/Menu.php:288
+#: admin/js/admin.js:3773
 msgid "Where the member portal comes together: collectives, join voting, member inventory and borrow requests. Manage members under Groups."
 msgstr "Hier laufen die Member-Portal-Prozesse zusammen: Gruppen, Beitritts-Voting, Mitglieder-Inventar und Leih-Anfragen. Mitglieder verwaltest du unter „Gruppen\"."
 
-#: includes/Admin/Menu.php:279
-#: includes/Admin/Menu.php:369
-#: includes/Admin/Menu.php:518
 #: includes/Frontend/MemberPortal.php:1093
+#: admin/js/admin.js:3777
+#: admin/js/admin.js:3812
+#: admin/js/admin.js:3941
 msgid "Collectives"
 msgstr "Gruppen"
 
-#: includes/Admin/Menu.php:280
+#: admin/js/admin.js:3778
 msgid "Member inventory"
 msgstr "Mitglieder-Inventar"
 
-#: includes/Admin/Menu.php:281
+#: admin/js/admin.js:3779
 msgid "Open invitations"
 msgstr "Offene Einladungen"
 
-#: includes/Admin/Menu.php:282
+#: admin/js/admin.js:3780
 msgid "Active loans"
 msgstr "Aktive Leihen"
 
-#: includes/Admin/Menu.php:283
 #: includes/Frontend/MemberPortal.php:1094
+#: admin/js/admin.js:3781
 msgid "Open borrow requests"
 msgstr "Offene Leih-Anfragen"
 
-#: includes/Admin/Menu.php:299
+#: admin/js/admin.js:3791
 msgid "Open join invitations"
 msgstr "Offene Beitritts-Einladungen"
 
-#: includes/Admin/Menu.php:303
+#: admin/js/admin.js:3792
 msgid "Invited"
 msgstr "Eingeladen"
 
-#: includes/Admin/Menu.php:305
+#: admin/js/admin.js:3792
 msgid "Approvals"
 msgstr "Zustimmungen"
 
-#: includes/Admin/Menu.php:302
+#: admin/js/admin.js:3792
 msgid "Collective"
 msgstr "Gruppe"
 
-#: includes/Admin/Menu.php:316
+#: admin/js/admin.js:3794
 msgid "No open invitations."
 msgstr "Keine offenen Einladungen."
 
-#: includes/Admin/Menu.php:321
+#: admin/js/admin.js:3798
 msgid "Recent borrow requests"
 msgstr "Letzte Leih-Anfragen"
 
-#: includes/Admin/Menu.php:325
+#: admin/js/admin.js:3799
 msgid "Owner"
 msgstr "Eigentümer"
 
-#: includes/Admin/Menu.php:340
+#: admin/js/admin.js:3801
 msgid "No borrow requests yet."
 msgstr "Noch keine Leih-Anfragen."
 
-#: includes/Admin/Menu.php:381
 #: includes/Frontend/MemberPortal.php:1103
 msgid "Manage"
 msgstr "Verwalten"
 
-#: includes/Admin/Menu.php:384
+#: admin/js/admin.js:3815
 msgid "No collectives yet."
 msgstr "Noch keine Gruppen."
 
-#: includes/Admin/Menu.php:242
+#: admin/js/admin.js:3750
 msgid "Pending acceptance"
 msgstr "Wartet auf Annahme"
 
-#: includes/Admin/Menu.php:243
+#: admin/js/admin.js:3750
 msgid "In voting"
 msgstr "In Abstimmung"
 
-#: includes/Admin/Menu.php:399
+#: admin/js/admin.js:3824
 msgid "Frontend hardening for the member portal. Everything is OFF by default — nothing changes until you enable it here."
 msgstr "Frontend-Härtung für das Member-Portal. Standardmäßig ist alles AUS — es ändert sich nichts, bis du es hier aktivierst."
 
-#: includes/Admin/Menu.php:402
+#: admin/js/admin.js:3873
 msgid "Security settings saved."
 msgstr "Sicherheits-Einstellungen gespeichert."
 
-#: includes/Admin/Menu.php:411
-msgid "Login throttling"
-msgstr "Login-Drosselung"
-
-#: includes/Admin/Menu.php:413
+#: admin/js/admin.js:3840
 msgid "Lock out repeated failed logins (per IP)."
 msgstr "Wiederholte Fehl-Logins sperren (pro IP)."
 
-#: includes/Admin/Menu.php:415
+#: admin/js/admin.js:3842
 msgid "Max attempts"
 msgstr "Max. Versuche"
 
-#: includes/Admin/Menu.php:417
+#: admin/js/admin.js:3843
 msgid "Lockout (minutes)"
 msgstr "Sperre (Minuten)"
 
-#: includes/Admin/Menu.php:422
+#: admin/js/admin.js:3853
 msgid "Collectives per user"
 msgstr "Gruppen pro User"
 
-#: includes/Admin/Menu.php:425
-msgid "Anti-snowball limit. 0 = unlimited."
-msgstr "Schneeball-Schutz. 0 = unbegrenzt."
-
-#: includes/Admin/Menu.php:429
+#: admin/js/admin.js:3854
 msgid "Invitations per day"
 msgstr "Einladungen pro Tag"
 
-#: includes/Admin/Menu.php:432
-msgid "Per member, rolling 24 hours. 0 = unlimited."
-msgstr "Pro Mitglied, gleitende 24 Stunden. 0 = unbegrenzt."
-
-#: includes/Admin/Menu.php:436
-msgid "Self-registration"
-msgstr "Selbst-Registrierung"
-
-#: includes/Admin/Menu.php:438
+#: admin/js/admin.js:3845
 msgid "Allow open sign-up (new accounts become members). Off = invitation only."
 msgstr "Offene Registrierung erlauben (neue Konten werden Mitglieder). Aus = nur per Einladung."
 
-#: includes/Admin/Menu.php:442
-msgid "Two-factor for members"
-msgstr "Zwei-Faktor für Mitglieder"
-
-#: includes/Admin/Menu.php:444
+#: admin/js/admin.js:3846
 msgid "Require a second factor at member login."
 msgstr "Beim Mitglieder-Login einen zweiten Faktor verlangen."
 
-#: includes/Admin/Menu.php:450
+#: admin/js/admin.js:3860
 msgid "Save security settings"
 msgstr "Sicherheits-Einstellungen speichern"
 
@@ -3871,7 +3850,7 @@ msgstr "Code bestätigen"
 msgid "Remember me"
 msgstr "Angemeldet bleiben"
 
-#: includes/Admin/Menu.php:445
+#: admin/js/admin.js:3847
 msgid "When on, members get a one-time code by email at portal sign-in. Admins and managers keep the normal wp-admin login."
 msgstr "Wenn aktiv, erhalten Mitglieder beim Portal-Login einen Einmal-Code per E-Mail. Admins und Manager nutzen weiter den normalen wp-admin-Login."
 
@@ -3931,151 +3910,148 @@ msgstr "Du hast zu viele Codes angefordert. Bitte warte einen Moment und versuch
 msgid "Resend code"
 msgstr "Code erneut senden"
 
-#: includes/Admin/Menu.php:148
-#: includes/Admin/Menu.php:149
-#: includes/Admin/Menu.php:463
+#: includes/Admin/Menu.php:141
+#: includes/Admin/Menu.php:142
+#: includes/Admin/Menu.php:238
 msgid "Federation"
 msgstr "Föderation"
 
-#: includes/Admin/Menu.php:464
+#: admin/js/admin.js:3884
+#: admin/js/admin.js:3891
 msgid "Make this instance discoverable to other Project Prepper instances by postal code and topic. Opt-in and OFF by default — while off, nothing is published and the discovery endpoint returns 404. Only coarse, non-personal data is shared (name, postal code, topic, counts)."
 msgstr "Mache diese Instanz für andere Project-Prepper-Instanzen per Postleitzahl und Thema auffindbar. Opt-in und standardmäßig AUS — solange aus, wird nichts veröffentlicht und der Discovery-Endpoint liefert 404. Es werden nur grobe, nicht-personenbezogene Daten geteilt (Name, PLZ, Thema, Anzahlen)."
 
-#: includes/Admin/Menu.php:467
+#: admin/js/admin.js:3934
 msgid "Federation settings saved."
 msgstr "Föderations-Einstellungen gespeichert."
 
-#: includes/Admin/Menu.php:475
-msgid "Discoverable"
-msgstr "Auffindbar"
-
-#: includes/Admin/Menu.php:476
+#: admin/js/admin.js:3903
 msgid "List this instance in the federation (publish the public profile below)."
 msgstr "Diese Instanz in der Föderation listen (öffentliches Profil unten veröffentlichen)."
 
-#: includes/Admin/Menu.php:483
-#: includes/Admin/Menu.php:516
+#: admin/js/admin.js:3905
+#: admin/js/admin.js:3941
 msgid "Postal code"
 msgstr "Postleitzahl"
 
-#: includes/Admin/Menu.php:487
-#: includes/Admin/Menu.php:517
+#: admin/js/admin.js:3906
+#: admin/js/admin.js:3941
 msgid "Topic"
 msgstr "Thema"
 
-#: includes/Admin/Menu.php:490
+#: admin/js/admin.js:3907
 msgid "E.g. \"event tech\", \"community garden\", \"makerspace\"."
 msgstr "Z. B. „Veranstaltungstechnik\", „Gemeinschaftsgarten\", „Makerspace\"."
 
-#: includes/Admin/Menu.php:494
+#: admin/js/admin.js:3908
 msgid "Contact email"
 msgstr "Kontakt-E-Mail"
 
-#: includes/Admin/Menu.php:498
+#: admin/js/admin.js:3910
 msgid "Discovery endpoint"
 msgstr "Discovery-Endpoint"
 
-#: includes/Admin/Menu.php:509
+#: admin/js/admin.js:3922
 msgid "Save federation settings"
 msgstr "Föderations-Einstellungen speichern"
 
-#: includes/Admin/Menu.php:502
+#: admin/js/admin.js:3916
 msgid "Partner instances"
 msgstr "Partner-Instanzen"
 
-#: includes/Admin/Menu.php:505
+#: admin/js/admin.js:3918
 msgid "One instance URL per line. Their public profiles are fetched and listed below (cached for an hour)."
 msgstr "Eine Instanz-URL pro Zeile. Ihre öffentlichen Profile werden abgerufen und unten gelistet (1 Stunde gecacht)."
 
-#: includes/Admin/Menu.php:512
+#: admin/js/admin.js:3940
 msgid "Known instances"
 msgstr "Bekannte Instanzen"
 
-#: includes/Admin/Menu.php:515
+#: admin/js/admin.js:3941
 msgid "Instance"
 msgstr "Instanz"
 
-#: includes/Admin/Menu.php:533
+#: admin/js/admin.js:3943
 msgid "unreachable"
 msgstr "nicht erreichbar"
 
-#: includes/Admin/Menu.php:542
+#: admin/js/admin.js:3946
 msgid "No partner instances configured yet."
 msgstr "Noch keine Partner-Instanzen konfiguriert."
 
-#: includes/Admin/Menu.php:348
+#: admin/js/admin.js:3806
 msgid "When"
 msgstr "Wann"
 
-#: includes/Admin/Menu.php:349
+#: admin/js/admin.js:3806
 msgid "Who"
 msgstr "Wer"
 
-#: includes/Admin/Menu.php:350
+#: admin/js/admin.js:3806
 msgid "Action"
 msgstr "Aktion"
 
-#: includes/Admin/Menu.php:364
+#: admin/js/admin.js:3808
 msgid "No activity recorded yet."
 msgstr "Noch keine Aktivität aufgezeichnet."
 
-#: includes/Admin/Menu.php:255
+#: admin/js/admin.js:3756
 msgid "founded a collective"
 msgstr "hat eine Gruppe gegründet"
 
-#: includes/Admin/Menu.php:256
+#: admin/js/admin.js:3757
 msgid "invited someone"
 msgstr "hat jemanden eingeladen"
 
-#: includes/Admin/Menu.php:257
+#: admin/js/admin.js:3758
 msgid "accepted an invitation"
 msgstr "hat eine Einladung angenommen"
 
-#: includes/Admin/Menu.php:258
+#: admin/js/admin.js:3759
 msgid "was approved to join"
 msgstr "wurde zum Beitritt freigegeben"
 
-#: includes/Admin/Menu.php:259
+#: admin/js/admin.js:3760
 msgid "was rejected"
 msgstr "wurde abgelehnt"
 
-#: includes/Admin/Menu.php:260
+#: admin/js/admin.js:3761
 msgid "added a member"
 msgstr "hat ein Mitglied hinzugefügt"
 
-#: includes/Admin/Menu.php:261
+#: admin/js/admin.js:3762
 msgid "removed a member"
 msgstr "hat ein Mitglied entfernt"
 
-#: includes/Admin/Menu.php:262
+#: admin/js/admin.js:3763
 msgid "added an item"
 msgstr "hat einen Artikel angelegt"
 
-#: includes/Admin/Menu.php:263
+#: admin/js/admin.js:3764
 msgid "deleted an item"
 msgstr "hat einen Artikel gelöscht"
 
-#: includes/Admin/Menu.php:264
+#: admin/js/admin.js:3765
 msgid "shared an item"
 msgstr "hat einen Artikel geteilt"
 
-#: includes/Admin/Menu.php:265
+#: admin/js/admin.js:3766
 msgid "stopped sharing an item"
 msgstr "teilt einen Artikel nicht mehr"
 
-#: includes/Admin/Menu.php:266
+#: admin/js/admin.js:3767
 msgid "requested to borrow an item"
 msgstr "hat einen Artikel angefragt"
 
-#: includes/Admin/Menu.php:267
+#: admin/js/admin.js:3768
 msgid "approved a borrow request"
 msgstr "hat eine Leih-Anfrage angenommen"
 
-#: includes/Admin/Menu.php:268
+#: admin/js/admin.js:3769
 msgid "declined a borrow request"
 msgstr "hat eine Leih-Anfrage abgelehnt"
 
-#: includes/Admin/Menu.php:269
+#: admin/js/admin.js:3770
 msgid "marked a loan returned"
 msgstr "hat eine Leihe als zurückgegeben markiert"
 
@@ -4285,11 +4261,7 @@ msgstr "Nichts passt zu deinem Filter."
 msgid "Borrowing across instances isn’t available yet — open an item to view it on the partner instance."
 msgstr "Instanzübergreifendes Leihen ist noch nicht möglich — öffne einen Artikel, um ihn auf der Partner-Instanz anzusehen."
 
-#: includes/Admin/Menu.php:479
-msgid "Federated borrowing"
-msgstr "Föderiertes Leihen"
-
-#: includes/Admin/Menu.php:480
+#: admin/js/admin.js:3904
 msgid "Accept borrow requests from partner instances (members moderate each request)."
 msgstr "Leih-Anfragen von Partner-Instanzen annehmen (Mitglieder moderieren jede Anfrage)."
 
@@ -4672,3 +4644,19 @@ msgstr "Nächste Woche"
 #: includes/Services/FederatedBorrow.php:218
 msgid "Only the item owner may do this."
 msgstr "Das darf nur der Eigentümer des Artikels."
+
+#: admin/js/admin.js:3839
+msgid "Member login & sign-up"
+msgstr "Mitglieder-Login & Registrierung"
+
+#: admin/js/admin.js:3851
+msgid "Anti-snowball limits"
+msgstr "Schneeball-Schutz (Limits)"
+
+#: admin/js/admin.js:3856
+msgid "0 = unlimited. Invitations counted per member over a rolling 24 hours."
+msgstr "0 = unbegrenzt. Einladungen werden pro Mitglied über rollende 24 Stunden gezählt."
+
+#: admin/js/admin.js:3902
+msgid "Public profile"
+msgstr "Öffentliches Profil"

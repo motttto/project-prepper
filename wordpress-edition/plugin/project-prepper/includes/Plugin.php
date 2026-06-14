@@ -54,5 +54,7 @@ class Plugin {
 		( new Rest\CalendarViewController() )->register_routes();
 		( new Rest\SettingsController() )->register_routes();
 		( new Rest\FederationController() )->register_routes();
+		( new Rest\PlatformController() )->register_routes();
+		( new Rest\SecurityController() )->register_routes();
 	}
 }
