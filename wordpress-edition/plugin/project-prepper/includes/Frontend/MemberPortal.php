@@ -61,6 +61,7 @@ class MemberPortal {
 		add_action( 'admin_post_pp_member_export', [ self::class, 'handle_inventory_export' ] );
 		add_action( 'admin_post_pp_member_import', [ self::class, 'handle_inventory_import' ] );
 		add_action( 'admin_post_pp_member_photo', [ self::class, 'handle_inventory_photo' ] );
+		add_action( 'admin_post_pp_member_doc', [ self::class, 'handle_inventory_doc' ] );
 
 		// Offene E-Mail-Einladungen beim Registrieren verknüpfen.
 		add_action( 'user_register', [ Governance::class, 'link_user_on_register' ] );
@@ -479,6 +480,9 @@ class MemberPortal {
 			'photo_saved'      => [ 'ok', __( 'Photo saved.', 'project-prepper' ) ],
 			'photo_removed'    => [ 'ok', __( 'Photo removed.', 'project-prepper' ) ],
 			'photo_failed'     => [ 'err', __( 'The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file.', 'project-prepper' ) ],
+			'doc_saved'        => [ 'ok', __( 'Document uploaded.', 'project-prepper' ) ],
+			'doc_removed'      => [ 'ok', __( 'Document removed.', 'project-prepper' ) ],
+			'doc_failed'       => [ 'err', __( 'The document could not be uploaded. Please use a PDF or image file.', 'project-prepper' ) ],
 			'borrow_unavailable' => [ 'err', __( 'No units of this item are free in that period. Please pick other dates.', 'project-prepper' ) ],
 			'group_left'         => [ 'ok', __( 'You have left the group.', 'project-prepper' ) ],
 			'leave_last_founder' => [ 'err', __( 'As the last founder you cannot leave. Appoint another founder or delete the group instead.', 'project-prepper' ) ],
@@ -2314,6 +2318,37 @@ class MemberPortal {
 									</form>
 								<?php endif; ?>
 							</details>
+							<details class="pp-portal__edit">
+								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm">
+									<?php esc_html_e( 'Documents', 'project-prepper' ); ?><?php if ( ! empty( $item->documents ) ) : ?> (<?php echo (int) count( $item->documents ); ?>)<?php endif; ?>
+								</summary>
+								<?php if ( ! empty( $item->documents ) ) : ?>
+									<ul class="pp-portal__docs">
+										<?php foreach ( $item->documents as $doc ) : ?>
+											<li class="pp-portal__doc">
+												<a href="<?php echo esc_url( $doc['url'] ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $doc['title'] ?: __( 'Document', 'project-prepper' ) ); ?></a>
+												<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+													<input type="hidden" name="action" value="pp_member_doc">
+													<?php wp_nonce_field( 'pp_member_doc', 'pp_nonce' ); ?>
+													<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+													<input type="hidden" name="pp_doc" value="<?php echo (int) $doc['id']; ?>">
+													<input type="hidden" name="pp_remove" value="1">
+													<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Remove', 'project-prepper' ); ?></button>
+												</form>
+											</li>
+										<?php endforeach; ?>
+									</ul>
+								<?php endif; ?>
+								<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<input type="hidden" name="action" value="pp_member_doc">
+									<?php wp_nonce_field( 'pp_member_doc', 'pp_nonce' ); ?>
+									<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+									<label><?php esc_html_e( 'PDF or image', 'project-prepper' ); ?>
+										<input type="file" name="pp_doc" accept="application/pdf,image/*" required>
+									</label>
+									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Upload document', 'project-prepper' ); ?></button>
+								</form>
+							</details>
 							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this item?', 'project-prepper' ) ); ?>');">
 								<?php self::action_fields( 'item_delete' ); ?>
 								<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
@@ -2670,6 +2705,72 @@ class MemberPortal {
 		MemberInventory::set_image( $user_id, $item_id, (int) $attach_id );
 
 		wp_safe_redirect( add_query_arg( 'pp_msg', 'photo_saved', $back ) );
+		exit;
+	}
+
+	/**
+	 * Dokument-Upload (PDF/Bild) für ein eigenes Inventar-Item. Analog zum Foto,
+	 * aber als Mehrfach-Liste (document_ids) statt einzelnem Bild.
+	 */
+	public static function handle_inventory_doc(): void {
+		$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
+		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_member_doc' ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+			exit;
+		}
+		$user_id = get_current_user_id();
+		$item_id = (int) ( $_POST['pp_item'] ?? 0 );
+		if ( ! MemberInventory::owns( $user_id, $item_id ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+			exit;
+		}
+
+		// Entfernen einer einzelnen Datei (Attachment bleibt in der Mediathek).
+		if ( ! empty( $_POST['pp_remove'] ) ) {
+			MemberInventory::remove_document( $user_id, $item_id, (int) ( $_POST['pp_doc'] ?? 0 ) );
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'doc_removed', $back ) );
+			exit;
+		}
+
+		if ( empty( $_FILES['pp_doc']['tmp_name'] ) || ! is_uploaded_file( $_FILES['pp_doc']['tmp_name'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'import_nofile', $back ) );
+			exit;
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		// PDF + gängige Bildformate zulassen.
+		$overrides = [
+			'test_form' => false,
+			'mimes'     => [
+				'pdf'          => 'application/pdf',
+				'jpg|jpeg|jpe' => 'image/jpeg',
+				'png'          => 'image/png',
+				'gif'          => 'image/gif',
+				'webp'         => 'image/webp',
+			],
+		];
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- $_FILES wird von wp_handle_upload validiert (mimes-Whitelist).
+		$moved = wp_handle_upload( $_FILES['pp_doc'], $overrides );
+		if ( ! is_array( $moved ) || isset( $moved['error'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'doc_failed', $back ) );
+			exit;
+		}
+
+		$attach_id = wp_insert_attachment( [
+			'post_mime_type' => $moved['type'],
+			'post_title'     => sanitize_file_name( wp_basename( $moved['file'] ) ),
+			'post_status'    => 'inherit',
+		], $moved['file'] );
+		if ( ! $attach_id || is_wp_error( $attach_id ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'doc_failed', $back ) );
+			exit;
+		}
+		wp_update_attachment_metadata( $attach_id, wp_generate_attachment_metadata( (int) $attach_id, $moved['file'] ) );
+		MemberInventory::add_document( $user_id, $item_id, (int) $attach_id );
+
+		wp_safe_redirect( add_query_arg( 'pp_msg', 'doc_saved', $back ) );
 		exit;
 	}
 

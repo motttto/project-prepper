@@ -96,6 +96,43 @@ class MemberInventory {
 	}
 
 	/**
+	 * Dokument (PDF/Bild) an ein eigenes Item anhängen. Nur Owner.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function add_document( int $user_id, int $item_id, int $attachment_id ) {
+		if ( ! self::owns( $user_id, $item_id ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'This item is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$item = Inventory::get_item( $item_id );
+		$ids  = array_map( 'intval', (array) ( $item->document_ids ?? [] ) );
+		if ( ! in_array( $attachment_id, $ids, true ) ) {
+			$ids[] = $attachment_id;
+		}
+		Inventory::update_item( $item_id, [ 'document_ids' => array_values( $ids ) ] );
+		return true;
+	}
+
+	/**
+	 * Dokument von einem eigenen Item entfernen (nur aus der Liste — das
+	 * Attachment selbst bleibt in der Mediathek). Nur Owner.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function remove_document( int $user_id, int $item_id, int $attachment_id ) {
+		if ( ! self::owns( $user_id, $item_id ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'This item is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$item = Inventory::get_item( $item_id );
+		$ids  = array_values( array_filter(
+			array_map( 'intval', (array) ( $item->document_ids ?? [] ) ),
+			static fn( $id ) => $id !== $attachment_id
+		) );
+		Inventory::update_item( $item_id, [ 'document_ids' => $ids ] );
+		return true;
+	}
+
+	/**
 	 * Eigenes Item löschen (nur Owner) inkl. seiner Gruppen-Freigaben.
 	 *
 	 * @return true|WP_Error

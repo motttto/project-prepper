@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.54.0
+Stable tag: 0.55.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.55.0 =
+* Member portal: attach PDF or image documents (e.g. manuals, receipts) to your own inventory items, with download links and removal
 
 = 0.54.0 =
 * Member portal: members can now leave a group themselves (with confirmation); the last founder is protected from leaving
