@@ -136,6 +136,16 @@ class Menu {
 			[ self::class, 'render_settings' ]
 		);
 
+		// E-Mail-Templates (Steuerzentrale): alle Plugin-Mails zentral editierbar.
+		add_submenu_page(
+			'project-prepper',
+			__( 'Email templates', 'project-prepper' ),
+			__( 'Email templates', 'project-prepper' ),
+			Capabilities::MANAGE_SETTINGS,
+			'pp-email-templates',
+			[ self::class, 'render_email_templates' ]
+		);
+
 		// Sicherheit: Frontend-Härtung zentral schaltbar (per Default alles aus).
 		add_submenu_page(
 			'project-prepper',
@@ -234,6 +244,10 @@ class Menu {
 
 	public static function render_users(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Users & permissions', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="users"></div></div>';
+	}
+
+	public static function render_email_templates(): void {
+		echo '<div class="wrap"><h1>' . esc_html__( 'Email templates', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="email-templates"></div></div>';
 	}
 
 	/* ===================== Plattform / Sicherheit / Föderation =====================

@@ -89,6 +89,61 @@ class Notifications {
 		return array_replace_recursive( self::default_templates(), is_array( $saved ) ? $saved : [] );
 	}
 
+	/** Menschenlesbare Labels je Template-Schlüssel (für die Backend-Seite). */
+	public static function template_labels(): array {
+		return [
+			'rental_reserved'  => __( 'Rental: reservation confirmed', 'project-prepper' ),
+			'rental_active'    => __( 'Rental: equipment handed out', 'project-prepper' ),
+			'rental_returned'  => __( 'Rental: return confirmed', 'project-prepper' ),
+			'inquiry_received' => __( 'Inquiry received (operator)', 'project-prepper' ),
+			'group_invitation' => __( 'Group invitation', 'project-prepper' ),
+			'borrow_requested' => __( 'Borrow request (to owner)', 'project-prepper' ),
+			'borrow_decided'   => __( 'Borrow decision (to requester)', 'project-prepper' ),
+			'member_2fa_code'  => __( 'Member login code (2FA)', 'project-prepper' ),
+		];
+	}
+
+	/**
+	 * Katalog für die E-Mail-Templates-Seite: pro Template Label + die verfügbaren
+	 * {{platzhalter}} (automatisch aus dem Default-Subject/-Body extrahiert, immer
+	 * korrekt). Reihenfolge wie default_templates().
+	 *
+	 * @return array<array{key:string,label:string,vars:string[]}>
+	 */
+	public static function catalog(): array {
+		$labels = self::template_labels();
+		$out    = [];
+		foreach ( self::default_templates() as $key => $tpl ) {
+			preg_match_all( '/\{\{(\w+)\}\}/', (string) $tpl['subject'] . ' ' . (string) $tpl['body'], $m );
+			$out[] = [
+				'key'   => $key,
+				'label' => $labels[ $key ] ?? $key,
+				'vars'  => array_values( array_unique( $m[1] ) ),
+			];
+		}
+		return $out;
+	}
+
+	/**
+	 * Templates aus einem Eingabe-Array (key => {subject, body}) säubern + speichern.
+	 * Nur bekannte Schlüssel; pro Feld einzeln sanitisiert. Gibt die Werte zurück.
+	 *
+	 * @return array Die effektiven Templates (= templates()).
+	 */
+	public static function save_templates( array $input ): array {
+		$clean = [];
+		foreach ( self::default_templates() as $key => $default ) {
+			if ( isset( $input[ $key ] ) && is_array( $input[ $key ] ) ) {
+				$clean[ $key ] = [
+					'subject' => sanitize_text_field( (string) ( $input[ $key ]['subject'] ?? $default['subject'] ) ),
+					'body'    => sanitize_textarea_field( (string) ( $input[ $key ]['body'] ?? $default['body'] ) ),
+				];
+			}
+		}
+		update_option( self::OPTION_TEMPLATES, $clean );
+		return self::templates();
+	}
+
 	public static function enabled(): bool {
 		return (bool) get_option( self::OPTION_ENABLED, true );
 	}

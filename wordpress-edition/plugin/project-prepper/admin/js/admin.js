@@ -3149,41 +3149,19 @@
 		root.classList.add("pp-settings");
 
 		api("/settings").then(function (settings) {
-			// E-Mail
+			// E-Mail (Templates leben jetzt auf der eigenen Seite „E-Mail-Templates").
 			var emailToggle = el("input", { type: "checkbox" });
 			emailToggle.checked = settings.email_notifications;
-			var templateInputs = {};
-			var TEMPLATE_LABELS = {
-				rental_reserved: __("Reservation confirmed", "project-prepper"),
-				rental_active: __("Equipment handed out", "project-prepper"),
-				rental_returned: __("Return confirmed", "project-prepper")
-			};
-			var templateFields = Object.keys(TEMPLATE_LABELS).map(function (key) {
-				var subject = el("input", { type: "text", value: settings.email_templates[key].subject, style: "width:100%" });
-				var bodyArea = el("textarea");
-				bodyArea.value = settings.email_templates[key].body;
-				templateInputs[key] = { subject: subject, body: bodyArea };
-				return el("div", { class: "pp-modal-section" }, [
-					el("h3", { text: TEMPLATE_LABELS[key] }),
-					field(__("Subject", "project-prepper"), subject),
-					field(__("Text", "project-prepper"), bodyArea)
-				]);
-			});
 
 			var saveBtn = el("button", {
 				class: "pp-btn pp-btn-primary", text: __("Save", "project-prepper"),
 				onclick: function () {
-					var templates = {};
-					Object.keys(templateInputs).forEach(function (key) {
-						templates[key] = { subject: templateInputs[key].subject.value, body: templateInputs[key].body.value };
-					});
 					api("/settings", {
 						method: "PUT",
 						body: JSON.stringify({
 							email_notifications: emailToggle.checked,
 							delete_data_on_uninstall: deleteToggle.checked,
-							public_show_rates: ratesToggle.checked,
-							email_templates: templates
+							public_show_rates: ratesToggle.checked
 						})
 					}).then(function () { toast(__("Settings saved.", "project-prepper")); }).catch(function (e) { toast(e.message, "error"); });
 				}
@@ -3191,9 +3169,9 @@
 
 			root.appendChild(el("div", { class: "pp-card" }, [
 				el("h2", { text: __("Email notifications", "project-prepper") }),
-				el("label", { class: "pp-toggle" }, [emailToggle, el("span", { text: __("Send emails to borrowers (reservation, handout, return)", "project-prepper") })]),
-				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("Placeholders:", "project-prepper") + " {{borrower_name}}, {{rental_number}}, {{date_from}}, {{date_to}}, {{items}}, {{site_name}}" })
-			].concat(templateFields)));
+				el("label", { class: "pp-toggle" }, [emailToggle, el("span", { text: __("Send notification emails (rentals, invitations, borrow requests, login codes)", "project-prepper") })]),
+				el("div", { style: "margin-top:8px" }, [el("a", { class: "pp-link", href: "admin.php?page=pp-email-templates", text: __("Edit email templates →", "project-prepper") })])
+			]));
 
 			// iCal
 			var icalUrl = el("code", { class: "pp-ical-url", text: settings.ical_url });
@@ -4051,6 +4029,55 @@
 		api("/users").then(function (d) { data = d; draw(); }).catch(function (e) { toast(e.message, "error"); });
 	}
 
+	/* ================= Seite: E-Mail-Templates ================= */
+
+	function renderEmailTemplates() {
+		root.innerHTML = "";
+		root.appendChild(el("p", { class: "pp-muted", text: __("Every email the plugin sends, in one place. Keep the {{placeholders}} — they get replaced with the real values.", "project-prepper") }));
+
+		api("/email-templates").then(function (d) {
+			if (!d.enabled) {
+				root.appendChild(el("div", { class: "pp-card" }, [
+					el("div", { class: "pp-muted", text: __("Email sending is currently off — turn it on under Settings → Email notifications for these templates to take effect.", "project-prepper") })
+				]));
+			}
+
+			var inputs = {};
+			d.catalog.forEach(function (c) {
+				var tpl = d.templates[c.key] || { subject: "", body: "" };
+				var subject = el("input", { type: "text", value: tpl.subject, style: "width:100%" });
+				var body = el("textarea", { style: "width:100%; min-height:150px; font-family:monospace" });
+				body.value = tpl.body;
+				inputs[c.key] = { subject: subject, body: body };
+
+				var card = [el("h2", { text: c.label })];
+				if (c.vars.length) {
+					card.push(el("div", { class: "pp-muted", style: "margin-bottom:8px" }, [
+						document.createTextNode(__("Placeholders:", "project-prepper") + " "),
+						el("code", { text: c.vars.map(function (v) { return "{{" + v + "}}"; }).join(" ") })
+					]));
+				}
+				card.push(field(__("Subject", "project-prepper"), subject));
+				card.push(field(__("Text", "project-prepper"), body));
+				root.appendChild(el("div", { class: "pp-card" }, card));
+			});
+
+			var saveBtn = el("button", {
+				class: "pp-btn pp-btn-primary", text: __("Save templates", "project-prepper"),
+				onclick: function () {
+					var templates = {};
+					Object.keys(inputs).forEach(function (k) {
+						templates[k] = { subject: inputs[k].subject.value, body: inputs[k].body.value };
+					});
+					api("/email-templates", { method: "PUT", body: JSON.stringify({ templates: templates }) })
+						.then(function () { toast(__("Templates saved.", "project-prepper")); })
+						.catch(function (e) { toast(e.message, "error"); });
+				}
+			});
+			root.appendChild(el("div", { class: "pp-row" }, [saveBtn]));
+		}).catch(function (e) { toast(e.message, "error"); });
+	}
+
 	/* ================= Routing ================= */
 
 	if (page === "calendar") renderCalendar();
@@ -4065,5 +4092,6 @@
 	else if (page === "security") renderSecurity();
 	else if (page === "federation") renderFederation();
 	else if (page === "users") renderUsers();
+	else if (page === "email-templates") renderEmailTemplates();
 	else renderInventory();
 })();

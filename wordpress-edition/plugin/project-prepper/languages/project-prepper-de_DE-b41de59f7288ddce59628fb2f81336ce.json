@@ -1033,15 +1033,6 @@
             "No inquiries yet. Add the form to any page with the [pp_request_form] shortcode.": [
                 "Noch keine Anfragen. Das Formular kommt per Shortcode [pp_request_form] auf jede Seite."
             ],
-            "Reservation confirmed": [
-                "Reservierung best\u00e4tigt"
-            ],
-            "Equipment handed out": [
-                "Equipment ausgegeben"
-            ],
-            "Return confirmed": [
-                "R\u00fcckgabe best\u00e4tigt"
-            ],
             "Subject": [
                 "Betreff"
             ],
@@ -1053,9 +1044,6 @@
             ],
             "Email notifications": [
                 "E-Mail-Benachrichtigungen"
-            ],
-            "Send emails to borrowers (reservation, handout, return)": [
-                "E-Mails an Leiher senden (Reservierung, Ausgabe, R\u00fcckgabe)"
             ],
             "Placeholders:": [
                 "Platzhalter:"
@@ -1599,6 +1587,24 @@
             ],
             "No users match.": [
                 "Keine Benutzer passen."
+            ],
+            "Send notification emails (rentals, invitations, borrow requests, login codes)": [
+                "Benachrichtigungs-Mails senden (Verleih, Einladungen, Leih-Anfragen, Login-Codes)"
+            ],
+            "Edit email templates \u2192": [
+                "E-Mail-Templates bearbeiten \u2192"
+            ],
+            "Every email the plugin sends, in one place. Keep the {{placeholders}} \u2014 they get replaced with the real values.": [
+                "Alle E-Mails, die das Plugin verschickt, an einem Ort. Lass die {{Platzhalter}} stehen \u2014 sie werden durch die echten Werte ersetzt."
+            ],
+            "Email sending is currently off \u2014 turn it on under Settings \u2192 Email notifications for these templates to take effect.": [
+                "E-Mail-Versand ist derzeit aus \u2014 schalte ihn unter Einstellungen \u2192 E-Mail-Benachrichtigungen ein, damit diese Templates greifen."
+            ],
+            "Save templates": [
+                "Templates speichern"
+            ],
+            "Templates saved.": [
+                "Templates gespeichert."
             ]
         }
     }

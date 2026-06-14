@@ -59,5 +59,6 @@ class Plugin {
 		( new Rest\PlatformController() )->register_routes();
 		( new Rest\SecurityController() )->register_routes();
 		( new Rest\UsersController() )->register_routes();
+		( new Rest\EmailTemplatesController() )->register_routes();
 	}
 }
