@@ -90,6 +90,19 @@ class Platform {
 		return (string) self::all()['contact_email'];
 	}
 
+	/* ---------- AGB / Bedingungen ---------- */
+
+	public static function terms_required(): bool {
+		$l = self::all()['legal'];
+		return ! empty( $l['require_acceptance'] ) && '' !== trim( (string) $l['agb_text'] );
+	}
+	public static function terms_version(): int {
+		return (int) self::all()['legal']['agb_version'];
+	}
+	public static function terms_text(): string {
+		return (string) self::all()['legal']['agb_text'];
+	}
+
 	/**
 	 * Eingabe (JSON oder $_POST-artig) säubern + speichern. Die AGB-Version wird
 	 * automatisch erhöht, wenn sich der AGB-Text ändert (für die spätere Akzeptanz-

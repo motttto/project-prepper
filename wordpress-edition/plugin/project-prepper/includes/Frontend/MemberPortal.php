@@ -64,6 +64,7 @@ class MemberPortal {
 		add_action( 'admin_post_pp_member_doc', [ self::class, 'handle_inventory_doc' ] );
 		add_action( 'admin_post_pp_member_data', [ self::class, 'handle_member_data_export' ] );
 		add_action( 'admin_post_pp_member_avatar', [ self::class, 'handle_member_avatar' ] );
+		add_action( 'admin_post_pp_accept_terms', [ self::class, 'handle_accept_terms' ] );
 
 		// Eigene Profilfotos als WP-Avatar überall im Portal (Mitgliederlisten,
 		// Topbar) durchreichen — Fallback bleibt Gravatar/Initialen.
@@ -584,7 +585,67 @@ class MemberPortal {
 		if ( ! is_user_logged_in() ) {
 			return self::render_login();
 		}
+		// AGB-Gate (docs/06 §10.4): wenn der Betreiber Zustimmung verlangt und die
+		// aktuelle AGB-Version noch nicht akzeptiert ist, zuerst akzeptieren lassen.
+		// Betreiber (pp_operate) sind ausgenommen — sie setzen die AGB selbst.
+		if ( self::terms_pending( get_current_user_id() ) ) {
+			return self::render_terms_gate();
+		}
 		return self::render_app();
+	}
+
+	const META_TERMS_ACCEPTED = 'pp_agb_accepted_version';
+
+	/** Muss dieser User die aktuelle AGB-Version noch akzeptieren? */
+	public static function terms_pending( int $user_id ): bool {
+		if ( ! $user_id || ! \ProjectPrepper\Platform::terms_required() ) {
+			return false;
+		}
+		if ( user_can( $user_id, \ProjectPrepper\Capabilities::OPERATE ) ) {
+			return false; // Betreiber setzen die AGB, akzeptieren sie nicht.
+		}
+		$accepted = (int) get_user_meta( $user_id, self::META_TERMS_ACCEPTED, true );
+		return $accepted < \ProjectPrepper\Platform::terms_version();
+	}
+
+	/** Vollbild-Zustimmungsschirm: AGB-Text + Akzeptieren / Abmelden. */
+	private static function render_terms_gate(): string {
+		$text = \ProjectPrepper\Platform::terms_text();
+		ob_start();
+		?>
+		<div class="pp-front pp-portal pp-portal--login">
+			<h2 class="pp-portal__title"><?php esc_html_e( 'Terms of use', 'project-prepper' ); ?></h2>
+			<p class="pp-portal__lead"><?php esc_html_e( 'Please review and accept the terms to continue using the portal.', 'project-prepper' ); ?></p>
+			<div class="pp-terms"><?php echo nl2br( esc_html( $text ) ); ?></div>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:1rem;">
+				<input type="hidden" name="action" value="pp_accept_terms">
+				<?php wp_nonce_field( 'pp_accept_terms', 'pp_nonce' ); ?>
+				<label style="display:flex;align-items:flex-start;gap:8px;">
+					<input type="checkbox" name="pp_agree" value="1" required style="margin-top:.25rem;">
+					<span><?php esc_html_e( 'I have read and accept the terms of use.', 'project-prepper' ); ?></span>
+				</label>
+				<button type="submit" class="pp-portal__btn" style="margin-top:.75rem;"><?php esc_html_e( 'Accept and continue', 'project-prepper' ); ?></button>
+			</form>
+			<p class="pp-portal__note">
+				<a href="<?php echo esc_url( wp_logout_url( self::portal_url() ) ); ?>"><?php esc_html_e( 'Decline and sign out', 'project-prepper' ); ?></a>
+			</p>
+		</div>
+		<?php
+		return (string) ob_get_clean();
+	}
+
+	/** Akzeptiert die aktuelle AGB-Version für den eingeloggten User. */
+	public static function handle_accept_terms(): void {
+		$back = self::portal_url();
+		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] )
+			|| ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_accept_terms' )
+			|| empty( $_POST['pp_agree'] ) ) {
+			wp_safe_redirect( $back );
+			exit;
+		}
+		update_user_meta( get_current_user_id(), self::META_TERMS_ACCEPTED, \ProjectPrepper\Platform::terms_version() );
+		wp_safe_redirect( $back );
+		exit;
 	}
 
 	private static function render_login(): string {

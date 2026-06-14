@@ -1648,3 +1648,16 @@ a.pp-cal__chip:hover { filter: brightness(.97); }
 	}
 	.pp-app__burger span { width: 18px; height: 2px; background: #475569; border-radius: 2px; }
 }
+
+/* AGB-Zustimmungsschirm */
+.pp-terms {
+	max-height: 320px;
+	overflow-y: auto;
+	border: 1px solid var(--pp-border);
+	border-radius: 8px;
+	padding: .9rem 1rem;
+	font-size: .9rem;
+	line-height: 1.55;
+	background: var(--pp-muted, #f8fafc);
+	white-space: normal;
+}
