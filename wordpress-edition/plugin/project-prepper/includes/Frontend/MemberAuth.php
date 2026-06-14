@@ -3,6 +3,7 @@ namespace ProjectPrepper\Frontend;
 
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Security;
+use ProjectPrepper\Email\Notifications;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -32,8 +33,11 @@ class MemberAuth {
 		// Login erfolgt durch ausgeloggte Besucher → nopriv-Hooks.
 		add_action( 'admin_post_nopriv_pp_member_login', [ self::class, 'handle_login' ] );
 		add_action( 'admin_post_nopriv_pp_member_2fa', [ self::class, 'handle_verify' ] );
+		add_action( 'admin_post_nopriv_pp_member_2fa_resend', [ self::class, 'handle_resend' ] );
 		add_action( 'admin_post_nopriv_pp_member_register', [ self::class, 'handle_register' ] );
 	}
+
+	const MAX_RESENDS = 3;
 
 	/* ===================== Selbst-Registrierung ===================== */
 
@@ -190,6 +194,35 @@ class MemberAuth {
 		self::redirect( $portal, [ 'pp_2fa' => '1', 'pp_login' => 'code' ] );
 	}
 
+	/** Neuen Code für die laufende Pending-Anmeldung senden (begrenzt). */
+	public static function handle_resend(): void {
+		$portal = MemberPortal::portal_url();
+		if ( ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_member_2fa' ) ) {
+			self::redirect( $portal, [ 'pp_login' => 'failed' ] );
+		}
+		$token = isset( $_COOKIE[ self::COOKIE ] ) ? sanitize_text_field( wp_unslash( $_COOKIE[ self::COOKIE ] ) ) : '';
+		$data  = self::pending_data();
+		if ( '' === $token || false === $data ) {
+			self::clear_cookie();
+			self::redirect( $portal, [ 'pp_login' => 'failed' ] );
+		}
+		if ( (int) ( $data['resends'] ?? 0 ) >= self::MAX_RESENDS ) {
+			self::redirect( $portal, [ 'pp_2fa' => '1', 'pp_login' => 'resend_limit' ] );
+		}
+
+		$code            = (string) wp_rand( 100000, 999999 );
+		$data['hash']    = wp_hash( $code );
+		$data['tries']   = 0;
+		$data['resends'] = (int) ( $data['resends'] ?? 0 ) + 1;
+		set_transient( 'pp_2fa_' . $token, $data, self::TTL );
+
+		$user = get_userdata( (int) $data['user'] );
+		if ( $user ) {
+			self::send_code( $user, $code );
+		}
+		self::redirect( $portal, [ 'pp_2fa' => '1', 'pp_login' => 'resent' ] );
+	}
+
 	/* ===================== Intern ===================== */
 
 	/** @return array|false */
@@ -203,18 +236,19 @@ class MemberAuth {
 	}
 
 	private static function send_code( \WP_User $user, string $code ): void {
-		$subject = sprintf(
-			/* translators: %s: site name. */
-			__( 'Your login code — %s', 'project-prepper' ),
-			get_bloginfo( 'name' )
+		// Editierbares Template (Admin → Einstellungen). Sicherheits-Mail —
+		// wird immer gesendet, unabhängig vom Notifications-An/Aus-Schalter.
+		$tpl  = Notifications::templates()['member_2fa_code'];
+		$vars = [
+			'code'      => $code,
+			'minutes'   => (int) ( self::TTL / 60 ),
+			'site_name' => get_bloginfo( 'name' ),
+		];
+		wp_mail(
+			$user->user_email,
+			Notifications::render( $tpl['subject'], $vars ),
+			Notifications::render( $tpl['body'], $vars )
 		);
-		$body = sprintf(
-			/* translators: 1: 6-digit code, 2: minutes valid. */
-			__( "Your one-time login code is: %1\$s\n\nIt is valid for %2\$d minutes. If you did not try to sign in, you can ignore this email.", 'project-prepper' ),
-			$code,
-			(int) ( self::TTL / 60 )
-		);
-		wp_mail( $user->user_email, $subject, $body );
 	}
 
 	private static function set_cookie( string $token ): void {

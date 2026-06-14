@@ -75,6 +75,12 @@ class Notifications {
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
 				'body'    => __( "Hello,\n\nyour request to borrow \"{{item_name}}\" ({{date_from}} to {{date_to}}) was {{status}}.\n\nDetails:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
+			'member_2fa_code' => [
+				/* translators: Email subject. Keep the {{site_name}} placeholder unchanged. */
+				'subject' => __( 'Your login code — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Your one-time login code is: {{code}}\n\nIt is valid for {{minutes}} minutes. If you did not try to sign in, you can ignore this email.", 'project-prepper' ),
+			],
 		];
 	}
 

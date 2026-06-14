@@ -324,6 +324,10 @@ class MemberPortal {
 				<div class="pp-portal__notice pp-portal__notice--err"><?php esc_html_e( 'Login failed. Please check your details and try again.', 'project-prepper' ); ?></div>
 			<?php elseif ( 'code' === $login_msg ) : ?>
 				<div class="pp-portal__notice pp-portal__notice--err"><?php esc_html_e( 'That code was not correct. Please try again.', 'project-prepper' ); ?></div>
+			<?php elseif ( 'resent' === $login_msg ) : ?>
+				<div class="pp-portal__notice pp-portal__notice--ok"><?php esc_html_e( 'A new code is on its way to your email.', 'project-prepper' ); ?></div>
+			<?php elseif ( 'resend_limit' === $login_msg ) : ?>
+				<div class="pp-portal__notice pp-portal__notice--err"><?php esc_html_e( 'You have requested too many codes. Please wait a moment and try again.', 'project-prepper' ); ?></div>
 			<?php endif; ?>
 
 			<?php if ( '' !== $reg_msg && isset( $reg_errors[ $reg_msg ] ) ) : ?>
@@ -338,6 +342,11 @@ class MemberPortal {
 					<label for="pp-2fa-code"><?php esc_html_e( 'Login code', 'project-prepper' ); ?></label>
 					<input type="text" id="pp-2fa-code" name="pp_code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" required>
 					<button type="submit" class="pp-portal__btn"><?php esc_html_e( 'Confirm code', 'project-prepper' ); ?></button>
+				</form>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:.5rem;">
+					<input type="hidden" name="action" value="pp_member_2fa_resend">
+					<?php wp_nonce_field( 'pp_member_2fa', 'pp_nonce' ); ?>
+					<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Resend code', 'project-prepper' ); ?></button>
 				</form>
 
 			<?php elseif ( $two_factor ) : /* ---- Schritt 1: eigenes Formular (2FA aktiv) ---- */ ?>

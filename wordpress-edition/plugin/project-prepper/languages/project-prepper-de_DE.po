@@ -3289,3 +3289,24 @@ msgstr "Passwort (mind. 8 Zeichen)"
 
 msgid "Create account"
 msgstr "Konto erstellen"
+
+msgid "Your login code — {{site_name}}"
+msgstr "Dein Login-Code — {{site_name}}"
+
+msgid ""
+"Your one-time login code is: {{code}}\n"
+"\n"
+"It is valid for {{minutes}} minutes. If you did not try to sign in, you can ignore this email."
+msgstr ""
+"Dein Einmal-Login-Code lautet: {{code}}\n"
+"\n"
+"Er ist {{minutes}} Minuten gültig. Falls du dich nicht anmelden wolltest, kannst du diese E-Mail ignorieren."
+
+msgid "A new code is on its way to your email."
+msgstr "Ein neuer Code ist unterwegs zu deiner E-Mail."
+
+msgid "You have requested too many codes. Please wait a moment and try again."
+msgstr "Du hast zu viele Codes angefordert. Bitte warte einen Moment und versuche es erneut."
+
+msgid "Resend code"
+msgstr "Code erneut senden"
