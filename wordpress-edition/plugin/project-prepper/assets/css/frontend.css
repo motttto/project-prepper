@@ -684,6 +684,44 @@ a.pp-front-card-media { text-decoration: none; }
 	font-size: .8rem;
 	color: var(--pp-muted-foreground);
 }
+.pp-profile {
+	display: flex;
+	align-items: flex-start;
+	gap: 1rem;
+}
+.pp-profile__avatar {
+	flex: 0 0 auto;
+	width: 56px;
+	height: 56px;
+	border-radius: 50%;
+	background: var(--pp-muted);
+	color: var(--pp-muted-foreground);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 600;
+	overflow: hidden;
+}
+.pp-profile__avatar img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+.pp-profile__forms {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: column;
+	gap: .6rem;
+}
+.pp-app__avatar--img {
+	padding: 0;
+	overflow: hidden;
+}
+.pp-app__avatar--img img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
 .pp-browse-period {
 	display: flex;
 	align-items: flex-end;

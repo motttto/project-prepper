@@ -63,6 +63,11 @@ class MemberPortal {
 		add_action( 'admin_post_pp_member_photo', [ self::class, 'handle_inventory_photo' ] );
 		add_action( 'admin_post_pp_member_doc', [ self::class, 'handle_inventory_doc' ] );
 		add_action( 'admin_post_pp_member_data', [ self::class, 'handle_member_data_export' ] );
+		add_action( 'admin_post_pp_member_avatar', [ self::class, 'handle_member_avatar' ] );
+
+		// Eigene Profilfotos als WP-Avatar überall im Portal (Mitgliederlisten,
+		// Topbar) durchreichen — Fallback bleibt Gravatar/Initialen.
+		add_filter( 'pre_get_avatar_data', [ self::class, 'filter_avatar_data' ], 10, 2 );
 
 		// Offene E-Mail-Einladungen beim Registrieren verknüpfen.
 		add_action( 'user_register', [ Governance::class, 'link_user_on_register' ] );
@@ -293,6 +298,15 @@ class MemberPortal {
 				}
 				$ok_msg = 'group_left';
 				break;
+			case 'profile_save':
+				$new_name = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) );
+				if ( '' === $new_name ) {
+					$result = new \WP_Error( 'pp_missing_name', __( 'Please enter a display name.', 'project-prepper' ) );
+				} else {
+					$result = wp_update_user( [ 'ID' => get_current_user_id(), 'display_name' => $new_name ] );
+				}
+				$ok_msg = 'profile_saved';
+				break;
 			case 'item_create':
 				$result = MemberInventory::create( get_current_user_id(), self::item_input() );
 				$ok_msg = 'item_saved';
@@ -481,6 +495,10 @@ class MemberPortal {
 			'photo_saved'      => [ 'ok', __( 'Photo saved.', 'project-prepper' ) ],
 			'photo_removed'    => [ 'ok', __( 'Photo removed.', 'project-prepper' ) ],
 			'photo_failed'     => [ 'err', __( 'The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file.', 'project-prepper' ) ],
+			'profile_saved'    => [ 'ok', __( 'Profile updated.', 'project-prepper' ) ],
+			'avatar_saved'     => [ 'ok', __( 'Profile photo saved.', 'project-prepper' ) ],
+			'avatar_removed'   => [ 'ok', __( 'Profile photo removed.', 'project-prepper' ) ],
+			'avatar_failed'    => [ 'err', __( 'The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file.', 'project-prepper' ) ],
 			'doc_saved'        => [ 'ok', __( 'Document uploaded.', 'project-prepper' ) ],
 			'doc_removed'      => [ 'ok', __( 'Document removed.', 'project-prepper' ) ],
 			'doc_failed'       => [ 'err', __( 'The document could not be uploaded. Please use a PDF or image file.', 'project-prepper' ) ],
@@ -843,7 +861,12 @@ class MemberPortal {
 			</label>
 			<div class="pp-app__topbar-right">
 				<div class="pp-app__user">
-					<span class="pp-app__avatar"><?php echo esc_html( self::initials( $user->display_name ) ); ?></span>
+					<?php $topbar_avatar = self::avatar_url( (int) $user->ID, 'thumbnail' ); ?>
+					<?php if ( $topbar_avatar ) : ?>
+						<span class="pp-app__avatar pp-app__avatar--img"><img src="<?php echo esc_url( $topbar_avatar ); ?>" alt=""></span>
+					<?php else : ?>
+						<span class="pp-app__avatar"><?php echo esc_html( self::initials( $user->display_name ) ); ?></span>
+					<?php endif; ?>
 					<span class="pp-app__user-meta">
 						<span class="pp-app__user-name"><?php echo esc_html( $user->display_name ); ?></span>
 						<span class="pp-app__user-role"><?php echo esc_html( $role ); ?></span>
@@ -867,6 +890,49 @@ class MemberPortal {
 		$first = mb_substr( $parts[0], 0, 1 );
 		$last  = count( $parts ) > 1 ? mb_substr( (string) end( $parts ), 0, 1 ) : '';
 		return mb_strtoupper( $first . $last );
+	}
+
+	/** Attachment-ID des hochgeladenen Profilfotos (0 = keins). */
+	private static function avatar_id( int $user_id ): int {
+		return (int) get_user_meta( $user_id, 'pp_avatar_id', true );
+	}
+
+	/** URL des hochgeladenen Profilfotos oder null (Fallback = Gravatar/Initialen). */
+	private static function avatar_url( int $user_id, string $size = 'thumbnail' ): ?string {
+		$aid = self::avatar_id( $user_id );
+		if ( ! $aid ) {
+			return null;
+		}
+		return wp_get_attachment_image_url( $aid, $size ) ?: null;
+	}
+
+	/**
+	 * Eigenes Profilfoto als WP-Avatar durchreichen (überall wo get_avatar()
+	 * greift). $id_or_email kann ID, Objekt mit ->user_id oder E-Mail sein.
+	 *
+	 * @param array $args        Avatar-Argumente.
+	 * @param mixed $id_or_email Identifikator des Users.
+	 */
+	public static function filter_avatar_data( array $args, $id_or_email ): array {
+		$user_id = 0;
+		if ( is_numeric( $id_or_email ) ) {
+			$user_id = (int) $id_or_email;
+		} elseif ( $id_or_email instanceof \WP_User ) {
+			$user_id = (int) $id_or_email->ID;
+		} elseif ( is_object( $id_or_email ) && ! empty( $id_or_email->user_id ) ) {
+			$user_id = (int) $id_or_email->user_id;
+		} elseif ( is_string( $id_or_email ) && is_email( $id_or_email ) ) {
+			$u       = get_user_by( 'email', $id_or_email );
+			$user_id = $u ? (int) $u->ID : 0;
+		}
+		if ( $user_id ) {
+			$url = self::avatar_url( $user_id, 'thumbnail' );
+			if ( $url ) {
+				$args['url']          = $url;
+				$args['found_avatar'] = true;
+			}
+		}
+		return $args;
 	}
 
 	/** Inline-SVG-Icon (stroke=currentColor) — passend zur App-Sidebar. */
@@ -960,6 +1026,50 @@ class MemberPortal {
 			<?php else : ?>
 				<p class="pp-portal__empty"><?php esc_html_e( 'You are not part of any collective yet. Go to “My collectives” to found one or accept an invitation.', 'project-prepper' ); ?></p>
 			<?php endif; ?>
+		</section>
+
+		<section class="pp-app__section">
+			<div class="pp-app__section-head">
+				<h2 class="pp-portal__subtitle"><?php esc_html_e( 'My profile', 'project-prepper' ); ?></h2>
+			</div>
+			<?php $prof_avatar = self::avatar_url( (int) $user->ID, 'thumbnail' ); ?>
+			<div class="pp-profile">
+				<span class="pp-profile__avatar">
+					<?php if ( $prof_avatar ) : ?>
+						<img src="<?php echo esc_url( $prof_avatar ); ?>" alt="">
+					<?php else : ?>
+						<?php echo esc_html( self::initials( $user->display_name ) ); ?>
+					<?php endif; ?>
+				</span>
+				<div class="pp-profile__forms">
+					<form class="pp-portal__form pp-portal__form--inline" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<?php self::action_fields( 'profile_save' ); ?>
+						<label class="pp-profile__name-label"><?php esc_html_e( 'Display name', 'project-prepper' ); ?>
+							<input type="text" name="pp_name" value="<?php echo esc_attr( $user->display_name ); ?>" required>
+						</label>
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save name', 'project-prepper' ); ?></button>
+					</form>
+					<details class="pp-portal__edit">
+						<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Profile photo', 'project-prepper' ); ?></summary>
+						<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<input type="hidden" name="action" value="pp_member_avatar">
+							<?php wp_nonce_field( 'pp_member_avatar', 'pp_nonce' ); ?>
+							<label><?php esc_html_e( 'Image file', 'project-prepper' ); ?>
+								<input type="file" name="pp_avatar" accept="image/*" required>
+							</label>
+							<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save photo', 'project-prepper' ); ?></button>
+						</form>
+						<?php if ( $prof_avatar ) : ?>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:.4rem;">
+								<input type="hidden" name="action" value="pp_member_avatar">
+								<?php wp_nonce_field( 'pp_member_avatar', 'pp_nonce' ); ?>
+								<input type="hidden" name="pp_remove" value="1">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Remove photo', 'project-prepper' ); ?></button>
+							</form>
+						<?php endif; ?>
+					</details>
+				</div>
+			</div>
 		</section>
 
 		<section class="pp-app__section">
@@ -2779,6 +2889,62 @@ class MemberPortal {
 		MemberInventory::set_image( $user_id, $item_id, (int) $attach_id );
 
 		wp_safe_redirect( add_query_arg( 'pp_msg', 'photo_saved', $back ) );
+		exit;
+	}
+
+	/** Eigenes Profilfoto (Avatar) hochladen/ersetzen oder entfernen. */
+	public static function handle_member_avatar(): void {
+		$back = self::portal_url();
+		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_member_avatar' ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+			exit;
+		}
+		$user_id = get_current_user_id();
+
+		// Entfernen.
+		if ( ! empty( $_POST['pp_remove'] ) ) {
+			delete_user_meta( $user_id, 'pp_avatar_id' );
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'avatar_removed', $back ) );
+			exit;
+		}
+
+		if ( empty( $_FILES['pp_avatar']['tmp_name'] ) || ! is_uploaded_file( $_FILES['pp_avatar']['tmp_name'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'import_nofile', $back ) );
+			exit;
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$overrides = [
+			'test_form' => false,
+			'mimes'     => [
+				'jpg|jpeg|jpe' => 'image/jpeg',
+				'png'          => 'image/png',
+				'gif'          => 'image/gif',
+				'webp'         => 'image/webp',
+			],
+		];
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- $_FILES wird von wp_handle_upload validiert (mimes-Whitelist).
+		$moved = wp_handle_upload( $_FILES['pp_avatar'], $overrides );
+		if ( ! is_array( $moved ) || isset( $moved['error'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'avatar_failed', $back ) );
+			exit;
+		}
+
+		$attach_id = wp_insert_attachment( [
+			'post_mime_type' => $moved['type'],
+			'post_title'     => sanitize_file_name( wp_basename( $moved['file'] ) ),
+			'post_status'    => 'inherit',
+		], $moved['file'] );
+		if ( ! $attach_id || is_wp_error( $attach_id ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'avatar_failed', $back ) );
+			exit;
+		}
+		wp_update_attachment_metadata( $attach_id, wp_generate_attachment_metadata( (int) $attach_id, $moved['file'] ) );
+		update_user_meta( $user_id, 'pp_avatar_id', (int) $attach_id );
+
+		wp_safe_redirect( add_query_arg( 'pp_msg', 'avatar_saved', $back ) );
 		exit;
 	}
 
