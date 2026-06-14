@@ -1164,6 +1164,90 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-checkitem__box--on { background: #10b981; border-color: #10b981; }
 .pp-checkitem--done .pp-checkitem__label { color: #94a3b8; text-decoration: line-through; }
 
+/* Kalender (read-only Monatsraster) */
+.pp-cal__bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.pp-cal__title { font-size: 1.05rem; font-weight: 600; min-width: 9rem; }
+.pp-cal__today { margin-left: auto; }
+.pp-cal__grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 6px;
+}
+.pp-cal__dow {
+	font-size: .72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .03em;
+	color: #94a3b8;
+	text-align: center;
+	padding-bottom: 2px;
+}
+.pp-cal__cell {
+	min-height: 84px;
+	background: #fff;
+	border: 1px solid #e2e8f0;
+	border-radius: 10px;
+	padding: 5px 6px 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	overflow: hidden;
+}
+.pp-cal__cell--blank { background: transparent; border: none; }
+.pp-cal__cell--today { border-color: #6366f1; box-shadow: 0 0 0 1px #6366f1; }
+.pp-cal__daynum { font-size: .8rem; font-weight: 600; color: #475569; }
+.pp-cal__cell--today .pp-cal__daynum {
+	color: #fff;
+	background: #6366f1;
+	border-radius: 999px;
+	width: 22px;
+	height: 22px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	align-self: flex-start;
+}
+.pp-cal__chip {
+	display: block;
+	font-size: .72rem;
+	line-height: 1.3;
+	padding: 1px 6px;
+	border-radius: 5px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-decoration: none;
+	border-left: 3px solid transparent;
+}
+.pp-cal__chip--project  { background: #eef2ff; color: #4338ca; border-left-color: #6366f1; }
+.pp-cal__chip--schedule { background: #eff6ff; color: #1d4ed8; border-left-color: #3b82f6; }
+.pp-cal__chip--borrow   { background: #ecfdf5; color: #047857; border-left-color: #10b981; }
+a.pp-cal__chip:hover { filter: brightness(.97); }
+.pp-cal__more { font-size: .7rem; color: #94a3b8; padding-left: 2px; }
+.pp-cal__legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; font-size: .8rem; color: #64748b; }
+.pp-cal__legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.pp-cal__dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.pp-cal__dot--project { background: #6366f1; }
+.pp-cal__dot--schedule { background: #3b82f6; }
+.pp-cal__dot--borrow { background: #10b981; }
+
+/* Kalender auf schmalen Screens: Chips zu Farbpunkten verdichten. */
+@media (max-width: 560px) {
+	.pp-cal__grid { gap: 3px; }
+	.pp-cal__cell { min-height: 52px; padding: 4px; border-radius: 8px; }
+	.pp-cal__chip {
+		font-size: 0;
+		height: 6px;
+		padding: 0;
+		border-radius: 3px;
+		border-left: none;
+	}
+	.pp-cal__chip--project { background: #6366f1; }
+	.pp-cal__chip--schedule { background: #3b82f6; }
+	.pp-cal__chip--borrow { background: #10b981; }
+	.pp-cal__more { font-size: .6rem; }
+}
+
 /* Mobile: Off-Canvas-Sidebar (reines CSS, Checkbox-Toggle) */
 .pp-app__overlay { display: none; }
 @media (max-width: 1023px) {

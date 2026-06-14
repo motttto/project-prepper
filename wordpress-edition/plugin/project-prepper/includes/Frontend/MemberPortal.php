@@ -9,6 +9,7 @@ use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Services\MemberInventory;
 use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\Projects;
+use ProjectPrepper\Services\Schedule;
 use WP_User;
 
 defined( 'ABSPATH' ) || exit;
@@ -463,6 +464,9 @@ class MemberPortal {
 							case 'projects':
 								self::view_projects( $user, $groups );
 								break;
+							case 'calendar':
+								self::view_calendar( $user, $groups );
+								break;
 							case 'collectives':
 								self::view_collectives( $user, $groups );
 								break;
@@ -482,7 +486,7 @@ class MemberPortal {
 	private static function current_view(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$view    = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : 'dashboard';
-		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'collectives' ];
+		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'calendar', 'collectives' ];
 		return in_array( $view, $allowed, true ) ? $view : 'dashboard';
 	}
 
@@ -493,6 +497,7 @@ class MemberPortal {
 			[ 'view' => 'inventory',   'icon' => 'inventory', 'label' => __( 'My inventory', 'project-prepper' ) ],
 			[ 'view' => 'lending',     'icon' => 'package',   'label' => __( 'Lending', 'project-prepper' ) ],
 			[ 'view' => 'projects',    'icon' => 'projects',  'label' => __( 'My projects', 'project-prepper' ) ],
+			[ 'view' => 'calendar',    'icon' => 'calendar',  'label' => __( 'Calendar', 'project-prepper' ) ],
 			[ 'view' => 'collectives', 'icon' => 'users',     'label' => __( 'My collectives', 'project-prepper' ) ],
 		];
 	}
@@ -1090,6 +1095,157 @@ class MemberPortal {
 			'high'   => __( 'High', 'project-prepper' ),
 		];
 		return $map[ $s ] ?? $s;
+	}
+
+	/* ---------- Kalender (read-only Monatsraster) ---------- */
+
+	private static function view_calendar( WP_User $user, array $groups ): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
+		$month = isset( $_GET['pp_month'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_month'] ) ) : '';
+		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
+			$month = current_time( 'Y-m' );
+		}
+		$first_ts    = strtotime( $month . '-01' );
+		$days        = (int) gmdate( 't', $first_ts );
+		$month_start = $month . '-01';
+		$month_end   = sprintf( '%s-%02d', $month, $days );
+		$lead        = (int) gmdate( 'N', $first_ts ) - 1; // Mo=0 … So=6
+		$today       = current_time( 'Y-m-d' );
+		$prev        = gmdate( 'Y-m', strtotime( '-1 month', $first_ts ) );
+		$next        = gmdate( 'Y-m', strtotime( '+1 month', $first_ts ) );
+
+		$by_day = self::calendar_events( $user, $groups, $month_start, $month_end );
+		$base   = self::view_url( 'calendar' );
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'Calendar', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Your collectives’ projects, schedule and loans at a glance.', 'project-prepper' ); ?></p>
+		</header>
+
+		<div class="pp-cal">
+			<div class="pp-cal__bar">
+				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( add_query_arg( 'pp_month', $prev, $base ) ); ?>" aria-label="<?php esc_attr_e( 'Previous month', 'project-prepper' ); ?>">‹</a>
+				<span class="pp-cal__title"><?php echo esc_html( date_i18n( 'F Y', $first_ts ) ); ?></span>
+				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( add_query_arg( 'pp_month', $next, $base ) ); ?>" aria-label="<?php esc_attr_e( 'Next month', 'project-prepper' ); ?>">›</a>
+				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-cal__today" href="<?php echo esc_url( $base ); ?>"><?php esc_html_e( 'Today', 'project-prepper' ); ?></a>
+			</div>
+
+			<div class="pp-cal__grid">
+				<?php
+				$ref = strtotime( '2024-01-01' ); // Montag
+				for ( $i = 0; $i < 7; $i++ ) {
+					echo '<div class="pp-cal__dow">' . esc_html( date_i18n( 'D', strtotime( "+$i day", $ref ) ) ) . '</div>';
+				}
+				for ( $i = 0; $i < $lead; $i++ ) {
+					echo '<div class="pp-cal__cell pp-cal__cell--blank"></div>';
+				}
+				for ( $d = 1; $d <= $days; $d++ ) {
+					$key      = sprintf( '%s-%02d', $month, $d );
+					$is_today = ( $key === $today );
+					$events   = $by_day[ $key ] ?? [];
+					echo '<div class="pp-cal__cell' . ( $is_today ? ' pp-cal__cell--today' : '' ) . '">';
+					echo '<span class="pp-cal__daynum">' . (int) $d . '</span>';
+					foreach ( array_slice( $events, 0, 3 ) as $ev ) {
+						$cls = 'pp-cal__chip pp-cal__chip--' . $ev['type'];
+						if ( ! empty( $ev['url'] ) ) {
+							echo '<a class="' . esc_attr( $cls ) . '" href="' . esc_url( $ev['url'] ) . '" title="' . esc_attr( $ev['label'] ) . '">' . esc_html( $ev['label'] ) . '</a>';
+						} else {
+							echo '<span class="' . esc_attr( $cls ) . '" title="' . esc_attr( $ev['label'] ) . '">' . esc_html( $ev['label'] ) . '</span>';
+						}
+					}
+					$extra = count( $events ) - 3;
+					if ( $extra > 0 ) {
+						/* translators: %d: number of additional events on that day. */
+						echo '<span class="pp-cal__more">' . esc_html( sprintf( __( '+%d more', 'project-prepper' ), $extra ) ) . '</span>';
+					}
+					echo '</div>';
+				}
+				?>
+			</div>
+
+			<div class="pp-cal__legend">
+				<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--project"></span><?php esc_html_e( 'Project', 'project-prepper' ); ?></span>
+				<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--schedule"></span><?php esc_html_e( 'Schedule', 'project-prepper' ); ?></span>
+				<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--borrow"></span><?php esc_html_e( 'Loan', 'project-prepper' ); ?></span>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Events des Monats [ms..me] nach Tag (Y-m-d) gruppiert — gruppen-gescoped:
+	 * eigene Gruppen-Projekte (+ deren Zeitplan) und eigene Ausleihen. KEINE
+	 * site-weiten Verleihe (das ist Admin-Sache).
+	 */
+	private static function calendar_events( WP_User $user, array $groups, string $ms, string $me ): array {
+		$by_day   = [];
+		$projects = self::member_projects( $groups );
+
+		foreach ( $projects as $p ) {
+			$start = (string) ( $p->date_start ?? '' );
+			if ( '' !== $start ) {
+				$end = ! empty( $p->date_end ) ? (string) $p->date_end : $start;
+				self::cal_span( $by_day, $start, $end, $ms, $me, [
+					'type'  => 'project',
+					'label' => $p->name,
+					'url'   => add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $p->id ], self::portal_url() ),
+				] );
+			}
+			foreach ( Schedule::for_project( (int) $p->id ) as $s ) {
+				$date = (string) ( $s->schedule_date ?? '' );
+				if ( '' === $date || $date < $ms || $date > $me ) {
+					continue;
+				}
+				$label = trim( ( ! empty( $s->time_start ) ? substr( (string) $s->time_start, 0, 5 ) . ' ' : '' ) . $s->title );
+				$by_day[ $date ][] = [
+					'type'  => 'schedule',
+					'label' => $label,
+					'url'   => add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $p->id ], self::portal_url() ),
+				];
+			}
+		}
+
+		$borrows     = array_merge(
+			Borrowing::my_requests( (int) $user->ID ),
+			Borrowing::incoming_requests( (int) $user->ID )
+		);
+		$lending_url = self::view_url( 'lending' );
+		foreach ( $borrows as $b ) {
+			if ( ! in_array( $b->status, [ 'requested', 'approved' ], true ) ) {
+				continue;
+			}
+			$start = (string) $b->date_from;
+			if ( '' === $start ) {
+				continue;
+			}
+			$end = ! empty( $b->date_to ) ? (string) $b->date_to : $start;
+			self::cal_span( $by_day, $start, $end, $ms, $me, [
+				'type'  => 'borrow',
+				'label' => $b->item_name,
+				'url'   => $lending_url,
+			] );
+		}
+
+		// Pro Tag stabil sortieren: Projekt, Zeitplan, Verleih.
+		$order = [ 'project' => 0, 'schedule' => 1, 'borrow' => 2 ];
+		foreach ( $by_day as &$list ) {
+			usort( $list, static fn( $a, $b ) => ( $order[ $a['type'] ] ?? 9 ) <=> ( $order[ $b['type'] ] ?? 9 ) );
+		}
+		unset( $list );
+
+		return $by_day;
+	}
+
+	/** Ein (mehrtägiges) Event auf jeden Tag im Schnitt mit [ms..me] legen. */
+	private static function cal_span( array &$by_day, string $from, string $to, string $ms, string $me, array $event ): void {
+		$start = $from < $ms ? $ms : $from;
+		$end   = $to > $me ? $me : $to;
+		if ( $start > $end ) {
+			return;
+		}
+		for ( $t = strtotime( $start ); $t <= strtotime( $end ); $t = strtotime( '+1 day', $t ) ) {
+			$by_day[ gmdate( 'Y-m-d', $t ) ][] = $event;
+		}
 	}
 
 	/* ---------- Render-Bausteine ---------- */

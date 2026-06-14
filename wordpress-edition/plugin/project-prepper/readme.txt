@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.38.0
+Stable tag: 0.39.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.39.0 =
+* Member portal: new "Calendar" page — a read-only month view that brings together the projects of your collectives, their schedule entries and your own loans, with month navigation and a colour-coded legend
+* Calendar entries link back to the relevant project or to the lending page
+* Strictly scoped to what the member may see (their collectives only); no site-wide rental data is shown
 
 = 0.38.0 =
 * Member portal: new "My projects" page — members can browse the projects of the collectives they belong to and open a read-only detail view (overview, booked equipment, schedule, tasks, checklists, materials, team, contacts and files)
