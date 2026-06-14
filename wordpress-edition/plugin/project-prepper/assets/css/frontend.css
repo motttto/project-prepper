@@ -762,6 +762,10 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-portal__edit[open], .pp-portal__add[open] { display: block; margin-top: .5rem; }
 .pp-portal__add { margin-top: .5rem; }
 
+/* Mein-Inventar Werkzeugleiste (CSV Export/Import) */
+.pp-inv-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 14px; }
+.pp-inv-tools .pp-portal__add { margin-top: 0; }
+
 /* Member-Portal Phase 4 — Stöbern & Leihen */
 .pp-portal__browse-item {
 	background: var(--pp-muted);

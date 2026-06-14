@@ -56,6 +56,11 @@ class MemberPortal {
 		// Dispatcher, nur eingeloggt (kein nopriv).
 		add_action( 'admin_post_pp_collective', [ self::class, 'handle_collective_action' ] );
 
+		// Mein-Inventar CSV-Export (Download) + -Import (Bulk). Eigene Handler, weil
+		// der Export streamt (kein Redirect) und der Import eine Datei hochlädt.
+		add_action( 'admin_post_pp_member_export', [ self::class, 'handle_inventory_export' ] );
+		add_action( 'admin_post_pp_member_import', [ self::class, 'handle_inventory_import' ] );
+
 		// Offene E-Mail-Einladungen beim Registrieren verknüpfen.
 		add_action( 'user_register', [ Governance::class, 'link_user_on_register' ] );
 
@@ -444,6 +449,7 @@ class MemberPortal {
 			'poll_reopened'    => [ 'ok', __( 'Poll reopened.', 'project-prepper' ) ],
 			'fed_decided'      => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'fed_requested'    => [ 'ok', __( 'Borrow request sent to the partner instance.', 'project-prepper' ) ],
+			'import_nofile'    => [ 'err', __( 'Please choose a CSV file to import.', 'project-prepper' ) ],
 			'error'            => [ 'err', __( 'Something went wrong. Please try again.', 'project-prepper' ) ],
 		];
 	}
@@ -2006,6 +2012,17 @@ class MemberPortal {
 		if ( '' === $code ) {
 			return;
 		}
+		// Import-Ergebnis mit Anzahl (pp_n).
+		if ( 'imported' === $code ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Anzeige
+			$n = isset( $_GET['pp_n'] ) ? (int) $_GET['pp_n'] : 0;
+			printf(
+				'<div class="pp-portal__notice pp-portal__notice--ok">%s</div>',
+				/* translators: %d: number of imported items. */
+				esc_html( sprintf( _n( '%d item imported.', '%d items imported.', $n, 'project-prepper' ), $n ) )
+			);
+			return;
+		}
 		$map = self::messages();
 		if ( ! isset( $map[ $code ] ) ) {
 			return;
@@ -2152,6 +2169,8 @@ class MemberPortal {
 				<h3 class="pp-portal__subtitle"><?php esc_html_e( 'My inventory', 'project-prepper' ); ?></h3>
 			<?php endif; ?>
 
+			<?php self::render_inventory_tools(); ?>
+
 			<?php if ( $items ) : ?>
 				<?php foreach ( $items as $item ) : ?>
 					<div class="pp-portal__item">
@@ -2258,6 +2277,191 @@ class MemberPortal {
 			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save item', 'project-prepper' ); ?></button>
 		</form>
 		<?php
+	}
+
+	/* ---------- Mein Inventar: CSV-Export / -Import ---------- */
+
+	/** Werkzeugleiste über dem eigenen Inventar: Export-Link + Import-Formular. */
+	private static function render_inventory_tools(): void {
+		$export_url = wp_nonce_url( admin_url( 'admin-post.php?action=pp_member_export' ), 'pp_member_export', 'pp_nonce' );
+		?>
+		<div class="pp-inv-tools">
+			<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export (CSV)', 'project-prepper' ); ?></a>
+			<details class="pp-portal__add">
+				<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Import (CSV)', 'project-prepper' ); ?></summary>
+				<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="pp_member_import">
+					<?php wp_nonce_field( 'pp_member_import', 'pp_nonce' ); ?>
+					<label><?php esc_html_e( 'CSV file', 'project-prepper' ); ?>
+						<input type="file" name="pp_file" accept=".csv,text/csv" required>
+					</label>
+					<p class="pp-poll-opthint"><?php esc_html_e( 'Use the same columns as the export (semicolon-separated). Each row becomes one of your items; the “Name” column is required.', 'project-prepper' ); ?></p>
+					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Import', 'project-prepper' ); ?></button>
+				</form>
+			</details>
+		</div>
+		<?php
+	}
+
+	/** CSV-Download des eigenen Inventars (Semikolon + BOM → deutsches Excel). */
+	public static function handle_inventory_export(): void {
+		$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce direkt darunter geprüft.
+		if ( ! is_user_logged_in() || ! isset( $_GET['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['pp_nonce'] ), 'pp_member_export' ) ) {
+			wp_safe_redirect( $back );
+			exit;
+		}
+
+		$items      = MemberInventory::my_items( get_current_user_id() );
+		$columns    = \ProjectPrepper\Rest\ImportExportController::export_columns();
+		$conditions = Shortcodes::condition_labels();
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="mein-inventar-' . gmdate( 'Y-m-d' ) . '.csv"' );
+		echo "\xEF\xBB\xBF"; // UTF-8-BOM für Excel.
+		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- CSV-Streaming an die Ausgabe; WP_Filesystem ist dafür nicht vorgesehen.
+		fputcsv( $out, array_values( $columns ), ';' );
+		foreach ( $items as $it ) {
+			$row = [];
+			foreach ( array_keys( $columns ) as $key ) {
+				$row[] = self::export_inventory_cell( $it, $key, $conditions );
+			}
+			fputcsv( $out, $row, ';' );
+		}
+		exit; // php://output wird beim Exit geschlossen.
+	}
+
+	private static function export_inventory_cell( object $item, string $key, array $conditions ): string {
+		switch ( $key ) {
+			case 'condition':
+				$c = (string) ( $item->condition ?? '' );
+				return $conditions[ $c ] ?? $c;
+			case 'category_name':
+				return (string) ( $item->category_name ?? '' );
+			case 'tags':
+				return implode( ', ', (array) ( $item->tags ?? [] ) );
+			default:
+				$v = $item->$key ?? '';
+				return is_scalar( $v ) ? (string) $v : '';
+		}
+	}
+
+	/** CSV-Upload → eigene Items anlegen (Bulk). */
+	public static function handle_inventory_import(): void {
+		$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
+		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_member_import' ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+			exit;
+		}
+		if ( empty( $_FILES['pp_file']['tmp_name'] ) || ! is_uploaded_file( $_FILES['pp_file']['tmp_name'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'import_nofile', $back ) );
+			exit;
+		}
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- tmp_name kommt von PHP, is_uploaded_file geprüft.
+		$created = self::import_inventory_csv( get_current_user_id(), $_FILES['pp_file']['tmp_name'] );
+		wp_safe_redirect( add_query_arg( [ 'pp_msg' => 'imported', 'pp_n' => (int) $created ], $back ) );
+		exit;
+	}
+
+	/** CSV einlesen (max. 500 Zeilen) und je Zeile ein eigenes Item anlegen. */
+	private static function import_inventory_csv( int $user_id, string $path ): int {
+		$columns = \ProjectPrepper\Rest\ImportExportController::export_columns();
+		$map     = [];
+		foreach ( $columns as $key => $label ) {
+			$map[ self::norm_head( (string) $label ) ] = $key;
+			$map[ self::norm_head( $key ) ]            = $key;
+		}
+		// Kategorie-Namen → ID (nur vorhandene; keine Auto-Anlage durch Mitglieder).
+		$cat_map = [];
+		foreach ( Inventory::categories() as $cat ) {
+			$cat_map[ self::norm_head( $cat->name ) ] = (int) $cat->id;
+		}
+
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Zeilenweises Parsen der hochgeladenen CSV (is_uploaded_file geprüft); WP_Filesystem kann CSV nicht streamen.
+		$fh = fopen( $path, 'r' );
+		if ( ! $fh ) {
+			return 0;
+		}
+		$header = fgetcsv( $fh, 0, ';' );
+		if ( ! $header ) {
+			fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- s. fopen oben.
+			return 0;
+		}
+		$header[0] = preg_replace( '/^\xEF\xBB\xBF/', '', (string) $header[0] );
+		$keys      = array_map( static fn( $h ) => $map[ self::norm_head( (string) $h ) ] ?? null, $header );
+
+		$created = 0;
+		$rows    = 0;
+		while ( ( $row = fgetcsv( $fh, 0, ';' ) ) !== false ) {
+			if ( ++$rows > 500 ) {
+				break;
+			}
+			$d = [];
+			foreach ( $row as $i => $cell ) {
+				$key = $keys[ $i ] ?? null;
+				if ( $key ) {
+					$d[ $key ] = trim( (string) $cell );
+				}
+			}
+			if ( empty( $d['name'] ) ) {
+				continue;
+			}
+			$result = MemberInventory::create( $user_id, self::build_import_item( $d, $cat_map ) );
+			if ( ! is_wp_error( $result ) ) {
+				$created++;
+			}
+		}
+		fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- s. fopen oben.
+		return $created;
+	}
+
+	/** Eine CSV-Zeile in das Item-Datenarray für MemberInventory::create übersetzen. */
+	private static function build_import_item( array $d, array $cat_map ): array {
+		$cond = \ProjectPrepper\Rest\ImportExportController::CONDITION_MAP[ self::norm_head( $d['condition'] ?? '' ) ] ?? 'good';
+		$tags = ( isset( $d['tags'] ) && '' !== $d['tags'] )
+			? array_values( array_filter( array_map( 'trim', explode( ',', $d['tags'] ) ) ) )
+			: [];
+		return [
+			'name'           => sanitize_text_field( $d['name'] ?? '' ),
+			'description'    => sanitize_textarea_field( $d['description'] ?? '' ),
+			'manufacturer'   => sanitize_text_field( $d['manufacturer'] ?? '' ),
+			'model'          => sanitize_text_field( $d['model'] ?? '' ),
+			'serial_number'  => sanitize_text_field( $d['serial_number'] ?? '' ),
+			'location'       => sanitize_text_field( $d['location'] ?? '' ),
+			'dimensions'     => sanitize_text_field( $d['dimensions'] ?? '' ),
+			'accessories'    => sanitize_text_field( $d['accessories'] ?? '' ),
+			'notes'          => sanitize_textarea_field( $d['notes'] ?? '' ),
+			'category_id'    => $cat_map[ self::norm_head( $d['category_name'] ?? '' ) ] ?? 0,
+			'quantity'       => max( 1, (int) ( $d['quantity'] ?? 1 ) ),
+			'condition'      => $cond,
+			'cost_per_day'   => self::num_str( $d['cost_per_day'] ?? '' ),
+			'purchase_price' => self::num_str( $d['purchase_price'] ?? '' ),
+			'current_value'  => self::num_str( $d['current_value'] ?? '' ),
+			'power_watts'    => ( isset( $d['power_watts'] ) && '' !== $d['power_watts'] ) ? (int) $d['power_watts'] : '',
+			'purchase_date'  => self::parse_import_date( $d['purchase_date'] ?? '' ),
+			'tags'           => $tags,
+		];
+	}
+
+	private static function norm_head( string $s ): string {
+		return mb_strtolower( trim( $s ) );
+	}
+
+	private static function num_str( string $v ): string {
+		$v = trim( str_replace( ',', '.', $v ) );
+		return is_numeric( $v ) ? $v : '';
+	}
+
+	private static function parse_import_date( string $v ): string {
+		$v = trim( $v );
+		if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v ) ) {
+			return $v;
+		}
+		if ( preg_match( '#^(\d{2})\.(\d{2})\.(\d{4})$#', $v, $m ) ) {
+			return $m[3] . '-' . $m[2] . '-' . $m[1];
+		}
+		return '';
 	}
 
 	/* ---------- Stöbern & Leihen (Phase 4) ---------- */

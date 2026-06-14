@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Project Prepper 0.48.0\n"
+"Project-Id-Version: Project Prepper 0.49.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/project-prepper\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-14T18:21:42+00:00\n"
+"POT-Creation-Date: 2026-06-14T18:52:18+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: project-prepper\n"
@@ -36,14 +36,14 @@ msgstr ""
 
 #: includes/Admin/Menu.php:43
 #: includes/Admin/Menu.php:44
-#: includes/Frontend/MemberPortal.php:693
+#: includes/Frontend/MemberPortal.php:699
 msgid "Dashboard"
 msgstr ""
 
 #: includes/Admin/Menu.php:53
 #: includes/Admin/Menu.php:54
 #: includes/Admin/Menu.php:200
-#: includes/Frontend/MemberPortal.php:694
+#: includes/Frontend/MemberPortal.php:700
 #: admin/js/admin.js:630
 #: admin/js/admin.js:1179
 msgid "Inventory"
@@ -52,8 +52,8 @@ msgstr ""
 #: includes/Admin/Menu.php:62
 #: includes/Admin/Menu.php:63
 #: includes/Admin/Menu.php:204
-#: includes/Frontend/MemberPortal.php:696
-#: includes/Frontend/MemberPortal.php:883
+#: includes/Frontend/MemberPortal.php:702
+#: includes/Frontend/MemberPortal.php:889
 msgid "Projects"
 msgstr ""
 
@@ -85,8 +85,8 @@ msgstr ""
 #: includes/Admin/Menu.php:110
 #: includes/Admin/Menu.php:111
 #: includes/Admin/Menu.php:216
-#: includes/Frontend/MemberPortal.php:697
-#: includes/Frontend/MemberPortal.php:1696
+#: includes/Frontend/MemberPortal.php:703
+#: includes/Frontend/MemberPortal.php:1702
 msgid "Calendar"
 msgstr ""
 
@@ -118,7 +118,7 @@ msgstr ""
 #. translators: %s = display name of the current user.
 #. translators: %s: member display name.
 #: includes/Admin/Menu.php:193
-#: includes/Frontend/MemberPortal.php:853
+#: includes/Frontend/MemberPortal.php:859
 #, php-format
 msgid "Hello %s"
 msgstr ""
@@ -132,27 +132,27 @@ msgid "In voting"
 msgstr ""
 
 #: includes/Admin/Menu.php:244
-#: includes/Frontend/MemberPortal.php:2410
+#: includes/Frontend/MemberPortal.php:2614
 msgid "Requested"
 msgstr ""
 
 #: includes/Admin/Menu.php:245
-#: includes/Frontend/MemberPortal.php:1605
-#: includes/Frontend/MemberPortal.php:2411
+#: includes/Frontend/MemberPortal.php:1611
+#: includes/Frontend/MemberPortal.php:2615
 #: admin/js/admin.js:2121
 msgid "Approved"
 msgstr ""
 
 #: includes/Admin/Menu.php:246
-#: includes/Frontend/MemberPortal.php:2412
+#: includes/Frontend/MemberPortal.php:2616
 #: admin/js/admin.js:2564
 msgid "Declined"
 msgstr ""
 
 #: includes/Admin/Menu.php:247
-#: includes/Frontend/MemberPortal.php:1607
-#: includes/Frontend/MemberPortal.php:1652
-#: includes/Frontend/MemberPortal.php:2413
+#: includes/Frontend/MemberPortal.php:1613
+#: includes/Frontend/MemberPortal.php:1658
+#: includes/Frontend/MemberPortal.php:2617
 #: admin/js/admin.js:119
 #: admin/js/admin.js:439
 #: admin/js/admin.js:1174
@@ -161,7 +161,7 @@ msgid "Cancelled"
 msgstr ""
 
 #: includes/Admin/Menu.php:248
-#: includes/Frontend/MemberPortal.php:2414
+#: includes/Frontend/MemberPortal.php:2618
 #: admin/js/admin.js:119
 msgid "Returned"
 msgstr ""
@@ -229,7 +229,7 @@ msgstr ""
 #: includes/Admin/Menu.php:279
 #: includes/Admin/Menu.php:369
 #: includes/Admin/Menu.php:518
-#: includes/Frontend/MemberPortal.php:884
+#: includes/Frontend/MemberPortal.php:890
 msgid "Collectives"
 msgstr ""
 
@@ -246,7 +246,7 @@ msgid "Active loans"
 msgstr ""
 
 #: includes/Admin/Menu.php:283
-#: includes/Frontend/MemberPortal.php:885
+#: includes/Frontend/MemberPortal.php:891
 msgid "Open borrow requests"
 msgstr ""
 
@@ -343,8 +343,8 @@ msgid "No activity recorded yet."
 msgstr ""
 
 #: includes/Admin/Menu.php:372
-#: includes/Frontend/MemberPortal.php:597
-#: includes/Frontend/MemberPortal.php:2231
+#: includes/Frontend/MemberPortal.php:603
+#: includes/Frontend/MemberPortal.php:2250
 #: includes/Privacy.php:52
 #: includes/Rest/ImportExportController.php:28
 #: admin/js/admin.js:197
@@ -370,7 +370,7 @@ msgid "Members"
 msgstr ""
 
 #: includes/Admin/Menu.php:381
-#: includes/Frontend/MemberPortal.php:894
+#: includes/Frontend/MemberPortal.php:900
 msgid "Manage"
 msgstr ""
 
@@ -692,181 +692,185 @@ msgstr ""
 msgid "Permission denied."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:178
+#: includes/Frontend/MemberPortal.php:183
 msgid "Member portal"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:426
+#: includes/Frontend/MemberPortal.php:431
 msgid "Collective founded. You are its founder."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:427
+#: includes/Frontend/MemberPortal.php:432
 msgid "Invitation sent."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:428
+#: includes/Frontend/MemberPortal.php:433
 msgid "Invitation accepted."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:429
+#: includes/Frontend/MemberPortal.php:434
 msgid "Invitation declined."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:430
+#: includes/Frontend/MemberPortal.php:435
 msgid "Invitation cancelled."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:431
+#: includes/Frontend/MemberPortal.php:436
 msgid "Your vote was recorded."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:432
+#: includes/Frontend/MemberPortal.php:437
 msgid "Item saved."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:433
+#: includes/Frontend/MemberPortal.php:438
 #: admin/js/admin.js:463
 msgid "Item deleted."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:434
+#: includes/Frontend/MemberPortal.php:439
 msgid "Item shared with the collective."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:435
+#: includes/Frontend/MemberPortal.php:440
 msgid "Item is no longer shared."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:436
+#: includes/Frontend/MemberPortal.php:441
 msgid "Borrow request sent to the owner."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:437
-#: includes/Frontend/MemberPortal.php:445
+#: includes/Frontend/MemberPortal.php:442
+#: includes/Frontend/MemberPortal.php:450
 msgid "Request updated."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:438
+#: includes/Frontend/MemberPortal.php:443
 msgid "Request cancelled."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:439
+#: includes/Frontend/MemberPortal.php:444
 msgid "Marked as returned."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:440
+#: includes/Frontend/MemberPortal.php:445
 msgid "Decision created."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:441
+#: includes/Frontend/MemberPortal.php:446
 msgid "Decision closed."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:442
+#: includes/Frontend/MemberPortal.php:447
 msgid "Poll created."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:443
+#: includes/Frontend/MemberPortal.php:448
 msgid "Poll closed."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:444
+#: includes/Frontend/MemberPortal.php:449
 msgid "Poll reopened."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:446
+#: includes/Frontend/MemberPortal.php:451
 msgid "Borrow request sent to the partner instance."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:447
+#: includes/Frontend/MemberPortal.php:452
+msgid "Please choose a CSV file to import."
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:453
 msgid "Something went wrong. Please try again."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:525
+#: includes/Frontend/MemberPortal.php:531
 #: includes/Services/GroupGovernance.php:73
 msgid "Please enter a valid email address."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:526
+#: includes/Frontend/MemberPortal.php:532
 msgid "An account with that email already exists. Please sign in."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:527
+#: includes/Frontend/MemberPortal.php:533
 msgid "Please choose a password with at least 8 characters."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:528
+#: includes/Frontend/MemberPortal.php:534
 msgid "Self-registration is currently closed."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:529
+#: includes/Frontend/MemberPortal.php:535
 msgid "Registration failed. Please try again."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:536
+#: includes/Frontend/MemberPortal.php:542
 msgid "Member login"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:539
+#: includes/Frontend/MemberPortal.php:545
 msgid "Login failed. Please check your details and try again."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:541
+#: includes/Frontend/MemberPortal.php:547
 msgid "That code was not correct. Please try again."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:543
+#: includes/Frontend/MemberPortal.php:549
 msgid "A new code is on its way to your email."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:545
+#: includes/Frontend/MemberPortal.php:551
 msgid "You have requested too many codes. Please wait a moment and try again."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:553
+#: includes/Frontend/MemberPortal.php:559
 msgid "We sent a one-time code to your email. Enter it to finish signing in."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:557
+#: includes/Frontend/MemberPortal.php:563
 msgid "Login code"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:559
+#: includes/Frontend/MemberPortal.php:565
 msgid "Confirm code"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:564
+#: includes/Frontend/MemberPortal.php:570
 msgid "Resend code"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:568
+#: includes/Frontend/MemberPortal.php:574
 msgid "Sign in to manage your inventory, your collectives and shared resources."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:572
-#: includes/Frontend/MemberPortal.php:583
+#: includes/Frontend/MemberPortal.php:578
+#: includes/Frontend/MemberPortal.php:589
 msgid "Email or username"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:574
-#: includes/Frontend/MemberPortal.php:584
+#: includes/Frontend/MemberPortal.php:580
+#: includes/Frontend/MemberPortal.php:590
 msgid "Password"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:576
+#: includes/Frontend/MemberPortal.php:582
 msgid "Remember me"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:577
-#: includes/Frontend/MemberPortal.php:585
+#: includes/Frontend/MemberPortal.php:583
+#: includes/Frontend/MemberPortal.php:591
 msgid "Sign in"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:593
+#: includes/Frontend/MemberPortal.php:599
 msgid "New here? Create an account"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:600
+#: includes/Frontend/MemberPortal.php:606
 #: includes/Privacy.php:53
 #: admin/js/admin.js:901
 #: admin/js/admin.js:1054
@@ -877,254 +881,254 @@ msgstr ""
 msgid "Email"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:603
+#: includes/Frontend/MemberPortal.php:609
 msgid "Password (min. 8 characters)"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:607
+#: includes/Frontend/MemberPortal.php:613
 msgid "Create account"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:614
+#: includes/Frontend/MemberPortal.php:620
 msgid "Access is by invitation only. Ask the platform operators to set up an account for you."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:617
+#: includes/Frontend/MemberPortal.php:623
 msgid "Forgot your password?"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:694
-#: includes/Frontend/MemberPortal.php:960
-#: includes/Frontend/MemberPortal.php:2152
+#: includes/Frontend/MemberPortal.php:700
+#: includes/Frontend/MemberPortal.php:966
+#: includes/Frontend/MemberPortal.php:2169
 msgid "My inventory"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:695
+#: includes/Frontend/MemberPortal.php:701
 msgid "My lending"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:695
+#: includes/Frontend/MemberPortal.php:701
 msgid "Lending"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:696
-#: includes/Frontend/MemberPortal.php:1115
+#: includes/Frontend/MemberPortal.php:702
+#: includes/Frontend/MemberPortal.php:1121
 msgid "My projects"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:701
-#: includes/Frontend/MemberPortal.php:1452
-#: includes/Frontend/MemberPortal.php:1569
+#: includes/Frontend/MemberPortal.php:707
+#: includes/Frontend/MemberPortal.php:1458
+#: includes/Frontend/MemberPortal.php:1575
 #: admin/js/admin.js:2265
 #: admin/js/admin.js:2736
 msgid "Polls"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:703
-#: includes/Frontend/MemberPortal.php:1835
+#: includes/Frontend/MemberPortal.php:709
+#: includes/Frontend/MemberPortal.php:1841
 msgid "Network"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:704
+#: includes/Frontend/MemberPortal.php:710
 msgid "My groups"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:704
+#: includes/Frontend/MemberPortal.php:710
 msgid "All groups"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:725
-#: includes/Frontend/MemberPortal.php:743
+#: includes/Frontend/MemberPortal.php:731
+#: includes/Frontend/MemberPortal.php:749
 msgid "Solo"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:736
+#: includes/Frontend/MemberPortal.php:742
 msgid "Workspace"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:776
+#: includes/Frontend/MemberPortal.php:782
 msgid "Admin area"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:786
+#: includes/Frontend/MemberPortal.php:792
 msgid "Manager"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:787
-#: includes/Frontend/MemberPortal.php:904
-#: includes/Frontend/MemberPortal.php:2071
+#: includes/Frontend/MemberPortal.php:793
+#: includes/Frontend/MemberPortal.php:910
+#: includes/Frontend/MemberPortal.php:2088
 #: admin/js/admin.js:3251
 msgid "Member"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:790
+#: includes/Frontend/MemberPortal.php:796
 msgid "Toggle menu"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:801
+#: includes/Frontend/MemberPortal.php:807
 msgid "Sign out"
 msgstr ""
 
 #. translators: %s: active group name.
-#: includes/Frontend/MemberPortal.php:868
+#: includes/Frontend/MemberPortal.php:874
 #, php-format
 msgid "Group: %s"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:870
+#: includes/Frontend/MemberPortal.php:876
 msgid "Solo workspace"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:872
+#: includes/Frontend/MemberPortal.php:878
 msgid "Welcome to your collective platform."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:882
+#: includes/Frontend/MemberPortal.php:888
 msgid "Inventory items"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:893
-#: includes/Frontend/MemberPortal.php:1045
+#: includes/Frontend/MemberPortal.php:899
+#: includes/Frontend/MemberPortal.php:1051
 msgid "Your collectives"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:902
-#: includes/Frontend/MemberPortal.php:2069
+#: includes/Frontend/MemberPortal.php:908
+#: includes/Frontend/MemberPortal.php:2086
 #: admin/js/admin.js:3251
 msgid "Founder"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:910
+#: includes/Frontend/MemberPortal.php:916
 msgid "You are not part of any collective yet. Go to “My collectives” to found one or accept an invitation."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:932
+#: includes/Frontend/MemberPortal.php:938
 msgid "How the platform works"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:938
+#: includes/Frontend/MemberPortal.php:944
 msgid "Your own inventory"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:939
+#: includes/Frontend/MemberPortal.php:945
 msgid "Add the equipment you own. It stays yours — you decide who may use it."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:943
+#: includes/Frontend/MemberPortal.php:949
 msgid "Share with collectives"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:944
+#: includes/Frontend/MemberPortal.php:950
 msgid "Found or join a collective and share selected items with its members."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:948
+#: includes/Frontend/MemberPortal.php:954
 msgid "Browse & borrow"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:949
+#: includes/Frontend/MemberPortal.php:955
 msgid "Borrow what others share, and lend out your own — non-commercial, among members."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:961
+#: includes/Frontend/MemberPortal.php:967
 msgid "Your personal equipment — share items with your collectives."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:970
+#: includes/Frontend/MemberPortal.php:976
 msgid "Borrowing & lending"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:971
+#: includes/Frontend/MemberPortal.php:977
 msgid "Browse what your collectives share, request items and manage requests for your own."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:979
+#: includes/Frontend/MemberPortal.php:985
 msgid "Join a collective to browse and borrow shared equipment."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:998
+#: includes/Frontend/MemberPortal.php:1004
 msgid "Network requests for your items"
 msgstr ""
 
 #. translators: 1: requester name, 2: instance name.
-#: includes/Frontend/MemberPortal.php:1007
+#: includes/Frontend/MemberPortal.php:1013
 #, php-format
 msgid "%1$s via %2$s"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1022
-#: includes/Frontend/MemberPortal.php:1406
-#: includes/Frontend/MemberPortal.php:2104
-#: includes/Frontend/MemberPortal.php:2386
+#: includes/Frontend/MemberPortal.php:1028
+#: includes/Frontend/MemberPortal.php:1412
+#: includes/Frontend/MemberPortal.php:2121
+#: includes/Frontend/MemberPortal.php:2590
 #: admin/js/admin.js:2123
 msgid "Approve"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1027
-#: includes/Frontend/MemberPortal.php:2043
-#: includes/Frontend/MemberPortal.php:2387
+#: includes/Frontend/MemberPortal.php:1033
+#: includes/Frontend/MemberPortal.php:2060
+#: includes/Frontend/MemberPortal.php:2591
 #: admin/js/admin.js:2654
 msgid "Decline"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1040
+#: includes/Frontend/MemberPortal.php:1046
 msgid "My collectives"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1041
+#: includes/Frontend/MemberPortal.php:1047
 msgid "Found or join collectives and invite members to share resources."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1051
+#: includes/Frontend/MemberPortal.php:1057
 msgid "You are not part of any collective yet. Found one below or accept an invitation to start sharing inventory."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1056
+#: includes/Frontend/MemberPortal.php:1062
 msgid "Found a collective"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1059
+#: includes/Frontend/MemberPortal.php:1065
 msgid "Collective name"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1061
-#: includes/Frontend/MemberPortal.php:1437
-#: includes/Frontend/MemberPortal.php:1555
-#: includes/Frontend/MemberPortal.php:2255
+#: includes/Frontend/MemberPortal.php:1067
+#: includes/Frontend/MemberPortal.php:1443
+#: includes/Frontend/MemberPortal.php:1561
+#: includes/Frontend/MemberPortal.php:2274
 msgid "Description (optional)"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1063
+#: includes/Frontend/MemberPortal.php:1069
 msgid "Found collective"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1116
+#: includes/Frontend/MemberPortal.php:1122
 msgid "Projects of the collectives you belong to."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1120
+#: includes/Frontend/MemberPortal.php:1126
 msgid "You are in Solo. Pick a group in the workspace switcher (top left) to see its projects."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1122
+#: includes/Frontend/MemberPortal.php:1128
 msgid "No projects yet. Projects created in your collectives will appear here."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1161
-#: includes/Frontend/MemberPortal.php:1168
+#: includes/Frontend/MemberPortal.php:1167
+#: includes/Frontend/MemberPortal.php:1174
 msgid "← Back to projects"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1162
+#: includes/Frontend/MemberPortal.php:1168
 msgid "This project is not available."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1184
+#: includes/Frontend/MemberPortal.php:1190
 #: admin/js/admin.js:2727
 msgid "Overview"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1189
+#: includes/Frontend/MemberPortal.php:1195
 #: admin/js/admin.js:1232
 #: admin/js/admin.js:1304
 #: admin/js/admin.js:2808
@@ -1132,7 +1136,7 @@ msgstr ""
 msgid "Venue"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1192
+#: includes/Frontend/MemberPortal.php:1198
 #: admin/js/admin.js:1232
 #: admin/js/admin.js:1305
 #: admin/js/admin.js:2809
@@ -1140,7 +1144,7 @@ msgstr ""
 msgid "Client"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1195
+#: includes/Frontend/MemberPortal.php:1201
 #: includes/Rest/ImportExportController.php:45
 #: admin/js/admin.js:315
 #: admin/js/admin.js:406
@@ -1151,108 +1155,108 @@ msgstr ""
 msgid "Notes"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1206
+#: includes/Frontend/MemberPortal.php:1212
 msgid "Booked equipment"
 msgstr ""
 
 #. translators: %d: quantity.
-#: includes/Frontend/MemberPortal.php:1218
-#: includes/Frontend/MemberPortal.php:2166
+#: includes/Frontend/MemberPortal.php:1224
+#: includes/Frontend/MemberPortal.php:2185
 #, php-format
 msgid "Qty %d"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1233
-#: includes/Frontend/MemberPortal.php:1743
+#: includes/Frontend/MemberPortal.php:1239
+#: includes/Frontend/MemberPortal.php:1749
 #: admin/js/admin.js:1798
 #: admin/js/admin.js:2729
 #: admin/js/admin.js:3626
 msgid "Schedule"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1255
+#: includes/Frontend/MemberPortal.php:1261
 #: admin/js/admin.js:1942
 #: admin/js/admin.js:2735
 msgid "Tasks"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1279
+#: includes/Frontend/MemberPortal.php:1285
 #: admin/js/admin.js:1854
 #: admin/js/admin.js:2734
 msgid "Checklists"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1298
+#: includes/Frontend/MemberPortal.php:1304
 #: admin/js/admin.js:1657
 msgid "Materials"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1313
+#: includes/Frontend/MemberPortal.php:1319
 #: admin/js/admin.js:2458
 msgid "Team"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1331
+#: includes/Frontend/MemberPortal.php:1337
 #: admin/js/admin.js:2503
 msgid "Contacts"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1349
+#: includes/Frontend/MemberPortal.php:1355
 #: admin/js/admin.js:1728
 #: admin/js/admin.js:2739
 msgid "Files"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1352
+#: includes/Frontend/MemberPortal.php:1358
 msgid "File"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1358
+#: includes/Frontend/MemberPortal.php:1364
 msgid "missing"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1378
+#: includes/Frontend/MemberPortal.php:1384
 #: admin/js/admin.js:2128
 #: admin/js/admin.js:2737
 msgid "Decisions"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1380
+#: includes/Frontend/MemberPortal.php:1386
 #: admin/js/admin.js:2219
 msgid "No decisions yet."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1387
+#: includes/Frontend/MemberPortal.php:1393
 #: admin/js/admin.js:2144
 msgid "Unanimous"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1387
+#: includes/Frontend/MemberPortal.php:1393
 #: admin/js/admin.js:2144
 msgid "Majority"
 msgstr ""
 
 #. translators: 1: approve count, 2: reject count, 3: abstain count, 4: total eligible voters.
 #. translators: 1: approvals, 2: rejections, 3: abstentions, 4: total eligible
-#: includes/Frontend/MemberPortal.php:1396
+#: includes/Frontend/MemberPortal.php:1402
 #: admin/js/admin.js:2152
 #, php-format,js-format
 msgid "Approve %1$d · Reject %2$d · Abstain %3$d of %4$d"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1406
-#: includes/Frontend/MemberPortal.php:2110
+#: includes/Frontend/MemberPortal.php:1412
+#: includes/Frontend/MemberPortal.php:2127
 #: admin/js/admin.js:2123
 msgid "Reject"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1406
+#: includes/Frontend/MemberPortal.php:1412
 #: admin/js/admin.js:2123
 msgid "Abstain"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1422
-#: includes/Frontend/MemberPortal.php:1521
+#: includes/Frontend/MemberPortal.php:1428
+#: includes/Frontend/MemberPortal.php:1527
 #: admin/js/admin.js:468
 #: admin/js/admin.js:997
 #: admin/js/admin.js:2199
@@ -1263,13 +1267,13 @@ msgstr ""
 msgid "Close"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1430
+#: includes/Frontend/MemberPortal.php:1436
 #: admin/js/admin.js:2232
 msgid "New decision"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1434
-#: includes/Frontend/MemberPortal.php:1533
+#: includes/Frontend/MemberPortal.php:1440
+#: includes/Frontend/MemberPortal.php:1539
 #: admin/js/admin.js:1825
 #: admin/js/admin.js:2224
 #: admin/js/admin.js:2378
@@ -1278,247 +1282,247 @@ msgstr ""
 msgid "Title"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1440
+#: includes/Frontend/MemberPortal.php:1446
 #: admin/js/admin.js:2230
 msgid "Requires unanimous"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1441
+#: includes/Frontend/MemberPortal.php:1447
 msgid "Create decision"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1477
+#: includes/Frontend/MemberPortal.php:1483
 #: admin/js/admin.js:2370
 msgid "No polls yet."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1484
-#: includes/Frontend/MemberPortal.php:1604
-#: includes/Frontend/MemberPortal.php:1659
+#: includes/Frontend/MemberPortal.php:1490
+#: includes/Frontend/MemberPortal.php:1610
+#: includes/Frontend/MemberPortal.php:1665
 #: admin/js/admin.js:1176
 #: admin/js/admin.js:2121
 #: admin/js/admin.js:2281
 msgid "Open"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1484
+#: includes/Frontend/MemberPortal.php:1490
 #: admin/js/admin.js:2281
 #: admin/js/admin.js:2995
 msgid "Closed"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1485
-#: includes/Frontend/MemberPortal.php:1539
+#: includes/Frontend/MemberPortal.php:1491
+#: includes/Frontend/MemberPortal.php:1545
 #: admin/js/admin.js:2258
 #: admin/js/admin.js:2381
 msgid "Date poll"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1485
-#: includes/Frontend/MemberPortal.php:1538
+#: includes/Frontend/MemberPortal.php:1491
+#: includes/Frontend/MemberPortal.php:1544
 #: admin/js/admin.js:2258
 #: admin/js/admin.js:2382
 msgid "Choice poll"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1502
+#: includes/Frontend/MemberPortal.php:1508
 #: admin/js/admin.js:2259
 msgid "Yes"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1502
+#: includes/Frontend/MemberPortal.php:1508
 #: admin/js/admin.js:2259
 msgid "Maybe"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1502
+#: includes/Frontend/MemberPortal.php:1508
 #: admin/js/admin.js:2259
 msgid "No"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1521
+#: includes/Frontend/MemberPortal.php:1527
 #: admin/js/admin.js:2351
 msgid "Reopen"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1529
+#: includes/Frontend/MemberPortal.php:1535
 msgid "New poll"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1536
+#: includes/Frontend/MemberPortal.php:1542
 msgid "Poll type"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1543
+#: includes/Frontend/MemberPortal.php:1549
 msgid "Options"
 msgstr ""
 
 #. translators: %d: option number.
-#: includes/Frontend/MemberPortal.php:1548
+#: includes/Frontend/MemberPortal.php:1554
 #, php-format
 msgid "Option %d"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1552
+#: includes/Frontend/MemberPortal.php:1558
 #: admin/js/admin.js:2396
 msgid "Option"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1552
+#: includes/Frontend/MemberPortal.php:1558
 msgid "+ Add option"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1553
+#: includes/Frontend/MemberPortal.php:1559
 msgid "At least two options. For date polls enter YYYY-MM-DD (optionally HH:MM). Empty boxes are ignored."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1558
+#: includes/Frontend/MemberPortal.php:1564
 #: admin/js/admin.js:2424
 msgid "Create poll"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1570
+#: includes/Frontend/MemberPortal.php:1576
 msgid "Polls for your active group — appointment finding and decisions, independent of a project."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1574
+#: includes/Frontend/MemberPortal.php:1580
 msgid "You are in Solo. Pick a group in the workspace switcher (top left) to run polls."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1606
+#: includes/Frontend/MemberPortal.php:1612
 #: admin/js/admin.js:2121
 msgid "Rejected"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1647
+#: includes/Frontend/MemberPortal.php:1653
 #: admin/js/admin.js:439
 #: admin/js/admin.js:1174
 #: admin/js/admin.js:2562
 msgid "Draft"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1648
+#: includes/Frontend/MemberPortal.php:1654
 #: admin/js/admin.js:439
 #: admin/js/admin.js:1174
 msgid "Planned"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1649
+#: includes/Frontend/MemberPortal.php:1655
 #: admin/js/admin.js:439
 #: admin/js/admin.js:1174
 msgid "Confirmed"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1650
+#: includes/Frontend/MemberPortal.php:1656
 #: admin/js/admin.js:439
 #: admin/js/admin.js:1174
 msgid "Running"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1651
-#: includes/Frontend/MemberPortal.php:1661
+#: includes/Frontend/MemberPortal.php:1657
+#: includes/Frontend/MemberPortal.php:1667
 #: admin/js/admin.js:439
 #: admin/js/admin.js:1174
 #: admin/js/admin.js:1176
 msgid "Done"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1660
+#: includes/Frontend/MemberPortal.php:1666
 #: admin/js/admin.js:1176
 msgid "In progress"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1668
+#: includes/Frontend/MemberPortal.php:1674
 #: admin/js/admin.js:1178
 msgid "Low"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1669
+#: includes/Frontend/MemberPortal.php:1675
 #: admin/js/admin.js:1178
 msgid "Normal"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1670
+#: includes/Frontend/MemberPortal.php:1676
 #: admin/js/admin.js:1178
 msgid "High"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1697
+#: includes/Frontend/MemberPortal.php:1703
 msgid "Your collectives’ projects, schedule and loans at a glance."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1702
+#: includes/Frontend/MemberPortal.php:1708
 #: admin/js/admin.js:3607
 msgid "Previous month"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1704
+#: includes/Frontend/MemberPortal.php:1710
 #: admin/js/admin.js:3608
 msgid "Next month"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1705
+#: includes/Frontend/MemberPortal.php:1711
 #: admin/js/admin.js:3610
 msgid "Today"
 msgstr ""
 
 #. translators: %d: number of additional events on that day.
-#: includes/Frontend/MemberPortal.php:1734
+#: includes/Frontend/MemberPortal.php:1740
 #, php-format
 msgid "+%d more"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1742
+#: includes/Frontend/MemberPortal.php:1748
 #: admin/js/admin.js:3470
 #: admin/js/admin.js:3528
 #: admin/js/admin.js:3625
 msgid "Project"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1744
+#: includes/Frontend/MemberPortal.php:1750
 msgid "Loan"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1836
+#: includes/Frontend/MemberPortal.php:1842
 msgid "Shared inventory from connected partner instances."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1842
+#: includes/Frontend/MemberPortal.php:1848
 msgid "No partner instances are connected yet. Ask the platform operators to add other instances on the Federation page."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1850
+#: includes/Frontend/MemberPortal.php:1856
 msgid "Filter by item, postal code or topic …"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1851
+#: includes/Frontend/MemberPortal.php:1857
 msgid "Filter"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1863
+#: includes/Frontend/MemberPortal.php:1869
 msgid "not reachable"
 msgstr ""
 
 #. translators: %d: number of shared items.
-#: includes/Frontend/MemberPortal.php:1893
+#: includes/Frontend/MemberPortal.php:1899
 #, php-format
 msgid "%d item"
 msgid_plural "%d items"
 msgstr[0] ""
 msgstr[1] ""
 
-#: includes/Frontend/MemberPortal.php:1920
+#: includes/Frontend/MemberPortal.php:1926
 #: admin/js/admin.js:926
 #: admin/js/admin.js:1076
 msgid "day"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1926
+#: includes/Frontend/MemberPortal.php:1932
 msgid "Ask to borrow"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1933
-#: includes/Frontend/MemberPortal.php:2307
+#: includes/Frontend/MemberPortal.php:1939
+#: includes/Frontend/MemberPortal.php:2511
 #: templates/availability.php:33
 #: templates/request-form.php:41
 #: admin/js/admin.js:840
@@ -1533,8 +1537,8 @@ msgstr ""
 msgid "From"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1936
-#: includes/Frontend/MemberPortal.php:2310
+#: includes/Frontend/MemberPortal.php:1942
+#: includes/Frontend/MemberPortal.php:2514
 #: templates/availability.php:37
 #: templates/request-form.php:45
 #: admin/js/admin.js:840
@@ -1549,110 +1553,118 @@ msgstr ""
 msgid "To"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1939
-#: includes/Frontend/MemberPortal.php:2313
+#: includes/Frontend/MemberPortal.php:1945
+#: includes/Frontend/MemberPortal.php:2517
 msgid "Message (optional)"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1942
-#: includes/Frontend/MemberPortal.php:2316
+#: includes/Frontend/MemberPortal.php:1948
+#: includes/Frontend/MemberPortal.php:2520
 msgid "Send request"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1950
+#: includes/Frontend/MemberPortal.php:1956
 msgid "No shared items."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1957
+#: includes/Frontend/MemberPortal.php:1963
 msgid "Nothing matched your filter."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1960
+#: includes/Frontend/MemberPortal.php:1966
 msgid "Borrowing across instances isn’t available yet — open an item to view it on the partner instance."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:1978
+#: includes/Frontend/MemberPortal.php:1984
 msgid "My network requests"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2029
+#. translators: %d: number of imported items.
+#: includes/Frontend/MemberPortal.php:2022
+#, php-format
+msgid "%d item imported."
+msgid_plural "%d items imported."
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/Frontend/MemberPortal.php:2046
 msgid "Your invitations"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2038
+#: includes/Frontend/MemberPortal.php:2055
 msgid "Accept"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2047
+#: includes/Frontend/MemberPortal.php:2064
 msgid "Being voted on by the collective"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2051
+#: includes/Frontend/MemberPortal.php:2068
 msgid "Withdraw"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2087
+#: includes/Frontend/MemberPortal.php:2104
 msgid "Waiting for acceptance"
 msgstr ""
 
 #. translators: 1: approvals, 2: members needed.
-#: includes/Frontend/MemberPortal.php:2092
+#: includes/Frontend/MemberPortal.php:2109
 #, php-format
 msgid "%1$d / %2$d approvals"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2118
-#: includes/Frontend/MemberPortal.php:2351
+#: includes/Frontend/MemberPortal.php:2135
+#: includes/Frontend/MemberPortal.php:2555
 #: admin/js/admin.js:2903
 msgid "Cancel"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2126
+#: includes/Frontend/MemberPortal.php:2143
 msgid "Invite by email"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2127
+#: includes/Frontend/MemberPortal.php:2144
 msgid "Invite"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2135
+#: includes/Frontend/MemberPortal.php:2152
 msgid "You approved"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2136
+#: includes/Frontend/MemberPortal.php:2153
 msgid "You rejected"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2137
+#: includes/Frontend/MemberPortal.php:2154
 msgid "You abstained"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2177
+#: includes/Frontend/MemberPortal.php:2196
 msgid "Shared with:"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2194
+#: includes/Frontend/MemberPortal.php:2213
 msgid "Edit"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2197
+#: includes/Frontend/MemberPortal.php:2216
 msgid "Delete this item?"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2200
+#: includes/Frontend/MemberPortal.php:2219
 #: admin/js/admin.js:1037
 msgid "Delete"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2206
+#: includes/Frontend/MemberPortal.php:2225
 msgid "You have no personal inventory yet. Add your first item below."
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2210
+#: includes/Frontend/MemberPortal.php:2229
 msgid "Add item"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2234
+#: includes/Frontend/MemberPortal.php:2253
 #: includes/Rest/ImportExportController.php:29
 #: admin/js/admin.js:197
 #: admin/js/admin.js:304
@@ -1663,11 +1675,11 @@ msgstr ""
 msgid "Category"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2236
+#: includes/Frontend/MemberPortal.php:2255
 msgid "— none —"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2242
+#: includes/Frontend/MemberPortal.php:2261
 #: includes/Rest/ImportExportController.php:34
 #: admin/js/admin.js:197
 #: admin/js/admin.js:304
@@ -1683,7 +1695,7 @@ msgstr ""
 msgid "Quantity"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2245
+#: includes/Frontend/MemberPortal.php:2264
 #: includes/Rest/ImportExportController.php:35
 #: admin/js/admin.js:197
 #: admin/js/admin.js:305
@@ -1692,42 +1704,63 @@ msgstr ""
 msgid "Condition"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2252
+#: includes/Frontend/MemberPortal.php:2271
 msgid "Daily rate (€, optional)"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2258
+#: includes/Frontend/MemberPortal.php:2277
 msgid "Save item"
 msgstr ""
 
+#: includes/Frontend/MemberPortal.php:2289
+msgid "Export (CSV)"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:2291
+msgid "Import (CSV)"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:2295
+msgid "CSV file"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:2298
+msgid "Use the same columns as the export (semicolon-separated). Each row becomes one of your items; the “Name” column is required."
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php:2299
+#: admin/js/admin.js:654
+msgid "Import"
+msgstr ""
+
 #. translators: %s: owner display name.
-#: includes/Frontend/MemberPortal.php:2294
+#: includes/Frontend/MemberPortal.php:2498
 #, php-format
 msgid "from %s"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2299
+#: includes/Frontend/MemberPortal.php:2503
 msgid "Your item"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2302
+#: includes/Frontend/MemberPortal.php:2506
 msgid "Borrow"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2331
+#: includes/Frontend/MemberPortal.php:2535
 msgid "Available in your collectives"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2344
+#: includes/Frontend/MemberPortal.php:2548
 msgid "My borrow requests"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2353
-#: includes/Frontend/MemberPortal.php:2389
+#: includes/Frontend/MemberPortal.php:2557
+#: includes/Frontend/MemberPortal.php:2593
 msgid "Mark returned"
 msgstr ""
 
-#: includes/Frontend/MemberPortal.php:2368
+#: includes/Frontend/MemberPortal.php:2572
 msgid "Borrow requests for your items"
 msgstr ""
 
@@ -3022,10 +3055,6 @@ msgstr ""
 
 #: admin/js/admin.js:645
 msgid "Export failed"
-msgstr ""
-
-#: admin/js/admin.js:654
-msgid "Import"
 msgstr ""
 
 #: admin/js/admin.js:659
