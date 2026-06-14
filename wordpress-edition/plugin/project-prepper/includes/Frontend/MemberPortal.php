@@ -62,6 +62,7 @@ class MemberPortal {
 		add_action( 'admin_post_pp_member_import', [ self::class, 'handle_inventory_import' ] );
 		add_action( 'admin_post_pp_member_photo', [ self::class, 'handle_inventory_photo' ] );
 		add_action( 'admin_post_pp_member_doc', [ self::class, 'handle_inventory_doc' ] );
+		add_action( 'admin_post_pp_member_data', [ self::class, 'handle_member_data_export' ] );
 
 		// Offene E-Mail-Einladungen beim Registrieren verknüpfen.
 		add_action( 'user_register', [ Governance::class, 'link_user_on_register' ] );
@@ -959,6 +960,14 @@ class MemberPortal {
 			<?php else : ?>
 				<p class="pp-portal__empty"><?php esc_html_e( 'You are not part of any collective yet. Go to “My collectives” to found one or accept an invitation.', 'project-prepper' ); ?></p>
 			<?php endif; ?>
+		</section>
+
+		<section class="pp-app__section">
+			<div class="pp-app__section-head">
+				<h2 class="pp-portal__subtitle"><?php esc_html_e( 'Account & data', 'project-prepper' ); ?></h2>
+			</div>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Download a copy of the data this platform holds about you — your profile, inventory, collectives and borrow records (GDPR Art. 15/20).', 'project-prepper' ); ?></p>
+			<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=pp_member_data' ), 'pp_member_data', 'pp_nonce' ) ); ?>"><?php esc_html_e( 'Download my data (JSON)', 'project-prepper' ); ?></a>
 		</section>
 		<?php
 	}
@@ -2512,6 +2521,71 @@ class MemberPortal {
 			fputcsv( $out, $row, ';' );
 		}
 		exit; // php://output wird beim Exit geschlossen.
+	}
+
+	/**
+	 * DSGVO-Selbstauskunft (Art. 15/20): JSON-Download aller eigenen Plugin-Daten
+	 * des eingeloggten Mitglieds — Profil, Inventar, Gruppen, Leih-Vorgänge.
+	 */
+	public static function handle_member_data_export(): void {
+		$back = self::portal_url();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce direkt darunter geprüft.
+		if ( ! is_user_logged_in() || ! isset( $_GET['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['pp_nonce'] ), 'pp_member_data' ) ) {
+			wp_safe_redirect( $back );
+			exit;
+		}
+
+		$user = wp_get_current_user();
+		$uid  = (int) $user->ID;
+
+		$data = [
+			'exported_at' => gmdate( 'c' ),
+			'profile'     => [
+				'display_name' => $user->display_name,
+				'email'        => $user->user_email,
+				'registered'   => $user->user_registered,
+			],
+			'inventory'   => array_map( static function ( $it ) {
+				return [
+					'inventory_number' => $it->inventory_number ?? '',
+					'name'             => $it->name ?? '',
+					'category'         => $it->category_name ?? '',
+					'condition'        => $it->condition ?? '',
+					'quantity'         => (int) ( $it->quantity ?? 0 ),
+					'manufacturer'     => $it->manufacturer ?? '',
+					'model'            => $it->model ?? '',
+					'serial_number'    => $it->serial_number ?? '',
+					'location'         => $it->location ?? '',
+					'cost_per_day'     => $it->cost_per_day ?? null,
+					'tags'             => (array) ( $it->tags ?? [] ),
+				];
+			}, MemberInventory::my_items( $uid ) ),
+			'groups'      => array_map( static function ( $g ) {
+				return [
+					'name' => $g->name,
+					'role' => $g->member_role,
+				];
+			}, Groups::user_groups( $uid ) ),
+			'borrows_outgoing' => array_map( [ self::class, 'export_borrow_row' ], Borrowing::my_requests( $uid ) ),
+			'borrows_incoming' => array_map( [ self::class, 'export_borrow_row' ], Borrowing::incoming_requests( $uid ) ),
+		];
+
+		nocache_headers();
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="meine-daten-' . gmdate( 'Y-m-d' ) . '.json"' );
+		echo wp_json_encode( $data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES );
+		exit;
+	}
+
+	/** Eine Leih-Zeile auf die fürs DSGVO-Export relevanten Felder reduzieren. */
+	private static function export_borrow_row( object $r ): array {
+		return [
+			'item'      => $r->item_name ?? '',
+			'date_from' => $r->date_from ?? '',
+			'date_to'   => $r->date_to ?? '',
+			'status'    => $r->status ?? '',
+			'message'   => $r->message ?? '',
+		];
 	}
 
 	private static function export_inventory_cell( object $item, string $key, array $conditions ): string {
