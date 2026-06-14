@@ -3361,3 +3361,60 @@ msgstr "nicht erreichbar"
 
 msgid "No partner instances configured yet."
 msgstr "Noch keine Partner-Instanzen konfiguriert."
+
+msgid "When"
+msgstr "Wann"
+
+msgid "Who"
+msgstr "Wer"
+
+msgid "Action"
+msgstr "Aktion"
+
+msgid "No activity recorded yet."
+msgstr "Noch keine Aktivität aufgezeichnet."
+
+msgid "founded a collective"
+msgstr "hat ein Kollektiv gegründet"
+
+msgid "invited someone"
+msgstr "hat jemanden eingeladen"
+
+msgid "accepted an invitation"
+msgstr "hat eine Einladung angenommen"
+
+msgid "was approved to join"
+msgstr "wurde zum Beitritt freigegeben"
+
+msgid "was rejected"
+msgstr "wurde abgelehnt"
+
+msgid "added a member"
+msgstr "hat ein Mitglied hinzugefügt"
+
+msgid "removed a member"
+msgstr "hat ein Mitglied entfernt"
+
+msgid "added an item"
+msgstr "hat einen Artikel angelegt"
+
+msgid "deleted an item"
+msgstr "hat einen Artikel gelöscht"
+
+msgid "shared an item"
+msgstr "hat einen Artikel geteilt"
+
+msgid "stopped sharing an item"
+msgstr "teilt einen Artikel nicht mehr"
+
+msgid "requested to borrow an item"
+msgstr "hat einen Artikel angefragt"
+
+msgid "approved a borrow request"
+msgstr "hat eine Leih-Anfrage angenommen"
+
+msgid "declined a borrow request"
+msgstr "hat eine Leih-Anfrage abgelehnt"
+
+msgid "marked a loan returned"
+msgstr "hat eine Leihe als zurückgegeben markiert"

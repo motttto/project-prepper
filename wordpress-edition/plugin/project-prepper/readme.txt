@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.35.0
+Stable tag: 0.36.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.36.0 =
+* The Platform admin page now shows a "Recent activity" feed — who founded a collective, invited someone, shared an item, requested or returned a loan, and more — so operators can follow what is happening across the member portal at a glance
+* Activity is read from the existing log and shown with human-readable, translated labels
 
 = 0.35.0 =
 * Federation directory: operators can list partner instance URLs on the Federation page; the plugin fetches each one's public profile and shows a "Known instances" table with postal code, topic and counts (cached for an hour, unreachable instances are flagged)

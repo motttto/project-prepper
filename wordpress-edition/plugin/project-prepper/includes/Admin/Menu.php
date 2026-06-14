@@ -8,6 +8,7 @@ use ProjectPrepper\Federation;
 use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance;
 use ProjectPrepper\Services\Borrowing;
+use ProjectPrepper\Services\ActivityLog;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -249,6 +250,27 @@ class Menu {
 		return $map[ $status ] ?? $status;
 	}
 
+	private static function action_label( string $action ): string {
+		$map = [
+			'group_created'              => __( 'founded a collective', 'project-prepper' ),
+			'group_invited'             => __( 'invited someone', 'project-prepper' ),
+			'group_invitation_accepted' => __( 'accepted an invitation', 'project-prepper' ),
+			'group_invitation_approved' => __( 'was approved to join', 'project-prepper' ),
+			'group_invitation_rejected' => __( 'was rejected', 'project-prepper' ),
+			'group_member_added'        => __( 'added a member', 'project-prepper' ),
+			'group_member_removed'      => __( 'removed a member', 'project-prepper' ),
+			'member_item_created'       => __( 'added an item', 'project-prepper' ),
+			'member_item_deleted'       => __( 'deleted an item', 'project-prepper' ),
+			'item_shared'               => __( 'shared an item', 'project-prepper' ),
+			'item_unshared'             => __( 'stopped sharing an item', 'project-prepper' ),
+			'borrow_requested'          => __( 'requested to borrow an item', 'project-prepper' ),
+			'borrow_approved'           => __( 'approved a borrow request', 'project-prepper' ),
+			'borrow_declined'           => __( 'declined a borrow request', 'project-prepper' ),
+			'borrow_returned'           => __( 'marked a loan returned', 'project-prepper' ),
+		];
+		return $map[ $action ] ?? $action;
+	}
+
 	public static function render_platform(): void {
 		$groups   = Groups::all();
 		$invites  = GroupGovernance::all_pending();
@@ -316,6 +338,30 @@ class Menu {
 					</tr>
 				<?php endforeach; else : ?>
 					<tr><td colspan="5"><?php esc_html_e( 'No borrow requests yet.', 'project-prepper' ); ?></td></tr>
+				<?php endif; ?>
+				</tbody>
+			</table>
+
+			<h2 style="margin-top:28px;"><?php esc_html_e( 'Recent activity', 'project-prepper' ); ?></h2>
+			<table class="wp-list-table widefat fixed striped">
+				<thead><tr>
+					<th style="width:160px;"><?php esc_html_e( 'When', 'project-prepper' ); ?></th>
+					<th style="width:180px;"><?php esc_html_e( 'Who', 'project-prepper' ); ?></th>
+					<th><?php esc_html_e( 'Action', 'project-prepper' ); ?></th>
+				</tr></thead>
+				<tbody>
+				<?php
+				$activity = ActivityLog::recent( 20 );
+				if ( $activity ) : foreach ( $activity as $row ) :
+					$actor = $row->actor_id ? get_userdata( (int) $row->actor_id ) : null;
+					?>
+					<tr>
+						<td><?php echo esc_html( mysql2date( 'd.m.Y H:i', $row->created_at ) ); ?></td>
+						<td><?php echo esc_html( $actor ? $actor->display_name : __( 'System', 'project-prepper' ) ); ?></td>
+						<td><?php echo esc_html( self::action_label( $row->action ) ); ?></td>
+					</tr>
+				<?php endforeach; else : ?>
+					<tr><td colspan="3"><?php esc_html_e( 'No activity recorded yet.', 'project-prepper' ); ?></td></tr>
 				<?php endif; ?>
 				</tbody>
 			</table>
