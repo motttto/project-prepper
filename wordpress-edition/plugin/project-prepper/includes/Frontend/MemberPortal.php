@@ -301,9 +301,18 @@ class MemberPortal {
 
 	private static function render_login(): string {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- reine Status-Anzeige
-		$login_msg = isset( $_GET['pp_login'] ) ? sanitize_key( wp_unslash( $_GET['pp_login'] ) ) : '';
+		$login_msg  = isset( $_GET['pp_login'] ) ? sanitize_key( wp_unslash( $_GET['pp_login'] ) ) : '';
+		$reg_msg    = isset( $_GET['pp_reg'] ) ? sanitize_key( wp_unslash( $_GET['pp_reg'] ) ) : '';
 		$two_factor = Security::on( 'member_2fa' );
-		$pending   = $two_factor && MemberAuth::has_pending() && isset( $_GET['pp_2fa'] );
+		$pending    = $two_factor && MemberAuth::has_pending() && isset( $_GET['pp_2fa'] );
+		$can_register = Security::on( 'allow_self_registration' );
+		$reg_errors = [
+			'invalid'  => __( 'Please enter a valid email address.', 'project-prepper' ),
+			'exists'   => __( 'An account with that email already exists. Please sign in.', 'project-prepper' ),
+			'weakpass' => __( 'Please choose a password with at least 8 characters.', 'project-prepper' ),
+			'closed'   => __( 'Self-registration is currently closed.', 'project-prepper' ),
+			'failed'   => __( 'Registration failed. Please try again.', 'project-prepper' ),
+		];
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		ob_start();
@@ -315,6 +324,10 @@ class MemberPortal {
 				<div class="pp-portal__notice pp-portal__notice--err"><?php esc_html_e( 'Login failed. Please check your details and try again.', 'project-prepper' ); ?></div>
 			<?php elseif ( 'code' === $login_msg ) : ?>
 				<div class="pp-portal__notice pp-portal__notice--err"><?php esc_html_e( 'That code was not correct. Please try again.', 'project-prepper' ); ?></div>
+			<?php endif; ?>
+
+			<?php if ( '' !== $reg_msg && isset( $reg_errors[ $reg_msg ] ) ) : ?>
+				<div class="pp-portal__notice pp-portal__notice--err"><?php echo esc_html( $reg_errors[ $reg_msg ] ); ?></div>
 			<?php endif; ?>
 
 			<?php if ( $pending ) : /* ---- Schritt 2: Code ---- */ ?>
@@ -350,9 +363,33 @@ class MemberPortal {
 				] );
 			endif; ?>
 
+			<?php if ( $can_register && ! $pending ) : /* ---- Selbst-Registrierung (Schalter an) ---- */ ?>
+				<hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--pp-border);">
+				<details class="pp-portal__add"<?php echo '' !== $reg_msg ? ' open' : ''; ?>>
+					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'New here? Create an account', 'project-prepper' ); ?></summary>
+					<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:.75rem;">
+						<input type="hidden" name="action" value="pp_member_register">
+						<?php wp_nonce_field( 'pp_member_register', 'pp_nonce' ); ?>
+						<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+							<input type="text" name="pp_name" required>
+						</label>
+						<label><?php esc_html_e( 'Email', 'project-prepper' ); ?>
+							<input type="email" name="pp_email" required>
+						</label>
+						<label><?php esc_html_e( 'Password (min. 8 characters)', 'project-prepper' ); ?>
+							<input type="password" name="pp_password" minlength="8" required>
+						</label>
+						<input type="text" name="pp_website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;">
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create account', 'project-prepper' ); ?></button>
+					</form>
+				</details>
+			<?php endif; ?>
+
 			<p class="pp-portal__note">
-				<?php esc_html_e( 'Access is by invitation only. Ask the platform operators to set up an account for you.', 'project-prepper' ); ?>
-				<br>
+				<?php if ( ! $can_register ) : ?>
+					<?php esc_html_e( 'Access is by invitation only. Ask the platform operators to set up an account for you.', 'project-prepper' ); ?>
+					<br>
+				<?php endif; ?>
 				<a href="<?php echo esc_url( wp_lostpassword_url( self::portal_url() ) ); ?>"><?php esc_html_e( 'Forgot your password?', 'project-prepper' ); ?></a>
 			</p>
 		</div>

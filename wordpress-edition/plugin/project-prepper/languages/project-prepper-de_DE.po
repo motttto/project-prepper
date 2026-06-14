@@ -3268,3 +3268,24 @@ msgstr "Angemeldet bleiben"
 
 msgid "When on, members get a one-time code by email at portal sign-in. Admins and managers keep the normal wp-admin login."
 msgstr "Wenn aktiv, erhalten Mitglieder beim Portal-Login einen Einmal-Code per E-Mail. Admins und Manager nutzen weiter den normalen wp-admin-Login."
+
+msgid "An account with that email already exists. Please sign in."
+msgstr "Mit dieser E-Mail existiert bereits ein Konto. Bitte melde dich an."
+
+msgid "Please choose a password with at least 8 characters."
+msgstr "Bitte wähle ein Passwort mit mindestens 8 Zeichen."
+
+msgid "Self-registration is currently closed."
+msgstr "Die Selbst-Registrierung ist derzeit geschlossen."
+
+msgid "Registration failed. Please try again."
+msgstr "Registrierung fehlgeschlagen. Bitte versuche es erneut."
+
+msgid "New here? Create an account"
+msgstr "Neu hier? Konto erstellen"
+
+msgid "Password (min. 8 characters)"
+msgstr "Passwort (mind. 8 Zeichen)"
+
+msgid "Create account"
+msgstr "Konto erstellen"

@@ -32,6 +32,69 @@ class MemberAuth {
 		// Login erfolgt durch ausgeloggte Besucher → nopriv-Hooks.
 		add_action( 'admin_post_nopriv_pp_member_login', [ self::class, 'handle_login' ] );
 		add_action( 'admin_post_nopriv_pp_member_2fa', [ self::class, 'handle_verify' ] );
+		add_action( 'admin_post_nopriv_pp_member_register', [ self::class, 'handle_register' ] );
+	}
+
+	/* ===================== Selbst-Registrierung ===================== */
+
+	/**
+	 * Frontend-Registrierung — nur wenn der Betreiber „Selbst-Registrierung"
+	 * aktiviert hat (Security::on('allow_self_registration')). Sonst bleibt es
+	 * invite-only und dieser Handler weist ab. Legt einen pp_member-User an und
+	 * loggt ihn ein; offene E-Mail-Einladungen werden über den user_register-Hook
+	 * automatisch verknüpft.
+	 */
+	public static function handle_register(): void {
+		$portal = MemberPortal::portal_url();
+
+		if ( ! Security::on( 'allow_self_registration' ) ) {
+			self::redirect( $portal, [ 'pp_reg' => 'closed' ] );
+		}
+		if ( ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_member_register' ) ) {
+			self::redirect( $portal, [ 'pp_reg' => 'failed' ] );
+		}
+		// Honeypot: echtes Formular lässt pp_website leer.
+		if ( ! empty( $_POST['pp_website'] ) ) {
+			self::redirect( $portal, [ 'pp_reg' => 'failed' ] );
+		}
+
+		$name     = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) );
+		$email    = sanitize_email( wp_unslash( (string) ( $_POST['pp_email'] ?? '' ) ) );
+		$password = (string) ( $_POST['pp_password'] ?? '' );
+
+		if ( ! is_email( $email ) ) {
+			self::redirect( $portal, [ 'pp_reg' => 'invalid' ] );
+		}
+		if ( email_exists( $email ) ) {
+			self::redirect( $portal, [ 'pp_reg' => 'exists' ] );
+		}
+		if ( strlen( $password ) < 8 ) {
+			self::redirect( $portal, [ 'pp_reg' => 'weakpass' ] );
+		}
+
+		// Eindeutigen Benutzernamen aus der E-Mail ableiten.
+		$base  = sanitize_user( current( explode( '@', $email ) ), true );
+		$login = '' !== $base ? $base : 'member';
+		$i     = 2;
+		while ( username_exists( $login ) ) {
+			$login = $base . $i;
+			$i++;
+		}
+
+		$user_id = wp_insert_user( [
+			'user_login'   => $login,
+			'user_email'   => $email,
+			'user_pass'    => $password,
+			'display_name' => '' !== $name ? $name : $login,
+			'role'         => 'pp_member',
+		] );
+		if ( is_wp_error( $user_id ) ) {
+			self::redirect( $portal, [ 'pp_reg' => 'failed' ] );
+		}
+
+		// Direkt einloggen (Registrierung impliziert Passwort-Besitz).
+		wp_set_auth_cookie( (int) $user_id );
+		self::redirect( $portal, [] );
 	}
 
 	/** 2FA aktiv für diesen User? Nur reine Mitglieder, nur wenn Schalter an. */
