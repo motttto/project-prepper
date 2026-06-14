@@ -184,6 +184,140 @@ class FederatedBorrow {
 		return true;
 	}
 
+	/* ===================== Ausgehend (Anfrager) ===================== */
+
+	/**
+	 * Föderierte Leih-Anfrage an eine Partner-Instanz schicken (vom Netzwerk-Tab).
+	 *
+	 * Outbound NUR an konfigurierte Partner-Instanzen. Schickt Name + Kontakt-
+	 * E-Mail des anfragenden Mitglieds mit (kein Konto drüben). Bei Erfolg wird
+	 * die ausgehende Zeile mit dem zurückgegebenen status_token gespeichert, mit
+	 * dem wir später den Status pollen.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function request_outbound( int $user_id, array $data ) {
+		global $wpdb;
+
+		$partner = untrailingslashit( esc_url_raw( (string) ( $data['partner_url'] ?? '' ), [ 'http', 'https' ] ) );
+		if ( '' === $partner || ! Federation::is_known_partner( $partner ) ) {
+			return new WP_Error( 'pp_fed_partner', __( 'Unknown partner instance.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$user = get_userdata( $user_id );
+		if ( ! $user ) {
+			return new WP_Error( 'pp_not_logged_in', __( 'Please sign in.', 'project-prepper' ), [ 'status' => 401 ] );
+		}
+		$item_id = (int) ( $data['item_id'] ?? 0 );
+		if ( ! $item_id ) {
+			return new WP_Error( 'pp_fed_item', __( 'The requested item is not available.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		$from = self::valid_date( (string) ( $data['date_from'] ?? '' ) );
+		$to   = self::valid_date( (string) ( $data['date_to'] ?? '' ) );
+		$msg  = sanitize_textarea_field( (string) ( $data['message'] ?? '' ) );
+
+		$resp = wp_remote_post( $partner . '/wp-json/project-prepper/v1/federation/borrow', [
+			'timeout' => 8,
+			'headers' => [ 'Content-Type' => 'application/json' ],
+			'body'    => wp_json_encode( [
+				'origin'            => home_url( '/' ),
+				'origin_name'       => get_bloginfo( 'name' ),
+				'item_id'           => $item_id,
+				'requester_name'    => $user->display_name,
+				'requester_contact' => $user->user_email,
+				'date_from'         => $from,
+				'date_to'           => $to,
+				'message'           => $msg,
+			] ),
+		] );
+		if ( is_wp_error( $resp ) ) {
+			return new WP_Error( 'pp_fed_unreachable', __( 'The partner instance could not be reached.', 'project-prepper' ), [ 'status' => 502 ] );
+		}
+		$code = (int) wp_remote_retrieve_response_code( $resp );
+		$json = json_decode( wp_remote_retrieve_body( $resp ), true );
+		if ( 200 !== $code || empty( $json['ok'] ) || empty( $json['token'] ) ) {
+			$message = ( is_array( $json ) && ! empty( $json['message'] ) )
+				? (string) $json['message']
+				: __( 'The partner instance declined the request.', 'project-prepper' );
+			return new WP_Error( 'pp_fed_rejected', $message, [ 'status' => $code ?: 400 ] );
+		}
+
+		$wpdb->insert( Schema::table( 'fed_borrow_out' ), [
+			'requester_id'    => $user_id,
+			'partner_url'     => $partner,
+			'item_label'      => sanitize_text_field( (string) ( $data['item_label'] ?? '' ) ),
+			'item_detail_url' => esc_url_raw( (string) ( $data['item_detail_url'] ?? '' ), [ 'http', 'https' ] ),
+			'date_from'       => $from,
+			'date_to'         => $to,
+			'message'         => $msg,
+			'status'          => in_array( (string) $json['status'], self::STATUSES, true ) ? (string) $json['status'] : 'requested',
+			'status_token'    => (string) $json['token'],
+			'created_at'      => current_time( 'mysql' ),
+		] );
+		ActivityLog::log( 'fed_borrow_sent', 'item', $item_id, [ 'partner' => $partner ] );
+		return true;
+	}
+
+	/**
+	 * Ausgehende Anfragen eines Mitglieds — vorher (gedrosselt) den Status bei den
+	 * Partnern auffrischen.
+	 *
+	 * @return array<object>
+	 */
+	public static function my_outbound( int $user_id ): array {
+		global $wpdb;
+		if ( ! $user_id ) {
+			return [];
+		}
+		self::refresh_outbound( $user_id );
+		return $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM %i WHERE requester_id = %d ORDER BY created_at DESC',
+			Schema::table( 'fed_borrow_out' ),
+			$user_id
+		) ) ?: [];
+	}
+
+	/**
+	 * Status offener ausgehender Anfragen bei den Partner-Instanzen nachziehen.
+	 * Pro User höchstens alle 30 s (Transient-Drossel), damit Seitenaufrufe keine
+	 * Request-Lawine auslösen.
+	 */
+	public static function refresh_outbound( int $user_id ): void {
+		global $wpdb;
+		$guard = 'pp_fedpoll_' . $user_id;
+		if ( get_transient( $guard ) ) {
+			return;
+		}
+		set_transient( $guard, 1, 30 );
+
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT id, partner_url, status_token, status FROM %i
+			 WHERE requester_id = %d AND status NOT IN ('approved','declined','cancelled')",
+			Schema::table( 'fed_borrow_out' ),
+			$user_id
+		) ) ?: [];
+
+		foreach ( $rows as $r ) {
+			$resp = wp_remote_get(
+				untrailingslashit( (string) $r->partner_url ) . '/wp-json/project-prepper/v1/federation/borrow/status?token=' . rawurlencode( (string) $r->status_token ),
+				[ 'timeout' => 5 ]
+			);
+			if ( is_wp_error( $resp ) || 200 !== (int) wp_remote_retrieve_response_code( $resp ) ) {
+				continue;
+			}
+			$j = json_decode( wp_remote_retrieve_body( $resp ), true );
+			if ( is_array( $j ) && ! empty( $j['status'] ) && (string) $j['status'] !== (string) $r->status && in_array( (string) $j['status'], self::STATUSES, true ) ) {
+				$wpdb->update(
+					Schema::table( 'fed_borrow_out' ),
+					[ 'status' => (string) $j['status'] ],
+					[ 'id' => (int) $r->id ],
+					[ '%s' ],
+					[ '%d' ]
+				);
+			}
+		}
+	}
+
 	private static function valid_date( string $date ): ?string {
 		return preg_match( '/^\d{4}-\d{2}-\d{2}$/', $date ) ? $date : null;
 	}

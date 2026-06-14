@@ -1,0 +1,13 @@
+{
+	"core": null,
+	"phpVersion": "8.2",
+	"plugins": [
+		"../plugin/project-prepper"
+	],
+	"themes": [
+		"../theme/prepper-site"
+	],
+	"testsEnvironment": false,
+	"port": 8890,
+	"testsPort": 8891
+}

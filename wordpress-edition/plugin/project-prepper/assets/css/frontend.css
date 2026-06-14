@@ -1262,6 +1262,16 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-net-inst__empty { color: #94a3b8; font-size: .85rem; margin: 0; }
 .pp-net-note { margin-top: 8px; font-size: .8rem; color: #94a3b8; }
 
+/* Netzwerk-Artikelkarte mit „Anfragen"-Aufklapper (Slice 4 Run 2) */
+.pp-net-item { overflow: visible; }
+.pp-net-item__link { display: flex; flex-direction: column; flex: 1; color: inherit; text-decoration: none; }
+.pp-net-item__link:hover .pp-front-card-title { color: #4f46e5; }
+.pp-net-item__ask { border-top: 1px solid #eef2f7; padding: 8px 12px 12px; }
+.pp-net-item__ask > summary { list-style: none; display: inline-block; cursor: pointer; }
+.pp-net-item__ask > summary::-webkit-details-marker { display: none; }
+.pp-net-item__ask[open] > summary { margin-bottom: 8px; }
+.pp-net-item__ask .pp-portal__form { max-width: none; }
+
 /* Kalender (read-only Monatsraster) */
 .pp-cal__bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
 .pp-cal__title { font-size: 1.05rem; font-weight: 600; min-width: 9rem; }

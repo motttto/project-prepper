@@ -224,6 +224,10 @@ class MemberPortal {
 		if ( in_array( $do, [ 'fedborrow_approve', 'fedborrow_decline' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'lending', self::portal_url() );
 		}
+		// Ausgehende Netzwerk-Anfrage kehrt zum Netzwerk-Tab zurück.
+		if ( 'fed_request' === $do ) {
+			$back = add_query_arg( 'pp_view', 'network', self::portal_url() );
+		}
 
 		$result = new \WP_Error( 'pp_unknown', 'unknown' );
 		$ok_msg = 'ok';
@@ -351,6 +355,18 @@ class MemberPortal {
 				$result = FederatedBorrow::decide( get_current_user_id(), (int) ( $_POST['pp_fedreq'] ?? 0 ), 'decline' );
 				$ok_msg = 'fed_decided';
 				break;
+			case 'fed_request':
+				$result = FederatedBorrow::request_outbound( get_current_user_id(), [
+					'partner_url'     => wp_unslash( (string) ( $_POST['pp_partner'] ?? '' ) ),
+					'item_id'         => (int) ( $_POST['pp_item'] ?? 0 ),
+					'item_label'      => wp_unslash( (string) ( $_POST['pp_item_label'] ?? '' ) ),
+					'item_detail_url' => wp_unslash( (string) ( $_POST['pp_detail_url'] ?? '' ) ),
+					'date_from'       => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
+					'date_to'         => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
+					'message'         => wp_unslash( (string) ( $_POST['pp_message'] ?? '' ) ),
+				] );
+				$ok_msg = 'fed_requested';
+				break;
 		}
 
 		$msg = is_wp_error( $result ) ? 'error' : $ok_msg;
@@ -381,6 +397,7 @@ class MemberPortal {
 			'poll_closed'      => [ 'ok', __( 'Poll closed.', 'project-prepper' ) ],
 			'poll_reopened'    => [ 'ok', __( 'Poll reopened.', 'project-prepper' ) ],
 			'fed_decided'      => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
+			'fed_requested'    => [ 'ok', __( 'Borrow request sent to the partner instance.', 'project-prepper' ) ],
 			'error'            => [ 'err', __( 'Something went wrong. Please try again.', 'project-prepper' ) ],
 		];
 	}
@@ -1642,6 +1659,8 @@ class MemberPortal {
 			<p class="pp-app__page-sub"><?php esc_html_e( 'Shared inventory from connected partner instances.', 'project-prepper' ); ?></p>
 		</header>
 
+		<?php self::render_my_fed_requests(); ?>
+
 		<?php if ( ! $partners ) : ?>
 			<p class="pp-portal__empty"><?php esc_html_e( 'No partner instances are connected yet. Ask the platform operators to add other instances on the Federation page.', 'project-prepper' ); ?></p>
 			<?php
@@ -1703,27 +1722,51 @@ class MemberPortal {
 						<?php foreach ( $items as $it ) :
 							$cond = (string) ( $it['condition'] ?? '' );
 							$rate = $it['cost_per_day'] ?? null; ?>
-							<a class="pp-front-card" href="<?php echo esc_url( (string) ( $it['detail_url'] ?? $inst_url ) ); ?>" target="_blank" rel="noopener">
-								<div class="pp-front-card-media">
-									<?php if ( ! empty( $it['image_url'] ) ) : ?>
-										<img src="<?php echo esc_url( (string) $it['image_url'] ); ?>" alt="">
-									<?php else : ?>
-										<span class="pp-front-card-icon"><?php echo esc_html( (string) ( $it['category_icon'] ?? '📦' ) ); ?></span>
-									<?php endif; ?>
-								</div>
-								<div class="pp-front-card-body">
-									<h4 class="pp-front-card-title"><?php echo esc_html( (string) ( $it['name'] ?? '' ) ); ?></h4>
-									<div class="pp-front-card-meta">
-										<?php if ( '' !== $cond ) : ?>
-											<span class="pp-front-chip pp-front-chip-<?php echo esc_attr( $cond ); ?>"><?php echo esc_html( $conditions[ $cond ] ?? $cond ); ?></span>
+							<div class="pp-front-card pp-net-item">
+								<a class="pp-net-item__link" href="<?php echo esc_url( (string) ( $it['detail_url'] ?? $inst_url ) ); ?>" target="_blank" rel="noopener">
+									<div class="pp-front-card-media">
+										<?php if ( ! empty( $it['image_url'] ) ) : ?>
+											<img src="<?php echo esc_url( (string) $it['image_url'] ); ?>" alt="">
+										<?php else : ?>
+											<span class="pp-front-card-icon"><?php echo esc_html( (string) ( $it['category_icon'] ?? '📦' ) ); ?></span>
 										<?php endif; ?>
-										<span class="pp-front-chip">×<?php echo (int) ( $it['quantity'] ?? 1 ); ?></span>
 									</div>
-									<?php if ( null !== $rate && '' !== $rate ) : ?>
-										<div class="pp-front-card-rate"><?php echo esc_html( number_format_i18n( (float) $rate, 2 ) ); ?> €<span> / <?php esc_html_e( 'day', 'project-prepper' ); ?></span></div>
-									<?php endif; ?>
-								</div>
-							</a>
+									<div class="pp-front-card-body">
+										<h4 class="pp-front-card-title"><?php echo esc_html( (string) ( $it['name'] ?? '' ) ); ?></h4>
+										<div class="pp-front-card-meta">
+											<?php if ( '' !== $cond ) : ?>
+												<span class="pp-front-chip pp-front-chip-<?php echo esc_attr( $cond ); ?>"><?php echo esc_html( $conditions[ $cond ] ?? $cond ); ?></span>
+											<?php endif; ?>
+											<span class="pp-front-chip">×<?php echo (int) ( $it['quantity'] ?? 1 ); ?></span>
+										</div>
+										<?php if ( null !== $rate && '' !== $rate ) : ?>
+											<div class="pp-front-card-rate"><?php echo esc_html( number_format_i18n( (float) $rate, 2 ) ); ?> €<span> / <?php esc_html_e( 'day', 'project-prepper' ); ?></span></div>
+										<?php endif; ?>
+									</div>
+								</a>
+								<?php if ( ! empty( $it['id'] ) ) : ?>
+									<details class="pp-net-item__ask">
+										<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Ask to borrow', 'project-prepper' ); ?></summary>
+										<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+											<?php self::action_fields( 'fed_request' ); ?>
+											<input type="hidden" name="pp_partner" value="<?php echo esc_attr( (string) $url ); ?>">
+											<input type="hidden" name="pp_item" value="<?php echo (int) $it['id']; ?>">
+											<input type="hidden" name="pp_item_label" value="<?php echo esc_attr( (string) ( $it['name'] ?? '' ) ); ?>">
+											<input type="hidden" name="pp_detail_url" value="<?php echo esc_attr( (string) ( $it['detail_url'] ?? '' ) ); ?>">
+											<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+												<input type="date" name="pp_from">
+											</label>
+											<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+												<input type="date" name="pp_to">
+											</label>
+											<label><?php esc_html_e( 'Message (optional)', 'project-prepper' ); ?>
+												<textarea name="pp_message" rows="2"></textarea>
+											</label>
+											<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Send request', 'project-prepper' ); ?></button>
+										</form>
+									</details>
+								<?php endif; ?>
+							</div>
 						<?php endforeach; ?>
 					</div>
 				<?php else : ?>
@@ -1745,6 +1788,30 @@ class MemberPortal {
 	private static function pretty_host( string $url ): string {
 		$host = wp_parse_url( $url, PHP_URL_HOST );
 		return $host ? (string) $host : $url;
+	}
+
+	/** Eigene ausgehende Netzwerk-Leih-Anfragen mit (gedrosselt gepolltem) Status. */
+	private static function render_my_fed_requests(): void {
+		$requests = FederatedBorrow::my_outbound( get_current_user_id() );
+		if ( ! $requests ) {
+			return;
+		}
+		?>
+		<section class="pp-app__section">
+			<h2 class="pp-portal__subtitle"><?php esc_html_e( 'My network requests', 'project-prepper' ); ?></h2>
+			<?php foreach ( $requests as $r ) : ?>
+				<div class="pp-portal__invite">
+					<?php if ( ! empty( $r->item_detail_url ) ) : ?>
+						<a class="pp-portal__group-name" href="<?php echo esc_url( $r->item_detail_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $r->item_label ); ?></a>
+					<?php else : ?>
+						<span class="pp-portal__group-name"><?php echo esc_html( $r->item_label ); ?></span>
+					<?php endif; ?>
+					<span class="pp-portal__item-meta"><?php echo esc_html( self::fmt_range( $r->date_from, $r->date_to ) . ' · ' . self::pretty_host( (string) $r->partner_url ) ); ?></span>
+					<span class="pp-portal__tag <?php echo esc_attr( self::borrow_status_class( $r->status ) ); ?>"><?php echo esc_html( self::borrow_status_label( $r->status ) ); ?></span>
+				</div>
+			<?php endforeach; ?>
+		</section>
+		<?php
 	}
 
 	/* ---------- Render-Bausteine ---------- */
