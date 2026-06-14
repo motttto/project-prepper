@@ -28,6 +28,7 @@ class Plugin {
 		Privacy::init();
 		Security::init();
 		Federation::init();
+		Updater::init();
 		Frontend\Shortcodes::init();
 		Frontend\Blocks::init();
 		Frontend\ItemDetail::init();

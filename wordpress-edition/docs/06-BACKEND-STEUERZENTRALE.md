@@ -265,5 +265,14 @@ kann — ohne Editierfelder. Getrennt von den Mechanik-Seiten.
 - **Update-Auslieferung** wird zur Pflicht-Mechanik: Da der Vertrieb über GitHub läuft
   (nicht wordpress.org), brauchen Instanzen einen **eigenen Auto-Updater**, der neue
   Releases zieht (sonst lädt jeder Betreiber manuell ZIPs hoch — bei Föderation
-  unhaltbar). Deckt zugleich die CRA-Sicherheits-Update-Erwartung ab. Siehe
-  separates Bau-Thema „Update-Mechanik".
+  unhaltbar). Deckt zugleich die CRA-Sicherheits-Update-Erwartung ab.
+  - **Gebaut (v0.64.0):** `includes/Updater.php` hängt sich in den WP-Update-
+    Mechanismus, prüft das letzte GitHub-Release (`/releases/latest`, 6 h gecacht)
+    und zeigt „Update verfügbar" + Ein-Klick-Update. Bevorzugt das gebaute
+    `project-prepper-x.y.z.zip` als Release-Asset (Top-Ordner stimmt); Quell-Tarball
+    als Fallback (`upgrader_source_selection` benennt um). Repo per `PP_UPDATE_REPO`/
+    Filter überschreibbar; abschaltbar via `PP_DISABLE_UPDATER`.
+  - ⚠️ **Plugin Check meldet hierfür `plugin_updater_detected` (ERROR) — by design.**
+    wordpress.org verbietet Selbst-Updater. Für den GitHub-Vertrieb ist das korrekt.
+    Ein optionaler wordpress.org-Build müsste den Updater **ausschließen**
+    (`PP_DISABLE_UPDATER` reicht zur Laufzeit nicht — PCP prüft statisch; Datei weglassen).

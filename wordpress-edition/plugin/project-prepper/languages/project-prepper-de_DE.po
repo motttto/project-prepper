@@ -4660,3 +4660,7 @@ msgstr "0 = unbegrenzt. Einladungen werden pro Mitglied über rollende 24 Stunde
 #: admin/js/admin.js:3902
 msgid "Public profile"
 msgstr "Öffentliches Profil"
+
+#: includes/Updater.php:242
+msgid "See the GitHub release notes."
+msgstr "Siehe die GitHub-Release-Notes."
