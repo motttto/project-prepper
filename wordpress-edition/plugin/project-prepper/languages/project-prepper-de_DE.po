@@ -267,7 +267,7 @@ msgstr "Verleihnummer"
 
 #: includes/Admin/Menu.php:372
 #: includes/Frontend/MemberPortal.php:621
-#: includes/Frontend/MemberPortal.php:2292
+#: includes/Frontend/MemberPortal.php:2324
 #: includes/Privacy.php:52
 #: includes/Rest/ImportExportController.php:28
 #: admin/js/admin.js:197
@@ -379,7 +379,7 @@ msgstr "Gruppe nicht gefunden."
 msgid "Inventory number"
 msgstr "Inventarnummer"
 
-#: includes/Frontend/MemberPortal.php:2295
+#: includes/Frontend/MemberPortal.php:2327
 #: includes/Rest/ImportExportController.php:29
 #: admin/js/admin.js:197
 #: admin/js/admin.js:304
@@ -405,7 +405,7 @@ msgstr "Kategorie"
 msgid "Description"
 msgstr "Beschreibung"
 
-#: includes/Frontend/MemberPortal.php:2316
+#: includes/Frontend/MemberPortal.php:2348
 #: includes/Rest/ImportExportController.php:31
 #: admin/js/admin.js:305
 #: admin/js/admin.js:599
@@ -413,7 +413,7 @@ msgstr "Beschreibung"
 msgid "Manufacturer"
 msgstr "Hersteller"
 
-#: includes/Frontend/MemberPortal.php:2319
+#: includes/Frontend/MemberPortal.php:2351
 #: includes/Rest/ImportExportController.php:32
 #: admin/js/admin.js:306
 #: admin/js/admin.js:599
@@ -421,7 +421,7 @@ msgstr "Hersteller"
 msgid "Model"
 msgstr "Modell"
 
-#: includes/Frontend/MemberPortal.php:2322
+#: includes/Frontend/MemberPortal.php:2354
 #: includes/Rest/ImportExportController.php:33
 #: admin/js/admin.js:306
 #: admin/js/admin.js:600
@@ -429,7 +429,7 @@ msgstr "Modell"
 msgid "Serial number"
 msgstr "Seriennummer"
 
-#: includes/Frontend/MemberPortal.php:2303
+#: includes/Frontend/MemberPortal.php:2335
 #: includes/Rest/ImportExportController.php:34
 #: admin/js/admin.js:197
 #: admin/js/admin.js:304
@@ -445,7 +445,7 @@ msgstr "Seriennummer"
 msgid "Quantity"
 msgstr "Menge"
 
-#: includes/Frontend/MemberPortal.php:2306
+#: includes/Frontend/MemberPortal.php:2338
 #: includes/Rest/ImportExportController.php:35
 #: admin/js/admin.js:197
 #: admin/js/admin.js:305
@@ -454,7 +454,7 @@ msgstr "Menge"
 msgid "Condition"
 msgstr "Zustand"
 
-#: includes/Frontend/MemberPortal.php:2325
+#: includes/Frontend/MemberPortal.php:2357
 #: includes/Rest/ImportExportController.php:36
 #: admin/js/admin.js:197
 #: admin/js/admin.js:305
@@ -491,7 +491,7 @@ msgstr "Kaufdatum"
 msgid "Current value"
 msgstr "Aktueller Wert"
 
-#: includes/Frontend/MemberPortal.php:2328
+#: includes/Frontend/MemberPortal.php:2360
 #: includes/Rest/ImportExportController.php:41
 #: admin/js/admin.js:308
 #: admin/js/admin.js:602
@@ -1046,7 +1046,7 @@ msgid "— select —"
 msgstr "— wählen —"
 
 #: includes/Frontend/MemberPortal.php:1957
-#: includes/Frontend/MemberPortal.php:2638
+#: includes/Frontend/MemberPortal.php:2682
 #: templates/availability.php:33
 #: templates/request-form.php:41
 #: admin/js/admin.js:840
@@ -1062,7 +1062,7 @@ msgid "From"
 msgstr "Von"
 
 #: includes/Frontend/MemberPortal.php:1960
-#: includes/Frontend/MemberPortal.php:2641
+#: includes/Frontend/MemberPortal.php:2685
 #: templates/availability.php:37
 #: templates/request-form.php:45
 #: admin/js/admin.js:840
@@ -1097,6 +1097,7 @@ msgstr "\"%s\" ist im gewählten Zeitraum leider nicht verfügbar."
 msgid "Search equipment …"
 msgstr "Equipment suchen …"
 
+#: includes/Frontend/MemberPortal.php:2204
 #: templates/inventory-list.php:19
 msgid "Search"
 msgstr "Suchen"
@@ -1160,7 +1161,7 @@ msgid "On loan"
 msgstr "Verliehen"
 
 #: includes/Admin/Menu.php:248
-#: includes/Frontend/MemberPortal.php:2745
+#: includes/Frontend/MemberPortal.php:2789
 #: admin/js/admin.js:119
 msgid "Returned"
 msgstr "Zurückgegeben"
@@ -1168,7 +1169,7 @@ msgstr "Zurückgegeben"
 #: includes/Admin/Menu.php:247
 #: includes/Frontend/MemberPortal.php:1631
 #: includes/Frontend/MemberPortal.php:1676
-#: includes/Frontend/MemberPortal.php:2744
+#: includes/Frontend/MemberPortal.php:2788
 #: admin/js/admin.js:119
 #: admin/js/admin.js:439
 #: admin/js/admin.js:1174
@@ -1342,7 +1343,7 @@ msgstr "Nutzungsdauer (Jahre)"
 msgid "Residual value €"
 msgstr "Restwert €"
 
-#: includes/Frontend/MemberPortal.php:2238
+#: includes/Frontend/MemberPortal.php:2254
 #: admin/js/admin.js:332
 #: admin/js/admin.js:579
 msgid "Photo"
@@ -1353,7 +1354,7 @@ msgstr "Foto"
 msgid "Photo saved."
 msgstr "Foto gespeichert."
 
-#: includes/Frontend/MemberPortal.php:2254
+#: includes/Frontend/MemberPortal.php:2270
 #: admin/js/admin.js:346
 msgid "Remove photo"
 msgstr "Foto entfernen"
@@ -1538,7 +1539,7 @@ msgstr "CSV-Export"
 msgid "Export failed"
 msgstr "Export fehlgeschlagen"
 
-#: includes/Frontend/MemberPortal.php:2359
+#: includes/Frontend/MemberPortal.php:2391
 #: admin/js/admin.js:654
 msgid "Import"
 msgstr "Import"
@@ -1683,7 +1684,7 @@ msgstr "Kaution (durchlaufend)"
 msgid "Billing"
 msgstr "Abrechnung"
 
-#: includes/Frontend/MemberPortal.php:2261
+#: includes/Frontend/MemberPortal.php:2277
 #: admin/js/admin.js:1037
 msgid "Delete"
 msgstr "Löschen"
@@ -2145,7 +2146,7 @@ msgstr "Mitglied hinzufügen"
 
 #: includes/Admin/Menu.php:245
 #: includes/Frontend/MemberPortal.php:1629
-#: includes/Frontend/MemberPortal.php:2742
+#: includes/Frontend/MemberPortal.php:2786
 #: admin/js/admin.js:2121
 msgid "Approved"
 msgstr "Angenommen"
@@ -2158,7 +2159,7 @@ msgstr "Abgelehnt"
 #: includes/Frontend/MemberPortal.php:1046
 #: includes/Frontend/MemberPortal.php:1430
 #: includes/Frontend/MemberPortal.php:2139
-#: includes/Frontend/MemberPortal.php:2717
+#: includes/Frontend/MemberPortal.php:2761
 #: admin/js/admin.js:2123
 msgid "Approve"
 msgstr "Zustimmen"
@@ -2371,7 +2372,7 @@ msgid "Signed"
 msgstr "Unterschrieben"
 
 #: includes/Admin/Menu.php:246
-#: includes/Frontend/MemberPortal.php:2743
+#: includes/Frontend/MemberPortal.php:2787
 #: admin/js/admin.js:2564
 msgid "Declined"
 msgstr "Abgelehnt"
@@ -2430,7 +2431,7 @@ msgstr "Unterschreiben"
 
 #: includes/Frontend/MemberPortal.php:1051
 #: includes/Frontend/MemberPortal.php:2078
-#: includes/Frontend/MemberPortal.php:2718
+#: includes/Frontend/MemberPortal.php:2762
 #: admin/js/admin.js:2654
 msgid "Decline"
 msgstr "Ablehnen"
@@ -2510,7 +2511,7 @@ msgid "Target category for \"%s\""
 msgstr "Ziel-Kategorie für \"%s\""
 
 #: includes/Frontend/MemberPortal.php:2153
-#: includes/Frontend/MemberPortal.php:2682
+#: includes/Frontend/MemberPortal.php:2726
 #: admin/js/admin.js:2903
 msgid "Cancel"
 msgstr "Abbrechen"
@@ -3223,7 +3224,7 @@ msgstr "Gruppe gründen"
 
 #: includes/Frontend/MemberPortal.php:718
 #: includes/Frontend/MemberPortal.php:984
-#: includes/Frontend/MemberPortal.php:2187
+#: includes/Frontend/MemberPortal.php:2195
 msgid "My inventory"
 msgstr "Mein Inventar"
 
@@ -3352,7 +3353,7 @@ msgstr "Name der Gruppe"
 #: includes/Frontend/MemberPortal.php:1085
 #: includes/Frontend/MemberPortal.php:1461
 #: includes/Frontend/MemberPortal.php:1579
-#: includes/Frontend/MemberPortal.php:2334
+#: includes/Frontend/MemberPortal.php:2366
 msgid "Description (optional)"
 msgstr "Beschreibung (optional)"
 
@@ -3376,28 +3377,28 @@ msgstr "Du hast abgelehnt"
 msgid "You abstained"
 msgstr "Du hast dich enthalten"
 
-#: includes/Services/MemberInventory.php:43
+#: includes/Services/MemberInventory.php:50
 msgid "You are not allowed to add inventory."
 msgstr "Du darfst kein Inventar anlegen."
 
-#: includes/Services/MemberInventory.php:47
-#: includes/Services/MemberInventory.php:69
+#: includes/Services/MemberInventory.php:54
+#: includes/Services/MemberInventory.php:76
 msgid "Please enter a name for the item."
 msgstr "Bitte gib einen Namen für den Artikel ein."
 
-#: includes/Services/MemberInventory.php:52
+#: includes/Services/MemberInventory.php:59
 msgid "The item could not be saved."
 msgstr "Der Artikel konnte nicht gespeichert werden."
 
-#: includes/Services/MemberInventory.php:65
-#: includes/Services/MemberInventory.php:85
-#: includes/Services/MemberInventory.php:99
-#: includes/Services/MemberInventory.php:117
-#: includes/Services/MemberInventory.php:148
+#: includes/Services/MemberInventory.php:72
+#: includes/Services/MemberInventory.php:92
+#: includes/Services/MemberInventory.php:106
+#: includes/Services/MemberInventory.php:124
+#: includes/Services/MemberInventory.php:155
 msgid "This item is not yours."
 msgstr "Dieser Artikel gehört dir nicht."
 
-#: includes/Services/MemberInventory.php:120
+#: includes/Services/MemberInventory.php:127
 msgid "You can only share with collectives you belong to."
 msgstr "Du kannst nur mit Gruppen teilen, in denen du Mitglied bist."
 
@@ -3415,40 +3416,40 @@ msgstr "Artikel wird nicht mehr geteilt."
 
 #. translators: %d: quantity.
 #: includes/Frontend/MemberPortal.php:1242
-#: includes/Frontend/MemberPortal.php:2206
+#: includes/Frontend/MemberPortal.php:2222
 #, php-format
 msgid "Qty %d"
 msgstr "Anz. %d"
 
-#: includes/Frontend/MemberPortal.php:2217
+#: includes/Frontend/MemberPortal.php:2233
 msgid "Shared with:"
 msgstr "Geteilt mit:"
 
-#: includes/Frontend/MemberPortal.php:2234
+#: includes/Frontend/MemberPortal.php:2250
 msgid "Edit"
 msgstr "Bearbeiten"
 
-#: includes/Frontend/MemberPortal.php:2258
+#: includes/Frontend/MemberPortal.php:2274
 msgid "Delete this item?"
 msgstr "Diesen Artikel löschen?"
 
-#: includes/Frontend/MemberPortal.php:2267
+#: includes/Frontend/MemberPortal.php:2286
 msgid "You have no personal inventory yet. Add your first item below."
 msgstr "Du hast noch kein eigenes Inventar. Lege unten deinen ersten Artikel an."
 
-#: includes/Frontend/MemberPortal.php:2271
+#: includes/Frontend/MemberPortal.php:2303
 msgid "Add item"
 msgstr "Artikel hinzufügen"
 
-#: includes/Frontend/MemberPortal.php:2297
+#: includes/Frontend/MemberPortal.php:2329
 msgid "— none —"
 msgstr "— keine —"
 
-#: includes/Frontend/MemberPortal.php:2313
+#: includes/Frontend/MemberPortal.php:2345
 msgid "Daily rate (€, optional)"
 msgstr "Tagessatz (€, optional)"
 
-#: includes/Frontend/MemberPortal.php:2337
+#: includes/Frontend/MemberPortal.php:2369
 msgid "Save item"
 msgstr "Artikel speichern"
 
@@ -3517,49 +3518,49 @@ msgstr "Anfrage abgebrochen."
 msgid "Marked as returned."
 msgstr "Als zurückgegeben markiert."
 
-#: includes/Frontend/MemberPortal.php:2662
+#: includes/Frontend/MemberPortal.php:2706
 msgid "Available in your collectives"
 msgstr "In deinen Gruppen verfügbar"
 
 #. translators: %s: owner display name.
-#: includes/Frontend/MemberPortal.php:2620
+#: includes/Frontend/MemberPortal.php:2664
 #, php-format
 msgid "from %s"
 msgstr "von %s"
 
-#: includes/Frontend/MemberPortal.php:2630
+#: includes/Frontend/MemberPortal.php:2674
 msgid "Your item"
 msgstr "Dein Artikel"
 
-#: includes/Frontend/MemberPortal.php:2633
+#: includes/Frontend/MemberPortal.php:2677
 msgid "Borrow"
 msgstr "Ausleihen"
 
 #: includes/Frontend/MemberPortal.php:1963
-#: includes/Frontend/MemberPortal.php:2644
+#: includes/Frontend/MemberPortal.php:2688
 msgid "Message (optional)"
 msgstr "Nachricht (optional)"
 
 #: includes/Frontend/MemberPortal.php:1966
-#: includes/Frontend/MemberPortal.php:2647
+#: includes/Frontend/MemberPortal.php:2691
 msgid "Send request"
 msgstr "Anfrage senden"
 
-#: includes/Frontend/MemberPortal.php:2675
+#: includes/Frontend/MemberPortal.php:2719
 msgid "My borrow requests"
 msgstr "Meine Leih-Anfragen"
 
-#: includes/Frontend/MemberPortal.php:2684
-#: includes/Frontend/MemberPortal.php:2720
+#: includes/Frontend/MemberPortal.php:2728
+#: includes/Frontend/MemberPortal.php:2764
 msgid "Mark returned"
 msgstr "Als zurückgegeben markieren"
 
-#: includes/Frontend/MemberPortal.php:2699
+#: includes/Frontend/MemberPortal.php:2743
 msgid "Borrow requests for your items"
 msgstr "Leih-Anfragen für deine Artikel"
 
 #: includes/Admin/Menu.php:244
-#: includes/Frontend/MemberPortal.php:2741
+#: includes/Frontend/MemberPortal.php:2785
 msgid "Requested"
 msgstr "Angefragt"
 
@@ -4422,19 +4423,19 @@ msgid_plural "%d items imported."
 msgstr[0] "%d Artikel importiert."
 msgstr[1] "%d Artikel importiert."
 
-#: includes/Frontend/MemberPortal.php:2349
+#: includes/Frontend/MemberPortal.php:2381
 msgid "Export (CSV)"
 msgstr "Export (CSV)"
 
-#: includes/Frontend/MemberPortal.php:2351
+#: includes/Frontend/MemberPortal.php:2383
 msgid "Import (CSV)"
 msgstr "Import (CSV)"
 
-#: includes/Frontend/MemberPortal.php:2355
+#: includes/Frontend/MemberPortal.php:2387
 msgid "CSV file"
 msgstr "CSV-Datei"
 
-#: includes/Frontend/MemberPortal.php:2358
+#: includes/Frontend/MemberPortal.php:2390
 msgid "Use the same columns as the export (semicolon-separated). Each row becomes one of your items; the “Name” column is required."
 msgstr "Verwende dieselben Spalten wie beim Export (Semikolon-getrennt). Jede Zeile wird zu einem deiner Artikel; die Spalte „Name“ ist Pflicht."
 
@@ -4446,15 +4447,15 @@ msgstr "Foto entfernt."
 msgid "The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file."
 msgstr "Das Bild konnte nicht hochgeladen werden. Bitte eine JPG-, PNG-, GIF- oder WebP-Datei verwenden."
 
-#: includes/Frontend/MemberPortal.php:2243
+#: includes/Frontend/MemberPortal.php:2259
 msgid "Image file"
 msgstr "Bilddatei"
 
-#: includes/Frontend/MemberPortal.php:2246
+#: includes/Frontend/MemberPortal.php:2262
 msgid "Save photo"
 msgstr "Foto speichern"
 
-#: includes/Frontend/MemberPortal.php:2331
+#: includes/Frontend/MemberPortal.php:2363
 msgid "Tags (comma-separated)"
 msgstr "Tags (kommagetrennt)"
 
@@ -4464,7 +4465,21 @@ msgid "No units of this item are free in that period. Please pick other dates."
 msgstr "In diesem Zeitraum ist kein Stück dieses Artikels frei. Bitte andere Daten wählen."
 
 #. translators: 1: free units today, 2: total quantity.
-#: includes/Frontend/MemberPortal.php:2625
+#: includes/Frontend/MemberPortal.php:2669
 #, php-format
 msgid "%1$d of %2$d free today"
 msgstr "%1$d von %2$d heute frei"
+
+#: includes/Frontend/MemberPortal.php:2203
+msgid "Search your inventory …"
+msgstr "Eigenes Inventar durchsuchen …"
+
+#: includes/Frontend/MemberPortal.php:2284
+msgid "No items match your search."
+msgstr "Keine Artikel passen zur Suche."
+
+#. translators: 1: current page, 2: total pages.
+#: includes/Frontend/MemberPortal.php:2295
+#, php-format
+msgid "Page %1$d of %2$d"
+msgstr "Seite %1$d von %2$d"

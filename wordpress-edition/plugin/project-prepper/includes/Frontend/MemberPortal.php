@@ -2178,7 +2178,15 @@ class MemberPortal {
 
 	/** @param array<object> $groups Kollektive des Users (id, name, member_role). */
 	private static function render_my_inventory( WP_User $user, array $groups, bool $heading = true ): void {
-		$items      = MemberInventory::my_items( (int) $user->ID );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Suche/Navigation
+		$q         = isset( $_GET['pp_q'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_q'] ) ) : '';
+		$all_items = MemberInventory::my_items( (int) $user->ID, $q );
+		$per_page  = 12;
+		$total     = count( $all_items );
+		$pages     = max( 1, (int) ceil( $total / $per_page ) );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
+		$page      = isset( $_GET['pp_p'] ) ? max( 1, min( $pages, (int) $_GET['pp_p'] ) ) : 1;
+		$items     = array_slice( $all_items, ( $page - 1 ) * $per_page, $per_page );
 		$categories = Inventory::categories();
 		$conditions = Shortcodes::condition_labels();
 		?>
@@ -2188,6 +2196,14 @@ class MemberPortal {
 			<?php endif; ?>
 
 			<?php self::render_inventory_tools(); ?>
+
+			<?php if ( $all_items || '' !== $q ) : ?>
+				<form class="pp-inv-search" method="get">
+					<input type="hidden" name="pp_view" value="inventory">
+					<input type="search" name="pp_q" value="<?php echo esc_attr( $q ); ?>" placeholder="<?php esc_attr_e( 'Search your inventory …', 'project-prepper' ); ?>">
+					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Search', 'project-prepper' ); ?></button>
+				</form>
+			<?php endif; ?>
 
 			<?php if ( $items ) : ?>
 				<?php foreach ( $items as $item ) : ?>
@@ -2264,7 +2280,23 @@ class MemberPortal {
 					</div>
 				<?php endforeach; ?>
 			<?php else : ?>
-				<p class="pp-portal__empty"><?php esc_html_e( 'You have no personal inventory yet. Add your first item below.', 'project-prepper' ); ?></p>
+				<?php if ( '' !== $q ) : ?>
+					<p class="pp-portal__empty"><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
+				<?php else : ?>
+					<p class="pp-portal__empty"><?php esc_html_e( 'You have no personal inventory yet. Add your first item below.', 'project-prepper' ); ?></p>
+				<?php endif; ?>
+			<?php endif; ?>
+
+			<?php if ( $pages > 1 ) : ?>
+				<div class="pp-pagination">
+					<?php if ( $page > 1 ) : ?>
+						<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::inventory_page_url( $q, $page - 1 ) ); ?>">‹</a>
+					<?php endif; ?>
+					<span class="pp-pagination__info"><?php /* translators: 1: current page, 2: total pages. */ printf( esc_html__( 'Page %1$d of %2$d', 'project-prepper' ), (int) $page, (int) $pages ); ?></span>
+					<?php if ( $page < $pages ) : ?>
+						<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::inventory_page_url( $q, $page + 1 ) ); ?>">›</a>
+					<?php endif; ?>
+				</div>
 			<?php endif; ?>
 
 			<details class="pp-portal__add">
@@ -2361,6 +2393,18 @@ class MemberPortal {
 			</details>
 		</div>
 		<?php
+	}
+
+	/** URL einer Inventar-Seite (Suche + Pagination erhalten). */
+	private static function inventory_page_url( string $q, int $page ): string {
+		$args = [ 'pp_view' => 'inventory' ];
+		if ( '' !== $q ) {
+			$args['pp_q'] = $q;
+		}
+		if ( $page > 1 ) {
+			$args['pp_p'] = $page;
+		}
+		return add_query_arg( $args, self::portal_url() );
 	}
 
 	/** CSV-Download des eigenen Inventars (Semikolon + BOM → deutsches Excel). */

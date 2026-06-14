@@ -20,12 +20,19 @@ class MemberInventory {
 
 	/* ===================== Eigenes Inventar ===================== */
 
-	/** @return array<object> Items mit owner_user_id = $user_id. */
-	public static function my_items( int $user_id ): array {
+	/**
+	 * @param string $search Optionale Volltextsuche (Name/Nummer/Hersteller/Tags …).
+	 * @return array<object> Items mit owner_user_id = $user_id.
+	 */
+	public static function my_items( int $user_id, string $search = '' ): array {
 		if ( ! $user_id ) {
 			return [];
 		}
-		return Inventory::items( [ 'owner_user_id' => $user_id ] );
+		$args = [ 'owner_user_id' => $user_id ];
+		if ( '' !== trim( $search ) ) {
+			$args['search'] = trim( $search );
+		}
+		return Inventory::items( $args );
 	}
 
 	public static function owns( int $user_id, int $item_id ): bool {
