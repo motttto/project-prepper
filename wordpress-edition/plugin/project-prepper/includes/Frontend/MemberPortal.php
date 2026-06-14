@@ -237,7 +237,7 @@ class MemberPortal {
 		}
 
 		// Föderierte Leih-Entscheidungen kehren zur Verleih-Ansicht zurück.
-		if ( in_array( $do, [ 'fedborrow_approve', 'fedborrow_decline' ], true ) ) {
+		if ( in_array( $do, [ 'fedborrow_approve', 'fedborrow_decline', 'fedborrow_return' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'lending', self::portal_url() );
 		}
 		// Ausgehende Netzwerk-Anfrage kehrt zum Netzwerk-Tab zurück.
@@ -421,6 +421,10 @@ class MemberPortal {
 			case 'fedborrow_decline':
 				$result = FederatedBorrow::decide( get_current_user_id(), (int) ( $_POST['pp_fedreq'] ?? 0 ), 'decline' );
 				$ok_msg = 'fed_decided';
+				break;
+			case 'fedborrow_return':
+				$result = FederatedBorrow::mark_returned( get_current_user_id(), (int) ( $_POST['pp_fedreq'] ?? 0 ) );
+				$ok_msg = 'borrow_returned';
 				break;
 			case 'set_workspace':
 				$ws  = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_ws'] ?? '' ) ) );
@@ -1283,6 +1287,14 @@ class MemberPortal {
 								<?php self::action_fields( 'fedborrow_decline' ); ?>
 								<input type="hidden" name="pp_fedreq" value="<?php echo (int) $r->id; ?>">
 								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Decline', 'project-prepper' ); ?></button>
+							</form>
+						</div>
+					<?php elseif ( 'approved' === $r->status ) : ?>
+						<div class="pp-portal__actions">
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;">
+								<?php self::action_fields( 'fedborrow_return' ); ?>
+								<input type="hidden" name="pp_fedreq" value="<?php echo (int) $r->id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Mark returned', 'project-prepper' ); ?></button>
 							</form>
 						</div>
 					<?php endif; ?>

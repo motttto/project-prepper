@@ -106,6 +106,7 @@ class Borrowing {
 			return 0;
 		}
 		$qty  = max( 1, (int) $item->quantity );
+		// Lokale genehmigte Leihen im Zeitraum (eine Anfrage = eine Einheit).
 		$used = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT COUNT(*) FROM %i
 			 WHERE item_id = %d AND status = 'approved' AND id <> %d
@@ -113,6 +114,17 @@ class Borrowing {
 			Schema::table( 'borrow_requests' ),
 			$item_id,
 			$exclude,
+			$to,
+			$from
+		) );
+		// Föderierte genehmigte Ausleihen (Slice 5): eine genehmigte Anfrage einer
+		// Partner-Instanz hält ebenfalls eine Einheit, bis sie zurückgegeben ist.
+		$used += (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM %i
+			 WHERE item_id = %d AND status = 'approved'
+			   AND date_from <= %s AND date_to >= %s",
+			Schema::table( 'fed_borrow_in' ),
+			$item_id,
 			$to,
 			$from
 		) );

@@ -29,7 +29,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class FederatedBorrow {
 
-	const STATUSES    = [ 'requested', 'approved', 'declined', 'cancelled' ];
+	const STATUSES    = [ 'requested', 'approved', 'declined', 'cancelled', 'returned' ];
 	const MAX_PER_DAY = 20; // Eingehende Anfragen pro Partner-Instanz / Tag.
 
 	/* ===================== Eingehend (Anbieter) ===================== */
@@ -173,6 +173,14 @@ class FederatedBorrow {
 			return new WP_Error( 'pp_forbidden', __( 'Only the item owner may decide on this request.', 'project-prepper' ), [ 'status' => 403 ] );
 		}
 
+		// Beim Genehmigen wird die Anfrage zur echten Ausleihe (Slice 5): erst prüfen,
+		// dass im Zeitraum noch eine Einheit frei ist (lokale + föderierte Leihen).
+		if ( 'approve' === $decision
+			&& '' !== (string) $req->date_from && '' !== (string) $req->date_to
+			&& Borrowing::available_units( (int) $req->item_id, (string) $req->date_from, (string) $req->date_to ) < 1 ) {
+			return new WP_Error( 'pp_no_units', __( 'No units of this item are free in that period.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
+
 		$wpdb->update(
 			Schema::table( 'fed_borrow_in' ),
 			[ 'status' => $map[ $decision ], 'decided_at' => current_time( 'mysql' ) ],
@@ -181,6 +189,43 @@ class FederatedBorrow {
 			[ '%d' ]
 		);
 		ActivityLog::log( 'fed_borrow_decided', 'item', (int) $req->item_id, [ 'request_id' => $request_id, 'status' => $map[ $decision ] ] );
+		return true;
+	}
+
+	/**
+	 * Eine genehmigte föderierte Ausleihe als zurückgegeben markieren (Slice 5) —
+	 * NUR der Artikel-Eigentümer. Gibt die Einheit wieder frei; die anfragende
+	 * Instanz erfährt es beim nächsten Status-Polling.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function mark_returned( int $user_id, int $request_id ) {
+		global $wpdb;
+
+		$req = $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM %i WHERE id = %d',
+			Schema::table( 'fed_borrow_in' ),
+			$request_id
+		) );
+		if ( ! $req ) {
+			return new WP_Error( 'pp_not_found', __( 'Request not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		if ( 'approved' !== $req->status ) {
+			return new WP_Error( 'pp_fed_state', __( 'Only an active loan can be returned.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
+		$item = Inventory::get_item( (int) $req->item_id );
+		if ( ! $item || (int) $item->owner_user_id !== $user_id ) {
+			return new WP_Error( 'pp_forbidden', __( 'Only the item owner may do this.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+
+		$wpdb->update(
+			Schema::table( 'fed_borrow_in' ),
+			[ 'status' => 'returned' ],
+			[ 'id' => $request_id ],
+			[ '%s' ],
+			[ '%d' ]
+		);
+		ActivityLog::log( 'fed_borrow_returned', 'item', (int) $req->item_id, [ 'request_id' => $request_id ] );
 		return true;
 	}
 
@@ -290,9 +335,11 @@ class FederatedBorrow {
 		}
 		set_transient( $guard, 1, 30 );
 
+		// Auch bei 'approved' weiter pollen, damit eine spätere Rückgabe (Slice 5)
+		// ankommt; nur abgeschlossene Endzustände werden nicht mehr abgefragt.
 		$rows = $wpdb->get_results( $wpdb->prepare(
 			"SELECT id, partner_url, status_token, status FROM %i
-			 WHERE requester_id = %d AND status NOT IN ('approved','declined','cancelled')",
+			 WHERE requester_id = %d AND status NOT IN ('declined','cancelled','returned')",
 			Schema::table( 'fed_borrow_out' ),
 			$user_id
 		) ) ?: [];

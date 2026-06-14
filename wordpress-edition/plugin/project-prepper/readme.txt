@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.61.0
+Stable tag: 0.62.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.62.0 =
+* Federation: an approved cross-instance borrow is now a real loan — it reserves a unit and blocks availability (local and federated stay in sync); the owner can mark it returned, which frees the unit and updates the requesting instance
 
 = 0.61.0 =
 * Member portal: calendar now has a Month/Week toggle — the week view shows all events per day without truncation
