@@ -856,6 +856,39 @@ body.admin-bar .pp-app__sidebar { top: 32px; }
 }
 .pp-app__workspace-name { font-weight: 600; color: #fff; font-size: .9rem; }
 
+/* Workspace-Switcher (Solo / Gruppe) */
+.pp-app__ws { margin: 0 14px 14px; }
+.pp-app__ws > summary.pp-app__workspace {
+	margin: 0;
+	flex-direction: row;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	list-style: none;
+	cursor: pointer;
+}
+.pp-app__ws > summary::-webkit-details-marker { display: none; }
+.pp-app__ws-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pp-app__ws-text .pp-app__workspace-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-app__ws-caret { color: #a5b4fc; font-size: .75rem; flex: none; transition: transform .15s; }
+.pp-app__ws[open] .pp-app__ws-caret { transform: rotate(180deg); }
+.pp-app__ws-menu { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.pp-app__ws-menu form { margin: 0; }
+.pp-app__ws-opt {
+	width: 100%;
+	text-align: left;
+	background: transparent;
+	border: none;
+	color: #c7d2fe;
+	padding: 7px 12px;
+	border-radius: 8px;
+	font: inherit;
+	font-size: .85rem;
+	cursor: pointer;
+}
+.pp-app__ws-opt:hover { background: #312e81; color: #fff; }
+.pp-app__ws-opt.is-active { background: #4f46e5; color: #fff; font-weight: 600; }
+
 .pp-app__nav {
 	display: flex;
 	flex-direction: column;

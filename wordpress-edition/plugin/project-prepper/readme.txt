@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.43.0
+Stable tag: 0.44.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.44.0 =
+* Member portal: a workspace switcher in the sidebar lets members switch between "Solo" and each of their groups; projects, the calendar and browsing are scoped to the selected workspace
+* Terminology unified to "group" throughout the member portal (previously "collective"), matching the rest of the plugin
 
 = 0.43.0 =
 * Federated borrowing (requesting side): on the Network page members can now "ask to borrow" an item from a partner instance — the request is sent to that instance and a "My network requests" list shows its status (requested → approved/declined), polled from the partner

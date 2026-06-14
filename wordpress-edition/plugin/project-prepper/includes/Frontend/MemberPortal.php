@@ -228,6 +228,11 @@ class MemberPortal {
 		if ( 'fed_request' === $do ) {
 			$back = add_query_arg( 'pp_view', 'network', self::portal_url() );
 		}
+		// Workspace-Wechsel kehrt zur vorherigen Ansicht zurück (kein pp_msg).
+		if ( 'set_workspace' === $do ) {
+			$v    = sanitize_key( wp_unslash( (string) ( $_POST['pp_view'] ?? 'dashboard' ) ) );
+			$back = 'dashboard' === $v ? self::portal_url() : add_query_arg( 'pp_view', $v, self::portal_url() );
+		}
 
 		$result = new \WP_Error( 'pp_unknown', 'unknown' );
 		$ok_msg = 'ok';
@@ -354,6 +359,20 @@ class MemberPortal {
 			case 'fedborrow_decline':
 				$result = FederatedBorrow::decide( get_current_user_id(), (int) ( $_POST['pp_fedreq'] ?? 0 ), 'decline' );
 				$ok_msg = 'fed_decided';
+				break;
+			case 'set_workspace':
+				$ws  = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_ws'] ?? '' ) ) );
+				$uid = get_current_user_id();
+				if ( 'solo' === $ws ) {
+					update_user_meta( $uid, 'pp_active_group', 'solo' );
+				} else {
+					$gid = (int) $ws;
+					if ( $gid && Groups::is_member( $gid, $uid ) ) {
+						update_user_meta( $uid, 'pp_active_group', (string) $gid );
+					}
+				}
+				$result = true;
+				$ok_msg = 'ok';
 				break;
 			case 'fed_request':
 				$result = FederatedBorrow::request_outbound( get_current_user_id(), [
@@ -661,10 +680,41 @@ class MemberPortal {
 				<span class="pp-app__brand-name">Project Prepper</span>
 			</a>
 
-			<div class="pp-app__workspace">
-				<span class="pp-app__workspace-label"><?php esc_html_e( 'Member workspace', 'project-prepper' ); ?></span>
-				<span class="pp-app__workspace-name"><?php echo esc_html( $user->display_name ); ?></span>
-			</div>
+			<?php
+			$active       = self::active_group_id( $groups );
+			$active_label = __( 'Solo', 'project-prepper' );
+			foreach ( $groups as $g ) {
+				if ( (int) $g->id === $active ) {
+					$active_label = $g->name;
+					break;
+				}
+			}
+			?>
+			<details class="pp-app__ws">
+				<summary class="pp-app__workspace">
+					<span class="pp-app__ws-text">
+						<span class="pp-app__workspace-label"><?php esc_html_e( 'Workspace', 'project-prepper' ); ?></span>
+						<span class="pp-app__workspace-name"><?php echo esc_html( $active_label ); ?></span>
+					</span>
+					<span class="pp-app__ws-caret">▾</span>
+				</summary>
+				<div class="pp-app__ws-menu">
+					<?php
+					$ws_options = [ [ 'ws' => 'solo', 'label' => __( 'Solo', 'project-prepper' ), 'is' => ( 0 === $active ) ] ];
+					foreach ( $groups as $g ) {
+						$ws_options[] = [ 'ws' => (string) (int) $g->id, 'label' => $g->name, 'is' => ( (int) $g->id === $active ) ];
+					}
+					foreach ( $ws_options as $opt ) :
+						?>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<?php self::action_fields( 'set_workspace' ); ?>
+							<input type="hidden" name="pp_ws" value="<?php echo esc_attr( $opt['ws'] ); ?>">
+							<input type="hidden" name="pp_view" value="<?php echo esc_attr( $view ); ?>">
+							<button type="submit" class="pp-app__ws-opt<?php echo $opt['is'] ? ' is-active' : ''; ?>"><?php echo esc_html( $opt['label'] ); ?></button>
+						</form>
+					<?php endforeach; ?>
+				</div>
+			</details>
 
 			<nav class="pp-app__nav">
 				<?php foreach ( self::nav_items() as $item ) :
@@ -764,9 +814,19 @@ class MemberPortal {
 			</h1>
 			<p class="pp-app__page-sub">
 				<?php
-				if ( $grp_count > 0 ) {
-					/* translators: %d: number of collectives. */
-					printf( esc_html( _n( 'Member of %d collective', 'Member of %d collectives', $grp_count, 'project-prepper' ) ), (int) $grp_count );
+				$active = self::active_group_id( $groups );
+				if ( $active ) {
+					$gname = '';
+					foreach ( $groups as $g ) {
+						if ( (int) $g->id === $active ) {
+							$gname = $g->name;
+							break;
+						}
+					}
+					/* translators: %s: active group name. */
+					printf( esc_html__( 'Group: %s', 'project-prepper' ), esc_html( $gname ) );
+				} elseif ( $grp_count > 0 ) {
+					esc_html_e( 'Solo workspace', 'project-prepper' );
 				} else {
 					esc_html_e( 'Welcome to your collective platform.', 'project-prepper' );
 				}
@@ -878,7 +938,10 @@ class MemberPortal {
 			echo '<p class="pp-portal__empty">' . esc_html__( 'Join a collective to browse and borrow shared equipment.', 'project-prepper' ) . '</p>';
 			return;
 		}
-		self::render_browse( $user, $groups );
+		// Stöbern ist auf den aktiven Workspace begrenzt (Solo → kein Stöbern).
+		$active        = self::active_group_id( $groups );
+		$active_groups = array_values( array_filter( $groups, static fn( $g ) => (int) $g->id === $active ) );
+		self::render_browse( $user, $active_groups );
 		self::render_my_borrows( $user );
 		self::render_incoming_borrows( $user );
 		self::render_incoming_fed_borrows( $fed_incoming );
@@ -964,15 +1027,32 @@ class MemberPortal {
 
 	/* ---------- Meine Projekte (Gruppen-Projekte, read-only) ---------- */
 
-	/** Projekte der Kollektive des Mitglieds (ohne Site-Ebene). */
+	/**
+	 * Aktiver Arbeitsbereich: 0 = Solo, sonst eine Gruppen-ID (aus User-Meta,
+	 * gegen die Mitgliedschaft validiert). Default = erste Gruppe, sonst Solo.
+	 */
+	private static function active_group_id( array $groups ): int {
+		$gids   = array_map( static fn( $g ) => (int) $g->id, $groups );
+		$stored = (string) get_user_meta( get_current_user_id(), 'pp_active_group', true );
+		if ( 'solo' === $stored ) {
+			return 0;
+		}
+		$sid = (int) $stored;
+		if ( $sid && in_array( $sid, $gids, true ) ) {
+			return $sid;
+		}
+		return $gids ? (int) $gids[0] : 0;
+	}
+
+	/** Projekte des aktiven Workspaces (Solo → keine; sonst nur die aktive Gruppe). */
 	private static function member_projects( array $groups ): array {
-		if ( ! $groups ) {
+		$active = self::active_group_id( $groups );
+		if ( ! $active ) {
 			return [];
 		}
-		$gids = array_map( static fn( $g ) => (int) $g->id, $groups );
 		return array_values( array_filter(
 			Projects::all(),
-			static fn( $p ) => in_array( (int) $p->owner_group_id, $gids, true )
+			static fn( $p ) => (int) $p->owner_group_id === $active
 		) );
 	}
 
@@ -995,7 +1075,11 @@ class MemberPortal {
 			<p class="pp-app__page-sub"><?php esc_html_e( 'Projects of the collectives you belong to.', 'project-prepper' ); ?></p>
 		</header>
 		<?php if ( ! $projects ) : ?>
-			<p class="pp-portal__empty"><?php esc_html_e( 'No projects yet. Projects created in your collectives will appear here.', 'project-prepper' ); ?></p>
+			<?php if ( 0 === self::active_group_id( $groups ) && $groups ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'You are in Solo. Pick a group in the workspace switcher (top left) to see its projects.', 'project-prepper' ); ?></p>
+			<?php else : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No projects yet. Projects created in your collectives will appear here.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
 		<?php else : ?>
 			<div class="pp-proj-list">
 				<?php foreach ( $projects as $p ) :
