@@ -71,6 +71,12 @@ class Borrowing {
 			return new WP_Error( 'pp_bad_dates', __( 'Please choose a valid period.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
+		// Verfügbarkeit schon beim Anfragen prüfen — keine aussichtslosen Anfragen,
+		// die der Eigentümer ohnehin nicht genehmigen könnte.
+		if ( self::available_units( $item_id, $from, $to ) < 1 ) {
+			return new WP_Error( 'pp_no_units', __( 'No units of this item are free in that period. Please pick other dates.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
+
 		$wpdb->insert( Schema::table( 'borrow_requests' ), [
 			'item_id'      => $item_id,
 			'group_id'     => $group_id,

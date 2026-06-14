@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.51.0
+Stable tag: 0.52.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.52.0 =
+* Member portal: borrowing now checks availability up front — a request for a period with no free units is rejected immediately with a clear message (instead of failing later at the owner's approval), and the browse list shows how many units are free today
 
 = 0.51.0 =
 * Member portal: the inventory add/edit form now has more fields — manufacturer, model, serial number, location, dimensions and tags (matching the CSV columns)

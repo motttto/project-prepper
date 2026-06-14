@@ -421,7 +421,12 @@ class MemberPortal {
 				break;
 		}
 
-		$msg = is_wp_error( $result ) ? 'error' : $ok_msg;
+		if ( is_wp_error( $result ) ) {
+			// Spezifische, hilfreiche Meldung bei „kein Stück frei", sonst generisch.
+			$msg = ( 'pp_no_units' === $result->get_error_code() ) ? 'borrow_unavailable' : 'error';
+		} else {
+			$msg = $ok_msg;
+		}
 		wp_safe_redirect( add_query_arg( 'pp_msg', $msg, $back ) );
 		exit;
 	}
@@ -454,6 +459,7 @@ class MemberPortal {
 			'photo_saved'      => [ 'ok', __( 'Photo saved.', 'project-prepper' ) ],
 			'photo_removed'    => [ 'ok', __( 'Photo removed.', 'project-prepper' ) ],
 			'photo_failed'     => [ 'err', __( 'The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file.', 'project-prepper' ) ],
+			'borrow_unavailable' => [ 'err', __( 'No units of this item are free in that period. Please pick other dates.', 'project-prepper' ) ],
 			'error'            => [ 'err', __( 'Something went wrong. Please try again.', 'project-prepper' ) ],
 		];
 	}
@@ -2612,6 +2618,11 @@ class MemberPortal {
 								echo ' · ';
 								/* translators: %s: owner display name. */
 								printf( esc_html__( 'from %s', 'project-prepper' ), esc_html( $item->owner_name ) );
+								$pp_today = current_time( 'Y-m-d' );
+								$pp_avail = Borrowing::available_units( (int) $item->id, $pp_today, $pp_today );
+								echo ' · ';
+								/* translators: 1: free units today, 2: total quantity. */
+								printf( esc_html__( '%1$d of %2$d free today', 'project-prepper' ), (int) $pp_avail, (int) $item->quantity );
 								?>
 							</span>
 						</div>
