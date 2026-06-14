@@ -708,9 +708,17 @@ a.pp-front-card-media { text-decoration: none; }
 }
 .pp-portal__item-head {
 	display: flex;
-	align-items: baseline;
+	align-items: center;
 	gap: .6rem;
 	flex-wrap: wrap;
+}
+.pp-portal__item-thumb {
+	width: 40px;
+	height: 40px;
+	border-radius: 8px;
+	object-fit: cover;
+	flex: none;
+	background: var(--pp-muted);
 }
 .pp-portal__item-num {
 	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;

@@ -75,6 +75,20 @@ class MemberInventory {
 	}
 
 	/**
+	 * Foto eines eigenen Items setzen (Attachment-ID) oder entfernen (null).
+	 * Nur der Owner. KEINE Name-Pflicht (anders als update()).
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function set_image( int $user_id, int $item_id, ?int $attachment_id ) {
+		if ( ! self::owns( $user_id, $item_id ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'This item is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		Inventory::update_item( $item_id, [ 'image_id' => $attachment_id ] );
+		return true;
+	}
+
+	/**
 	 * Eigenes Item löschen (nur Owner) inkl. seiner Gruppen-Freigaben.
 	 *
 	 * @return true|WP_Error

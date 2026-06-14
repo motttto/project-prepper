@@ -60,6 +60,7 @@ class MemberPortal {
 		// der Export streamt (kein Redirect) und der Import eine Datei hochlädt.
 		add_action( 'admin_post_pp_member_export', [ self::class, 'handle_inventory_export' ] );
 		add_action( 'admin_post_pp_member_import', [ self::class, 'handle_inventory_import' ] );
+		add_action( 'admin_post_pp_member_photo', [ self::class, 'handle_inventory_photo' ] );
 
 		// Offene E-Mail-Einladungen beim Registrieren verknüpfen.
 		add_action( 'user_register', [ Governance::class, 'link_user_on_register' ] );
@@ -450,6 +451,9 @@ class MemberPortal {
 			'fed_decided'      => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'fed_requested'    => [ 'ok', __( 'Borrow request sent to the partner instance.', 'project-prepper' ) ],
 			'import_nofile'    => [ 'err', __( 'Please choose a CSV file to import.', 'project-prepper' ) ],
+			'photo_saved'      => [ 'ok', __( 'Photo saved.', 'project-prepper' ) ],
+			'photo_removed'    => [ 'ok', __( 'Photo removed.', 'project-prepper' ) ],
+			'photo_failed'     => [ 'err', __( 'The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file.', 'project-prepper' ) ],
 			'error'            => [ 'err', __( 'Something went wrong. Please try again.', 'project-prepper' ) ],
 		];
 	}
@@ -2175,6 +2179,9 @@ class MemberPortal {
 				<?php foreach ( $items as $item ) : ?>
 					<div class="pp-portal__item">
 						<div class="pp-portal__item-head">
+							<?php if ( ! empty( $item->image_url ) ) : ?>
+								<img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy">
+							<?php endif; ?>
 							<span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span>
 							<span class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></span>
 							<span class="pp-portal__item-meta">
@@ -2212,6 +2219,27 @@ class MemberPortal {
 							<details class="pp-portal__edit">
 								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
 								<?php self::item_form( 'item_update', $categories, $conditions, $item ); ?>
+							</details>
+							<details class="pp-portal__edit">
+								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Photo', 'project-prepper' ); ?></summary>
+								<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<input type="hidden" name="action" value="pp_member_photo">
+									<?php wp_nonce_field( 'pp_member_photo', 'pp_nonce' ); ?>
+									<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+									<label><?php esc_html_e( 'Image file', 'project-prepper' ); ?>
+										<input type="file" name="pp_photo" accept="image/*" required>
+									</label>
+									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save photo', 'project-prepper' ); ?></button>
+								</form>
+								<?php if ( ! empty( $item->image_url ) ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:.4rem;">
+										<input type="hidden" name="action" value="pp_member_photo">
+										<?php wp_nonce_field( 'pp_member_photo', 'pp_nonce' ); ?>
+										<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+										<input type="hidden" name="pp_remove" value="1">
+										<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Remove photo', 'project-prepper' ); ?></button>
+									</form>
+								<?php endif; ?>
 							</details>
 							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this item?', 'project-prepper' ) ); ?>');">
 								<?php self::action_fields( 'item_delete' ); ?>
@@ -2462,6 +2490,68 @@ class MemberPortal {
 			return $m[3] . '-' . $m[2] . '-' . $m[1];
 		}
 		return '';
+	}
+
+	/** Foto eines eigenen Items hochladen/ersetzen oder entfernen. */
+	public static function handle_inventory_photo(): void {
+		$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
+		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_member_photo' ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+			exit;
+		}
+		$user_id = get_current_user_id();
+		$item_id = (int) ( $_POST['pp_item'] ?? 0 );
+		if ( ! MemberInventory::owns( $user_id, $item_id ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+			exit;
+		}
+
+		// Entfernen.
+		if ( ! empty( $_POST['pp_remove'] ) ) {
+			MemberInventory::set_image( $user_id, $item_id, null );
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'photo_removed', $back ) );
+			exit;
+		}
+
+		if ( empty( $_FILES['pp_photo']['tmp_name'] ) || ! is_uploaded_file( $_FILES['pp_photo']['tmp_name'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'import_nofile', $back ) );
+			exit;
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		// Nur Bild-MIME-Typen zulassen (kein test_form, da kein klassisches Admin-Formular).
+		$overrides = [
+			'test_form' => false,
+			'mimes'     => [
+				'jpg|jpeg|jpe' => 'image/jpeg',
+				'png'          => 'image/png',
+				'gif'          => 'image/gif',
+				'webp'         => 'image/webp',
+			],
+		];
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- $_FILES wird von wp_handle_upload validiert (mimes-Whitelist).
+		$moved = wp_handle_upload( $_FILES['pp_photo'], $overrides );
+		if ( ! is_array( $moved ) || isset( $moved['error'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'photo_failed', $back ) );
+			exit;
+		}
+
+		$attach_id = wp_insert_attachment( [
+			'post_mime_type' => $moved['type'],
+			'post_title'     => sanitize_file_name( wp_basename( $moved['file'] ) ),
+			'post_status'    => 'inherit',
+		], $moved['file'] );
+		if ( ! $attach_id || is_wp_error( $attach_id ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'photo_failed', $back ) );
+			exit;
+		}
+		wp_update_attachment_metadata( $attach_id, wp_generate_attachment_metadata( (int) $attach_id, $moved['file'] ) );
+		MemberInventory::set_image( $user_id, $item_id, (int) $attach_id );
+
+		wp_safe_redirect( add_query_arg( 'pp_msg', 'photo_saved', $back ) );
+		exit;
 	}
 
 	/* ---------- Stöbern & Leihen (Phase 4) ---------- */

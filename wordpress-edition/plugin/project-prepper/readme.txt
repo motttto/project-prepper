@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.49.0
+Stable tag: 0.50.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.50.0 =
+* Member portal: members can now upload a photo for each of their own inventory items (and remove it again); a thumbnail shows in the list. Images go into the WordPress media library; only JPG/PNG/GIF/WebP are accepted
 
 = 0.49.0 =
 * Member portal: "My inventory" now has CSV export and import — download your items as a semicolon-separated CSV (opens in Excel) and bulk-add items by uploading a CSV with the same columns. Works in Solo and in a group; the import also fills fields the quick-add form doesn't (manufacturer, model, serial number, tags, etc.)
