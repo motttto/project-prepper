@@ -12,6 +12,7 @@ use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\Schedule;
 use ProjectPrepper\Services\Decisions;
 use ProjectPrepper\Services\Polls;
+use ProjectPrepper\Services\FederatedBorrow;
 use ProjectPrepper\Federation;
 use WP_User;
 
@@ -219,6 +220,11 @@ class MemberPortal {
 			exit;
 		}
 
+		// Föderierte Leih-Entscheidungen kehren zur Verleih-Ansicht zurück.
+		if ( in_array( $do, [ 'fedborrow_approve', 'fedborrow_decline' ], true ) ) {
+			$back = add_query_arg( 'pp_view', 'lending', self::portal_url() );
+		}
+
 		$result = new \WP_Error( 'pp_unknown', 'unknown' );
 		$ok_msg = 'ok';
 
@@ -337,6 +343,14 @@ class MemberPortal {
 				$result = Polls::reopen( (int) ( $_POST['pp_poll'] ?? 0 ), get_current_user_id() );
 				$ok_msg = 'poll_reopened';
 				break;
+			case 'fedborrow_approve':
+				$result = FederatedBorrow::decide( get_current_user_id(), (int) ( $_POST['pp_fedreq'] ?? 0 ), 'approve' );
+				$ok_msg = 'fed_decided';
+				break;
+			case 'fedborrow_decline':
+				$result = FederatedBorrow::decide( get_current_user_id(), (int) ( $_POST['pp_fedreq'] ?? 0 ), 'decline' );
+				$ok_msg = 'fed_decided';
+				break;
 		}
 
 		$msg = is_wp_error( $result ) ? 'error' : $ok_msg;
@@ -366,6 +380,7 @@ class MemberPortal {
 			'poll_created'     => [ 'ok', __( 'Poll created.', 'project-prepper' ) ],
 			'poll_closed'      => [ 'ok', __( 'Poll closed.', 'project-prepper' ) ],
 			'poll_reopened'    => [ 'ok', __( 'Poll reopened.', 'project-prepper' ) ],
+			'fed_decided'      => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'error'            => [ 'err', __( 'Something went wrong. Please try again.', 'project-prepper' ) ],
 		];
 	}
@@ -838,15 +853,64 @@ class MemberPortal {
 			<p class="pp-app__page-sub"><?php esc_html_e( 'Browse what your collectives share, request items and manage requests for your own.', 'project-prepper' ); ?></p>
 		</header>
 		<?php
+		$fed_incoming = FederatedBorrow::inbound_for_owner( (int) $user->ID );
 		if ( ! $groups
 			&& ! Borrowing::my_requests( (int) $user->ID )
-			&& ! Borrowing::incoming_requests( (int) $user->ID ) ) {
+			&& ! Borrowing::incoming_requests( (int) $user->ID )
+			&& ! $fed_incoming ) {
 			echo '<p class="pp-portal__empty">' . esc_html__( 'Join a collective to browse and borrow shared equipment.', 'project-prepper' ) . '</p>';
 			return;
 		}
 		self::render_browse( $user, $groups );
 		self::render_my_borrows( $user );
 		self::render_incoming_borrows( $user );
+		self::render_incoming_fed_borrows( $fed_incoming );
+	}
+
+	/** Eingehende föderierte Leih-Anfragen für die eigenen Artikel (Slice 4). */
+	private static function render_incoming_fed_borrows( array $requests ): void {
+		if ( ! $requests ) {
+			return;
+		}
+		?>
+		<section class="pp-portal__section">
+			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Network requests for your items', 'project-prepper' ); ?></h3>
+			<?php foreach ( $requests as $r ) :
+				$from = trim( (string) $r->origin_name ) !== '' ? $r->origin_name : self::pretty_host( (string) $r->origin_url ); ?>
+				<div class="pp-portal__invite">
+					<span class="pp-portal__group-name"><?php echo esc_html( $r->item_name ); ?></span>
+					<span class="pp-portal__item-meta">
+						<?php
+						echo esc_html( self::fmt_range( $r->date_from, $r->date_to ) );
+						/* translators: 1: requester name, 2: instance name. */
+						echo ' · ' . esc_html( sprintf( __( '%1$s via %2$s', 'project-prepper' ), $r->requester_name, $from ) );
+						?>
+					</span>
+					<span class="pp-portal__tag <?php echo esc_attr( self::borrow_status_class( $r->status ) ); ?>"><?php echo esc_html( self::borrow_status_label( $r->status ) ); ?></span>
+					<?php if ( '' !== trim( (string) $r->message ) ) : ?>
+						<p class="pp-portal__members" style="flex-basis:100%;margin:.3rem 0 0;"><?php echo esc_html( $r->message ); ?></p>
+					<?php endif; ?>
+					<p class="pp-portal__members" style="flex-basis:100%;margin:.2rem 0 0;">
+						<a href="<?php echo esc_url( 'mailto:' . $r->requester_contact ); ?>"><?php echo esc_html( $r->requester_contact ); ?></a>
+					</p>
+					<?php if ( 'requested' === $r->status ) : ?>
+						<div class="pp-portal__actions">
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;">
+								<?php self::action_fields( 'fedborrow_approve' ); ?>
+								<input type="hidden" name="pp_fedreq" value="<?php echo (int) $r->id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Approve', 'project-prepper' ); ?></button>
+							</form>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;">
+								<?php self::action_fields( 'fedborrow_decline' ); ?>
+								<input type="hidden" name="pp_fedreq" value="<?php echo (int) $r->id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Decline', 'project-prepper' ); ?></button>
+							</form>
+						</div>
+					<?php endif; ?>
+				</div>
+			<?php endforeach; ?>
+		</section>
+		<?php
 	}
 
 	private static function view_collectives( WP_User $user, array $groups ): void {

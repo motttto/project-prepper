@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.19.0';
+	const VERSION    = '0.20.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -61,6 +61,8 @@ class Schema {
 		$g_inv_v    = self::table( 'group_invitation_votes' );
 		$item_share = self::table( 'item_group_shares' );
 		$borrows    = self::table( 'borrow_requests' );
+		$fed_in     = self::table( 'fed_borrow_in' );
+		$fed_out    = self::table( 'fed_borrow_out' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -639,6 +641,50 @@ class Schema {
 				KEY requester_id (requester_id),
 				KEY owner_id (owner_id),
 				KEY status (status)
+			) {$charset};" );
+
+			// Föderiertes Leihen (v0.20.0, Slice 4) — instanzübergreifende Leih-
+			// Anfragen, moderiert. EINGEHEND (diese Instanz = Anbieter): eine andere
+			// Instanz (origin_url, MUSS in der Partner-Liste stehen) fragt für ein
+			// Mitglied einen lokalen Artikel an; der Eigentümer moderiert.
+			// request_token = unerratbares Token, mit dem die anfragende Instanz den
+			// Status pollt. status: requested → approved | declined | cancelled.
+			dbDelta( "CREATE TABLE {$fed_in} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				origin_url varchar(255) NOT NULL,
+				origin_name varchar(190) NOT NULL DEFAULT '',
+				item_id bigint(20) unsigned NOT NULL,
+				requester_name varchar(190) NOT NULL,
+				requester_contact varchar(190) NOT NULL,
+				date_from date DEFAULT NULL,
+				date_to date DEFAULT NULL,
+				message text,
+				status varchar(20) NOT NULL DEFAULT 'requested',
+				request_token varchar(64) NOT NULL,
+				created_at datetime NOT NULL,
+				decided_at datetime DEFAULT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY request_token (request_token),
+				KEY item_id (item_id)
+			) {$charset};" );
+
+			// AUSGEHEND (diese Instanz = Anfrager): ein lokales Mitglied fragt einen
+			// Artikel einer Partner-Instanz an; status_token pollt den Status drüben.
+			// (Frontend folgt in Slice-4-Run-2.) status wie oben.
+			dbDelta( "CREATE TABLE {$fed_out} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				requester_id bigint(20) unsigned NOT NULL,
+				partner_url varchar(255) NOT NULL,
+				item_label varchar(190) NOT NULL,
+				item_detail_url varchar(255) NOT NULL DEFAULT '',
+				date_from date DEFAULT NULL,
+				date_to date DEFAULT NULL,
+				message text,
+				status varchar(20) NOT NULL DEFAULT 'requested',
+				status_token varchar(64) NOT NULL,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY requester_id (requester_id)
 			) {$charset};" );
 
 		self::upgrade_data();

@@ -476,6 +476,10 @@ class Menu {
 						<td><label><input type="checkbox" name="enabled" value="1" <?php checked( $f['enabled'] ); ?>> <?php esc_html_e( 'List this instance in the federation (publish the public profile below).', 'project-prepper' ); ?></label></td>
 					</tr>
 					<tr>
+						<th scope="row"><?php esc_html_e( 'Federated borrowing', 'project-prepper' ); ?></th>
+						<td><label><input type="checkbox" name="accept_borrows" value="1" <?php checked( ! empty( $f['accept_borrows'] ) ); ?>> <?php esc_html_e( 'Accept borrow requests from partner instances (members moderate each request).', 'project-prepper' ); ?></label></td>
+					</tr>
+					<tr>
 						<th scope="row"><?php esc_html_e( 'Postal code', 'project-prepper' ); ?></th>
 						<td><input type="text" name="postal_code" value="<?php echo esc_attr( $f['postal_code'] ); ?>" style="width:120px;"></td>
 					</tr>

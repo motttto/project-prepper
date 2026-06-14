@@ -25,11 +25,12 @@ class Federation {
 
 	public static function defaults(): array {
 		return [
-			'enabled'       => false,
-			'postal_code'   => '',
-			'topic'         => '',
-			'contact_email' => '',
-			'partners'      => [], // URLs anderer Instanzen (vom Betreiber gepflegt).
+			'enabled'        => false,
+			'postal_code'    => '',
+			'topic'          => '',
+			'contact_email'  => '',
+			'partners'       => [], // URLs anderer Instanzen (vom Betreiber gepflegt).
+			'accept_borrows' => false, // Eingehende föderierte Leih-Anfragen annehmen (Slice 4).
 		];
 	}
 
@@ -40,6 +41,22 @@ class Federation {
 
 	public static function enabled(): bool {
 		return (bool) self::all()['enabled'];
+	}
+
+	/** Nimmt diese Instanz eingehende föderierte Leih-Anfragen an? (Slice 4, default AUS) */
+	public static function accept_borrows(): bool {
+		return self::enabled() && (bool) self::all()['accept_borrows'];
+	}
+
+	/** Ist $url eine vom Betreiber konfigurierte Partner-Instanz? (Trust-Gate) */
+	public static function is_known_partner( string $url ): bool {
+		$needle = untrailingslashit( $url );
+		foreach ( self::partners() as $p ) {
+			if ( untrailingslashit( $p ) === $needle ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -215,11 +232,12 @@ class Federation {
 		$partners = array_values( array_unique( $partners ) );
 
 		update_option( self::OPTION, [
-			'enabled'       => ! empty( $_POST['enabled'] ),
-			'postal_code'   => sanitize_text_field( wp_unslash( (string) ( $_POST['postal_code'] ?? '' ) ) ),
-			'topic'         => sanitize_text_field( wp_unslash( (string) ( $_POST['topic'] ?? '' ) ) ),
-			'contact_email' => sanitize_email( wp_unslash( (string) ( $_POST['contact_email'] ?? '' ) ) ),
-			'partners'      => $partners,
+			'enabled'        => ! empty( $_POST['enabled'] ),
+			'postal_code'    => sanitize_text_field( wp_unslash( (string) ( $_POST['postal_code'] ?? '' ) ) ),
+			'topic'          => sanitize_text_field( wp_unslash( (string) ( $_POST['topic'] ?? '' ) ) ),
+			'contact_email'  => sanitize_email( wp_unslash( (string) ( $_POST['contact_email'] ?? '' ) ) ),
+			'partners'       => $partners,
+			'accept_borrows' => ! empty( $_POST['accept_borrows'] ),
 		] );
 
 		wp_safe_redirect( add_query_arg( 'pp_fed', 'saved', admin_url( 'admin.php?page=pp-federation' ) ) );

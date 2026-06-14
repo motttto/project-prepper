@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.41.0
+Stable tag: 0.42.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,12 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.42.0 =
+* Federated borrowing (supplying side): an instance can now accept borrow requests from partner instances for its members' items — a new opt-in "Federated borrowing" switch on the Federation page (off by default)
+* Requests are trusted only from configured partner instances and are moderated by the item owner in the portal ("Network requests for your items": approve or decline), with the requester's contact shown for arranging handover
+* Abuse protection: per-instance daily rate limit, honeypot, required contact email, usable items only; the requesting instance polls the decision via an unguessable token
+* The matching requesting-side UI ("ask to borrow" in the Network page) follows in the next release
 
 = 0.41.0 =
 * Federation (cross-instance): members get a new "Network" page that shows the shared inventory of connected partner instances, grouped by instance with postal code and topic, and a filter by item, postal code or topic
