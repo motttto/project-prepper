@@ -246,6 +246,10 @@ class MemberPortal {
 		if ( in_array( $do, [ 'gpoll_vote', 'gpoll_create', 'gpoll_close', 'gpoll_reopen' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'polls', self::portal_url() );
 		}
+		// Aus einer Gruppe austreten kehrt zur Kollektive-Ansicht zurück.
+		if ( 'group_leave' === $do ) {
+			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
+		}
 
 		$result = new \WP_Error( 'pp_unknown', 'unknown' );
 		$ok_msg = 'ok';
@@ -277,6 +281,15 @@ class MemberPortal {
 			case 'vote':
 				$result = Governance::vote( $inv_id, sanitize_key( wp_unslash( (string) ( $_POST['pp_vote'] ?? '' ) ) ) );
 				$ok_msg = 'voted';
+				break;
+			case 'group_leave':
+				$uid    = get_current_user_id();
+				$result = Groups::remove_member( $grp_id, $uid );
+				// War der verlassene Workspace der aktive, zurück auf Solo.
+				if ( ! is_wp_error( $result ) && (string) get_user_meta( $uid, 'pp_active_group', true ) === (string) $grp_id ) {
+					update_user_meta( $uid, 'pp_active_group', 'solo' );
+				}
+				$ok_msg = 'group_left';
 				break;
 			case 'item_create':
 				$result = MemberInventory::create( get_current_user_id(), self::item_input() );
@@ -422,8 +435,15 @@ class MemberPortal {
 		}
 
 		if ( is_wp_error( $result ) ) {
-			// Spezifische, hilfreiche Meldung bei „kein Stück frei", sonst generisch.
-			$msg = ( 'pp_no_units' === $result->get_error_code() ) ? 'borrow_unavailable' : 'error';
+			// Spezifische, hilfreiche Meldungen, sonst generisch.
+			$code = $result->get_error_code();
+			if ( 'pp_no_units' === $code ) {
+				$msg = 'borrow_unavailable';
+			} elseif ( 'pp_last_founder' === $code ) {
+				$msg = 'leave_last_founder';
+			} else {
+				$msg = 'error';
+			}
 		} else {
 			$msg = $ok_msg;
 		}
@@ -460,6 +480,8 @@ class MemberPortal {
 			'photo_removed'    => [ 'ok', __( 'Photo removed.', 'project-prepper' ) ],
 			'photo_failed'     => [ 'err', __( 'The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file.', 'project-prepper' ) ],
 			'borrow_unavailable' => [ 'err', __( 'No units of this item are free in that period. Please pick other dates.', 'project-prepper' ) ],
+			'group_left'         => [ 'ok', __( 'You have left the group.', 'project-prepper' ) ],
+			'leave_last_founder' => [ 'err', __( 'As the last founder you cannot leave. Appoint another founder or delete the group instead.', 'project-prepper' ) ],
 			'error'            => [ 'err', __( 'Something went wrong. Please try again.', 'project-prepper' ) ],
 		];
 	}
@@ -2096,6 +2118,14 @@ class MemberPortal {
 	private static function render_collective( int $group_id, string $name, string $role, int $user_id ): void {
 		$members     = Groups::members( $group_id );
 		$invitations = Governance::invitations_for_group( $group_id, [ 'pending', 'voting' ] );
+		// Austreten erlaubt für Mitglieder; ein Gründer nur, wenn ein weiterer Gründer bleibt.
+		$founder_count = 0;
+		foreach ( $members as $m ) {
+			if ( 'founder' === $m->member_role ) {
+				$founder_count++;
+			}
+		}
+		$can_leave = ( 'founder' !== $role ) || $founder_count > 1;
 		?>
 		<div class="pp-portal__collective">
 			<div class="pp-portal__collective-head">
@@ -2161,6 +2191,19 @@ class MemberPortal {
 				<input type="email" name="pp_email" placeholder="<?php esc_attr_e( 'Invite by email', 'project-prepper' ); ?>" required>
 				<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Invite', 'project-prepper' ); ?></button>
 			</form>
+
+			<?php if ( $can_leave ) : ?>
+				<div class="pp-portal__collective-foot">
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+						onsubmit="return confirm('<?php echo esc_js( __( 'Leave this group? You will lose access to its shared inventory and projects.', 'project-prepper' ) ); ?>');">
+						<?php self::action_fields( 'group_leave' ); ?>
+						<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+						<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-portal__btn--danger"><?php esc_html_e( 'Leave group', 'project-prepper' ); ?></button>
+					</form>
+				</div>
+			<?php elseif ( 'founder' === $role ) : ?>
+				<p class="pp-portal__hint"><?php esc_html_e( 'You are the only founder. Appoint another founder before you can leave.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
 		</div>
 		<?php
 	}

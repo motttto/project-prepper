@@ -672,6 +672,26 @@ a.pp-front-card-media { text-decoration: none; }
 	color: var(--pp-muted-foreground);
 	margin: 0 0 .5rem;
 }
+.pp-portal__collective-foot {
+	margin-top: .6rem;
+	padding-top: .6rem;
+	border-top: 1px solid var(--pp-border);
+}
+.pp-portal__hint {
+	margin: .6rem 0 0;
+	padding-top: .6rem;
+	border-top: 1px solid var(--pp-border);
+	font-size: .8rem;
+	color: var(--pp-muted-foreground);
+}
+.pp-portal__btn--danger {
+	color: var(--pp-destructive, #b91c1c);
+	border-color: var(--pp-destructive, #b91c1c);
+}
+.pp-portal__btn--danger:hover {
+	background: var(--pp-destructive, #b91c1c);
+	color: #fff;
+}
 .pp-portal__vote {
 	display: flex;
 	align-items: center;
