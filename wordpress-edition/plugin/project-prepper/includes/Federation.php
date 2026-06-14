@@ -258,7 +258,7 @@ class Federation {
 
 		self::save_from( wp_unslash( $_POST ) ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- save_from() säubert jedes Feld einzeln.
 
-		wp_safe_redirect( add_query_arg( 'pp_fed', 'saved', admin_url( 'admin.php?page=pp-federation' ) ) );
+		wp_safe_redirect( add_query_arg( 'pp_fed', 'saved', admin_url( 'admin.php?page=pp-manage&tab=federation' ) ) );
 		exit;
 	}
 }

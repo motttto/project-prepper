@@ -182,7 +182,7 @@ class Notifications {
 			'items'     => $item_lines ? implode( "\n", $item_lines ) : '—',
 			'message'   => $inquiry->message ?: '—',
 			'site_name' => get_bloginfo( 'name' ),
-			'admin_url' => admin_url( 'admin.php?page=pp-inquiries' ),
+			'admin_url' => admin_url( 'admin.php?page=pp-manage&tab=inquiries' ),
 		];
 
 		wp_mail(

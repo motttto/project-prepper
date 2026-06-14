@@ -444,7 +444,7 @@
 						var period = b.date_from ? (dateDe(b.date_from) + (b.date_to ? " – " + dateDe(b.date_to) : "")) : __("no date", "project-prepper");
 						blist.appendChild(el("li", null, [
 							el("span", { class: "pp-badge pp-badge-" + (PB_BADGE[b.status] || b.status), text: PB_STATUS[b.status] || b.status }),
-							el("a", { href: "admin.php?page=pp-projects#pp-project-" + b.project_id, class: "pp-link", text: b.project_name }),
+							el("a", { href: "admin.php?page=pp-manage&tab=projects#pp-project-" + b.project_id, class: "pp-link", text: b.project_name }),
 							el("span", { class: "pp-muted", text: " · " + b.quantity + "× · " + period })
 						]));
 					});
@@ -3499,7 +3499,7 @@
 					upList.appendChild(el("li", null, [
 						el("div", null, [
 							el("a", {
-								href: "admin.php?page=pp-projects#pp-project-" + p.id,
+								href: "admin.php?page=pp-manage&tab=projects#pp-project-" + p.id,
 								class: "pp-link",
 								text: p.name || __("(untitled)", "project-prepper")
 							}),
@@ -3686,16 +3686,16 @@
 			if (ev.type === "rental") {
 				cls = "pp-cal-rental";
 				label = ev.title;
-				href = "admin.php?page=pp-rentals";
+				href = "admin.php?page=pp-manage&tab=rentals";
 			} else if (ev.type === "project") {
 				cls = "pp-cal-project";
 				label = ev.title || __("(untitled)", "project-prepper");
-				href = "admin.php?page=pp-projects#pp-project-" + ev.id;
+				href = "admin.php?page=pp-manage&tab=projects#pp-project-" + ev.id;
 			} else {
 				cls = "pp-cal-schedule";
 				var t = ev.time_start ? String(ev.time_start).slice(0, 5) + " " : "";
 				label = t + (ev.title || "");
-				href = "admin.php?page=pp-projects#pp-project-" + ev.project_id;
+				href = "admin.php?page=pp-manage&tab=projects#pp-project-" + ev.project_id;
 			}
 			return el("a", { class: "pp-cal-event " + cls, href: href, title: label, text: label });
 		}

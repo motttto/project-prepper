@@ -40,61 +40,49 @@ msgstr "motttto"
 msgid "Dashboard"
 msgstr "Dashboard"
 
-#: includes/Admin/Menu.php:46
-#: includes/Admin/Menu.php:47
-#: includes/Admin/Menu.php:214
+#: includes/Admin/Menu.php:158
 #: includes/Frontend/MemberPortal.php:767
 #: admin/js/admin.js:630
 #: admin/js/admin.js:1179
 msgid "Inventory"
 msgstr "Inventar"
 
-#: includes/Admin/Menu.php:55
-#: includes/Admin/Menu.php:56
-#: includes/Admin/Menu.php:218
+#: includes/Admin/Menu.php:159
 #: includes/Frontend/MemberPortal.php:769
 #: includes/Frontend/MemberPortal.php:1092
 msgid "Projects"
 msgstr "Projekte"
 
-#: includes/Admin/Menu.php:64
-#: includes/Admin/Menu.php:65
-#: includes/Admin/Menu.php:222
+#: includes/Admin/Menu.php:160
 msgid "Groups"
 msgstr "Gruppen"
 
-#: includes/Admin/Menu.php:96
-#: includes/Admin/Menu.php:97
-#: includes/Admin/Menu.php:226
+#: includes/Admin/Menu.php:161
 #: includes/Rest/CalendarController.php:54
 msgid "Rentals"
 msgstr "Verleih"
 
-#: includes/Admin/Menu.php:105
-#: includes/Admin/Menu.php:106
-#: includes/Admin/Menu.php:242
+#: includes/Admin/Menu.php:162
 msgid "Inquiries"
 msgstr "Anfragen"
 
-#: includes/Admin/Menu.php:123
-#: includes/Admin/Menu.php:124
-#: includes/Admin/Menu.php:234
+#: includes/Admin/Menu.php:164
 msgid "Categories"
 msgstr "Kategorien"
 
-#: includes/Admin/Menu.php:132
-#: includes/Admin/Menu.php:133
-#: includes/Admin/Menu.php:238
+#: includes/Admin/Menu.php:79
+#: includes/Admin/Menu.php:80
+#: includes/Admin/Menu.php:204
 #: admin/js/blocks-editor.js:18
 msgid "Settings"
 msgstr "Einstellungen"
 
-#: includes/Capabilities.php:64
+#: includes/Capabilities.php:70
 #: includes/Users.php:40
 msgid "Prepper Manager"
 msgstr "Prepper Manager"
 
-#: includes/Capabilities.php:82
+#: includes/Capabilities.php:88
 #: includes/Users.php:41
 msgid "Prepper Member"
 msgstr "Prepper Mitglied"
@@ -2996,9 +2984,7 @@ msgstr "Leih-/Projektanfrage-Formular für Besucher."
 msgid "Show equipment selection"
 msgstr "Equipment-Auswahl anzeigen"
 
-#: includes/Admin/Menu.php:114
-#: includes/Admin/Menu.php:115
-#: includes/Admin/Menu.php:230
+#: includes/Admin/Menu.php:163
 #: includes/Frontend/MemberPortal.php:770
 #: includes/Frontend/MemberPortal.php:1972
 #: includes/Frontend/MemberPortal.php:2047
@@ -3124,7 +3110,7 @@ msgstr "Material & Transport"
 
 #. translators: %s = display name of the current user.
 #. translators: %s: member display name.
-#: includes/Admin/Menu.php:207
+#: includes/Admin/Menu.php:144
 #: includes/Frontend/MemberPortal.php:1062
 #, php-format
 msgid "Hello %s"
@@ -3687,15 +3673,15 @@ msgstr "Du hast dein Einladungs-Limit für heute erreicht."
 msgid "Permission denied."
 msgstr "Zugriff verweigert."
 
-#: includes/Admin/Menu.php:76
-#: includes/Admin/Menu.php:77
-#: includes/Admin/Menu.php:259
+#: includes/Admin/Menu.php:60
+#: includes/Admin/Menu.php:61
+#: includes/Admin/Menu.php:220
 msgid "Platform"
 msgstr "Plattform"
 
-#: includes/Admin/Menu.php:152
-#: includes/Admin/Menu.php:153
-#: includes/Admin/Menu.php:263
+#: includes/Admin/Menu.php:99
+#: includes/Admin/Menu.php:100
+#: includes/Admin/Menu.php:224
 msgid "Security"
 msgstr "Sicherheit"
 
@@ -3759,6 +3745,9 @@ msgstr "Eigentümer"
 msgid "No borrow requests yet."
 msgstr "Noch keine Leih-Anfragen."
 
+#: includes/Admin/Menu.php:48
+#: includes/Admin/Menu.php:49
+#: includes/Admin/Menu.php:187
 #: includes/Frontend/MemberPortal.php:1103
 msgid "Manage"
 msgstr "Verwalten"
@@ -3899,9 +3888,7 @@ msgstr "Du hast zu viele Codes angefordert. Bitte warte einen Moment und versuch
 msgid "Resend code"
 msgstr "Code erneut senden"
 
-#: includes/Admin/Menu.php:162
-#: includes/Admin/Menu.php:163
-#: includes/Admin/Menu.php:267
+#: includes/Admin/Menu.php:165
 msgid "Federation"
 msgstr "Föderation"
 
@@ -4654,9 +4641,9 @@ msgstr "Öffentliches Profil"
 msgid "See the GitHub release notes."
 msgstr "Siehe die GitHub-Release-Notes."
 
-#: includes/Admin/Menu.php:87
-#: includes/Admin/Menu.php:88
-#: includes/Admin/Menu.php:246
+#: includes/Admin/Menu.php:70
+#: includes/Admin/Menu.php:71
+#: includes/Admin/Menu.php:208
 msgid "Users & permissions"
 msgstr "Benutzer & Rechte"
 
@@ -4760,9 +4747,9 @@ msgstr "du"
 msgid "No users match."
 msgstr "Keine Benutzer passen."
 
-#: includes/Admin/Menu.php:142
-#: includes/Admin/Menu.php:143
-#: includes/Admin/Menu.php:250
+#: includes/Admin/Menu.php:89
+#: includes/Admin/Menu.php:90
+#: includes/Admin/Menu.php:212
 msgid "Email templates"
 msgstr "E-Mail-Templates"
 
@@ -4821,3 +4808,7 @@ msgstr "Templates speichern"
 #: admin/js/admin.js:4073
 msgid "Templates saved."
 msgstr "Templates gespeichert."
+
+#: includes/Admin/Menu.php:178
+msgid "You are not allowed to access this page."
+msgstr "Du bist nicht berechtigt, auf diese Seite zuzugreifen."

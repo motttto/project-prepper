@@ -40,37 +40,21 @@ class Menu {
 			[ self::class, 'render_dashboard' ]
 		);
 
-		// Inventar ist von der Top-Ebene auf den eigenen Slug pp-inventory umgezogen.
+		// Verwaltung: Inventar/Projekte/Gruppen/Verleih/Anfragen/Kalender/Kategorien/
+		// Föderation gebündelt unter EINEM Menüpunkt mit Reitern (Tabs). Pro Tab eigene
+		// Cap-Prüfung; das Menü erscheint ab der niedrigsten gemeinsamen View-Cap.
 		add_submenu_page(
 			'project-prepper',
-			__( 'Inventory', 'project-prepper' ),
-			__( 'Inventory', 'project-prepper' ),
+			__( 'Manage', 'project-prepper' ),
+			__( 'Manage', 'project-prepper' ),
 			Capabilities::VIEW_INVENTORY,
-			'pp-inventory',
-			[ self::class, 'render_inventory' ]
+			'pp-manage',
+			[ self::class, 'render_manage' ]
 		);
 
-		add_submenu_page(
-			'project-prepper',
-			__( 'Projects', 'project-prepper' ),
-			__( 'Projects', 'project-prepper' ),
-			Capabilities::VIEW_PROJECTS,
-			'pp-projects',
-			[ self::class, 'render_projects' ]
-		);
+		// ----- Steuerzentrale (Betreiber, Cap pp_operate) -----
 
-		add_submenu_page(
-			'project-prepper',
-			__( 'Groups', 'project-prepper' ),
-			__( 'Groups', 'project-prepper' ),
-			Capabilities::MANAGE_GROUPS,
-			'pp-groups',
-			[ self::class, 'render_groups' ]
-		);
-
-		// Plattform-Übersicht: hier laufen die Member-Portal-Systemprozesse
-		// (Kollektive, Beitritts-Voting, Mitglieder-Inventar, Leih-Anfragen)
-		// für Betreiber/Moderation sichtbar zusammen.
+		// Plattform-Übersicht: Member-Portal-Systemprozesse für Betreiber/Moderation.
 		add_submenu_page(
 			'project-prepper',
 			__( 'Platform', 'project-prepper' ),
@@ -80,8 +64,7 @@ class Menu {
 			[ self::class, 'render_platform' ]
 		);
 
-		// Benutzer & Rechte (Steuerzentrale): Rollen + feingranulare Caps + Gruppen.
-		// Administrator-only (Benutzer-Verwaltung ist Core-Cap-Territorium).
+		// Benutzer & Rechte: Rollen + feingranulare Caps + Gruppen.
 		add_submenu_page(
 			'project-prepper',
 			__( 'Users & permissions', 'project-prepper' ),
@@ -93,42 +76,6 @@ class Menu {
 
 		add_submenu_page(
 			'project-prepper',
-			__( 'Rentals', 'project-prepper' ),
-			__( 'Rentals', 'project-prepper' ),
-			Capabilities::VIEW_RENTALS,
-			'pp-rentals',
-			[ self::class, 'render_rentals' ]
-		);
-
-		add_submenu_page(
-			'project-prepper',
-			__( 'Inquiries', 'project-prepper' ),
-			__( 'Inquiries', 'project-prepper' ),
-			Capabilities::VIEW_INQUIRIES,
-			'pp-inquiries',
-			[ self::class, 'render_inquiries' ]
-		);
-
-		add_submenu_page(
-			'project-prepper',
-			__( 'Calendar', 'project-prepper' ),
-			__( 'Calendar', 'project-prepper' ),
-			Capabilities::VIEW_RENTALS,
-			'pp-calendar',
-			[ self::class, 'render_calendar' ]
-		);
-
-		add_submenu_page(
-			'project-prepper',
-			__( 'Categories', 'project-prepper' ),
-			__( 'Categories', 'project-prepper' ),
-			Capabilities::EDIT_INVENTORY,
-			'pp-categories',
-			[ self::class, 'render_categories' ]
-		);
-
-		add_submenu_page(
-			'project-prepper',
 			__( 'Settings', 'project-prepper' ),
 			__( 'Settings', 'project-prepper' ),
 			Capabilities::OPERATE,
@@ -136,7 +83,7 @@ class Menu {
 			[ self::class, 'render_settings' ]
 		);
 
-		// E-Mail-Templates (Steuerzentrale): alle Plugin-Mails zentral editierbar.
+		// E-Mail-Templates: alle Plugin-Mails zentral editierbar.
 		add_submenu_page(
 			'project-prepper',
 			__( 'Email templates', 'project-prepper' ),
@@ -154,16 +101,6 @@ class Menu {
 			Capabilities::OPERATE,
 			'pp-security',
 			[ self::class, 'render_security' ]
-		);
-
-		// Föderation: Instanz für andere auffindbar machen (Opt-in, default aus).
-		add_submenu_page(
-			'project-prepper',
-			__( 'Federation', 'project-prepper' ),
-			__( 'Federation', 'project-prepper' ),
-			Capabilities::OPERATE,
-			'pp-federation',
-			[ self::class, 'render_federation' ]
 		);
 	}
 
@@ -210,36 +147,61 @@ class Menu {
 		echo '<div id="pp-admin" data-page="dashboard"></div></div>';
 	}
 
-	public static function render_inventory(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Inventory', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="inventory"></div></div>';
+	/**
+	 * Die unter „Manage" gebündelten Module — Reihenfolge = Tab-Reihenfolge.
+	 * Jeder Eintrag: Label, benötigte Capability, data-page für admin.js.
+	 *
+	 * @return array<string,array{label:string,cap:string,page:string}>
+	 */
+	private static function manage_tabs(): array {
+		return [
+			'inventory'  => [ 'label' => __( 'Inventory', 'project-prepper' ),  'cap' => Capabilities::VIEW_INVENTORY, 'page' => 'inventory' ],
+			'projects'   => [ 'label' => __( 'Projects', 'project-prepper' ),   'cap' => Capabilities::VIEW_PROJECTS,  'page' => 'projects' ],
+			'groups'     => [ 'label' => __( 'Groups', 'project-prepper' ),     'cap' => Capabilities::MANAGE_GROUPS,  'page' => 'groups' ],
+			'rentals'    => [ 'label' => __( 'Rentals', 'project-prepper' ),    'cap' => Capabilities::VIEW_RENTALS,   'page' => 'rentals' ],
+			'inquiries'  => [ 'label' => __( 'Inquiries', 'project-prepper' ),  'cap' => Capabilities::VIEW_INQUIRIES, 'page' => 'inquiries' ],
+			'calendar'   => [ 'label' => __( 'Calendar', 'project-prepper' ),   'cap' => Capabilities::VIEW_RENTALS,   'page' => 'calendar' ],
+			'categories' => [ 'label' => __( 'Categories', 'project-prepper' ), 'cap' => Capabilities::EDIT_INVENTORY, 'page' => 'categories' ],
+			'federation' => [ 'label' => __( 'Federation', 'project-prepper' ), 'cap' => Capabilities::OPERATE,        'page' => 'federation' ],
+		];
 	}
 
-	public static function render_projects(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Projects', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="projects"></div></div>';
-	}
+	/**
+	 * Gebündelte Modulseite mit WP-Reitern (nav-tab). Jeder Reiter rendert wie
+	 * bisher seine JS-App-Shell (`data-page`); admin.js routet unverändert. Pro
+	 * Reiter eigene Capability — es erscheinen nur die erlaubten.
+	 */
+	public static function render_manage(): void {
+		$tabs      = self::manage_tabs();
+		$available = array_filter( $tabs, static fn( $t ) => current_user_can( $t['cap'] ) );
+		if ( ! $available ) {
+			wp_die( esc_html__( 'You are not allowed to access this page.', 'project-prepper' ) );
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Tab-Navigation (Lesen).
+		$requested = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+		if ( ! isset( $available[ $requested ] ) ) {
+			$requested = (string) array_key_first( $available );
+		}
 
-	public static function render_groups(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Groups', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="groups"></div></div>';
-	}
-
-	public static function render_rentals(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Rentals', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="rentals"></div></div>';
-	}
-
-	public static function render_calendar(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Calendar', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="calendar"></div></div>';
-	}
-
-	public static function render_categories(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Categories', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="categories"></div></div>';
+		echo '<div class="wrap">';
+		echo '<h1>' . esc_html__( 'Manage', 'project-prepper' ) . '</h1>';
+		echo '<nav class="nav-tab-wrapper" style="margin-bottom:1rem;">';
+		foreach ( $available as $key => $tab ) {
+			$url = add_query_arg( [ 'page' => 'pp-manage', 'tab' => $key ], admin_url( 'admin.php' ) );
+			printf(
+				'<a href="%s" class="nav-tab%s">%s</a>',
+				esc_url( $url ),
+				$key === $requested ? ' nav-tab-active' : '',
+				esc_html( $tab['label'] )
+			);
+		}
+		echo '</nav>';
+		echo '<div id="pp-admin" data-page="' . esc_attr( $available[ $requested ]['page'] ) . '"></div>';
+		echo '</div>';
 	}
 
 	public static function render_settings(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Settings', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="settings"></div></div>';
-	}
-
-	public static function render_inquiries(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Inquiries', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="inquiries"></div></div>';
 	}
 
 	public static function render_users(): void {
@@ -250,10 +212,9 @@ class Menu {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Email templates', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="email-templates"></div></div>';
 	}
 
-	/* ===================== Plattform / Sicherheit / Föderation =====================
-	 * Wie alle anderen Modulseiten reine JS-App-Shells gegen die REST-API
-	 * (PlatformController, SecurityController, FederationController). Die frühere
-	 * server-gerenderte HTML-/Formular-Logik ist nach admin.js + REST gewandert. */
+	/* ===================== Steuerzentrale (Betreiber) =====================
+	 * Reine JS-App-Shells gegen die REST-API (PlatformController,
+	 * SecurityController, …). Föderation läuft als Reiter unter „Manage". */
 
 	public static function render_platform(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Platform', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="platform"></div></div>';
@@ -261,9 +222,5 @@ class Menu {
 
 	public static function render_security(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Security', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="security"></div></div>';
-	}
-
-	public static function render_federation(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Federation', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="federation"></div></div>';
 	}
 }
