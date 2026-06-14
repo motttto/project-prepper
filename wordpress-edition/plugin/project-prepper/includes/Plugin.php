@@ -29,6 +29,7 @@ class Plugin {
 		Security::init();
 		Federation::init();
 		Updater::init();
+		Users::init();
 		Frontend\Shortcodes::init();
 		Frontend\Blocks::init();
 		Frontend\ItemDetail::init();
@@ -57,5 +58,6 @@ class Plugin {
 		( new Rest\FederationController() )->register_routes();
 		( new Rest\PlatformController() )->register_routes();
 		( new Rest\SecurityController() )->register_routes();
+		( new Rest\UsersController() )->register_routes();
 	}
 }

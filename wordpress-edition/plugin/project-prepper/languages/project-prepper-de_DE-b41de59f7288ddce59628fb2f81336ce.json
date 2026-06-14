@@ -1575,6 +1575,30 @@
             ],
             "Public profile": [
                 "\u00d6ffentliches Profil"
+            ],
+            "Manage roles and fine-grained permissions for every account. Members edit their own inventory and projects in the front-end portal \u2014 here you steer who may do what.": [
+                "Verwalte Rolle und feingranulare Rechte jedes Kontos. Mitglieder pflegen ihr eigenes Inventar und ihre Projekte im Frontend-Portal \u2014 hier steuerst du, wer was darf."
+            ],
+            "Search name or email \u2026": [
+                "Name oder E-Mail suchen \u2026"
+            ],
+            "Permissions": [
+                "Rechte"
+            ],
+            "Administrators always have every permission.": [
+                "Administratoren haben immer alle Rechte."
+            ],
+            "registered": [
+                "registriert"
+            ],
+            "last login": [
+                "letzter Login"
+            ],
+            "you": [
+                "du"
+            ],
+            "No users match.": [
+                "Keine Benutzer passen."
             ]
         }
     }

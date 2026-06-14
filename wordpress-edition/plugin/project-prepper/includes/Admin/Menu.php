@@ -80,6 +80,17 @@ class Menu {
 			[ self::class, 'render_platform' ]
 		);
 
+		// Benutzer & Rechte (Steuerzentrale): Rollen + feingranulare Caps + Gruppen.
+		// Administrator-only (Benutzer-Verwaltung ist Core-Cap-Territorium).
+		add_submenu_page(
+			'project-prepper',
+			__( 'Users & permissions', 'project-prepper' ),
+			__( 'Users & permissions', 'project-prepper' ),
+			'edit_users',
+			'pp-users',
+			[ self::class, 'render_users' ]
+		);
+
 		add_submenu_page(
 			'project-prepper',
 			__( 'Rentals', 'project-prepper' ),
@@ -219,6 +230,10 @@ class Menu {
 
 	public static function render_inquiries(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Inquiries', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="inquiries"></div></div>';
+	}
+
+	public static function render_users(): void {
+		echo '<div class="wrap"><h1>' . esc_html__( 'Users & permissions', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="users"></div></div>';
 	}
 
 	/* ===================== Plattform / Sicherheit / Föderation =====================

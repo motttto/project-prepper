@@ -42,7 +42,7 @@ msgstr "Dashboard"
 
 #: includes/Admin/Menu.php:46
 #: includes/Admin/Menu.php:47
-#: includes/Admin/Menu.php:193
+#: includes/Admin/Menu.php:204
 #: includes/Frontend/MemberPortal.php:767
 #: admin/js/admin.js:630
 #: admin/js/admin.js:1179
@@ -51,7 +51,7 @@ msgstr "Inventar"
 
 #: includes/Admin/Menu.php:55
 #: includes/Admin/Menu.php:56
-#: includes/Admin/Menu.php:197
+#: includes/Admin/Menu.php:208
 #: includes/Frontend/MemberPortal.php:769
 #: includes/Frontend/MemberPortal.php:1092
 msgid "Projects"
@@ -59,41 +59,43 @@ msgstr "Projekte"
 
 #: includes/Admin/Menu.php:64
 #: includes/Admin/Menu.php:65
-#: includes/Admin/Menu.php:201
+#: includes/Admin/Menu.php:212
 msgid "Groups"
 msgstr "Gruppen"
 
-#: includes/Admin/Menu.php:85
-#: includes/Admin/Menu.php:86
-#: includes/Admin/Menu.php:205
+#: includes/Admin/Menu.php:96
+#: includes/Admin/Menu.php:97
+#: includes/Admin/Menu.php:216
 #: includes/Rest/CalendarController.php:54
 msgid "Rentals"
 msgstr "Verleih"
 
-#: includes/Admin/Menu.php:94
-#: includes/Admin/Menu.php:95
-#: includes/Admin/Menu.php:221
+#: includes/Admin/Menu.php:105
+#: includes/Admin/Menu.php:106
+#: includes/Admin/Menu.php:232
 msgid "Inquiries"
 msgstr "Anfragen"
 
-#: includes/Admin/Menu.php:112
-#: includes/Admin/Menu.php:113
-#: includes/Admin/Menu.php:213
+#: includes/Admin/Menu.php:123
+#: includes/Admin/Menu.php:124
+#: includes/Admin/Menu.php:224
 msgid "Categories"
 msgstr "Kategorien"
 
-#: includes/Admin/Menu.php:121
-#: includes/Admin/Menu.php:122
-#: includes/Admin/Menu.php:217
+#: includes/Admin/Menu.php:132
+#: includes/Admin/Menu.php:133
+#: includes/Admin/Menu.php:228
 #: admin/js/blocks-editor.js:18
 msgid "Settings"
 msgstr "Einstellungen"
 
 #: includes/Capabilities.php:64
+#: includes/Users.php:40
 msgid "Prepper Manager"
 msgstr "Prepper Manager"
 
 #: includes/Capabilities.php:82
+#: includes/Users.php:41
 msgid "Prepper Member"
 msgstr "Prepper Mitglied"
 
@@ -1496,6 +1498,7 @@ msgstr "Schließen"
 #: admin/js/admin.js:2762
 #: admin/js/admin.js:3174
 #: admin/js/admin.js:3344
+#: admin/js/admin.js:4001
 msgid "Save"
 msgstr "Speichern"
 
@@ -1504,6 +1507,7 @@ msgstr "Speichern"
 #: admin/js/admin.js:2781
 #: admin/js/admin.js:2937
 #: admin/js/admin.js:3349
+#: admin/js/admin.js:4008
 msgid "Saved."
 msgstr "Gespeichert."
 
@@ -2141,6 +2145,7 @@ msgstr "Alle Gruppenmitglieder sind bereits aufgeführt."
 #: admin/js/admin.js:2080
 #: admin/js/admin.js:2482
 #: admin/js/admin.js:2530
+#: admin/js/admin.js:4026
 msgid "Role"
 msgstr "Rolle"
 
@@ -3007,9 +3012,9 @@ msgstr "Leih-/Projektanfrage-Formular für Besucher."
 msgid "Show equipment selection"
 msgstr "Equipment-Auswahl anzeigen"
 
-#: includes/Admin/Menu.php:103
-#: includes/Admin/Menu.php:104
-#: includes/Admin/Menu.php:209
+#: includes/Admin/Menu.php:114
+#: includes/Admin/Menu.php:115
+#: includes/Admin/Menu.php:220
 #: includes/Frontend/MemberPortal.php:770
 #: includes/Frontend/MemberPortal.php:1972
 #: includes/Frontend/MemberPortal.php:2047
@@ -3135,7 +3140,7 @@ msgstr "Material & Transport"
 
 #. translators: %s = display name of the current user.
 #. translators: %s: member display name.
-#: includes/Admin/Menu.php:186
+#: includes/Admin/Menu.php:197
 #: includes/Frontend/MemberPortal.php:1062
 #, php-format
 msgid "Hello %s"
@@ -3700,13 +3705,13 @@ msgstr "Zugriff verweigert."
 
 #: includes/Admin/Menu.php:76
 #: includes/Admin/Menu.php:77
-#: includes/Admin/Menu.php:230
+#: includes/Admin/Menu.php:245
 msgid "Platform"
 msgstr "Plattform"
 
-#: includes/Admin/Menu.php:131
-#: includes/Admin/Menu.php:132
-#: includes/Admin/Menu.php:234
+#: includes/Admin/Menu.php:142
+#: includes/Admin/Menu.php:143
+#: includes/Admin/Menu.php:249
 msgid "Security"
 msgstr "Sicherheit"
 
@@ -3910,9 +3915,9 @@ msgstr "Du hast zu viele Codes angefordert. Bitte warte einen Moment und versuch
 msgid "Resend code"
 msgstr "Code erneut senden"
 
-#: includes/Admin/Menu.php:141
-#: includes/Admin/Menu.php:142
-#: includes/Admin/Menu.php:238
+#: includes/Admin/Menu.php:152
+#: includes/Admin/Menu.php:153
+#: includes/Admin/Menu.php:253
 msgid "Federation"
 msgstr "Föderation"
 
@@ -4664,3 +4669,109 @@ msgstr "Öffentliches Profil"
 #: includes/Updater.php:242
 msgid "See the GitHub release notes."
 msgstr "Siehe die GitHub-Release-Notes."
+
+#: includes/Admin/Menu.php:87
+#: includes/Admin/Menu.php:88
+#: includes/Admin/Menu.php:236
+msgid "Users & permissions"
+msgstr "Benutzer & Rechte"
+
+#: includes/Users.php:39
+msgid "Administrator"
+msgstr "Administrator"
+
+#: includes/Users.php:48
+msgid "Inventory: view"
+msgstr "Inventar: ansehen"
+
+#: includes/Users.php:49
+msgid "Inventory: edit"
+msgstr "Inventar: bearbeiten"
+
+#: includes/Users.php:50
+msgid "Projects: view"
+msgstr "Projekte: ansehen"
+
+#: includes/Users.php:51
+msgid "Projects: edit"
+msgstr "Projekte: bearbeiten"
+
+#: includes/Users.php:52
+msgid "Rentals: view"
+msgstr "Verleih: ansehen"
+
+#: includes/Users.php:53
+msgid "Rentals: edit"
+msgstr "Verleih: bearbeiten"
+
+#: includes/Users.php:54
+msgid "Inquiries: view"
+msgstr "Anfragen: ansehen"
+
+#: includes/Users.php:55
+msgid "Inquiries: edit"
+msgstr "Anfragen: bearbeiten"
+
+#: includes/Users.php:56
+msgid "Import / export"
+msgstr "Import / Export"
+
+#: includes/Users.php:57
+msgid "Manage groups"
+msgstr "Gruppen verwalten"
+
+#: includes/Users.php:58
+msgid "Manage settings"
+msgstr "Einstellungen verwalten"
+
+#: includes/Users.php:59
+msgid "Take part in groups"
+msgstr "An Gruppen teilnehmen"
+
+#: includes/Users.php:132
+msgid "User not found."
+msgstr "Benutzer nicht gefunden."
+
+#: includes/Users.php:140
+msgid "Unknown role."
+msgstr "Unbekannte Rolle."
+
+#: includes/Users.php:143
+msgid "You cannot change your own role."
+msgstr "Du kannst deine eigene Rolle nicht ändern."
+
+#: includes/Users.php:148
+msgid "This is the last administrator and cannot be demoted."
+msgstr "Das ist der letzte Administrator und kann nicht herabgestuft werden."
+
+#: admin/js/admin.js:3957
+msgid "Manage roles and fine-grained permissions for every account. Members edit their own inventory and projects in the front-end portal — here you steer who may do what."
+msgstr "Verwalte Rolle und feingranulare Rechte jedes Kontos. Mitglieder pflegen ihr eigenes Inventar und ihre Projekte im Frontend-Portal — hier steuerst du, wer was darf."
+
+#: admin/js/admin.js:3959
+msgid "Search name or email …"
+msgstr "Name oder E-Mail suchen …"
+
+#: admin/js/admin.js:3995
+msgid "Permissions"
+msgstr "Rechte"
+
+#: admin/js/admin.js:3997
+msgid "Administrators always have every permission."
+msgstr "Administratoren haben immer alle Rechte."
+
+#: admin/js/admin.js:4014
+msgid "registered"
+msgstr "registriert"
+
+#: admin/js/admin.js:4015
+msgid "last login"
+msgstr "letzter Login"
+
+#: admin/js/admin.js:4022
+msgid "you"
+msgstr "du"
+
+#: admin/js/admin.js:4040
+msgid "No users match."
+msgstr "Keine Benutzer passen."

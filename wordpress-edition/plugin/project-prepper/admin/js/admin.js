@@ -3950,6 +3950,107 @@
 		load();
 	}
 
+	/* ================= Seite: Benutzer & Rechte ================= */
+
+	function renderUsers() {
+		root.innerHTML = "";
+		root.appendChild(el("p", { class: "pp-muted", text: __("Manage roles and fine-grained permissions for every account. Members edit their own inventory and projects in the front-end portal — here you steer who may do what.", "project-prepper") }));
+
+		var search = el("input", { type: "search", placeholder: __("Search name or email …", "project-prepper"), style: "width:100%; margin-bottom:12px" });
+		var listBox = el("div");
+		root.appendChild(search);
+		root.appendChild(listBox);
+
+		var data = null;
+
+		function draw() {
+			var q = (search.value || "").toLowerCase();
+			var roleKeys = Object.keys(data.roles);
+			var capKeys = Object.keys(data.caps);
+			listBox.innerHTML = "";
+
+			var shown = data.users.filter(function (u) {
+				return !q || (u.name + " " + u.email).toLowerCase().indexOf(q) >= 0;
+			});
+
+			shown.forEach(function (u) {
+				var roleSel = el("select", null, roleKeys.map(function (rk) {
+					return el("option", { value: rk, text: data.roles[rk] });
+				}));
+				if (u.role && roleKeys.indexOf(u.role) < 0) roleSel.appendChild(el("option", { value: u.role, text: u.role }));
+				roleSel.value = u.role;
+				if (u.is_self) roleSel.disabled = true;
+
+				var capInputs = {};
+				roleSel.addEventListener("change", function () {
+					var rc = data.role_caps[roleSel.value];
+					if (!rc) return;
+					capKeys.forEach(function (ck) {
+						if (capInputs[ck] && !capInputs[ck].disabled) capInputs[ck].checked = !!rc[ck];
+					});
+				});
+				var capGrid = el("div", { style: "display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:6px 16px; margin-top:8px" });
+				capKeys.forEach(function (ck) {
+					var cb = el("input", { type: "checkbox" });
+					cb.checked = !!u.caps[ck];
+					if (u.is_admin) { cb.checked = true; cb.disabled = true; }
+					capInputs[ck] = cb;
+					capGrid.appendChild(el("label", { class: "pp-toggle" }, [cb, el("span", { text: data.caps[ck] })]));
+				});
+
+				var perms = el("details", { style: "margin-top:10px" });
+				perms.appendChild(el("summary", { class: "pp-btn pp-btn-sm", text: __("Permissions", "project-prepper") }));
+				perms.appendChild(u.is_admin
+					? el("div", { class: "pp-muted", style: "margin-top:6px", text: __("Administrators always have every permission.", "project-prepper") })
+					: capGrid);
+
+				var saveBtn = el("button", {
+					class: "pp-btn pp-btn-sm pp-btn-primary", text: __("Save", "project-prepper"),
+					onclick: function () {
+						var caps = {};
+						capKeys.forEach(function (ck) { caps[ck] = capInputs[ck].checked; });
+						var body = { caps: caps };
+						if (!u.is_self) body.role = roleSel.value;
+						api("/users/" + u.id, { method: "PUT", body: JSON.stringify(body) })
+							.then(function (d) { data = d; toast(__("Saved.", "project-prepper")); draw(); })
+							.catch(function (e) { toast(e.message, "error"); });
+					}
+				});
+
+				var meta = [];
+				if (u.registered) meta.push(__("registered", "project-prepper") + ": " + u.registered);
+				meta.push(__("last login", "project-prepper") + ": " + (u.last_login || "—"));
+
+				var card = el("div", { class: "pp-card" }, [
+					el("div", { style: "display:flex; align-items:center; gap:12px; flex-wrap:wrap" }, [
+						el("div", { style: "flex:1; min-width:160px" }, [
+							el("div", { style: "font-weight:500" }, [
+								document.createTextNode(u.name + " "),
+								u.is_self ? el("span", { class: "pp-badge", text: __("you", "project-prepper") }) : null
+							]),
+							el("div", { class: "pp-muted", text: u.email })
+						]),
+						field(__("Role", "project-prepper"), roleSel)
+					]),
+					el("div", { class: "pp-muted", style: "margin-top:6px", text: meta.join(" · ") }),
+					u.groups.length
+						? el("div", { style: "margin-top:6px; display:flex; gap:6px; flex-wrap:wrap" }, u.groups.map(function (g) {
+							return el("span", { class: "pp-badge", text: g.name + " (" + g.role + ")" });
+						}))
+						: null,
+					perms,
+					el("div", { class: "pp-row", style: "margin-top:10px" }, [saveBtn])
+				]);
+				listBox.appendChild(card);
+			});
+
+			if (!shown.length) listBox.appendChild(el("p", { class: "pp-muted", text: __("No users match.", "project-prepper") }));
+		}
+
+		search.addEventListener("input", draw);
+		api("/users").then(function (d) { data = d; draw(); }).catch(function (e) { toast(e.message, "error"); });
+	}
+
 	/* ================= Routing ================= */
 
 	if (page === "calendar") renderCalendar();
@@ -3963,5 +4064,6 @@
 	else if (page === "platform") renderPlatform();
 	else if (page === "security") renderSecurity();
 	else if (page === "federation") renderFederation();
+	else if (page === "users") renderUsers();
 	else renderInventory();
 })();
