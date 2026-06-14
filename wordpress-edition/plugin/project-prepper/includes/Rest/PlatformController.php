@@ -22,7 +22,7 @@ class PlatformController extends BaseController {
 		register_rest_route( self::REST_NAMESPACE, '/platform', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'show' ],
-			'permission_callback' => $this->require_cap( Capabilities::MANAGE_GROUPS ),
+			'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 		] );
 	}
 

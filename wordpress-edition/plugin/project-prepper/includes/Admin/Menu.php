@@ -75,7 +75,7 @@ class Menu {
 			'project-prepper',
 			__( 'Platform', 'project-prepper' ),
 			__( 'Platform', 'project-prepper' ),
-			Capabilities::MANAGE_GROUPS,
+			Capabilities::OPERATE,
 			'pp-platform',
 			[ self::class, 'render_platform' ]
 		);
@@ -86,7 +86,7 @@ class Menu {
 			'project-prepper',
 			__( 'Users & permissions', 'project-prepper' ),
 			__( 'Users & permissions', 'project-prepper' ),
-			'edit_users',
+			Capabilities::OPERATE,
 			'pp-users',
 			[ self::class, 'render_users' ]
 		);
@@ -131,7 +131,7 @@ class Menu {
 			'project-prepper',
 			__( 'Settings', 'project-prepper' ),
 			__( 'Settings', 'project-prepper' ),
-			Capabilities::MANAGE_SETTINGS,
+			Capabilities::OPERATE,
 			'pp-settings',
 			[ self::class, 'render_settings' ]
 		);
@@ -141,7 +141,7 @@ class Menu {
 			'project-prepper',
 			__( 'Email templates', 'project-prepper' ),
 			__( 'Email templates', 'project-prepper' ),
-			Capabilities::MANAGE_SETTINGS,
+			Capabilities::OPERATE,
 			'pp-email-templates',
 			[ self::class, 'render_email_templates' ]
 		);
@@ -151,7 +151,7 @@ class Menu {
 			'project-prepper',
 			__( 'Security', 'project-prepper' ),
 			__( 'Security', 'project-prepper' ),
-			Capabilities::MANAGE_SETTINGS,
+			Capabilities::OPERATE,
 			'pp-security',
 			[ self::class, 'render_security' ]
 		);
@@ -161,7 +161,7 @@ class Menu {
 			'project-prepper',
 			__( 'Federation', 'project-prepper' ),
 			__( 'Federation', 'project-prepper' ),
-			Capabilities::MANAGE_SETTINGS,
+			Capabilities::OPERATE,
 			'pp-federation',
 			[ self::class, 'render_federation' ]
 		);

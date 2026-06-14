@@ -28,6 +28,11 @@ class Capabilities {
 	// abstimmen, Einladungen annehmen) — Selbstbedienung im Frontend. Auch
 	// Mitglieder (pp_member) haben diese Cap, im Gegensatz zu MANAGE_GROUPS.
 	const COLLECTIVES     = 'pp_collectives';
+	// Steuerzentrale (v0.67.0, docs/06 §9): gebündeltes Betreiber-Recht für ALLE
+	// Steuerzentrale-Seiten (Plattform, Benutzer & Rechte, Einstellungen,
+	// E-Mail-Templates, Sicherheit, Föderation). Bewusst NUR der Administrator
+	// (über install() — Manager/Member bekommen es nicht).
+	const OPERATE         = 'pp_operate';
 
 	public static function all(): array {
 		return [
@@ -43,6 +48,7 @@ class Capabilities {
 			self::MANAGE_SETTINGS,
 			self::MANAGE_GROUPS,
 			self::COLLECTIVES,
+			self::OPERATE,
 		];
 	}
 

@@ -55,12 +55,12 @@ class FederationController extends BaseController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'admin_show' ],
-				'permission_callback' => $this->require_cap( Capabilities::MANAGE_SETTINGS ),
+				'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 			],
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'admin_update' ],
-				'permission_callback' => $this->require_cap( Capabilities::MANAGE_SETTINGS ),
+				'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 			],
 		] );
 	}

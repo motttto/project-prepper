@@ -1,6 +1,7 @@
 <?php
 namespace ProjectPrepper\Rest;
 
+use ProjectPrepper\Capabilities;
 use ProjectPrepper\Users;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -8,9 +9,10 @@ use WP_REST_Response;
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Benutzer & Rechte (Superadmin). Auf Administrator-Caps begrenzt
- * (`edit_users` lesen, `promote_users` schreiben) — das ist das WP-konforme Gate
- * für Benutzer-Verwaltung und verhindert Rechte-Eskalation durch Nicht-Admins.
+ * Benutzer & Rechte (Steuerzentrale). Gate = `pp_operate` (nur Administrator).
+ * Es lassen sich NUR die 3 pp-Rollen + 12 pp-Caps setzen (keine Core-Caps), und
+ * Users::update() hat Guards (kein Selbst-Aussperren, letzter Admin geschützt) —
+ * daher keine Rechte-Eskalation über das Admin-Niveau hinaus.
  */
 class UsersController extends BaseController {
 
@@ -18,13 +20,13 @@ class UsersController extends BaseController {
 		register_rest_route( self::REST_NAMESPACE, '/users', [
 			'methods'             => 'GET',
 			'callback'            => [ $this, 'index' ],
-			'permission_callback' => $this->require_cap( 'edit_users' ),
+			'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 		] );
 
 		register_rest_route( self::REST_NAMESPACE, '/users/(?P<id>\d+)', [
 			'methods'             => 'PUT',
 			'callback'            => [ $this, 'update' ],
-			'permission_callback' => $this->require_cap( 'promote_users' ),
+			'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 			'args'                => [
 				'id' => [ 'validate_callback' => static fn( $v ) => is_numeric( $v ) ],
 			],

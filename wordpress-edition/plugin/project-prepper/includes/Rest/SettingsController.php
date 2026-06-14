@@ -18,19 +18,19 @@ class SettingsController extends BaseController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'show' ],
-				'permission_callback' => $this->require_cap( Capabilities::MANAGE_SETTINGS ),
+				'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 			],
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update' ],
-				'permission_callback' => $this->require_cap( Capabilities::MANAGE_SETTINGS ),
+				'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 			],
 		] );
 
 		register_rest_route( self::REST_NAMESPACE, '/settings/regenerate-ical-token', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'regenerate_ical_token' ],
-			'permission_callback' => $this->require_cap( Capabilities::MANAGE_SETTINGS ),
+			'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 		] );
 	}
 

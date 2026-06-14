@@ -20,12 +20,12 @@ class SecurityController extends BaseController {
 			[
 				'methods'             => 'GET',
 				'callback'            => [ $this, 'show' ],
-				'permission_callback' => $this->require_cap( Capabilities::MANAGE_SETTINGS ),
+				'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 			],
 			[
 				'methods'             => 'PUT',
 				'callback'            => [ $this, 'update' ],
-				'permission_callback' => $this->require_cap( Capabilities::MANAGE_SETTINGS ),
+				'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 			],
 		] );
 	}
