@@ -112,7 +112,10 @@ Begründung / offene Frage zum späteren Nachdenken:
 - **Bis dahin: nicht anfassen.** Dieser Punkt ist bewusst markiert und wird
   separat entschieden.
 
-## 7. Offene Punkte (vor dem Bau zu klären)
+## 7. Offene Punkte — beantwortet
+
+> Diese vier Punkte sind durch den Fragebogen vom 2026-06-14 entschieden, siehe
+> **§9**. Die Antworten haben zusätzlich drei neue Konzept-Stränge ausgelöst (§10).
 
 1. **Anfragen (Inquiries):** im Member-Modell nichtkommerziell = out-of-scope.
    Entfernen, auf Mechanik reduzieren, oder wie Verleih stehen lassen? *(offen)*
@@ -144,3 +147,78 @@ Begründung / offene Frage zum späteren Nachdenken:
 
 Jeder Lauf: Backend + REST + admin.js + Browser-Test + Plugin Check + Build +
 Commit + PARITY-Log (wie bei der Backend-Vereinheitlichung v0.63.0).
+
+## 9. Entscheidungen aus dem Fragebogen (2026-06-14)
+
+| Frage | Entscheidung |
+|---|---|
+| **Anfragen** | Auf **Aggregat** reduzieren (siehe §10.1 — wird eigentlich ein Frontend-Feature) |
+| **Projekt-Mechanik** | **Eigene Mechanik-Seite** (+ Monetarisierungs-/Tracking-Bezug, §10.2) |
+| **Aufsichts-Lesezugriff** | **Ja — read-only Moderationssicht** auf Domänen-Inhalte (siehe §10.5) |
+| **Rollen** | **Auf eine Betreiber-Capability bündeln.** O-Ton: „jede WP-Instanz ist ein eigenes Universum" |
+| **Superadmin-Features** | **Benutzer & Rechte · E-Mail-Templates · Monetarisierung.** Feedback **nicht** gewählt → vorerst raus |
+| **Kategorien** | Mitglieder legen **eigene** Kategorien an, bekommen aber **Template-Kategorien** vorgeschlagen (§10.3) |
+| **Reihenfolge** | **Superadmin-Features zuerst** (additiv) |
+
+### Korrektur am Prinzip (wichtig)
+§2/§4 sagten ursprünglich „keine Einzelinhalte im Backend". Der Aufsichts-Punkt
+hebt das gezielt auf: Der Betreiber bekommt **read-only Moderationssichten** auf
+Domänen-Inhalte (sehen, eingreifen, löschen) — **aber nicht editieren**. Die
+Mechanik-Seiten bleiben getrennt davon (Konfiguration, keine Datensätze). Das
+Backend hat damit **zwei Linsen**: *Mechanik konfigurieren* + *Inhalte moderieren*.
+
+## 10. Neue Konzept-Stränge (aus den Kommentaren — zu vertiefen)
+
+### 10.1 Anfragen sind ein Member-Frontend-Feature (mit Lifecycle Anfrage→Projekt)
+O-Ton: Anfragen sind **externe Bekundungen** an einen Solo-User oder eine Gruppe.
+- Der **Solo-User/die Gruppe** pflegt/editiert seine Anfragen vorne (Buchhaltung).
+- Ein Solo-User kann eine Anfrage **an eine Gruppe** richten.
+- Aus einer Anfrage kann ein **Projekt** generiert werden → die Anfrage **wandelt
+  sich in ein Projekt** um.
+- Der **Superadmin sieht keine Details**, sondern höchstens die **Anzahl** der
+  Anfragen je Solo-User/Gruppe (Aggregat).
+
+→ Das ist deutlich mehr als „Backend reduzieren": Anfragen gehören als
+**Mitglieder-Funktion ins Frontend-Portal** (heute existiert nur die alte
+Backend-Variante). Eigener Bau-Strang, parallel zu §5 „Member-Portal".
+
+### 10.2 Monetarisierung + Admin-Tracking (neuer Pfeiler)
+O-Ton (zu Projekt-Mechanik): Ein **Pro-User** des Templates kann vermutlich
+**vermitteln und damit Gewinn erwirtschaften**. Der **Superadmin muss nicht
+dieser User sein**. Deshalb **Admin-Tracking über User-Prozesse** ermöglichen.
+- Implikation: Plattform-Betreiber (Superadmin) ≠ der verdienende Pro-User.
+- Der Betreiber will **Vermittlungs-/Transaktions-Prozesse der User nachvollziehen**
+  (Aufsicht / mögliche Abrechnung / Tier-Gating).
+- Berührt: Projekt-Mechanik-Seite, die Monetarisierungs-Seite und ggf. ein
+  „Pro-User"-Tier-Konzept.
+- **Noch undefiniert** und am ehesten ein eigenes Konzept-Dokument wert (Modell:
+  Was wird getrackt? Nimmt der Betreiber eine Gebühr? Reine Transparenz?).
+
+### 10.3 Template-Kategorien (Inventar-Mechanik)
+Backend-Mechanik = ein Satz **vorgeschlagener Template-Kategorien**, die der
+Betreiber pflegt; Mitglieder übernehmen sie oder legen **eigene** an. Saubere
+Backend-Funktion für die „Inventar-Mechanik"-Seite.
+
+### 10.4 Rechtliche Grundlage / AGB (Superadmin-Settings)
+O-Ton: „wahrscheinlich brauchen wir auch eine rechtliche Grundlage für die User,
+eine AGB in den Superadmin-Settings?" — Ja, sinnvoll:
+- AGB-Text in den Betreiber-Einstellungen hinterlegbar (+ Versionierung).
+- Mitglieder müssen sie akzeptieren (Analogon Live-App: `collaboration_acceptances`).
+- Neuer Planpunkt für die Superadmin-Seiten.
+
+### 10.5 Read-only Moderationssichten
+Pro Domäne eine **schlanke read-only Liste** im Backend (Inventar/Projekte/
+Anfragen-Aggregat), mit der der Betreiber sehen + moderieren (löschen/sperren)
+kann — ohne Editierfelder. Getrennt von den Mechanik-Seiten.
+
+## 11. Aktualisierte Roadmap
+
+1. **Superadmin-Features zuerst (additiv):**
+   1. **Benutzer & Rechte** (users-overview: Mitglieder, Rollen, Permissions, Impersonation) ← Startpunkt
+   2. **E-Mail-Templates** (eigene Seite, aus Einstellungen herausgelöst)
+   3. **AGB / Recht** (§10.4) + **Monetarisierung/Tracking** (§10.2, braucht vorher Konzept)
+2. **Betreiber-Capability** einführen + alle Steuerzentrale-Seiten darauf bündeln (§9).
+3. **Domänen-Seiten** umbauen: Mechanik-Seite **+** read-only Moderationssicht (§10.5)
+   — Reihenfolge Inventar (inkl. Template-Kategorien §10.3) → Kalender → Projekte.
+4. **Anfragen** ins Frontend heben (§10.1) + Backend-Aggregat.
+5. **Verleih** separat entscheiden (§6).
