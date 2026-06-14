@@ -1934,6 +1934,12 @@ class MemberPortal {
 
 	private static function view_calendar( WP_User $user, array $groups ): void {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
+		$mode = ( isset( $_GET['pp_cal'] ) && 'week' === sanitize_key( wp_unslash( $_GET['pp_cal'] ) ) ) ? 'week' : 'month';
+		if ( 'week' === $mode ) {
+			self::render_calendar_week( $user, $groups );
+			return;
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$month = isset( $_GET['pp_month'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_month'] ) ) : '';
 		if ( ! preg_match( '/^\d{4}-\d{2}$/', $month ) ) {
 			$month = current_time( 'Y-m' );
@@ -1961,6 +1967,10 @@ class MemberPortal {
 				<span class="pp-cal__title"><?php echo esc_html( date_i18n( 'F Y', $first_ts ) ); ?></span>
 				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( add_query_arg( 'pp_month', $next, $base ) ); ?>" aria-label="<?php esc_attr_e( 'Next month', 'project-prepper' ); ?>">›</a>
 				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-cal__today" href="<?php echo esc_url( $base ); ?>"><?php esc_html_e( 'Today', 'project-prepper' ); ?></a>
+				<span class="pp-cal__modes">
+					<span class="pp-portal__btn pp-portal__btn--sm pp-cal__mode--on"><?php esc_html_e( 'Month', 'project-prepper' ); ?></span>
+					<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( add_query_arg( 'pp_cal', 'week', $base ) ); ?>"><?php esc_html_e( 'Week', 'project-prepper' ); ?></a>
+				</span>
 			</div>
 
 			<div class="pp-cal__grid">
@@ -1996,11 +2006,86 @@ class MemberPortal {
 				?>
 			</div>
 
-			<div class="pp-cal__legend">
-				<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--project"></span><?php esc_html_e( 'Project', 'project-prepper' ); ?></span>
-				<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--schedule"></span><?php esc_html_e( 'Schedule', 'project-prepper' ); ?></span>
-				<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--borrow"></span><?php esc_html_e( 'Loan', 'project-prepper' ); ?></span>
+			<?php self::calendar_legend(); ?>
+		</div>
+		<?php
+	}
+
+	/** Wochenansicht des Kalenders (7 Spalten, alle Events je Tag, ohne Kürzung). */
+	private static function render_calendar_week( WP_User $user, array $groups ): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
+		$anchor = isset( $_GET['pp_week'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_week'] ) ) : '';
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', $anchor ) ) {
+			$anchor = current_time( 'Y-m-d' );
+		}
+		$anchor_ts  = strtotime( $anchor );
+		$dow        = (int) gmdate( 'N', $anchor_ts ); // Mo=1 … So=7
+		$monday_ts  = strtotime( '-' . ( $dow - 1 ) . ' day', $anchor_ts );
+		$week_start = gmdate( 'Y-m-d', $monday_ts );
+		$week_end   = gmdate( 'Y-m-d', strtotime( '+6 day', $monday_ts ) );
+		$today      = current_time( 'Y-m-d' );
+		$prev       = gmdate( 'Y-m-d', strtotime( '-7 day', $monday_ts ) );
+		$next       = gmdate( 'Y-m-d', strtotime( '+7 day', $monday_ts ) );
+
+		$by_day = self::calendar_events( $user, $groups, $week_start, $week_end );
+		$base   = self::view_url( 'calendar' );
+		$week_base = add_query_arg( 'pp_cal', 'week', $base );
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'Calendar', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Your collectives’ projects, schedule and loans at a glance.', 'project-prepper' ); ?></p>
+		</header>
+
+		<div class="pp-cal">
+			<div class="pp-cal__bar">
+				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( add_query_arg( 'pp_week', $prev, $week_base ) ); ?>" aria-label="<?php esc_attr_e( 'Previous week', 'project-prepper' ); ?>">‹</a>
+				<span class="pp-cal__title"><?php echo esc_html( date_i18n( 'j. M', $monday_ts ) . ' – ' . date_i18n( 'j. M Y', strtotime( '+6 day', $monday_ts ) ) ); ?></span>
+				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( add_query_arg( 'pp_week', $next, $week_base ) ); ?>" aria-label="<?php esc_attr_e( 'Next week', 'project-prepper' ); ?>">›</a>
+				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-cal__today" href="<?php echo esc_url( $week_base ); ?>"><?php esc_html_e( 'Today', 'project-prepper' ); ?></a>
+				<span class="pp-cal__modes">
+					<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $base ); ?>"><?php esc_html_e( 'Month', 'project-prepper' ); ?></a>
+					<span class="pp-portal__btn pp-portal__btn--sm pp-cal__mode--on"><?php esc_html_e( 'Week', 'project-prepper' ); ?></span>
+				</span>
 			</div>
+
+			<div class="pp-cal__week">
+				<?php
+				for ( $i = 0; $i < 7; $i++ ) {
+					$day_ts   = strtotime( "+$i day", $monday_ts );
+					$key      = gmdate( 'Y-m-d', $day_ts );
+					$is_today = ( $key === $today );
+					$events   = $by_day[ $key ] ?? [];
+					echo '<div class="pp-cal__weekday' . ( $is_today ? ' pp-cal__cell--today' : '' ) . '">';
+					echo '<div class="pp-cal__weekday-head">' . esc_html( date_i18n( 'D j.', $day_ts ) ) . '</div>';
+					if ( $events ) {
+						foreach ( $events as $ev ) {
+							$cls = 'pp-cal__chip pp-cal__chip--' . $ev['type'];
+							if ( ! empty( $ev['url'] ) ) {
+								echo '<a class="' . esc_attr( $cls ) . '" href="' . esc_url( $ev['url'] ) . '" title="' . esc_attr( $ev['label'] ) . '">' . esc_html( $ev['label'] ) . '</a>';
+							} else {
+								echo '<span class="' . esc_attr( $cls ) . '" title="' . esc_attr( $ev['label'] ) . '">' . esc_html( $ev['label'] ) . '</span>';
+							}
+						}
+					} else {
+						echo '<span class="pp-cal__weekday-empty">·</span>';
+					}
+					echo '</div>';
+				}
+				?>
+			</div>
+
+			<?php self::calendar_legend(); ?>
+		</div>
+		<?php
+	}
+
+	/** Gemeinsame Kalender-Legende (Monat + Woche). */
+	private static function calendar_legend(): void {
+		?>
+		<div class="pp-cal__legend">
+			<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--project"></span><?php esc_html_e( 'Project', 'project-prepper' ); ?></span>
+			<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--schedule"></span><?php esc_html_e( 'Schedule', 'project-prepper' ); ?></span>
+			<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--borrow"></span><?php esc_html_e( 'Loan', 'project-prepper' ); ?></span>
 		</div>
 		<?php
 	}

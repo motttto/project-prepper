@@ -1505,10 +1505,42 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-cal__bar { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
 .pp-cal__title { font-size: 1.05rem; font-weight: 600; min-width: 9rem; }
 .pp-cal__today { margin-left: auto; }
+.pp-cal__modes { display: inline-flex; gap: 4px; }
+.pp-cal__mode--on { cursor: default; }
 .pp-cal__grid {
 	display: grid;
 	grid-template-columns: repeat(7, 1fr);
 	gap: 6px;
+}
+.pp-cal__week {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 6px;
+}
+.pp-cal__weekday {
+	min-height: 160px;
+	background: #fff;
+	border: 1px solid #e2e8f0;
+	border-radius: 10px;
+	padding: 5px 6px 6px;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+.pp-cal__weekday-head {
+	font-size: .72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .03em;
+	color: #475569;
+	padding-bottom: 3px;
+	border-bottom: 1px solid #f1f5f9;
+	margin-bottom: 2px;
+}
+.pp-cal__weekday-empty { color: #cbd5e1; text-align: center; }
+@media (max-width: 640px) {
+	.pp-cal__week { grid-template-columns: 1fr; }
+	.pp-cal__weekday { min-height: 0; }
 }
 .pp-cal__dow {
 	font-size: .72rem;
