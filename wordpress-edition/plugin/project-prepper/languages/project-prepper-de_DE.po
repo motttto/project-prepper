@@ -4981,3 +4981,35 @@ msgstr "Nachricht / Notizen"
 #: includes/Frontend/MemberPortal.php
 msgid "Save inquiry"
 msgstr "Anfrage speichern"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Pick a group workspace to create a project."
+msgstr "Wähle einen Gruppen-Arbeitsbereich, um ein Projekt anzulegen."
+
+#: includes/Frontend/MemberPortal.php
+msgid "The project could not be deleted."
+msgstr "Das Projekt konnte nicht gelöscht werden."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Project saved."
+msgstr "Projekt gespeichert."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Project deleted."
+msgstr "Projekt gelöscht."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Project name"
+msgstr "Projektname"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Save project"
+msgstr "Projekt speichern"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Edit project"
+msgstr "Projekt bearbeiten"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Delete this project? This cannot be undone."
+msgstr "Dieses Projekt löschen? Das kann nicht rückgängig gemacht werden."

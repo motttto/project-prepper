@@ -268,6 +268,10 @@ class MemberPortal {
 		if ( in_array( $do, [ 'inquiry_create', 'inquiry_update', 'inquiry_status', 'inquiry_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inquiries', self::portal_url() );
 		}
+		// Projekt anlegen/löschen → zurück zur Projektliste (Bearbeiten bleibt im Detail).
+		if ( in_array( $do, [ 'project_create', 'project_delete' ], true ) ) {
+			$back = add_query_arg( 'pp_view', 'projects', self::portal_url() );
+		}
 
 		$result = new \WP_Error( 'pp_unknown', 'unknown' );
 		$ok_msg = 'ok';
@@ -365,6 +369,18 @@ class MemberPortal {
 			case 'inquiry_delete':
 				$result = MemberInquiries::delete( (int) ( $_POST['pp_inquiry'] ?? 0 ), get_current_user_id(), self::active_workspace_group() );
 				$ok_msg = 'inquiry_deleted';
+				break;
+			case 'project_create':
+				$result = self::member_create_project();
+				$ok_msg = 'project_saved';
+				break;
+			case 'project_update':
+				$result = self::member_update_project( (int) ( $_POST['pp_project'] ?? 0 ) );
+				$ok_msg = 'project_saved';
+				break;
+			case 'project_delete':
+				$result = self::member_delete_project( (int) ( $_POST['pp_project'] ?? 0 ) );
+				$ok_msg = 'project_deleted';
 				break;
 			case 'borrow_request':
 				$result = Borrowing::request(
@@ -529,6 +545,8 @@ class MemberPortal {
 			'inquiry_saved'    => [ 'ok', __( 'Inquiry saved.', 'project-prepper' ) ],
 			'inquiry_status'   => [ 'ok', __( 'Inquiry status updated.', 'project-prepper' ) ],
 			'inquiry_deleted'  => [ 'ok', __( 'Inquiry deleted.', 'project-prepper' ) ],
+			'project_saved'    => [ 'ok', __( 'Project saved.', 'project-prepper' ) ],
+			'project_deleted'  => [ 'ok', __( 'Project deleted.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
 			'borrow_decided'   => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'borrow_cancelled' => [ 'ok', __( 'Request cancelled.', 'project-prepper' ) ],
@@ -1610,6 +1628,109 @@ class MemberPortal {
 		<?php
 	}
 
+	/* ---------- Projekte: Gruppen-CRUD (docs/06 §10.1 Slice C) ---------- */
+
+	/** Projekt der aktiven Gruppe, das der User bearbeiten darf (sonst null). */
+	private static function member_owned_project( int $pid ): ?object {
+		$active = self::active_workspace_group();
+		if ( $active <= 0 || $pid <= 0 ) {
+			return null;
+		}
+		$p = Projects::get( $pid );
+		return ( $p && (int) $p->owner_group_id === $active ) ? $p : null;
+	}
+
+	/** Eingaben des Projekt-Formulars (Kernfelder; Finanzen bleiben im Backend). */
+	private static function project_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'name'        => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+			'status'      => sanitize_key( wp_unslash( (string) ( $_POST['pp_status'] ?? 'draft' ) ) ),
+			'date_start'  => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
+			'date_end'    => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
+			'venue_name'  => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_venue'] ?? '' ) ) ),
+			'client_name' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_client'] ?? '' ) ) ),
+			'notes'       => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_notes'] ?? '' ) ) ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	private static function member_create_project() {
+		if ( self::active_workspace_group() <= 0 ) {
+			return new \WP_Error( 'pp_forbidden', __( 'Pick a group workspace to create a project.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$data                   = self::project_input();
+		$data['owner_group_id'] = self::active_workspace_group(); // Projects::create prüft die Mitgliedschaft.
+		return Projects::create( $data );
+	}
+
+	private static function member_update_project( int $pid ) {
+		if ( ! self::member_owned_project( $pid ) ) {
+			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$data = self::project_input();
+		// Status läuft über set_status (Projects::update whitelistet ihn bewusst nicht).
+		$status = (string) ( $data['status'] ?? '' );
+		unset( $data['status'] );
+		$res = Projects::update( $pid, $data );
+		if ( is_wp_error( $res ) ) {
+			return $res;
+		}
+		if ( '' !== $status ) {
+			$st = Projects::set_status( $pid, $status );
+			if ( is_wp_error( $st ) ) {
+				return $st;
+			}
+		}
+		return true;
+	}
+
+	private static function member_delete_project( int $pid ) {
+		if ( ! self::member_owned_project( $pid ) ) {
+			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		return Projects::delete( $pid ) ? true : new \WP_Error( 'pp_delete_failed', __( 'The project could not be deleted.', 'project-prepper' ) );
+	}
+
+	/** Projekt-Formular (Kernfelder) für Anlegen/Bearbeiten. */
+	private static function project_form( string $do, ?object $p ): void {
+		$val = static fn( string $f, $d = '' ) => $p && isset( $p->$f ) && null !== $p->$f ? $p->$f : $d;
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( $do ); ?>
+			<?php if ( $p ) : ?>
+				<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+			<?php endif; ?>
+			<label><?php esc_html_e( 'Project name', 'project-prepper' ); ?>
+				<input type="text" name="pp_name" value="<?php echo esc_attr( (string) $val( 'name' ) ); ?>" required>
+			</label>
+			<label><?php esc_html_e( 'Status', 'project-prepper' ); ?>
+				<select name="pp_status">
+					<?php foreach ( Projects::STATUSES as $st ) : ?>
+						<option value="<?php echo esc_attr( $st ); ?>" <?php selected( (string) $val( 'status', 'draft' ), $st ); ?>><?php echo esc_html( self::project_status_label( $st ) ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</label>
+			<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+				<input type="date" name="pp_from" value="<?php echo esc_attr( (string) $val( 'date_start' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+				<input type="date" name="pp_to" value="<?php echo esc_attr( (string) $val( 'date_end' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Venue', 'project-prepper' ); ?>
+				<input type="text" name="pp_venue" value="<?php echo esc_attr( (string) $val( 'venue_name' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Client', 'project-prepper' ); ?>
+				<input type="text" name="pp_client" value="<?php echo esc_attr( (string) $val( 'client_name' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
+				<textarea name="pp_notes" rows="2"><?php echo esc_textarea( (string) $val( 'notes' ) ); ?></textarea>
+			</label>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save project', 'project-prepper' ); ?></button>
+		</form>
+		<?php
+	}
+
 	/** Projekte des aktiven Workspaces (Solo → keine; sonst nur die aktive Gruppe). */
 	private static function member_projects( array $groups ): array {
 		$active = self::active_group_id( $groups );
@@ -1671,7 +1792,15 @@ class MemberPortal {
 					</a>
 				<?php endforeach; ?>
 			</div>
-		<?php endif;
+		<?php endif; ?>
+
+		<?php if ( self::active_group_id( $groups ) > 0 ) : ?>
+			<details class="pp-portal__add" style="margin-top:1rem">
+				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New project', 'project-prepper' ); ?></summary>
+				<?php self::project_form( 'project_create', null ); ?>
+			</details>
+		<?php endif; ?>
+		<?php
 	}
 
 	private static function view_project_detail( int $pid, array $groups ): void {
@@ -1698,6 +1827,20 @@ class MemberPortal {
 			</div>
 			<p class="pp-app__page-sub"><?php echo esc_html( $p->project_number . ( '' !== $range ? ' · ' . $range : '' ) ); ?></p>
 		</header>
+
+		<?php if ( (int) $p->owner_group_id === self::active_workspace_group() ) : ?>
+			<div class="pp-portal__actions" style="margin-bottom:1rem">
+				<details class="pp-portal__edit">
+					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit project', 'project-prepper' ); ?></summary>
+					<?php self::project_form( 'project_update', $p ); ?>
+				</details>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this project? This cannot be undone.', 'project-prepper' ) ); ?>');">
+					<?php self::action_fields( 'project_delete' ); ?>
+					<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+					<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete project', 'project-prepper' ); ?></button>
+				</form>
+			</div>
+		<?php endif; ?>
 
 		<?php
 		// 1) Übersicht (Veranstaltungsort / Kunde / Notizen) — nur wenn etwas da ist.

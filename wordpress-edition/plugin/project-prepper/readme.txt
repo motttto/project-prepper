@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.78.0
+Stable tag: 0.79.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.79.0 =
+* Member portal: group members can now create, edit and delete their group's projects directly in the portal (core fields: name, status, dates, venue, client, notes) — no more switching to the admin. Access is scoped to the active group workspace.
 
 = 0.78.0 =
 * Member portal: inquiries are now a member feature. Each member (solo or group workspace) keeps their own inquiries in a new "Inquiries" view — create, edit, move through the pipeline (New → Contacted → Offer → Won/Lost) and delete, all scoped to the active workspace. A dashboard KPI and nav item were added. (Turning a won inquiry into a project follows in a later step.)
