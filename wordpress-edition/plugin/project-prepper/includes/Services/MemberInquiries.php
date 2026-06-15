@@ -132,6 +132,43 @@ class MemberInquiries {
 		return Inquiries::delete( $id );
 	}
 
+	/**
+	 * Lifecycle Anfrage→Projekt (docs/06 §10.1): aus einer Gruppen-Anfrage ein
+	 * Gruppen-Projekt erzeugen und die Anfrage auf „won" setzen. Nur im
+	 * Gruppen-Arbeitsbereich (Solo hat kein Projekt-Modell → Buchhaltung bleibt).
+	 *
+	 * @return int|WP_Error Neue Projekt-ID.
+	 */
+	public static function to_project( int $id, int $user_id, int $group_id ) {
+		if ( $group_id <= 0 ) {
+			return new WP_Error( 'pp_solo_no_project', __( 'Solo inquiries cannot become a project — switch to a group workspace.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$inq = self::get_owned( $id, $user_id, $group_id );
+		if ( ! $inq ) {
+			return new WP_Error( 'pp_forbidden', __( 'This inquiry is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		if ( in_array( $inq->status, [ 'won', 'lost', 'closed' ], true ) ) {
+			return new WP_Error( 'pp_already_closed', __( 'This inquiry is already closed.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
+		$project_id = Projects::create( [
+			'name'           => $inq->name,
+			'status'         => 'planned',
+			'date_start'     => $inq->date_from,
+			'date_end'       => $inq->date_to,
+			'client_name'    => $inq->name,
+			'client_email'   => $inq->email,
+			'client_phone'   => $inq->phone,
+			'notes'          => $inq->message,
+			'owner_group_id' => $group_id,
+		] );
+		if ( is_wp_error( $project_id ) ) {
+			return $project_id;
+		}
+		Inquiries::set_status( $id, 'won' );
+		ActivityLog::log( 'inquiry_to_project', 'inquiry', $id, [ 'project_id' => $project_id ] );
+		return $project_id;
+	}
+
 	private static function decode( object $row ): object {
 		$row->items = json_decode( $row->items ?? '[]', true ) ?: [];
 		return $row;

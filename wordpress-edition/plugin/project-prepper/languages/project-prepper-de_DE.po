@@ -5013,3 +5013,15 @@ msgstr "Projekt bearbeiten"
 #: includes/Frontend/MemberPortal.php
 msgid "Delete this project? This cannot be undone."
 msgstr "Dieses Projekt löschen? Das kann nicht rückgängig gemacht werden."
+
+#: includes/Services/MemberInquiries.php
+msgid "Solo inquiries cannot become a project — switch to a group workspace."
+msgstr "Solo-Anfragen können kein Projekt werden — wechsle in einen Gruppen-Arbeitsbereich."
+
+#: includes/Services/MemberInquiries.php
+msgid "This inquiry is already closed."
+msgstr "Diese Anfrage ist bereits abgeschlossen."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Inquiry turned into a project."
+msgstr "Anfrage wurde in ein Projekt umgewandelt."

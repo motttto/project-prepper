@@ -3,7 +3,7 @@
 > **Status:** in Umsetzung. Zielbild §1–§12 unten; aktueller Umsetzungsstand §0.
 > Querverweise: [[grundkonzept]], `05-MEMBER-PORTAL.md`, `03-GRUPPEN-ARCHITEKTUR.md`, `04-WEBAPP-ABGLEICH.md`.
 
-## 0. Umsetzungsstand (Stand 2026-06-15, Plugin v0.79.0)
+## 0. Umsetzungsstand (Stand 2026-06-15, Plugin v0.80.0)
 
 Das Backend wird konsequent als **Steuerzentrale** mit zwei Modi gebaut —
 **Einstellen** (Konfiguration) und **Überwachen** (Aufsicht/Cockpit). Die
@@ -31,7 +31,7 @@ Admin-Brillen-Analyse (Chat + Visualize-Landkarte) ist die Leitlinie.
 - ✅ **Slice A — Anfragen im Portal** (v0.78): `inquiries` bekommt `owner_user_id`/`owner_group_id` (Schema 0.24.0); neue Member-View „Anfragen" (owner-gescoped: Solo XOR aktive Gruppe) mit Anlegen/Bearbeiten/Pipeline (new→contacted→offer→won/lost)/Löschen + Dashboard-KPI + Nav. `MemberInquiries`-Service.
 - ⏳ **Slice B — Anfrage→Projekt** (Lifecycle-Umwandlung): braucht zuerst Projekt-CRUD im Portal.
 - ✅ **Slice C — Gruppen-Projekte im Portal** (v0.79): Gruppen-Mitglieder legen Projekte an/bearbeiten/löschen (Kernfelder) im Portal, gescoped auf die aktive Gruppe. Solo bleibt projektlos (Modell-Entscheidung 2026-06-15: kein Solo-Projekt).
-- ⏳ **Slice B — Anfrage→Projekt** (Gruppen-Anfrage→Gruppen-Projekt; Solo-Anfrage→Verleih).
+- ✅ **Slice B — Anfrage→Projekt** (v0.80): „Projekt erstellen" auf einer offenen Gruppen-Anfrage erzeugt ein Gruppen-Projekt aus den Anfragedaten und setzt die Anfrage auf „won". Solo-Anfragen bleiben Buchhaltung.
 - ⏳ **Slice D — Backend-Reduktion**: Projekte → Mechanik + read-only Moderation, Anfragen-Backend → Aggregat.
 
 **Offen / nächste Kandidaten:**

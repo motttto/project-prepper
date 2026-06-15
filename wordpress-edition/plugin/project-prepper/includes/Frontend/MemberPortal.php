@@ -370,6 +370,10 @@ class MemberPortal {
 				$result = MemberInquiries::delete( (int) ( $_POST['pp_inquiry'] ?? 0 ), get_current_user_id(), self::active_workspace_group() );
 				$ok_msg = 'inquiry_deleted';
 				break;
+			case 'inquiry_to_project':
+				$result = MemberInquiries::to_project( (int) ( $_POST['pp_inquiry'] ?? 0 ), get_current_user_id(), self::active_workspace_group() );
+				$ok_msg = 'inquiry_converted';
+				break;
 			case 'project_create':
 				$result = self::member_create_project();
 				$ok_msg = 'project_saved';
@@ -522,6 +526,13 @@ class MemberPortal {
 		} else {
 			$msg = $ok_msg;
 		}
+		// Anfrage→Projekt: bei Erfolg direkt zum neuen Projekt springen, sonst
+		// zurück zur Anfragen-Ansicht.
+		if ( 'inquiry_to_project' === $do ) {
+			$back = is_wp_error( $result )
+				? add_query_arg( 'pp_view', 'inquiries', self::portal_url() )
+				: add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $result ], self::portal_url() );
+		}
 		wp_safe_redirect( add_query_arg( 'pp_msg', $msg, $back ) );
 		exit;
 	}
@@ -545,6 +556,7 @@ class MemberPortal {
 			'inquiry_saved'    => [ 'ok', __( 'Inquiry saved.', 'project-prepper' ) ],
 			'inquiry_status'   => [ 'ok', __( 'Inquiry status updated.', 'project-prepper' ) ],
 			'inquiry_deleted'  => [ 'ok', __( 'Inquiry deleted.', 'project-prepper' ) ],
+			'inquiry_converted' => [ 'ok', __( 'Inquiry turned into a project.', 'project-prepper' ) ],
 			'project_saved'    => [ 'ok', __( 'Project saved.', 'project-prepper' ) ],
 			'project_deleted'  => [ 'ok', __( 'Project deleted.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
@@ -1573,6 +1585,13 @@ class MemberPortal {
 						<?php endif; ?>
 
 						<div class="pp-portal__actions">
+							<?php if ( $group_id > 0 && ! in_array( $inq->status, [ 'won', 'lost', 'closed' ], true ) ) : ?>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<?php self::action_fields( 'inquiry_to_project' ); ?>
+									<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
+									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create project', 'project-prepper' ); ?></button>
+								</form>
+							<?php endif; ?>
 							<details class="pp-portal__edit">
 								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
 								<?php self::inquiry_form( 'inquiry_update', $inq ); ?>
