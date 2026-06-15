@@ -1596,6 +1596,12 @@
             ],
             "Open the member portal as this user \u2014 a banner lets you switch back.": [
                 "Das Mitglieder-Portal als dieser Benutzer \u00f6ffnen \u2014 ein Banner f\u00fchrt dich zur\u00fcck."
+            ],
+            "Inquiries from the public request form (without a member owner). Inquiries that belong to a member or group are managed in the member portal and only counted here.": [
+                "Anfragen aus dem \u00f6ffentlichen Anfrageformular (ohne Mitglieds-Eigent\u00fcmer). Anfragen, die einem Mitglied oder einer Gruppe geh\u00f6ren, werden im Mitglieder-Portal verwaltet und hier nur gez\u00e4hlt."
+            ],
+            "%1$d inquiries are managed by members across %2$d workspaces.": [
+                "%1$d Anfragen werden von Mitgliedern in %2$d Arbeitsbereichen verwaltet."
             ]
         }
     }

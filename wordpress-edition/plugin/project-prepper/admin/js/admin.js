@@ -2362,6 +2362,15 @@
 
 	function renderInquiries() {
 		root.innerHTML = "";
+		root.appendChild(el("p", { class: "pp-muted", text: __("Inquiries from the public request form (without a member owner). Inquiries that belong to a member or group are managed in the member portal and only counted here.", "project-prepper") }));
+		var aggBox = el("p", { class: "pp-muted", style: "margin-top:-4px" });
+		root.appendChild(aggBox);
+		api("/inquiries/member-aggregate").then(function (a) {
+			if (a && a.total > 0) {
+				/* translators: 1: number of inquiries, 2: number of member workspaces. */
+				aggBox.textContent = sprintf(__("%1$d inquiries are managed by members across %2$d workspaces.", "project-prepper"), a.total, a.owners);
+			}
+		}).catch(function () {});
 		// Pipeline wie die App (§11): new → contacted → offer → won | lost.
 		// 'closed' bleibt als Legacy-Endstatus lesbar (Bestandsdaten vor v0.7.0).
 		var INQUIRY_STATUS = { new: __("New", "project-prepper"), contacted: __("Contacted", "project-prepper"), offer: __("Offer", "project-prepper"), won: __("Won", "project-prepper"), lost: __("Lost", "project-prepper"), closed: __("Closed", "project-prepper") };

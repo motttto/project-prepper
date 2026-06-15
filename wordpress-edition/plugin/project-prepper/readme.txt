@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.80.0
+Stable tag: 0.81.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.81.0 =
+* Privacy/control centre: the admin Inquiries tab now only shows inquiries from the public request form (no member owner). Inquiries that belong to a member or group are private to the member portal and only counted here as an aggregate — the operator no longer sees their content.
 
 = 0.80.0 =
 * Member portal: turn an inquiry into a project. In a group workspace, an open inquiry gets a "Create project" button that spins up a group project from its data (name, dates, client, notes) and marks the inquiry won. Solo inquiries stay bookkeeping (no solo projects).

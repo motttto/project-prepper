@@ -5025,3 +5025,11 @@ msgstr "Diese Anfrage ist bereits abgeschlossen."
 #: includes/Frontend/MemberPortal.php
 msgid "Inquiry turned into a project."
 msgstr "Anfrage wurde in ein Projekt umgewandelt."
+
+#: admin/js/admin.js
+msgid "Inquiries from the public request form (without a member owner). Inquiries that belong to a member or group are managed in the member portal and only counted here."
+msgstr "Anfragen aus dem öffentlichen Anfrageformular (ohne Mitglieds-Eigentümer). Anfragen, die einem Mitglied oder einer Gruppe gehören, werden im Mitglieder-Portal verwaltet und hier nur gezählt."
+
+#: admin/js/admin.js
+msgid "%1$d inquiries are managed by members across %2$d workspaces."
+msgstr "%1$d Anfragen werden von Mitgliedern in %2$d Arbeitsbereichen verwaltet."

@@ -23,6 +23,12 @@ class InquiriesController extends BaseController {
 			'permission_callback' => $this->require_cap( Capabilities::VIEW_INQUIRIES ),
 		] );
 
+		register_rest_route( self::REST_NAMESPACE, '/inquiries/member-aggregate', [
+			'methods'             => 'GET',
+			'callback'            => [ $this, 'member_aggregate' ],
+			'permission_callback' => $this->require_cap( Capabilities::VIEW_INQUIRIES ),
+		] );
+
 		register_rest_route( self::REST_NAMESPACE, '/inquiries/(?P<id>\d+)/status', [
 			'methods'             => 'POST',
 			'callback'            => [ $this, 'set_status' ],
@@ -54,8 +60,13 @@ class InquiriesController extends BaseController {
 
 	public function index( WP_REST_Request $request ): WP_REST_Response {
 		return new WP_REST_Response( Inquiries::all( [
-			'status' => sanitize_text_field( (string) $request->get_param( 'status' ) ),
+			'status'    => sanitize_text_field( (string) $request->get_param( 'status' ) ),
+			'site_only' => true, // Mitglieds-Anfragen bleiben dem Betreiber verborgen (§10.1).
 		] ) );
+	}
+
+	public function member_aggregate(): WP_REST_Response {
+		return new WP_REST_Response( Inquiries::member_aggregate() );
 	}
 
 	public function show( WP_REST_Request $request ) {

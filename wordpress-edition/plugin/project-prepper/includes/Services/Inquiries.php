@@ -34,12 +34,39 @@ class Inquiries {
 			$where[]  = 'status = %s';
 			$params[] = $args['status'];
 		}
+		// Steuerzentrale (docs/06 §10.1): das Backend zeigt nur die Anfragen ohne
+		// Mitglieds-Owner (Site-Ebene / öffentliches Anfrageformular). Anfragen, die
+		// einem Solo-User oder einer Gruppe gehören, sind Mitglieder-Buchhaltung und
+		// werden im Backend nur aggregiert (member_aggregate()).
+		if ( ! empty( $args['site_only'] ) ) {
+			$where[] = 'owner_user_id IS NULL AND owner_group_id IS NULL';
+		}
 		array_unshift( $params, Schema::table( 'inquiries' ) );
 		$sql = $wpdb->prepare(
 			'SELECT * FROM %i WHERE ' . implode( ' AND ', $where ) . ' ORDER BY id DESC', // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- WHERE-Bedingungen sind statische Strings mit Platzhaltern.
 			$params
 		);
 		return array_map( [ self::class, 'decode' ], $wpdb->get_results( $sql ) ?: [] ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- $sql ist oben via prepare() aufgebaut.
+	}
+
+	/**
+	 * Aggregat der von Mitgliedern verwalteten Anfragen (Solo + Gruppe) — der
+	 * Betreiber sieht NUR Zahlen, keine Inhalte (docs/06 §10.1).
+	 *
+	 * @return array{total:int,owners:int}
+	 */
+	public static function member_aggregate(): array {
+		global $wpdb;
+		$t   = Schema::table( 'inquiries' );
+		$row = $wpdb->get_row( $wpdb->prepare(
+			'SELECT COUNT(*) AS total, COUNT(DISTINCT COALESCE(owner_group_id + 1000000000, owner_user_id)) AS owners
+			 FROM %i WHERE owner_user_id IS NOT NULL OR owner_group_id IS NOT NULL',
+			$t
+		) );
+		return [
+			'total'  => (int) ( $row->total ?? 0 ),
+			'owners' => (int) ( $row->owners ?? 0 ),
+		];
 	}
 
 	public static function get( int $id ): ?object {
