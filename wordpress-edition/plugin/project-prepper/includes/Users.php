@@ -132,6 +132,7 @@ class Users {
 			'last_login'   => $last ? mysql2date( 'd.m.Y H:i', (string) $last ) : '',
 			'is_self'      => (int) $user->ID === get_current_user_id(),
 			'is_admin'     => in_array( 'administrator', (array) $user->roles, true ),
+			'impersonate_url' => Impersonation::start_url( (int) $user->ID ),
 		];
 	}
 

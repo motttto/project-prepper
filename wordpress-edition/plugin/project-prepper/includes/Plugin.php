@@ -31,6 +31,7 @@ class Plugin {
 		Federation::init();
 		Updater::init();
 		Users::init();
+		Impersonation::init();
 		Frontend\Shortcodes::init();
 		Frontend\Blocks::init();
 		Frontend\ItemDetail::init();

@@ -604,6 +604,13 @@ class MemberPortal {
 		if ( ! is_user_logged_in() ) {
 			return self::render_login();
 		}
+		// Impersonation-Banner (docs/06 §5): sieht ein Betreiber gerade „als User",
+		// zeigen wir oben ein Banner mit Rückweg und überspringen das AGB-Gate
+		// (der Betreiber sieht nur, akzeptiert nichts im Namen des Mitglieds).
+		$imp = \ProjectPrepper\Impersonation::banner();
+		if ( '' !== $imp ) {
+			return $imp . self::render_app();
+		}
 		// AGB-Gate (docs/06 §10.4): wenn der Betreiber Zustimmung verlangt und die
 		// aktuelle AGB-Version noch nicht akzeptiert ist, zuerst akzeptieren lassen.
 		// Betreiber (pp_operate) sind ausgenommen — sie setzen die AGB selbst.

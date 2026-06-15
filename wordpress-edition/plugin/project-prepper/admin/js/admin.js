@@ -3406,7 +3406,12 @@
 						}))
 						: null,
 					perms,
-					el("div", { class: "pp-row", style: "margin-top:10px" }, [saveBtn])
+					el("div", { class: "pp-row", style: "margin-top:10px" }, [
+						saveBtn,
+						u.impersonate_url
+							? el("a", { class: "pp-btn pp-btn-sm", href: u.impersonate_url, title: __("Open the member portal as this user — a banner lets you switch back.", "project-prepper"), text: __("View as", "project-prepper") })
+							: null
+					])
 				]);
 				listBox.appendChild(card);
 			});

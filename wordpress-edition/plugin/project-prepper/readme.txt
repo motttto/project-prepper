@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.76.0
+Stable tag: 0.77.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.77.0 =
+* Users & permissions: "View as" lets an operator open the member portal as any member (not other administrators or operators) to see exactly what they see; a sticky banner switches back. Secure by design — operator-only, nonce-protected, reversible and logged.
 
 = 0.76.0 =
 * Deliverability & health: Settings gets a "Send test email" button (sends to your own address and reports whether WordPress accepted it), and the Federation tab gets a "Check partners now" button that pings every configured partner live and lists which instances are reachable.

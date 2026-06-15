@@ -932,6 +932,30 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-portal__edit[open], .pp-portal__add[open] { display: block; margin-top: .5rem; }
 .pp-portal__add { margin-top: .5rem; }
 
+/* Impersonation-Banner (Betreiber sieht „als User") */
+.pp-imp-banner {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	flex-wrap: wrap;
+	background: #b45309;
+	color: #fff;
+	padding: .55rem 1rem;
+	font-size: .9rem;
+	font-weight: 500;
+	position: sticky;
+	top: 0;
+	z-index: 100;
+}
+.pp-imp-back {
+	color: #fff;
+	text-decoration: underline;
+	font-weight: 600;
+	white-space: nowrap;
+}
+.pp-imp-back:hover { color: #fff; opacity: .85; }
+
 /* Meine Kategorien (eigene + Vorlagen übernehmen) */
 .pp-portal__cats { margin-top: .5rem; }
 .pp-portal__cat-list { list-style: none; margin: .5rem 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }

@@ -3,7 +3,7 @@
 > **Status:** in Umsetzung. Zielbild §1–§12 unten; aktueller Umsetzungsstand §0.
 > Querverweise: [[grundkonzept]], `05-MEMBER-PORTAL.md`, `03-GRUPPEN-ARCHITEKTUR.md`, `04-WEBAPP-ABGLEICH.md`.
 
-## 0. Umsetzungsstand (Stand 2026-06-15, Plugin v0.76.0)
+## 0. Umsetzungsstand (Stand 2026-06-15, Plugin v0.77.0)
 
 Das Backend wird konsequent als **Steuerzentrale** mit zwei Modi gebaut —
 **Einstellen** (Konfiguration) und **Überwachen** (Aufsicht/Cockpit). Die
@@ -24,10 +24,10 @@ Admin-Brillen-Analyse (Chat + Visualize-Landkarte) ist die Leitlinie.
 - ✅ **Template-Kategorien** (§10.3): Backend-Kategorien-Tab = Betreiber-Vorlagen (owner NULL); Mitglieder legen im Portal eigene Kategorien an und übernehmen Vorlagen — v0.74
 - ✅ **Kalender-Reduktion** (§4): Voll-Monatsraster ersetzt durch iCal-Feed-Mechanik (URL/Token) + read-only „Kommende Einträge" (90 Tage) — v0.75
 - ✅ **Zustellbarkeit/Health**: Mail-Test in Einstellungen + Live-Partner-Erreichbarkeit in Föderation — v0.76
+- ✅ **Impersonation** („als User ansehen", §5): Benutzer-&-Rechte-Seite mit „Ansehen als"; operator-only, kann keine Admins/Operatoren übernehmen, serverseitig gespeicherter Original-User, reversibel via Banner, auditiert — v0.77
 - ✅ Infrastruktur: GitHub-Selbst-Updater (v0.64) + Release-Agent
 
 **Offen / nächste Kandidaten:**
-- **Impersonation** („als User ansehen", sicherheitskritisch)
 - **Anfragen + Projekte → Frontend-Strang** (§10.1): Mitglieder pflegen Anfragen + Projekte im Portal (Lifecycle Anfrage→Projekt); **danach** Backend-Projekte auf Mechanik + read-only Moderation reduzieren (vorher blockiert — Projekt-CRUD existiert nur im Backend)
 - **Monetarisierungs-Tracking** (§10.2 — braucht erst Konzept)
 

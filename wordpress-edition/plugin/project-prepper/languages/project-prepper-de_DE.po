@@ -4897,3 +4897,27 @@ msgstr "Pinge jetzt jeden konfigurierten Partner, um zu sehen, welche Instanzen 
 #: admin/js/admin.js
 msgid "Detail"
 msgstr "Detail"
+
+#: includes/Impersonation.php
+msgid "Security check failed."
+msgstr "Sicherheitsprüfung fehlgeschlagen."
+
+#: includes/Impersonation.php
+msgid "You are not allowed to view as this user."
+msgstr "Du darfst diesen Benutzer nicht ansehen."
+
+#: includes/Impersonation.php
+msgid "You are viewing the portal as %s."
+msgstr "Du siehst das Portal als %s."
+
+#: includes/Impersonation.php
+msgid "Back to your account"
+msgstr "Zurück zu deinem Konto"
+
+#: admin/js/admin.js
+msgid "View as"
+msgstr "Ansehen als"
+
+#: admin/js/admin.js
+msgid "Open the member portal as this user — a banner lets you switch back."
+msgstr "Das Mitglieder-Portal als dieser Benutzer öffnen — ein Banner führt dich zurück."
