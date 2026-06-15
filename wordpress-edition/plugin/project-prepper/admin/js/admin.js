@@ -2243,6 +2243,7 @@
 
 	function renderCategories() {
 		root.innerHTML = "";
+		root.appendChild(el("p", { class: "pp-muted", text: __("These are the template categories. Members get them suggested in their portal and can adopt them or create their own. Categories members create themselves are not shown here.", "project-prepper") }));
 		var listBox = el("div");
 
 		// Zusammenführen (App-Pendant: Migration 097): Items → Ziel, Quelle wird gelöscht.

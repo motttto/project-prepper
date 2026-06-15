@@ -1533,6 +1533,9 @@
             ],
             "sent a network request": [
                 "hat eine Netzwerk-Anfrage gesendet"
+            ],
+            "These are the template categories. Members get them suggested in their portal and can adopt them or create their own. Categories members create themselves are not shown here.": [
+                "Dies sind die Vorlagen-Kategorien. Mitglieder bekommen sie im Portal vorgeschlagen und k\u00f6nnen sie \u00fcbernehmen oder eigene anlegen. Von Mitgliedern selbst angelegte Kategorien erscheinen hier nicht."
             ]
         }
     }

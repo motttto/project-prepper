@@ -932,6 +932,16 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-portal__edit[open], .pp-portal__add[open] { display: block; margin-top: .5rem; }
 .pp-portal__add { margin-top: .5rem; }
 
+/* Meine Kategorien (eigene + Vorlagen übernehmen) */
+.pp-portal__cats { margin-top: .5rem; }
+.pp-portal__cat-list { list-style: none; margin: .5rem 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.pp-portal__cat { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: .3rem .55rem; border: 1px solid var(--pp-border); border-radius: 8px; background: var(--pp-surface); }
+.pp-portal__cat form { margin: 0; }
+.pp-portal__cat code { font-size: .75rem; color: var(--pp-muted-foreground); }
+.pp-portal__cat-sub { margin: .8rem 0 .3rem; font-size: .85rem; color: var(--pp-muted-foreground); }
+.pp-portal__cat-templates { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: .6rem; }
+.pp-portal__cat-templates form { margin: 0; }
+
 /* Mein-Inventar Werkzeugleiste (CSV Export/Import) */
 .pp-inv-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 14px; }
 .pp-inv-tools .pp-portal__add { margin-top: 0; }

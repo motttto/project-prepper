@@ -258,6 +258,10 @@ class MemberPortal {
 		if ( 'group_leave' === $do ) {
 			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
 		}
+		// Kategorie-Aktionen kehren zur Inventar-Ansicht zurück.
+		if ( in_array( $do, [ 'category_create', 'category_adopt', 'category_delete' ], true ) ) {
+			$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
+		}
 
 		$result = new \WP_Error( 'pp_unknown', 'unknown' );
 		$ok_msg = 'ok';
@@ -327,6 +331,18 @@ class MemberPortal {
 			case 'item_unshare':
 				$result = MemberInventory::unshare( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ), $grp_id );
 				$ok_msg = 'item_unshared';
+				break;
+			case 'category_create':
+				$result = MemberInventory::create_category( get_current_user_id(), self::category_input() );
+				$ok_msg = 'category_saved';
+				break;
+			case 'category_adopt':
+				$result = MemberInventory::adopt_template( get_current_user_id(), (int) ( $_POST['pp_template'] ?? 0 ) );
+				$ok_msg = 'category_adopted';
+				break;
+			case 'category_delete':
+				$result = MemberInventory::delete_category( get_current_user_id(), (int) ( $_POST['pp_category_id'] ?? 0 ) );
+				$ok_msg = 'category_deleted';
 				break;
 			case 'borrow_request':
 				$result = Borrowing::request(
@@ -485,6 +501,9 @@ class MemberPortal {
 			'item_deleted'  => [ 'ok', __( 'Item deleted.', 'project-prepper' ) ],
 			'item_shared'   => [ 'ok', __( 'Item shared with the collective.', 'project-prepper' ) ],
 			'item_unshared'    => [ 'ok', __( 'Item is no longer shared.', 'project-prepper' ) ],
+			'category_saved'   => [ 'ok', __( 'Category saved.', 'project-prepper' ) ],
+			'category_adopted' => [ 'ok', __( 'Template category adopted.', 'project-prepper' ) ],
+			'category_deleted' => [ 'ok', __( 'Category deleted.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
 			'borrow_decided'   => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'borrow_cancelled' => [ 'ok', __( 'Request cancelled.', 'project-prepper' ) ],
@@ -2600,7 +2619,9 @@ class MemberPortal {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$page      = isset( $_GET['pp_p'] ) ? max( 1, min( $pages, (int) $_GET['pp_p'] ) ) : 1;
 		$items     = array_slice( $all_items, ( $page - 1 ) * $per_page, $per_page );
-		$categories = Inventory::categories();
+		$own_cats   = MemberInventory::own_categories( (int) $user->ID );
+		$tpl_cats   = MemberInventory::template_categories();
+		$categories = [ 'own' => $own_cats, 'templates' => $tpl_cats ];
 		$conditions = Shortcodes::condition_labels();
 		?>
 		<section class="pp-portal__section">
@@ -2747,18 +2768,99 @@ class MemberPortal {
 				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Add item', 'project-prepper' ); ?></summary>
 				<?php self::item_form( 'item_create', $categories, $conditions, null ); ?>
 			</details>
+
+			<?php self::render_my_categories( $own_cats, $tpl_cats ); ?>
 		</section>
 		<?php
 	}
 
 	/**
+	 * „Meine Kategorien" — eigene Kategorien anlegen/löschen + Betreiber-Vorlagen
+	 * übernehmen (docs/06 §10.3).
+	 *
+	 * @param array<object> $own_cats
+	 * @param array<object> $tpl_cats
+	 */
+	private static function render_my_categories( array $own_cats, array $tpl_cats ): void {
+		// Bereits übernommene Vorlagen (per Name) nicht erneut zum Übernehmen anbieten.
+		$own_names = array_map( static fn( $c ) => $c->name, $own_cats );
+		$available = array_filter( $tpl_cats, static fn( $t ) => ! in_array( $t->name, $own_names, true ) );
+		?>
+		<details class="pp-portal__add">
+			<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'My categories', 'project-prepper' ); ?></summary>
+			<div class="pp-portal__cats">
+				<p class="pp-portal__hint"><?php esc_html_e( 'Organise your inventory with your own categories. Adopt one of the operator’s suggested templates or create your own.', 'project-prepper' ); ?></p>
+
+				<?php if ( $own_cats ) : ?>
+					<ul class="pp-portal__cat-list">
+						<?php foreach ( $own_cats as $cat ) : ?>
+							<li class="pp-portal__cat">
+								<span><?php echo esc_html( trim( ( $cat->icon ? $cat->icon . ' ' : '' ) . $cat->name ) ); ?><?php if ( $cat->prefix ) : ?> <code><?php echo esc_html( $cat->prefix ); ?></code><?php endif; ?></span>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this category? Items keep their data but lose this category.', 'project-prepper' ) ); ?>');">
+									<?php self::action_fields( 'category_delete' ); ?>
+									<input type="hidden" name="pp_category_id" value="<?php echo (int) $cat->id; ?>">
+									<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
+								</form>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+				<?php else : ?>
+					<p class="pp-portal__empty"><?php esc_html_e( 'You have no own categories yet.', 'project-prepper' ); ?></p>
+				<?php endif; ?>
+
+				<?php if ( $available ) : ?>
+					<h4 class="pp-portal__cat-sub"><?php esc_html_e( 'Suggested templates', 'project-prepper' ); ?></h4>
+					<div class="pp-portal__cat-templates">
+						<?php foreach ( $available as $tpl ) : ?>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+								<?php self::action_fields( 'category_adopt' ); ?>
+								<input type="hidden" name="pp_template" value="<?php echo (int) $tpl->id; ?>">
+								<button type="submit" class="pp-portal__chip">
+									<?php echo esc_html( trim( ( $tpl->icon ? $tpl->icon . ' ' : '' ) . $tpl->name ) ); ?> +
+								</button>
+							</form>
+						<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
+
+				<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<?php self::action_fields( 'category_create' ); ?>
+					<label><?php esc_html_e( 'New category name', 'project-prepper' ); ?>
+						<input type="text" name="pp_cat_name" required>
+					</label>
+					<label><?php esc_html_e( 'Icon (emoji, optional)', 'project-prepper' ); ?>
+						<input type="text" name="pp_cat_icon" maxlength="8">
+					</label>
+					<label><?php esc_html_e( 'Number prefix (optional)', 'project-prepper' ); ?>
+						<input type="text" name="pp_cat_prefix" maxlength="10">
+					</label>
+					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create category', 'project-prepper' ); ?></button>
+				</form>
+			</div>
+		</details>
+		<?php
+	}
+
+	/** Eingaben des Kategorie-Formulars einsammeln. */
+	private static function category_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'name'   => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_cat_name'] ?? '' ) ) ),
+			'icon'   => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_cat_icon'] ?? '' ) ) ),
+			'prefix' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_cat_prefix'] ?? '' ) ) ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
 	 * Formular zum Anlegen/Bearbeiten eines eigenen Items.
 	 *
-	 * @param array<object> $categories
+	 * @param array{own:array<object>,templates:array<object>} $categories
 	 * @param array<string,string> $conditions
 	 */
 	private static function item_form( string $do, array $categories, array $conditions, ?object $item ): void {
-		$val = static fn( string $field, $default = '' ) => $item && isset( $item->$field ) ? $item->$field : $default;
+		$val      = static fn( string $field, $default = '' ) => $item && isset( $item->$field ) ? $item->$field : $default;
+		$selected = (int) $val( 'category_id', 0 );
 		?>
 		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<?php self::action_fields( $do ); ?>
@@ -2771,9 +2873,20 @@ class MemberPortal {
 			<label><?php esc_html_e( 'Category', 'project-prepper' ); ?>
 				<select name="pp_category">
 					<option value="0"><?php esc_html_e( '— none —', 'project-prepper' ); ?></option>
-					<?php foreach ( $categories as $cat ) : ?>
-						<option value="<?php echo (int) $cat->id; ?>" <?php selected( (int) $val( 'category_id', 0 ), (int) $cat->id ); ?>><?php echo esc_html( $cat->name ); ?></option>
-					<?php endforeach; ?>
+					<?php if ( ! empty( $categories['own'] ) ) : ?>
+						<optgroup label="<?php esc_attr_e( 'My categories', 'project-prepper' ); ?>">
+							<?php foreach ( $categories['own'] as $cat ) : ?>
+								<option value="<?php echo (int) $cat->id; ?>" <?php selected( $selected, (int) $cat->id ); ?>><?php echo esc_html( $cat->name ); ?></option>
+							<?php endforeach; ?>
+						</optgroup>
+					<?php endif; ?>
+					<?php if ( ! empty( $categories['templates'] ) ) : ?>
+						<optgroup label="<?php esc_attr_e( 'Templates', 'project-prepper' ); ?>">
+							<?php foreach ( $categories['templates'] as $cat ) : ?>
+								<option value="<?php echo (int) $cat->id; ?>" <?php selected( $selected, (int) $cat->id ); ?>><?php echo esc_html( $cat->name ); ?></option>
+							<?php endforeach; ?>
+						</optgroup>
+					<?php endif; ?>
 				</select>
 			</label>
 			<label><?php esc_html_e( 'Quantity', 'project-prepper' ); ?>
@@ -2985,10 +3098,13 @@ class MemberPortal {
 			$map[ self::norm_head( (string) $label ) ] = $key;
 			$map[ self::norm_head( $key ) ]            = $key;
 		}
-		// Kategorie-Namen → ID (nur vorhandene; keine Auto-Anlage durch Mitglieder).
+		// Kategorie-Namen → ID (eigene Kategorien + Betreiber-Vorlagen; keine Auto-Anlage).
 		$cat_map = [];
-		foreach ( Inventory::categories() as $cat ) {
+		foreach ( MemberInventory::template_categories() as $cat ) {
 			$cat_map[ self::norm_head( $cat->name ) ] = (int) $cat->id;
+		}
+		foreach ( MemberInventory::own_categories( $user_id ) as $cat ) {
+			$cat_map[ self::norm_head( $cat->name ) ] = (int) $cat->id; // eigene haben Vorrang
 		}
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Zeilenweises Parsen der hochgeladenen CSV (is_uploaded_file geprüft); WP_Filesystem kann CSV nicht streamen.

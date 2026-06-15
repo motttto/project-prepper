@@ -59,7 +59,9 @@ class CategoriesController extends BaseController {
 	}
 
 	public function index(): WP_REST_Response {
-		return new WP_REST_Response( Inventory::categories() );
+		// Backend verwaltet ausschließlich die Vorlagen-Kategorien (owner NULL);
+		// von Mitgliedern im Portal angelegte Kategorien bleiben privat.
+		return new WP_REST_Response( Inventory::template_categories() );
 	}
 
 	public function create( WP_REST_Request $request ) {

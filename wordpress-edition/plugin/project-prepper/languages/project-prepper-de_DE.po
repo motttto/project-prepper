@@ -4733,3 +4733,79 @@ msgstr "hat eine Netzwerk-Leihe als zurückgegeben markiert"
 #: admin/js/admin.js:3133
 msgid "sent a network request"
 msgstr "hat eine Netzwerk-Anfrage gesendet"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Category saved."
+msgstr "Kategorie gespeichert."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Template category adopted."
+msgstr "Vorlagen-Kategorie übernommen."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Category deleted."
+msgstr "Kategorie gelöscht."
+
+#: includes/Services/MemberInventory.php
+msgid "You are not allowed to manage categories."
+msgstr "Du darfst keine Kategorien verwalten."
+
+#: includes/Services/MemberInventory.php
+msgid "Please enter a category name."
+msgstr "Bitte gib einen Kategorienamen ein."
+
+#: includes/Services/MemberInventory.php
+msgid "You already have a category with this name."
+msgstr "Du hast bereits eine Kategorie mit diesem Namen."
+
+#: includes/Services/MemberInventory.php
+msgid "Template category not found."
+msgstr "Vorlagen-Kategorie nicht gefunden."
+
+#: includes/Services/MemberInventory.php
+msgid "This category is not yours."
+msgstr "Diese Kategorie gehört dir nicht."
+
+#: includes/Frontend/MemberPortal.php
+msgid "My categories"
+msgstr "Meine Kategorien"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Templates"
+msgstr "Vorlagen"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Organise your inventory with your own categories. Adopt one of the operator’s suggested templates or create your own."
+msgstr "Organisiere dein Inventar mit eigenen Kategorien. Übernimm eine der vom Betreiber vorgeschlagenen Vorlagen oder lege eigene an."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Delete this category? Items keep their data but lose this category."
+msgstr "Diese Kategorie löschen? Artikel behalten ihre Daten, verlieren aber diese Kategorie."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Suggested templates"
+msgstr "Vorgeschlagene Vorlagen"
+
+#: includes/Frontend/MemberPortal.php
+msgid "You have no own categories yet."
+msgstr "Du hast noch keine eigenen Kategorien."
+
+#: includes/Frontend/MemberPortal.php
+msgid "New category name"
+msgstr "Name der neuen Kategorie"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Icon (emoji, optional)"
+msgstr "Symbol (Emoji, optional)"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Number prefix (optional)"
+msgstr "Nummern-Präfix (optional)"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Create category"
+msgstr "Kategorie anlegen"
+
+#: admin/js/admin.js
+msgid "These are the template categories. Members get them suggested in their portal and can adopt them or create their own. Categories members create themselves are not shown here."
+msgstr "Dies sind die Vorlagen-Kategorien. Mitglieder bekommen sie im Portal vorgeschlagen und können sie übernehmen oder eigene anlegen. Von Mitgliedern selbst angelegte Kategorien erscheinen hier nicht."

@@ -148,6 +148,118 @@ class MemberInventory {
 		return true;
 	}
 
+	/* ===================== Kategorien (eigene + Vorlagen) ===================== */
+
+	/**
+	 * Eigene Kategorien des Mitglieds (owner_user_id = $user_id).
+	 *
+	 * @return array<object>
+	 */
+	public static function own_categories( int $user_id ): array {
+		global $wpdb;
+		if ( ! $user_id ) {
+			return [];
+		}
+		return $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT * FROM %i WHERE owner_user_id = %d ORDER BY sort_order ASC, name ASC',
+				Schema::table( 'categories' ),
+				$user_id
+			)
+		) ?: [];
+	}
+
+	/**
+	 * Vom Betreiber gepflegte Vorlagen-Kategorien (Vorschläge, docs/06 §10.3).
+	 *
+	 * @return array<object>
+	 */
+	public static function template_categories(): array {
+		return Inventory::template_categories();
+	}
+
+	/**
+	 * Eigene Kategorie anlegen.
+	 *
+	 * @return int|WP_Error Kategorie-ID.
+	 */
+	public static function create_category( int $user_id, array $data ) {
+		if ( ! $user_id || ! current_user_can( Capabilities::COLLECTIVES ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'You are not allowed to manage categories.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$name = trim( (string) ( $data['name'] ?? '' ) );
+		if ( '' === $name ) {
+			return new WP_Error( 'pp_missing_name', __( 'Please enter a category name.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		global $wpdb;
+		if ( self::has_own_category_named( $user_id, $name ) ) {
+			return new WP_Error( 'pp_dup_category', __( 'You already have a category with this name.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
+		$wpdb->insert( Schema::table( 'categories' ), [
+			'name'          => $name,
+			'icon'          => sanitize_text_field( (string) ( $data['icon'] ?? '' ) ),
+			'prefix'        => strtoupper( sanitize_text_field( (string) ( $data['prefix'] ?? '' ) ) ),
+			'sort_order'    => 0,
+			'owner_user_id' => $user_id,
+			'created_at'    => current_time( 'mysql' ),
+		], [ '%s', '%s', '%s', '%d', '%d', '%s' ] );
+		return (int) $wpdb->insert_id;
+	}
+
+	/**
+	 * Vorlagen-Kategorie als eigene übernehmen (Kopie).
+	 *
+	 * @return int|WP_Error Neue eigene Kategorie-ID.
+	 */
+	public static function adopt_template( int $user_id, int $template_id ) {
+		global $wpdb;
+		$tpl = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT * FROM %i WHERE id = %d AND owner_user_id IS NULL',
+				Schema::table( 'categories' ),
+				$template_id
+			)
+		);
+		if ( ! $tpl ) {
+			return new WP_Error( 'pp_not_found', __( 'Template category not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		return self::create_category( $user_id, [
+			'name'   => $tpl->name,
+			'icon'   => $tpl->icon,
+			'prefix' => $tpl->prefix,
+		] );
+	}
+
+	/**
+	 * Eigene Kategorie löschen — Items behalten, Zuordnung wird gelöst.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function delete_category( int $user_id, int $cat_id ) {
+		global $wpdb;
+		$owner = $wpdb->get_var(
+			$wpdb->prepare( 'SELECT owner_user_id FROM %i WHERE id = %d', Schema::table( 'categories' ), $cat_id )
+		);
+		if ( null === $owner || (int) $owner !== $user_id ) {
+			return new WP_Error( 'pp_forbidden', __( 'This category is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$wpdb->update( Schema::table( 'items' ), [ 'category_id' => null ], [ 'category_id' => $cat_id ], [ '%d' ], [ '%d' ] );
+		$wpdb->delete( Schema::table( 'categories' ), [ 'id' => $cat_id ], [ '%d' ] );
+		return true;
+	}
+
+	private static function has_own_category_named( int $user_id, string $name ): bool {
+		global $wpdb;
+		return (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM %i WHERE owner_user_id = %d AND name = %s',
+				Schema::table( 'categories' ),
+				$user_id,
+				$name
+			)
+		) > 0;
+	}
+
 	/* ===================== Teilen mit Kollektiven ===================== */
 
 	/**

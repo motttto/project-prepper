@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.73.0
+Stable tag: 0.74.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.74.0 =
+* Inventory mechanic: the backend Categories tab now manages template categories the operator maintains; categories members create themselves stay private
+* Member portal: members can create their own inventory categories and adopt the operator’s suggested templates ("My categories" panel); the item form groups own categories and templates separately
 
 = 0.73.0 =
 * Admin: the activity feed now labels more action types in plain language (item, collective, inventory, network and GDPR actions)

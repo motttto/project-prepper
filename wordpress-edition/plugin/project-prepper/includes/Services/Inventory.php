@@ -42,6 +42,22 @@ class Inventory {
 		) ?: [];
 	}
 
+	/**
+	 * Vorlagen-Kategorien (Betreiber-gepflegt, owner_user_id IS NULL).
+	 *
+	 * Diese bilden die „Inventar-Mechanik" der Steuerzentrale: der Betreiber
+	 * pflegt einen Satz vorgeschlagener Kategorien, den Mitglieder im Portal
+	 * übernehmen oder durch eigene ergänzen (docs/06 §10.3). Die im Portal von
+	 * Mitgliedern angelegten Kategorien (owner_user_id > 0) bleiben außen vor.
+	 */
+	public static function template_categories(): array {
+		global $wpdb;
+		self::maybe_seed_categories();
+		return $wpdb->get_results(
+			$wpdb->prepare( 'SELECT * FROM %i WHERE owner_user_id IS NULL ORDER BY sort_order ASC, name ASC', Schema::table( 'categories' ) )
+		) ?: [];
+	}
+
 	private static function maybe_seed_categories(): void {
 		global $wpdb;
 		$count = (int) $wpdb->get_var( $wpdb->prepare( 'SELECT COUNT(*) FROM %i', Schema::table( 'categories' ) ) );

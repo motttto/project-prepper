@@ -79,7 +79,7 @@ class Shortcodes {
 
 		$category_id = 0;
 		if ( '' !== $atts['category'] ) {
-			foreach ( Inventory::categories() as $cat ) {
+			foreach ( Inventory::template_categories() as $cat ) {
 				if ( 0 === strcasecmp( $cat->name, $atts['category'] ) || 0 === strcasecmp( $cat->prefix, $atts['category'] ) ) {
 					$category_id = (int) $cat->id;
 					break;

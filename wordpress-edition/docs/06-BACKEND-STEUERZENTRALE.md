@@ -3,7 +3,7 @@
 > **Status:** in Umsetzung. Zielbild §1–§12 unten; aktueller Umsetzungsstand §0.
 > Querverweise: [[grundkonzept]], `05-MEMBER-PORTAL.md`, `03-GRUPPEN-ARCHITEKTUR.md`, `04-WEBAPP-ABGLEICH.md`.
 
-## 0. Umsetzungsstand (Stand 2026-06-15, Plugin v0.72.0)
+## 0. Umsetzungsstand (Stand 2026-06-15, Plugin v0.74.0)
 
 Das Backend wird konsequent als **Steuerzentrale** mit zwei Modi gebaut —
 **Einstellen** (Konfiguration) und **Überwachen** (Aufsicht/Cockpit). Die
@@ -21,11 +21,11 @@ Admin-Brillen-Analyse (Chat + Visualize-Landkarte) ist die Leitlinie.
 - ✅ Menü-Konsolidierung „Verwalten" mit Reitern (14→7 Einträge) — v0.68
 - ✅ **Einstellen:** Instanz-Konfig (Identität + Ökonomie-Modell + AGB) — v0.70; AGB-Akzeptanz-Gate im Portal — v0.71
 - ✅ **Überwachen:** Inventar-Tab = read-only Moderation — v0.69; Cockpit „Braucht Aufmerksamkeit" auf der Plattform-Seite — v0.72
+- ✅ **Template-Kategorien** (§10.3): Backend-Kategorien-Tab = Betreiber-Vorlagen (owner NULL); Mitglieder legen im Portal eigene Kategorien an und übernehmen Vorlagen — v0.74
 - ✅ Infrastruktur: GitHub-Selbst-Updater (v0.64) + Release-Agent
 
 **Offen / nächste Kandidaten:**
 - Weitere Domänen-Reduktion: **Projekte**, **Kalender** → Mechanik + read-only Moderation (§4, §10.5)
-- **Template-Kategorien** im Kategorien-Tab (§10.3)
 - **Zustellbarkeit/Health** (Mail-Test, Föderation erreichbar)
 - **Monetarisierungs-Tracking** (§10.2 — braucht erst Konzept)
 - **Impersonation** („als User ansehen", sicherheitskritisch)
