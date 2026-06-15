@@ -1497,6 +1497,42 @@
             ],
             "None.": [
                 "Keine."
+            ],
+            "updated an item": [
+                "hat einen Artikel bearbeitet"
+            ],
+            "updated a collective": [
+                "hat eine Gruppe bearbeitet"
+            ],
+            "deleted a collective": [
+                "hat eine Gruppe gel\u00f6scht"
+            ],
+            "declined an invitation": [
+                "hat eine Einladung abgelehnt"
+            ],
+            "cancelled an invitation": [
+                "hat eine Einladung zur\u00fcckgezogen"
+            ],
+            "imported inventory": [
+                "hat Inventar importiert"
+            ],
+            "exported inventory": [
+                "hat Inventar exportiert"
+            ],
+            "ran a GDPR erasure": [
+                "hat eine DSGVO-L\u00f6schung durchgef\u00fchrt"
+            ],
+            "received a network request": [
+                "hat eine Netzwerk-Anfrage erhalten"
+            ],
+            "decided a network request": [
+                "hat eine Netzwerk-Anfrage entschieden"
+            ],
+            "marked a network loan returned": [
+                "hat eine Netzwerk-Leihe als zur\u00fcckgegeben markiert"
+            ],
+            "sent a network request": [
+                "hat eine Netzwerk-Anfrage gesendet"
             ]
         }
     }

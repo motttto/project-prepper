@@ -3116,7 +3116,21 @@
 			borrow_requested: __("requested to borrow an item", "project-prepper"),
 			borrow_approved: __("approved a borrow request", "project-prepper"),
 			borrow_declined: __("declined a borrow request", "project-prepper"),
-			borrow_returned: __("marked a loan returned", "project-prepper")
+			borrow_returned: __("marked a loan returned", "project-prepper"),
+			item_created: __("added an item", "project-prepper"),
+			item_updated: __("updated an item", "project-prepper"),
+			item_deleted: __("deleted an item", "project-prepper"),
+			group_updated: __("updated a collective", "project-prepper"),
+			group_deleted: __("deleted a collective", "project-prepper"),
+			group_invitation_declined: __("declined an invitation", "project-prepper"),
+			group_invitation_cancelled: __("cancelled an invitation", "project-prepper"),
+			inventory_imported: __("imported inventory", "project-prepper"),
+			inventory_exported: __("exported inventory", "project-prepper"),
+			gdpr_erasure: __("ran a GDPR erasure", "project-prepper"),
+			fed_borrow_received: __("received a network request", "project-prepper"),
+			fed_borrow_decided: __("decided a network request", "project-prepper"),
+			fed_borrow_returned: __("marked a network loan returned", "project-prepper"),
+			fed_borrow_sent: __("sent a network request", "project-prepper")
 		};
 
 		root.appendChild(el("p", { class: "pp-muted", text: __("Where the member portal comes together: collectives, join voting, member inventory and borrow requests. Manage members under Groups.", "project-prepper") }));
@@ -3183,7 +3197,7 @@
 			root.appendChild(tableCard(
 				__("Recent activity", "project-prepper"),
 				[__("When", "project-prepper"), __("Who", "project-prepper"), __("Action", "project-prepper")],
-				d.activity.map(function (a) { return [a.when, a.who, ACTIONS[a.action] || a.action]; }),
+				d.activity.map(function (a) { return [a.when, a.who, ACTIONS[a.action] || String(a.action).replace(/_/g, " ")]; }),
 				__("No activity recorded yet.", "project-prepper")
 			));
 

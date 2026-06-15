@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Project Prepper 0.72.0\n"
+"Project-Id-Version: Project Prepper 0.73.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/project-prepper\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-06-14T23:45:14+00:00\n"
+"POT-Creation-Date: 2026-06-15T00:08:17+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: project-prepper\n"
@@ -50,7 +50,7 @@ msgstr ""
 #: includes/Admin/Menu.php:60
 #: includes/Admin/Menu.php:61
 #: includes/Admin/Menu.php:230
-#: admin/js/admin.js:3315
+#: admin/js/admin.js:3329
 msgid "Instance"
 msgstr ""
 
@@ -613,8 +613,8 @@ msgstr ""
 #: admin/js/admin.js:2442
 #: admin/js/admin.js:2488
 #: admin/js/admin.js:2609
-#: admin/js/admin.js:3192
-#: admin/js/admin.js:3491
+#: admin/js/admin.js:3206
+#: admin/js/admin.js:3505
 msgid "Name"
 msgstr ""
 
@@ -718,7 +718,7 @@ msgid "Notifications"
 msgstr ""
 
 #: includes/Frontend/MemberPortal.php:947
-#: admin/js/admin.js:3136
+#: admin/js/admin.js:3150
 msgid "Nothing needs your attention right now."
 msgstr ""
 
@@ -773,15 +773,15 @@ msgid "Inventory items"
 msgstr ""
 
 #: includes/Frontend/MemberPortal.php:1154
-#: admin/js/admin.js:3147
-#: admin/js/admin.js:3191
-#: admin/js/admin.js:3315
+#: admin/js/admin.js:3161
+#: admin/js/admin.js:3205
+#: admin/js/admin.js:3329
 msgid "Collectives"
 msgstr ""
 
 #: includes/Frontend/MemberPortal.php:1155
-#: admin/js/admin.js:3128
-#: admin/js/admin.js:3151
+#: admin/js/admin.js:3142
+#: admin/js/admin.js:3165
 msgid "Open borrow requests"
 msgstr ""
 
@@ -1637,7 +1637,7 @@ msgstr ""
 
 #: includes/Frontend/MemberPortal.php:2795
 #: includes/Rest/ImportExportController.php:32
-#: admin/js/admin.js:3508
+#: admin/js/admin.js:3522
 msgid "Model"
 msgstr ""
 
@@ -1828,7 +1828,7 @@ msgstr ""
 #: admin/js/admin.js:603
 #: admin/js/admin.js:2445
 #: admin/js/admin.js:2488
-#: admin/js/admin.js:3169
+#: admin/js/admin.js:3183
 msgid "Period"
 msgstr ""
 
@@ -1837,8 +1837,8 @@ msgstr ""
 #: admin/js/admin.js:603
 #: admin/js/admin.js:2208
 #: admin/js/admin.js:2488
-#: admin/js/admin.js:3162
-#: admin/js/admin.js:3169
+#: admin/js/admin.js:3176
+#: admin/js/admin.js:3183
 msgid "Status"
 msgstr ""
 
@@ -2850,8 +2850,8 @@ msgid "Qty"
 msgstr ""
 
 #: admin/js/admin.js:165
-#: admin/js/admin.js:3169
-#: admin/js/admin.js:3177
+#: admin/js/admin.js:3183
+#: admin/js/admin.js:3191
 msgid "Owner"
 msgstr ""
 
@@ -2869,8 +2869,8 @@ msgid "out"
 msgstr ""
 
 #: admin/js/admin.js:211
-#: admin/js/admin.js:3169
-#: admin/js/admin.js:3177
+#: admin/js/admin.js:3183
+#: admin/js/admin.js:3191
 msgid "Borrower"
 msgstr ""
 
@@ -2983,8 +2983,8 @@ msgstr ""
 #: admin/js/admin.js:2133
 #: admin/js/admin.js:2528
 #: admin/js/admin.js:2693
-#: admin/js/admin.js:3382
-#: admin/js/admin.js:3523
+#: admin/js/admin.js:3396
+#: admin/js/admin.js:3537
 msgid "Save"
 msgstr ""
 
@@ -2992,8 +2992,8 @@ msgstr ""
 #: admin/js/admin.js:2152
 #: admin/js/admin.js:2308
 #: admin/js/admin.js:2698
-#: admin/js/admin.js:3389
-#: admin/js/admin.js:3532
+#: admin/js/admin.js:3403
+#: admin/js/admin.js:3546
 msgid "Saved."
 msgstr ""
 
@@ -3017,8 +3017,8 @@ msgstr ""
 
 #: admin/js/admin.js:506
 #: admin/js/admin.js:2816
-#: admin/js/admin.js:3169
-#: admin/js/admin.js:3177
+#: admin/js/admin.js:3183
+#: admin/js/admin.js:3191
 msgid "Item"
 msgstr ""
 
@@ -3372,7 +3372,7 @@ msgstr ""
 #: admin/js/admin.js:1451
 #: admin/js/admin.js:1853
 #: admin/js/admin.js:1901
-#: admin/js/admin.js:3407
+#: admin/js/admin.js:3421
 msgid "Role"
 msgstr ""
 
@@ -3788,8 +3788,8 @@ msgstr ""
 
 #: admin/js/admin.js:2609
 #: admin/js/admin.js:2640
-#: admin/js/admin.js:3192
-#: admin/js/admin.js:3315
+#: admin/js/admin.js:3206
+#: admin/js/admin.js:3329
 msgid "Members"
 msgstr ""
 
@@ -4049,7 +4049,7 @@ msgid "(untitled)"
 msgstr ""
 
 #: admin/js/admin.js:2896
-#: admin/js/admin.js:3184
+#: admin/js/admin.js:3198
 msgid "Recent activity"
 msgstr ""
 
@@ -4182,10 +4182,12 @@ msgid "removed a member"
 msgstr ""
 
 #: admin/js/admin.js:3112
+#: admin/js/admin.js:3120
 msgid "added an item"
 msgstr ""
 
 #: admin/js/admin.js:3113
+#: admin/js/admin.js:3122
 msgid "deleted an item"
 msgstr ""
 
@@ -4213,351 +4215,399 @@ msgstr ""
 msgid "marked a loan returned"
 msgstr ""
 
-#: admin/js/admin.js:3122
-msgid "Where the member portal comes together: collectives, join voting, member inventory and borrow requests. Manage members under Groups."
+#: admin/js/admin.js:3121
+msgid "updated an item"
+msgstr ""
+
+#: admin/js/admin.js:3123
+msgid "updated a collective"
+msgstr ""
+
+#: admin/js/admin.js:3124
+msgid "deleted a collective"
+msgstr ""
+
+#: admin/js/admin.js:3125
+msgid "declined an invitation"
+msgstr ""
+
+#: admin/js/admin.js:3126
+msgid "cancelled an invitation"
 msgstr ""
 
 #: admin/js/admin.js:3127
-msgid "Open join votes"
+msgid "imported inventory"
+msgstr ""
+
+#: admin/js/admin.js:3128
+msgid "exported inventory"
 msgstr ""
 
 #: admin/js/admin.js:3129
-#: admin/js/admin.js:3176
-msgid "Overdue loans"
+msgid "ran a GDPR erasure"
 msgstr ""
 
 #: admin/js/admin.js:3130
-msgid "Incoming network requests"
+msgid "received a network request"
 msgstr ""
 
 #: admin/js/admin.js:3131
-msgid "Unreachable partners"
+msgid "decided a network request"
 msgstr ""
 
-#: admin/js/admin.js:3134
-msgid "Needs attention"
+#: admin/js/admin.js:3132
+msgid "marked a network loan returned"
+msgstr ""
+
+#: admin/js/admin.js:3133
+msgid "sent a network request"
+msgstr ""
+
+#: admin/js/admin.js:3136
+msgid "Where the member portal comes together: collectives, join voting, member inventory and borrow requests. Manage members under Groups."
+msgstr ""
+
+#: admin/js/admin.js:3141
+msgid "Open join votes"
+msgstr ""
+
+#: admin/js/admin.js:3143
+#: admin/js/admin.js:3190
+msgid "Overdue loans"
+msgstr ""
+
+#: admin/js/admin.js:3144
+msgid "Incoming network requests"
 msgstr ""
 
 #: admin/js/admin.js:3145
-msgid "At a glance"
+msgid "Unreachable partners"
 msgstr ""
 
 #: admin/js/admin.js:3148
+msgid "Needs attention"
+msgstr ""
+
+#: admin/js/admin.js:3159
+msgid "At a glance"
+msgstr ""
+
+#: admin/js/admin.js:3162
 msgid "Member inventory"
 msgstr ""
 
-#: admin/js/admin.js:3149
+#: admin/js/admin.js:3163
 msgid "Open invitations"
 msgstr ""
 
-#: admin/js/admin.js:3150
+#: admin/js/admin.js:3164
 msgid "Active loans"
 msgstr ""
 
-#: admin/js/admin.js:3161
+#: admin/js/admin.js:3175
 msgid "Open join invitations"
 msgstr ""
 
-#: admin/js/admin.js:3162
+#: admin/js/admin.js:3176
 msgid "Collective"
 msgstr ""
 
-#: admin/js/admin.js:3162
+#: admin/js/admin.js:3176
 msgid "Invited"
 msgstr ""
 
-#: admin/js/admin.js:3162
+#: admin/js/admin.js:3176
 msgid "Approvals"
 msgstr ""
 
-#: admin/js/admin.js:3164
+#: admin/js/admin.js:3178
 msgid "No open invitations."
 msgstr ""
 
-#: admin/js/admin.js:3168
+#: admin/js/admin.js:3182
 msgid "Recent borrow requests"
 msgstr ""
 
-#: admin/js/admin.js:3171
+#: admin/js/admin.js:3185
 msgid "No borrow requests yet."
 msgstr ""
 
-#: admin/js/admin.js:3177
+#: admin/js/admin.js:3191
 msgid "Due"
 msgstr ""
 
-#: admin/js/admin.js:3179
+#: admin/js/admin.js:3193
 msgid "None."
 msgstr ""
 
-#: admin/js/admin.js:3185
+#: admin/js/admin.js:3199
 msgid "When"
 msgstr ""
 
-#: admin/js/admin.js:3185
+#: admin/js/admin.js:3199
 msgid "Who"
 msgstr ""
 
-#: admin/js/admin.js:3185
+#: admin/js/admin.js:3199
 msgid "Action"
 msgstr ""
 
-#: admin/js/admin.js:3187
+#: admin/js/admin.js:3201
 msgid "No activity recorded yet."
 msgstr ""
 
-#: admin/js/admin.js:3194
+#: admin/js/admin.js:3208
 msgid "No collectives yet."
 msgstr ""
 
-#: admin/js/admin.js:3203
+#: admin/js/admin.js:3217
 msgid "Frontend hardening for the member portal. Everything is OFF by default — nothing changes until you enable it here."
 msgstr ""
 
-#: admin/js/admin.js:3218
+#: admin/js/admin.js:3232
 msgid "Member login & sign-up"
 msgstr ""
 
-#: admin/js/admin.js:3219
+#: admin/js/admin.js:3233
 msgid "Lock out repeated failed logins (per IP)."
 msgstr ""
 
-#: admin/js/admin.js:3221
+#: admin/js/admin.js:3235
 msgid "Max attempts"
 msgstr ""
 
-#: admin/js/admin.js:3222
+#: admin/js/admin.js:3236
 msgid "Lockout (minutes)"
 msgstr ""
 
-#: admin/js/admin.js:3224
+#: admin/js/admin.js:3238
 msgid "Allow open sign-up (new accounts become members). Off = invitation only."
 msgstr ""
 
-#: admin/js/admin.js:3225
+#: admin/js/admin.js:3239
 msgid "Require a second factor at member login."
 msgstr ""
 
-#: admin/js/admin.js:3226
+#: admin/js/admin.js:3240
 msgid "When on, members get a one-time code by email at portal sign-in. Admins and managers keep the normal wp-admin login."
 msgstr ""
 
-#: admin/js/admin.js:3230
+#: admin/js/admin.js:3244
 msgid "Anti-snowball limits"
 msgstr ""
 
-#: admin/js/admin.js:3232
+#: admin/js/admin.js:3246
 msgid "Collectives per user"
 msgstr ""
 
-#: admin/js/admin.js:3233
+#: admin/js/admin.js:3247
 msgid "Invitations per day"
 msgstr ""
 
-#: admin/js/admin.js:3235
+#: admin/js/admin.js:3249
 msgid "0 = unlimited. Invitations counted per member over a rolling 24 hours."
 msgstr ""
 
-#: admin/js/admin.js:3239
+#: admin/js/admin.js:3253
 msgid "Save security settings"
 msgstr ""
 
-#: admin/js/admin.js:3252
+#: admin/js/admin.js:3266
 msgid "Security settings saved."
 msgstr ""
 
-#: admin/js/admin.js:3263
-#: admin/js/admin.js:3270
+#: admin/js/admin.js:3277
+#: admin/js/admin.js:3284
 msgid "Make this instance discoverable to other Project Prepper instances by postal code and topic. Opt-in and OFF by default — while off, nothing is published and the discovery endpoint returns 404. Only coarse, non-personal data is shared (name, postal code, topic, counts)."
 msgstr ""
 
-#: admin/js/admin.js:3278
+#: admin/js/admin.js:3292
 msgid "Public profile"
 msgstr ""
 
-#: admin/js/admin.js:3279
+#: admin/js/admin.js:3293
 msgid "List this instance in the federation (publish the public profile)."
 msgstr ""
 
-#: admin/js/admin.js:3280
+#: admin/js/admin.js:3294
 msgid "Accept borrow requests from partner instances (members moderate each request)."
 msgstr ""
 
-#: admin/js/admin.js:3282
+#: admin/js/admin.js:3296
 msgid "The published name, topic, postal code and contact come from the"
 msgstr ""
 
-#: admin/js/admin.js:3283
+#: admin/js/admin.js:3297
 msgid "Instance page"
 msgstr ""
 
-#: admin/js/admin.js:3287
+#: admin/js/admin.js:3301
 msgid "Discovery endpoint"
 msgstr ""
 
-#: admin/js/admin.js:3293
+#: admin/js/admin.js:3307
 msgid "Partner instances"
 msgstr ""
 
-#: admin/js/admin.js:3295
+#: admin/js/admin.js:3309
 msgid "One instance URL per line. Their public profiles are fetched and listed below (cached for an hour)."
 msgstr ""
 
-#: admin/js/admin.js:3299
+#: admin/js/admin.js:3313
 msgid "Save federation settings"
 msgstr ""
 
-#: admin/js/admin.js:3308
+#: admin/js/admin.js:3322
 msgid "Federation settings saved."
 msgstr ""
 
-#: admin/js/admin.js:3314
+#: admin/js/admin.js:3328
 msgid "Known instances"
 msgstr ""
 
-#: admin/js/admin.js:3315
-#: admin/js/admin.js:3494
+#: admin/js/admin.js:3329
+#: admin/js/admin.js:3508
 msgid "Postal code"
 msgstr ""
 
-#: admin/js/admin.js:3315
-#: admin/js/admin.js:3493
+#: admin/js/admin.js:3329
+#: admin/js/admin.js:3507
 msgid "Topic"
 msgstr ""
 
-#: admin/js/admin.js:3317
+#: admin/js/admin.js:3331
 msgid "unreachable"
 msgstr ""
 
-#: admin/js/admin.js:3320
+#: admin/js/admin.js:3334
 msgid "No partner instances configured yet."
 msgstr ""
 
-#: admin/js/admin.js:3331
+#: admin/js/admin.js:3345
 msgid "Manage roles and fine-grained permissions for every account. Members edit their own inventory and projects in the front-end portal — here you steer who may do what."
 msgstr ""
 
-#: admin/js/admin.js:3333
+#: admin/js/admin.js:3347
 msgid "Search name or email …"
 msgstr ""
 
-#: admin/js/admin.js:3376
+#: admin/js/admin.js:3390
 msgid "Permissions"
 msgstr ""
 
-#: admin/js/admin.js:3378
+#: admin/js/admin.js:3392
 msgid "Administrators always have every permission."
 msgstr ""
 
-#: admin/js/admin.js:3395
+#: admin/js/admin.js:3409
 msgid "registered"
 msgstr ""
 
-#: admin/js/admin.js:3396
+#: admin/js/admin.js:3410
 msgid "last login"
 msgstr ""
 
-#: admin/js/admin.js:3403
+#: admin/js/admin.js:3417
 msgid "you"
 msgstr ""
 
-#: admin/js/admin.js:3421
+#: admin/js/admin.js:3435
 msgid "No users match."
 msgstr ""
 
-#: admin/js/admin.js:3432
+#: admin/js/admin.js:3446
 msgid "Every email the plugin sends, in one place. Keep the {{placeholders}} — they get replaced with the real values."
 msgstr ""
 
-#: admin/js/admin.js:3437
+#: admin/js/admin.js:3451
 msgid "Email sending is currently off — turn it on under Settings → Email notifications for these templates to take effect."
 msgstr ""
 
-#: admin/js/admin.js:3452
+#: admin/js/admin.js:3466
 msgid "Placeholders:"
 msgstr ""
 
-#: admin/js/admin.js:3456
+#: admin/js/admin.js:3470
 msgid "Subject"
 msgstr ""
 
-#: admin/js/admin.js:3457
+#: admin/js/admin.js:3471
 msgid "Text"
 msgstr ""
 
-#: admin/js/admin.js:3462
+#: admin/js/admin.js:3476
 msgid "Save templates"
 msgstr ""
 
-#: admin/js/admin.js:3469
+#: admin/js/admin.js:3483
 msgid "Templates saved."
 msgstr ""
 
-#: admin/js/admin.js:3481
+#: admin/js/admin.js:3495
 msgid "Who you are, how your instance is funded, and your terms. The federation publishes your identity from here."
 msgstr ""
 
-#: admin/js/admin.js:3490
+#: admin/js/admin.js:3504
 msgid "Identity & purpose"
 msgstr ""
 
-#: admin/js/admin.js:3492
+#: admin/js/admin.js:3506
 msgid "Purpose"
 msgstr ""
 
-#: admin/js/admin.js:3495
+#: admin/js/admin.js:3509
 msgid "Contact email"
 msgstr ""
 
-#: admin/js/admin.js:3501
+#: admin/js/admin.js:3515
 msgid "per year"
 msgstr ""
 
-#: admin/js/admin.js:3501
+#: admin/js/admin.js:3515
 msgid "per month"
 msgstr ""
 
-#: admin/js/admin.js:3506
+#: admin/js/admin.js:3520
 msgid "Economy model"
 msgstr ""
 
-#: admin/js/admin.js:3507
+#: admin/js/admin.js:3521
 msgid "Declare how your instance is funded. Payment processing and tracking are a separate, later step — this just records the model."
 msgstr ""
 
-#: admin/js/admin.js:3509
+#: admin/js/admin.js:3523
 msgid "Amount"
 msgstr ""
 
-#: admin/js/admin.js:3509
+#: admin/js/admin.js:3523
 msgid "Interval"
 msgstr ""
 
-#: admin/js/admin.js:3509
+#: admin/js/admin.js:3523
 msgid "Currency"
 msgstr ""
 
-#: admin/js/admin.js:3510
+#: admin/js/admin.js:3524
 msgid "Note for members"
 msgstr ""
 
-#: admin/js/admin.js:3516
+#: admin/js/admin.js:3530
 msgid "Terms (legal basis)"
 msgstr ""
 
-#: admin/js/admin.js:3517
+#: admin/js/admin.js:3531
 msgid "Your terms of use."
 msgstr ""
 
-#: admin/js/admin.js:3517
+#: admin/js/admin.js:3531
 msgid "Current version:"
 msgstr ""
 
-#: admin/js/admin.js:3518
+#: admin/js/admin.js:3532
 msgid "Terms text"
 msgstr ""
 
-#: admin/js/admin.js:3519
+#: admin/js/admin.js:3533
 msgid "Members must accept these terms (enforcement in the portal follows in a later step)."
 msgstr ""
 
