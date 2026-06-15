@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.74.0
+Stable tag: 0.75.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.75.0 =
+* Calendar tab reduced to its control-centre role: the full month grid is replaced by the iCal feed mechanic (feed URL, copy, regenerate token) plus a read-only "upcoming entries" moderation list (next 90 days). Members manage the calendar in their portal.
 
 = 0.74.0 =
 * Inventory mechanic: the backend Categories tab now manages template categories the operator maintains; categories members create themselves stay private

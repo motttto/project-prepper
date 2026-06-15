@@ -2915,29 +2915,14 @@
 		});
 	}
 
-	/* ================= Calendar (month view) ================= */
+	/* ================= Calendar (mechanic + read-only moderation) ================= */
 
+	// Steuerzentrale-Linse (docs/06 §4): Mechanik = iCal-Feed; das Editieren von
+	// Terminen passiert im Mitglieder-Portal. Das frühere Voll-Monatsraster ist
+	// einer schlanken read-only Moderationsliste der nächsten Einträge gewichen.
 	function renderCalendar() {
 		root.innerHTML = "";
-
-		// Wochentage (Mo–So) + Monatsnamen als eigene übersetzbare Strings.
-		var WEEKDAYS = [
-			_x("Mon", "weekday", "project-prepper"),
-			_x("Tue", "weekday", "project-prepper"),
-			_x("Wed", "weekday", "project-prepper"),
-			_x("Thu", "weekday", "project-prepper"),
-			_x("Fri", "weekday", "project-prepper"),
-			_x("Sat", "weekday", "project-prepper"),
-			_x("Sun", "weekday", "project-prepper")
-		];
-		var MONTHS = [
-			__("January", "project-prepper"), __("February", "project-prepper"),
-			__("March", "project-prepper"), __("April", "project-prepper"),
-			__("May", "project-prepper"), __("June", "project-prepper"),
-			__("July", "project-prepper"), __("August", "project-prepper"),
-			__("September", "project-prepper"), __("October", "project-prepper"),
-			__("November", "project-prepper"), __("December", "project-prepper")
-		];
+		root.appendChild(el("p", { class: "pp-muted", text: __("Calendar mechanic and oversight. The iCal feed below publishes all scheduled entries; the schedule itself (rentals, projects) is maintained where those records live.", "project-prepper") }));
 
 		// Lokales Y-m-d (kein UTC-Versatz wie bei toISOString).
 		function ymd(d) {
@@ -2945,134 +2930,69 @@
 			var day = String(d.getDate());
 			return d.getFullYear() + "-" + (m.length < 2 ? "0" + m : m) + "-" + (day.length < 2 ? "0" + day : day);
 		}
-		// Wochentag Mo=0 … So=6.
-		function isoDow(d) { return (d.getDay() + 6) % 7; }
 
-		var today = new Date();
-		var view = new Date(today.getFullYear(), today.getMonth(), 1);
-
-		// Container-Gerüst (Toolbar + Grid-Mount + Legende + Feed).
-		var titleEl = el("span", { class: "pp-cal-title" });
-		var toolbar = el("div", { class: "pp-cal-toolbar" }, [
-			el("button", { class: "pp-cal-nav", text: "‹", title: __("Previous month", "project-prepper"), onclick: function () { shift(-1); } }),
-			el("button", { class: "pp-cal-nav", text: "›", title: __("Next month", "project-prepper"), onclick: function () { shift(1); } }),
-			titleEl,
-			el("button", { class: "pp-cal-today", text: __("Today", "project-prepper"), onclick: function () { view = new Date(today.getFullYear(), today.getMonth(), 1); load(); } })
-		]);
-		var gridMount = el("div", {});
-		root.appendChild(toolbar);
-		root.appendChild(gridMount);
-
-		// Legende.
-		function legendItem(cls, label) {
-			return el("span", { class: "pp-cal-legend-item" }, [
-				el("span", { class: "pp-cal-swatch " + cls }),
-				el("span", { text: label })
-			]);
-		}
-		root.appendChild(el("div", { class: "pp-cal-legend" }, [
-			legendItem("pp-cal-rental", __("Rental", "project-prepper")),
-			legendItem("pp-cal-project", __("Project", "project-prepper")),
-			legendItem("pp-cal-schedule", __("Schedule", "project-prepper"))
-		]));
-
-		// iCal-Feed-Hinweis: URL nur, wenn der Nutzer die Einstellungen sehen darf.
-		var feedBox = el("div", { class: "pp-cal-feed" }, [
-			el("span", { text: __("Calendar feed (iCal)", "project-prepper") + ": " })
-		]);
+		// --- Mechanik: iCal-Feed (URL + Kopieren + Token erneuern) ---
 		if (ppConfig.canEdit && ppConfig.canEdit.settings) {
-			api("/settings").then(function (s) {
-				if (s && s.ical_url) feedBox.appendChild(el("code", { text: s.ical_url }));
-			}).catch(function () {
-				feedBox.appendChild(el("span", { text: __("available in the settings.", "project-prepper") }));
-			});
-		} else {
-			feedBox.appendChild(el("span", { text: __("available in the settings.", "project-prepper") }));
-		}
-		root.appendChild(feedBox);
-
-		function shift(delta) {
-			view = new Date(view.getFullYear(), view.getMonth() + delta, 1);
-			load();
-		}
-
-		function load() {
-			titleEl.textContent = MONTHS[view.getMonth()] + " " + view.getFullYear();
-
-			// Erster sichtbarer Rastertag (Montag der ersten Woche) … letzter (Sonntag).
-			var first = new Date(view.getFullYear(), view.getMonth(), 1);
-			var gridStart = new Date(first);
-			gridStart.setDate(first.getDate() - isoDow(first));
-			var last = new Date(view.getFullYear(), view.getMonth() + 1, 0);
-			var gridEnd = new Date(last);
-			gridEnd.setDate(last.getDate() + (6 - isoDow(last)));
-
-			var from = ymd(gridStart);
-			var to = ymd(gridEnd);
-
-			api("/calendar-events?from=" + from + "&to=" + to).then(function (events) {
-				// Events pro Tag bündeln; mehrtägige an jedem Tag des Zeitraums.
-				var byDay = {};
-				function push(day, ev) { (byDay[day] = byDay[day] || []).push(ev); }
-				(events || []).forEach(function (ev) {
-					if (ev.type === "schedule") {
-						push(ev.date, ev);
-					} else {
-						var s = new Date(ev.date_from + "T00:00:00");
-						var e = new Date((ev.date_to || ev.date_from) + "T00:00:00");
-						for (var d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
-							var key = ymd(d);
-							if (key >= from && key <= to) push(key, ev);
+			var icalUrl = el("code", { class: "pp-ical-url", text: __("Loading …", "project-prepper") });
+			var feedCard = el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Calendar feed (iCal)", "project-prepper") }),
+				el("p", { class: "pp-muted", text: __("Subscribe to this read-only feed in any calendar app. Regenerating the token revokes existing subscriptions.", "project-prepper") }),
+				el("div", { class: "pp-cal-feed" }, [icalUrl]),
+				el("div", { class: "pp-row", style: "margin-top:8px" }, [
+					el("button", {
+						class: "pp-btn pp-btn-sm", text: __("Copy URL", "project-prepper"),
+						onclick: function () {
+							if (icalUrl.dataset.url) navigator.clipboard.writeText(icalUrl.dataset.url).then(function () { toast(__("Copied.", "project-prepper")); });
 						}
-					}
-				});
-
-				var grid = el("div", { class: "pp-cal-grid" });
-				WEEKDAYS.forEach(function (w) { grid.appendChild(el("div", { class: "pp-cal-weekday", text: w })); });
-
-				var todayKey = ymd(today);
-				var cur = new Date(gridStart);
-				while (cur <= gridEnd) {
-					var key = ymd(cur);
-					var outside = cur.getMonth() !== view.getMonth();
-					var cls = "pp-cal-day" + (outside ? " pp-cal-outside" : "") + (key === todayKey ? " pp-cal-today-cell" : "");
-					var cell = el("div", { class: cls }, [
-						el("span", { class: "pp-cal-daynum", text: String(cur.getDate()) })
-					]);
-					(byDay[key] || []).forEach(function (ev) {
-						cell.appendChild(calEvent(ev));
-					});
-					grid.appendChild(cell);
-					cur.setDate(cur.getDate() + 1);
-				}
-
-				gridMount.innerHTML = "";
-				gridMount.appendChild(grid);
-			}).catch(function (err) {
-				toast(err.message, "error");
-			});
+					}),
+					el("button", {
+						class: "pp-btn pp-btn-sm", text: __("Regenerate token", "project-prepper"),
+						onclick: function () {
+							if (!confirm(__("Regenerate token? Existing calendar subscriptions will lose access.", "project-prepper"))) return;
+							api("/settings/regenerate-ical-token", { method: "POST" }).then(function (updated) {
+								icalUrl.dataset.url = updated.ical_url;
+								icalUrl.textContent = updated.ical_url;
+								toast(__("Token regenerated.", "project-prepper"));
+							}).catch(function (e) { toast(e.message, "error"); });
+						}
+					})
+				])
+			]);
+			root.appendChild(feedCard);
+			api("/settings").then(function (s) {
+				if (s && s.ical_url) { icalUrl.dataset.url = s.ical_url; icalUrl.textContent = s.ical_url; }
+			}).catch(function () { icalUrl.textContent = __("available in the settings.", "project-prepper"); });
 		}
 
-		function calEvent(ev) {
-			var label, href, cls;
-			if (ev.type === "rental") {
-				cls = "pp-cal-rental";
-				label = ev.title;
-				href = "admin.php?page=pp-manage&tab=rentals";
-			} else if (ev.type === "project") {
-				cls = "pp-cal-project";
-				label = ev.title || __("(untitled)", "project-prepper");
-				href = "admin.php?page=pp-manage&tab=projects#pp-project-" + ev.id;
-			} else {
-				cls = "pp-cal-schedule";
-				var t = ev.time_start ? String(ev.time_start).slice(0, 5) + " " : "";
-				label = t + (ev.title || "");
-				href = "admin.php?page=pp-manage&tab=projects#pp-project-" + ev.project_id;
-			}
-			return el("a", { class: "pp-cal-event " + cls, href: href, title: label, text: label });
-		}
+		// --- Read-only Moderation: kommende Einträge (heute … +90 Tage) ---
+		var TYPE = { rental: __("Rental", "project-prepper"), project: __("Project", "project-prepper"), schedule: __("Schedule", "project-prepper") };
+		var today = new Date();
+		var until = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 90);
+		var from = ymd(today);
+		var to = ymd(until);
 
-		load();
+		var mount = el("div");
+		root.appendChild(mount);
+
+		api("/calendar-events?from=" + from + "&to=" + to).then(function (events) {
+			var rows = (events || []).map(function (ev) {
+				var start = ev.type === "schedule" ? ev.date : ev.date_from;
+				var end = ev.type === "schedule" ? ev.date : (ev.date_to || ev.date_from);
+				var when = start === end ? start : start + " – " + end;
+				var title = ev.title || __("(untitled)", "project-prepper");
+				if (ev.type === "schedule" && ev.time_start) title = String(ev.time_start).slice(0, 5) + " " + title;
+				return { sort: start, cells: [when, TYPE[ev.type] || ev.type, title] };
+			}).sort(function (a, b) { return a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0; });
+
+			mount.appendChild(tableCard(
+				__("Upcoming entries (next 90 days)", "project-prepper"),
+				[__("Date", "project-prepper"), __("Type", "project-prepper"), __("Title", "project-prepper")],
+				rows.map(function (r) { return r.cells; }),
+				__("No scheduled entries in the next 90 days.", "project-prepper")
+			));
+		}).catch(function (err) {
+			toast(err.message, "error");
+		});
 	}
 
 	/* ================= Seite: Plattform ================= */

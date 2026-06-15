@@ -4809,3 +4809,23 @@ msgstr "Kategorie anlegen"
 #: admin/js/admin.js
 msgid "These are the template categories. Members get them suggested in their portal and can adopt them or create their own. Categories members create themselves are not shown here."
 msgstr "Dies sind die Vorlagen-Kategorien. Mitglieder bekommen sie im Portal vorgeschlagen und können sie übernehmen oder eigene anlegen. Von Mitgliedern selbst angelegte Kategorien erscheinen hier nicht."
+
+#: admin/js/admin.js
+msgid "Calendar mechanic and oversight. The iCal feed below publishes all scheduled entries; the schedule itself (rentals, projects) is maintained where those records live."
+msgstr "Kalender-Mechanik und Aufsicht. Der iCal-Feed unten veröffentlicht alle geplanten Einträge; der Zeitplan selbst (Verleihe, Projekte) wird dort gepflegt, wo diese Datensätze leben."
+
+#: admin/js/admin.js
+msgid "Subscribe to this read-only feed in any calendar app. Regenerating the token revokes existing subscriptions."
+msgstr "Abonniere diesen read-only Feed in jeder Kalender-App. Das Erneuern des Tokens widerruft bestehende Abonnements."
+
+#: admin/js/admin.js
+msgid "Upcoming entries (next 90 days)"
+msgstr "Kommende Einträge (nächste 90 Tage)"
+
+#: admin/js/admin.js
+msgid "No scheduled entries in the next 90 days."
+msgstr "Keine geplanten Einträge in den nächsten 90 Tagen."
+
+#: admin/js/admin.js
+msgid "Loading …"
+msgstr "Wird geladen …"

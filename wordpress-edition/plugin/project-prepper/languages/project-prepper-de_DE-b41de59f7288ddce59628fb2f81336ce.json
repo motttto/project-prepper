@@ -1536,6 +1536,21 @@
             ],
             "These are the template categories. Members get them suggested in their portal and can adopt them or create their own. Categories members create themselves are not shown here.": [
                 "Dies sind die Vorlagen-Kategorien. Mitglieder bekommen sie im Portal vorgeschlagen und k\u00f6nnen sie \u00fcbernehmen oder eigene anlegen. Von Mitgliedern selbst angelegte Kategorien erscheinen hier nicht."
+            ],
+            "Calendar mechanic and oversight. The iCal feed below publishes all scheduled entries; the schedule itself (rentals, projects) is maintained where those records live.": [
+                "Kalender-Mechanik und Aufsicht. Der iCal-Feed unten ver\u00f6ffentlicht alle geplanten Eintr\u00e4ge; der Zeitplan selbst (Verleihe, Projekte) wird dort gepflegt, wo diese Datens\u00e4tze leben."
+            ],
+            "Subscribe to this read-only feed in any calendar app. Regenerating the token revokes existing subscriptions.": [
+                "Abonniere diesen read-only Feed in jeder Kalender-App. Das Erneuern des Tokens widerruft bestehende Abonnements."
+            ],
+            "Upcoming entries (next 90 days)": [
+                "Kommende Eintr\u00e4ge (n\u00e4chste 90 Tage)"
+            ],
+            "No scheduled entries in the next 90 days.": [
+                "Keine geplanten Eintr\u00e4ge in den n\u00e4chsten 90 Tagen."
+            ],
+            "Loading \u2026": [
+                "Wird geladen \u2026"
             ]
         }
     }
