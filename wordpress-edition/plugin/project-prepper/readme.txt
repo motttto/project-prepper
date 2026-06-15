@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.81.0
+Stable tag: 0.82.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.82.0 =
+* Control centre: the admin Projects tab is now a read-only moderation list (number, name, period, owner, bookings, status, with status filters and a remove action). Members create and edit projects in the member portal; the backend is for oversight, not data entry. The large editing modal was removed.
 
 = 0.81.0 =
 * Privacy/control centre: the admin Inquiries tab now only shows inquiries from the public request form (no member owner). Inquiries that belong to a member or group are private to the member portal and only counted here as an aggregate — the operator no longer sees their content.

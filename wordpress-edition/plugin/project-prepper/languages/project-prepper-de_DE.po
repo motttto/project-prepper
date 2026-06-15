@@ -5033,3 +5033,15 @@ msgstr "Anfragen aus dem öffentlichen Anfrageformular (ohne Mitglieds-Eigentüm
 #: admin/js/admin.js
 msgid "%1$d inquiries are managed by members across %2$d workspaces."
 msgstr "%1$d Anfragen werden von Mitgliedern in %2$d Arbeitsbereichen verwaltet."
+
+#: admin/js/admin.js
+msgid "Read-only moderation. Projects belong to the groups that own them — members create and edit projects in the member portal. Here you oversee them and can remove a project. The status flow is fixed: Draft → Planned → Confirmed → Running → Done (or Cancelled)."
+msgstr "Read-only Moderation. Projekte gehören den Gruppen, die sie besitzen — Mitglieder legen Projekte im Mitglieder-Portal an und bearbeiten sie. Hier behältst du den Überblick und kannst ein Projekt entfernen. Der Status-Ablauf ist fest: Entwurf → Geplant → Bestätigt → Läuft → Fertig (oder Abgesagt)."
+
+#: admin/js/admin.js
+msgid "Delete project \"%s\"? This cannot be undone."
+msgstr "Projekt „%s" löschen? Das kann nicht rückgängig gemacht werden."
+
+#: admin/js/admin.js
+msgid "Site level"
+msgstr "Site-Ebene"

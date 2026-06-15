@@ -1602,6 +1602,15 @@
             ],
             "%1$d inquiries are managed by members across %2$d workspaces.": [
                 "%1$d Anfragen werden von Mitgliedern in %2$d Arbeitsbereichen verwaltet."
+            ],
+            "Read-only moderation. Projects belong to the groups that own them \u2014 members create and edit projects in the member portal. Here you oversee them and can remove a project. The status flow is fixed: Draft \u2192 Planned \u2192 Confirmed \u2192 Running \u2192 Done (or Cancelled).": [
+                "Read-only Moderation. Projekte geh\u00f6ren den Gruppen, die sie besitzen \u2014 Mitglieder legen Projekte im Mitglieder-Portal an und bearbeiten sie. Hier beh\u00e4ltst du den \u00dcberblick und kannst ein Projekt entfernen. Der Status-Ablauf ist fest: Entwurf \u2192 Geplant \u2192 Best\u00e4tigt \u2192 L\u00e4uft \u2192 Fertig (oder Abgesagt)."
+            ],
+            "Delete project \"%s\"? This cannot be undone.": [
+                "Projekt \u201e%s\" l\u00f6schen? Das kann nicht r\u00fcckg\u00e4ngig gemacht werden."
+            ],
+            "Site level": [
+                "Site-Ebene"
             ]
         }
     }

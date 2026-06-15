@@ -3,7 +3,7 @@
 > **Status:** in Umsetzung. Zielbild §1–§12 unten; aktueller Umsetzungsstand §0.
 > Querverweise: [[grundkonzept]], `05-MEMBER-PORTAL.md`, `03-GRUPPEN-ARCHITEKTUR.md`, `04-WEBAPP-ABGLEICH.md`.
 
-## 0. Umsetzungsstand (Stand 2026-06-15, Plugin v0.81.0)
+## 0. Umsetzungsstand (Stand 2026-06-15, Plugin v0.82.0)
 
 Das Backend wird konsequent als **Steuerzentrale** mit zwei Modi gebaut —
 **Einstellen** (Konfiguration) und **Überwachen** (Aufsicht/Cockpit). Die
@@ -32,9 +32,11 @@ Admin-Brillen-Analyse (Chat + Visualize-Landkarte) ist die Leitlinie.
 - ⏳ **Slice B — Anfrage→Projekt** (Lifecycle-Umwandlung): braucht zuerst Projekt-CRUD im Portal.
 - ✅ **Slice C — Gruppen-Projekte im Portal** (v0.79): Gruppen-Mitglieder legen Projekte an/bearbeiten/löschen (Kernfelder) im Portal, gescoped auf die aktive Gruppe. Solo bleibt projektlos (Modell-Entscheidung 2026-06-15: kein Solo-Projekt).
 - ✅ **Slice B — Anfrage→Projekt** (v0.80): „Projekt erstellen" auf einer offenen Gruppen-Anfrage erzeugt ein Gruppen-Projekt aus den Anfragedaten und setzt die Anfrage auf „won". Solo-Anfragen bleiben Buchhaltung.
-- 🟡 **Slice D — Backend-Reduktion (teilweise):**
-  - ✅ **Anfragen-Backend** (v0.81): zeigt nur noch Site-Ebene/öffentliches Formular (`site_only`); Mitglieds-Anfragen sind privat, erscheinen nur als Aggregat-Zähler (behebt das durch Slice A entstandene Leak). 
-  - ⏳ **Projekte-Backend → read-only Moderation:** noch offen — `renderProjects` ist ~1821 Z. (großes Detail-Modal); der Umbau verdient eine eigene fokussierte Session (Vorlage: Inventar v0.69). Bis dahin bleibt der Voll-CRUD im Backend funktionsfähig.
+- ✅ **Slice D — Backend-Reduktion (komplett):**
+  - ✅ **Anfragen-Backend** (v0.81): zeigt nur noch Site-Ebene/öffentliches Formular (`site_only`); Mitglieds-Anfragen sind privat, erscheinen nur als Aggregat-Zähler (behebt das durch Slice A entstandene Leak).
+  - ✅ **Projekte-Backend → read-only Moderation** (v0.82): `renderProjects` von ~1821 Z. (Voll-CRUD-Modal) auf eine schlanke read-only Liste reduziert (Nummer/Name/Zeitraum/Eigentümer/Buchungen/Status + Status-Filter + Löschen). Kein Anlegen/Editieren mehr im Backend (das passiert im Portal). REST-Edit-Routen bleiben cap-gated, aber ungenutzt (wie Inventar v0.69).
+
+> **→ Admin-Landkarte (Einstellen/Überwachen) vollständig grün.** Alle Domänen-Tabs (Inventar/Kalender/Projekte) sind read-only Moderation; Anfragen-Backend = Site-Ebene + Aggregat; Verleih bleibt bewusst voll (§6), Gruppen bleiben Betreiber-Objekt.
 
 **Offen / nächste Kandidaten:**
 - **Monetarisierungs-Tracking** (§10.2 — braucht erst Konzept)
