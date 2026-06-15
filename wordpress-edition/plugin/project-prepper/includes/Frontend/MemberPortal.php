@@ -7,6 +7,8 @@ use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance as Governance;
 use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Services\MemberInventory;
+use ProjectPrepper\Services\MemberInquiries;
+use ProjectPrepper\Services\Inquiries;
 use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\Schedule;
@@ -262,6 +264,10 @@ class MemberPortal {
 		if ( in_array( $do, [ 'category_create', 'category_adopt', 'category_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		}
+		// Anfragen-Aktionen kehren zur Anfragen-Ansicht zurück.
+		if ( in_array( $do, [ 'inquiry_create', 'inquiry_update', 'inquiry_status', 'inquiry_delete' ], true ) ) {
+			$back = add_query_arg( 'pp_view', 'inquiries', self::portal_url() );
+		}
 
 		$result = new \WP_Error( 'pp_unknown', 'unknown' );
 		$ok_msg = 'ok';
@@ -343,6 +349,22 @@ class MemberPortal {
 			case 'category_delete':
 				$result = MemberInventory::delete_category( get_current_user_id(), (int) ( $_POST['pp_category_id'] ?? 0 ) );
 				$ok_msg = 'category_deleted';
+				break;
+			case 'inquiry_create':
+				$result = MemberInquiries::create( get_current_user_id(), self::active_workspace_group(), self::inquiry_input() );
+				$ok_msg = 'inquiry_saved';
+				break;
+			case 'inquiry_update':
+				$result = MemberInquiries::update( (int) ( $_POST['pp_inquiry'] ?? 0 ), get_current_user_id(), self::active_workspace_group(), self::inquiry_input() );
+				$ok_msg = 'inquiry_saved';
+				break;
+			case 'inquiry_status':
+				$result = MemberInquiries::set_status( (int) ( $_POST['pp_inquiry'] ?? 0 ), get_current_user_id(), self::active_workspace_group(), sanitize_key( wp_unslash( (string) ( $_POST['pp_status'] ?? '' ) ) ) );
+				$ok_msg = 'inquiry_status';
+				break;
+			case 'inquiry_delete':
+				$result = MemberInquiries::delete( (int) ( $_POST['pp_inquiry'] ?? 0 ), get_current_user_id(), self::active_workspace_group() );
+				$ok_msg = 'inquiry_deleted';
 				break;
 			case 'borrow_request':
 				$result = Borrowing::request(
@@ -504,6 +526,9 @@ class MemberPortal {
 			'category_saved'   => [ 'ok', __( 'Category saved.', 'project-prepper' ) ],
 			'category_adopted' => [ 'ok', __( 'Template category adopted.', 'project-prepper' ) ],
 			'category_deleted' => [ 'ok', __( 'Category deleted.', 'project-prepper' ) ],
+			'inquiry_saved'    => [ 'ok', __( 'Inquiry saved.', 'project-prepper' ) ],
+			'inquiry_status'   => [ 'ok', __( 'Inquiry status updated.', 'project-prepper' ) ],
+			'inquiry_deleted'  => [ 'ok', __( 'Inquiry deleted.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
 			'borrow_decided'   => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'borrow_cancelled' => [ 'ok', __( 'Request cancelled.', 'project-prepper' ) ],
@@ -811,6 +836,9 @@ class MemberPortal {
 							case 'projects':
 								self::view_projects( $user, $groups );
 								break;
+							case 'inquiries':
+								self::view_inquiries( $user, $groups );
+								break;
 							case 'calendar':
 								self::view_calendar( $user, $groups );
 								break;
@@ -839,7 +867,7 @@ class MemberPortal {
 	private static function current_view(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$view    = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : 'dashboard';
-		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'calendar', 'polls', 'network', 'collectives' ];
+		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'inquiries', 'calendar', 'polls', 'network', 'collectives' ];
 		return in_array( $view, $allowed, true ) ? $view : 'dashboard';
 	}
 
@@ -854,6 +882,7 @@ class MemberPortal {
 			[ 'view' => 'inventory', 'icon' => 'inventory', 'label' => $solo ? __( 'My inventory', 'project-prepper' ) : __( 'Inventory', 'project-prepper' ) ],
 			[ 'view' => 'lending',   'icon' => 'package',   'label' => $solo ? __( 'My lending', 'project-prepper' ) : __( 'Lending', 'project-prepper' ) ],
 			[ 'view' => 'projects',  'icon' => 'projects',  'label' => $solo ? __( 'My projects', 'project-prepper' ) : __( 'Projects', 'project-prepper' ) ],
+			[ 'view' => 'inquiries', 'icon' => 'inbox',     'label' => $solo ? __( 'My inquiries', 'project-prepper' ) : __( 'Inquiries', 'project-prepper' ) ],
 			[ 'view' => 'calendar',  'icon' => 'calendar',  'label' => __( 'Calendar', 'project-prepper' ) ],
 		];
 		// Eigenständige Umfragen NUR im Gruppen-Modus (wie die App).
@@ -1124,6 +1153,7 @@ class MemberPortal {
 			'calendar'  => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
 			'globe'     => '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
 			'clipboard' => '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h6"/>',
+			'inbox'     => '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
 			'admin'     => '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
 			'logout'    => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
 			'info'      => '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
@@ -1139,6 +1169,7 @@ class MemberPortal {
 		$inv_count  = count( MemberInventory::my_items( (int) $user->ID ) );
 		$grp_count  = count( $groups );
 		$proj_count = count( self::member_projects( $groups ) );
+		$inq_count  = MemberInquiries::count_for_owner( (int) $user->ID, self::active_group_id( $groups ) );
 		$incoming   = Borrowing::incoming_requests( (int) $user->ID );
 		$open_reqs  = count( array_filter( $incoming, static fn( $r ) => 'requested' === $r->status ) );
 		?>
@@ -1177,6 +1208,7 @@ class MemberPortal {
 			<?php
 			self::kpi_card( 'inventory', $inv_count, __( 'Inventory items', 'project-prepper' ), 'warning', 'inventory' );
 			self::kpi_card( 'projects', $proj_count, __( 'Projects', 'project-prepper' ), 'primary', 'projects' );
+			self::kpi_card( 'inquiries', $inq_count, __( 'Inquiries', 'project-prepper' ), 'info', 'inbox' );
 			self::kpi_card( 'collectives', $grp_count, __( 'Collectives', 'project-prepper' ), 'info', 'users' );
 			self::kpi_card( 'lending', $open_reqs, __( 'Open borrow requests', 'project-prepper' ), 'success', 'package' );
 			?>
@@ -1440,6 +1472,142 @@ class MemberPortal {
 			return $sid;
 		}
 		return $gids ? (int) $gids[0] : 0;
+	}
+
+	/** Aktiver Arbeitsbereich des aktuellen Users als Gruppen-ID (0 = Solo). */
+	private static function active_workspace_group(): int {
+		return self::active_group_id( Groups::user_groups( get_current_user_id() ) );
+	}
+
+	/* ---------- Anfragen (docs/06 §10.1) ---------- */
+
+	/** @return array<string,string> Status-Schlüssel → Label. */
+	private static function inquiry_status_labels(): array {
+		return [
+			'new'       => __( 'New', 'project-prepper' ),
+			'contacted' => __( 'Contacted', 'project-prepper' ),
+			'offer'     => __( 'Offer', 'project-prepper' ),
+			'won'       => __( 'Won', 'project-prepper' ),
+			'lost'      => __( 'Lost', 'project-prepper' ),
+			'closed'    => __( 'Closed', 'project-prepper' ),
+		];
+	}
+
+	/** Eingaben des Anfrage-Formulars einsammeln. */
+	private static function inquiry_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'name'      => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+			'email'     => sanitize_email( wp_unslash( (string) ( $_POST['pp_email'] ?? '' ) ) ),
+			'phone'     => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_phone'] ?? '' ) ) ),
+			'message'   => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_message'] ?? '' ) ) ),
+			'date_from' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
+			'date_to'   => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	private static function view_inquiries( WP_User $user, array $groups ): void {
+		$group_id  = self::active_group_id( $groups );
+		$inquiries = MemberInquiries::for_owner( (int) $user->ID, $group_id );
+		$labels    = self::inquiry_status_labels();
+		?>
+		<section class="pp-portal__section">
+			<h3 class="pp-portal__subtitle"><?php echo $group_id ? esc_html__( 'Inquiries', 'project-prepper' ) : esc_html__( 'My inquiries', 'project-prepper' ); ?></h3>
+			<p class="pp-portal__hint"><?php esc_html_e( 'Track external requests as bookkeeping and move them through the pipeline. A later step turns a won inquiry into a project.', 'project-prepper' ); ?></p>
+
+			<?php if ( $inquiries ) : ?>
+				<?php foreach ( $inquiries as $inq ) : ?>
+					<?php
+					$next = Inquiries::TRANSITIONS[ $inq->status ] ?? [];
+					$span = '';
+					if ( $inq->date_from ) {
+						$span = $inq->date_from === $inq->date_to || ! $inq->date_to
+							? (string) $inq->date_from
+							: $inq->date_from . ' – ' . $inq->date_to;
+					}
+					?>
+					<div class="pp-portal__item">
+						<div class="pp-portal__item-head">
+							<span class="pp-portal__group-name"><?php echo esc_html( $inq->name ); ?></span>
+							<span class="pp-status pp-status--<?php echo esc_attr( $inq->status ); ?>"><?php echo esc_html( $labels[ $inq->status ] ?? $inq->status ); ?></span>
+							<?php if ( $span ) : ?><span class="pp-portal__item-meta"><?php echo esc_html( $span ); ?></span><?php endif; ?>
+						</div>
+						<?php if ( $inq->email || $inq->phone ) : ?>
+							<div class="pp-portal__item-meta"><?php echo esc_html( trim( $inq->email . ( $inq->email && $inq->phone ? ' · ' : '' ) . $inq->phone ) ); ?></div>
+						<?php endif; ?>
+						<?php if ( $inq->message ) : ?>
+							<p class="pp-portal__inq-msg"><?php echo esc_html( $inq->message ); ?></p>
+						<?php endif; ?>
+
+						<?php if ( $next ) : ?>
+							<div class="pp-portal__share-row">
+								<span class="pp-portal__share-label"><?php esc_html_e( 'Move to:', 'project-prepper' ); ?></span>
+								<?php foreach ( $next as $st ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+										<?php self::action_fields( 'inquiry_status' ); ?>
+										<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
+										<input type="hidden" name="pp_status" value="<?php echo esc_attr( $st ); ?>">
+										<button type="submit" class="pp-portal__chip"><?php echo esc_html( $labels[ $st ] ?? $st ); ?></button>
+									</form>
+								<?php endforeach; ?>
+							</div>
+						<?php endif; ?>
+
+						<div class="pp-portal__actions">
+							<details class="pp-portal__edit">
+								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+								<?php self::inquiry_form( 'inquiry_update', $inq ); ?>
+							</details>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this inquiry?', 'project-prepper' ) ); ?>');">
+								<?php self::action_fields( 'inquiry_delete' ); ?>
+								<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
+							</form>
+						</div>
+					</div>
+				<?php endforeach; ?>
+			<?php else : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No inquiries yet. Add your first one below.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+
+			<details class="pp-portal__add">
+				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New inquiry', 'project-prepper' ); ?></summary>
+				<?php self::inquiry_form( 'inquiry_create', null ); ?>
+			</details>
+		</section>
+		<?php
+	}
+
+	private static function inquiry_form( string $do, ?object $inq ): void {
+		$val = static fn( string $f, $d = '' ) => $inq && isset( $inq->$f ) && null !== $inq->$f ? $inq->$f : $d;
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( $do ); ?>
+			<?php if ( $inq ) : ?>
+				<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
+			<?php endif; ?>
+			<label><?php esc_html_e( 'Contact name', 'project-prepper' ); ?>
+				<input type="text" name="pp_name" value="<?php echo esc_attr( (string) $val( 'name' ) ); ?>" required>
+			</label>
+			<label><?php esc_html_e( 'Email', 'project-prepper' ); ?>
+				<input type="email" name="pp_email" value="<?php echo esc_attr( (string) $val( 'email' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Phone', 'project-prepper' ); ?>
+				<input type="text" name="pp_phone" value="<?php echo esc_attr( (string) $val( 'phone' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+				<input type="date" name="pp_from" value="<?php echo esc_attr( (string) $val( 'date_from' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+				<input type="date" name="pp_to" value="<?php echo esc_attr( (string) $val( 'date_to' ) ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Message / notes', 'project-prepper' ); ?>
+				<textarea name="pp_message" rows="2"><?php echo esc_textarea( (string) $val( 'message' ) ); ?></textarea>
+			</label>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save inquiry', 'project-prepper' ); ?></button>
+		</form>
+		<?php
 	}
 
 	/** Projekte des aktiven Workspaces (Solo → keine; sonst nur die aktive Gruppe). */

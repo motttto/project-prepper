@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.23.0';
+	const VERSION    = '0.24.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -187,11 +187,15 @@ class Schema {
 			date_to date DEFAULT NULL,
 			items longtext,
 			status varchar(20) NOT NULL DEFAULT 'new',
+			owner_user_id bigint(20) unsigned DEFAULT NULL,
+			owner_group_id bigint(20) unsigned DEFAULT NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			KEY status (status),
-			KEY created_at (created_at)
+			KEY created_at (created_at),
+			KEY owner_user_id (owner_user_id),
+			KEY owner_group_id (owner_group_id)
 		) {$charset};" );
 
 		// Projekte (Kern + Planung, v0.9.0) — Subset der App-Tabelle `projects`:

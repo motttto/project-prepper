@@ -4921,3 +4921,63 @@ msgstr "Ansehen als"
 #: admin/js/admin.js
 msgid "Open the member portal as this user — a banner lets you switch back."
 msgstr "Das Mitglieder-Portal als dieser Benutzer öffnen — ein Banner führt dich zurück."
+
+#: includes/Services/MemberInquiries.php
+msgid "You are not allowed to add inquiries."
+msgstr "Du darfst keine Anfragen anlegen."
+
+#: includes/Services/MemberInquiries.php
+msgid "Please enter a contact name for the inquiry."
+msgstr "Bitte gib einen Kontaktnamen für die Anfrage ein."
+
+#: includes/Services/MemberInquiries.php
+msgid "This inquiry is not yours."
+msgstr "Diese Anfrage gehört dir nicht."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Inquiry saved."
+msgstr "Anfrage gespeichert."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Inquiry status updated."
+msgstr "Anfrage-Status aktualisiert."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Inquiry deleted."
+msgstr "Anfrage gelöscht."
+
+#: includes/Frontend/MemberPortal.php
+msgid "My inquiries"
+msgstr "Meine Anfragen"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Track external requests as bookkeeping and move them through the pipeline. A later step turns a won inquiry into a project."
+msgstr "Halte externe Anfragen als Buchhaltung fest und führe sie durch die Pipeline. Ein späterer Schritt macht aus einer gewonnenen Anfrage ein Projekt."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Move to:"
+msgstr "Wechseln zu:"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Delete this inquiry?"
+msgstr "Diese Anfrage löschen?"
+
+#: includes/Frontend/MemberPortal.php
+msgid "No inquiries yet. Add your first one below."
+msgstr "Noch keine Anfragen. Lege unten deine erste an."
+
+#: includes/Frontend/MemberPortal.php
+msgid "New inquiry"
+msgstr "Neue Anfrage"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Contact name"
+msgstr "Kontaktname"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Message / notes"
+msgstr "Nachricht / Notizen"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Save inquiry"
+msgstr "Anfrage speichern"

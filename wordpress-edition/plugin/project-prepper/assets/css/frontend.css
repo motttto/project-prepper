@@ -1328,6 +1328,14 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-status--doing { background: #fffbeb; color: #b45309; }
 .pp-status--done { background: #f1f5f9; color: #475569; }
 .pp-status--cancelled { background: #fef2f2; color: #dc2626; }
+/* Anfrage-Pipeline-Status */
+.pp-status--new { background: #eff6ff; color: #2563eb; }
+.pp-status--contacted { background: #eef2ff; color: #4f46e5; }
+.pp-status--offer { background: #fffbeb; color: #b45309; }
+.pp-status--won { background: #ecfdf5; color: #059669; }
+.pp-status--lost { background: #fef2f2; color: #dc2626; }
+.pp-status--closed { background: #f1f5f9; color: #475569; }
+.pp-portal__inq-msg { margin: .4rem 0; font-size: .85rem; color: var(--pp-muted-foreground); white-space: pre-wrap; }
 
 /* Projekt-Liste */
 .pp-proj-list { display: flex; flex-direction: column; gap: 10px; }
