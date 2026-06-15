@@ -63,10 +63,21 @@ class FederationController extends BaseController {
 				'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 			],
 		] );
+
+		// Health: Live-Erreichbarkeitsprüfung aller Partner (umgeht den Cache).
+		register_rest_route( self::REST_NAMESPACE, '/federation/check', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'admin_check' ],
+			'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
+		] );
 	}
 
 	public function admin_show(): WP_REST_Response {
 		return new WP_REST_Response( $this->admin_payload() );
+	}
+
+	public function admin_check(): WP_REST_Response {
+		return new WP_REST_Response( [ 'partners' => Federation::check_partners() ] );
 	}
 
 	public function admin_update( WP_REST_Request $request ): WP_REST_Response {

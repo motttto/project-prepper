@@ -2539,10 +2539,29 @@
 				}
 			});
 
+			var mailTestResult = el("span", { class: "pp-muted", style: "margin-left:8px" });
+			var mailTestBtn = el("button", {
+				class: "pp-btn pp-btn-sm", text: __("Send test email", "project-prepper"),
+				onclick: function () {
+					mailTestBtn.disabled = true;
+					mailTestResult.textContent = __("Sending …", "project-prepper");
+					api("/settings/test-email", { method: "POST" }).then(function (r) {
+						mailTestBtn.disabled = false;
+						if (r.sent) {
+							/* translators: %s: recipient email address. */
+							mailTestResult.textContent = sprintf(__("Sent to %s — check your inbox.", "project-prepper"), r.to);
+						} else {
+							mailTestResult.textContent = __("WordPress could not send the email. Check your server mail / SMTP setup.", "project-prepper");
+						}
+					}).catch(function (e) { mailTestBtn.disabled = false; mailTestResult.textContent = e.message; });
+				}
+			});
 			root.appendChild(el("div", { class: "pp-card" }, [
 				el("h2", { text: __("Email notifications", "project-prepper") }),
 				el("label", { class: "pp-toggle" }, [emailToggle, el("span", { text: __("Send notification emails (rentals, invitations, borrow requests, login codes)", "project-prepper") })]),
-				el("div", { style: "margin-top:8px" }, [el("a", { class: "pp-link", href: "admin.php?page=pp-email-templates", text: __("Edit email templates →", "project-prepper") })])
+				el("div", { style: "margin-top:8px" }, [el("a", { class: "pp-link", href: "admin.php?page=pp-email-templates", text: __("Edit email templates →", "project-prepper") })]),
+				el("div", { class: "pp-muted", style: "margin-top:8px", text: __("Deliverability check: send a test email to your own address.", "project-prepper") }),
+				el("div", { class: "pp-row", style: "margin-top:4px" }, [mailTestBtn, mailTestResult])
 			]));
 
 			// iCal
@@ -3244,6 +3263,45 @@
 					}
 				});
 				root.appendChild(el("div", { class: "pp-row" }, [saveBtn]));
+
+				// Health: Partner-Erreichbarkeit live prüfen (umgeht den 1h-Cache).
+				var checkResult = el("div", { style: "margin-top:8px" });
+				var checkBtn = el("button", {
+					class: "pp-btn pp-btn-sm", text: __("Check partners now", "project-prepper"),
+					onclick: function () {
+						checkBtn.disabled = true;
+						checkResult.innerHTML = "";
+						checkResult.appendChild(el("span", { class: "pp-muted", text: __("Checking …", "project-prepper") }));
+						api("/federation/check", { method: "POST" }).then(function (r) {
+							checkBtn.disabled = false;
+							var list = r.partners || [];
+							if (!list.length) {
+								checkResult.innerHTML = "";
+								checkResult.appendChild(el("span", { class: "pp-muted", text: __("No partner instances configured yet.", "project-prepper") }));
+								return;
+							}
+							checkResult.innerHTML = "";
+							checkResult.appendChild(tableCard(
+								__("Reachability", "project-prepper"),
+								[__("Instance", "project-prepper"), __("Status", "project-prepper"), __("Detail", "project-prepper")],
+								list.map(function (p) {
+									return [
+										p.name || p.url,
+										p.reachable ? __("Reachable", "project-prepper") : __("Unreachable", "project-prepper"),
+										p.reachable ? p.url : (p.error || p.url)
+									];
+								}),
+								""
+							));
+						}).catch(function (e) { checkBtn.disabled = false; checkResult.innerHTML = ""; checkResult.appendChild(el("span", { class: "pp-muted", text: e.message })); });
+					}
+				});
+				root.appendChild(el("div", { class: "pp-card" }, [
+					el("h2", { text: __("Partner health", "project-prepper") }),
+					el("div", { class: "pp-muted", style: "margin-bottom:8px", text: __("Ping every configured partner right now to see which instances are reachable.", "project-prepper") }),
+					el("div", { class: "pp-row" }, [checkBtn]),
+					checkResult
+				]));
 
 				root.appendChild(tableCard(
 					__("Known instances", "project-prepper"),

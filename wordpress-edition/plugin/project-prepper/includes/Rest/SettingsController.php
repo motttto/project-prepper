@@ -32,6 +32,13 @@ class SettingsController extends BaseController {
 			'callback'            => [ $this, 'regenerate_ical_token' ],
 			'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
 		] );
+
+		// Health: Test-E-Mail an die eigene Adresse senden (Zustellbarkeits-Check).
+		register_rest_route( self::REST_NAMESPACE, '/settings/test-email', [
+			'methods'             => 'POST',
+			'callback'            => [ $this, 'test_email' ],
+			'permission_callback' => $this->require_cap( Capabilities::OPERATE ),
+		] );
 	}
 
 	public function show(): WP_REST_Response {
@@ -71,6 +78,27 @@ class SettingsController extends BaseController {
 	public function regenerate_ical_token(): WP_REST_Response {
 		CalendarController::regenerate_token();
 		return new WP_REST_Response( $this->payload() );
+	}
+
+	/**
+	 * Sendet eine Test-E-Mail über wp_mail an die Adresse des aktuellen Betreibers
+	 * und meldet, ob WordPress sie zur Zustellung angenommen hat. (wp_mail liefert
+	 * true, wenn die Mail an den MTA übergeben wurde — keine Garantie der Zustellung,
+	 * aber ein verlässlicher Hinweis auf eine kaputte Mail-Konfiguration.)
+	 */
+	public function test_email(): WP_REST_Response {
+		$user = wp_get_current_user();
+		$to   = $user ? $user->user_email : get_option( 'admin_email' );
+		$sent = false;
+		if ( $to ) {
+			$sent = wp_mail(
+				$to,
+				/* translators: %s: site name. */
+				sprintf( __( '[%s] Test email', 'project-prepper' ), get_bloginfo( 'name' ) ),
+				__( 'This is a test email from Project Prepper. If you received it, outgoing mail works.', 'project-prepper' )
+			);
+		}
+		return new WP_REST_Response( [ 'sent' => (bool) $sent, 'to' => (string) $to ] );
 	}
 
 	private function payload(): array {

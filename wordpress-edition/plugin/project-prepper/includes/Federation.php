@@ -134,6 +134,45 @@ class Federation {
 		return $out;
 	}
 
+	/**
+	 * Live-Erreichbarkeitsprüfung aller Partner — umgeht den fetch()-Cache und
+	 * frischt ihn auf. Für die Health-/Zustellbarkeits-Ansicht der Steuerzentrale,
+	 * damit der Betreiber einen Partner-Ausfall sofort (statt erst nach Cache-
+	 * Ablauf) sieht.
+	 *
+	 * @return array<array{url:string,reachable:bool,name:string,error:string}>
+	 */
+	public static function check_partners(): array {
+		$out = [];
+		foreach ( self::partners() as $url ) {
+			$url  = untrailingslashit( $url );
+			$key  = 'pp_fed_' . md5( $url );
+			$resp = wp_remote_get( $url . '/wp-json/project-prepper/v1/federation/info', [ 'timeout' => 5 ] );
+
+			if ( is_wp_error( $resp ) ) {
+				set_transient( $key, 'none', HOUR_IN_SECONDS );
+				$out[] = [ 'url' => $url, 'reachable' => false, 'name' => '', 'error' => $resp->get_error_message() ];
+				continue;
+			}
+			$code = (int) wp_remote_retrieve_response_code( $resp );
+			if ( 200 !== $code ) {
+				set_transient( $key, 'none', HOUR_IN_SECONDS );
+				/* translators: %d: HTTP status code. */
+				$out[] = [ 'url' => $url, 'reachable' => false, 'name' => '', 'error' => sprintf( __( 'HTTP %d', 'project-prepper' ), $code ) ];
+				continue;
+			}
+			$data = json_decode( wp_remote_retrieve_body( $resp ), true );
+			if ( ! is_array( $data ) ) {
+				set_transient( $key, 'none', HOUR_IN_SECONDS );
+				$out[] = [ 'url' => $url, 'reachable' => false, 'name' => '', 'error' => __( 'Invalid response', 'project-prepper' ) ];
+				continue;
+			}
+			set_transient( $key, $data, HOUR_IN_SECONDS );
+			$out[] = [ 'url' => $url, 'reachable' => true, 'name' => (string) ( $data['name'] ?? '' ), 'error' => '' ];
+		}
+		return $out;
+	}
+
 	/* ===================== Geteiltes Inventar (Slice 3) ===================== */
 
 	/**

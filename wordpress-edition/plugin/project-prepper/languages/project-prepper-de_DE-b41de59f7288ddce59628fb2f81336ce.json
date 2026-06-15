@@ -1551,6 +1551,45 @@
             ],
             "Loading \u2026": [
                 "Wird geladen \u2026"
+            ],
+            "Send test email": [
+                "Test-E-Mail senden"
+            ],
+            "Sending \u2026": [
+                "Wird gesendet \u2026"
+            ],
+            "Sent to %s \u2014 check your inbox.": [
+                "An %s gesendet \u2014 schau in dein Postfach."
+            ],
+            "WordPress could not send the email. Check your server mail \/ SMTP setup.": [
+                "WordPress konnte die E-Mail nicht senden. Pr\u00fcfe die Server-Mail- \/ SMTP-Konfiguration."
+            ],
+            "Deliverability check: send a test email to your own address.": [
+                "Zustellbarkeits-Check: sende eine Test-E-Mail an deine eigene Adresse."
+            ],
+            "Check partners now": [
+                "Partner jetzt pr\u00fcfen"
+            ],
+            "Checking \u2026": [
+                "Wird gepr\u00fcft \u2026"
+            ],
+            "Reachability": [
+                "Erreichbarkeit"
+            ],
+            "Reachable": [
+                "Erreichbar"
+            ],
+            "Unreachable": [
+                "Nicht erreichbar"
+            ],
+            "Partner health": [
+                "Partner-Status"
+            ],
+            "Ping every configured partner right now to see which instances are reachable.": [
+                "Pinge jetzt jeden konfigurierten Partner, um zu sehen, welche Instanzen erreichbar sind."
+            ],
+            "Detail": [
+                "Detail"
             ]
         }
     }

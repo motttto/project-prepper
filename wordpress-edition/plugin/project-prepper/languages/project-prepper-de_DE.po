@@ -4829,3 +4829,71 @@ msgstr "Keine geplanten Einträge in den nächsten 90 Tagen."
 #: admin/js/admin.js
 msgid "Loading …"
 msgstr "Wird geladen …"
+
+#: includes/Federation.php
+msgid "HTTP %d"
+msgstr "HTTP %d"
+
+#: includes/Federation.php
+msgid "Invalid response"
+msgstr "Ungültige Antwort"
+
+#: includes/Rest/SettingsController.php
+msgid "[%s] Test email"
+msgstr "[%s] Test-E-Mail"
+
+#: includes/Rest/SettingsController.php
+msgid "This is a test email from Project Prepper. If you received it, outgoing mail works."
+msgstr "Dies ist eine Test-E-Mail von Project Prepper. Wenn du sie erhalten hast, funktioniert der E-Mail-Versand."
+
+#: admin/js/admin.js
+msgid "Send test email"
+msgstr "Test-E-Mail senden"
+
+#: admin/js/admin.js
+msgid "Sending …"
+msgstr "Wird gesendet …"
+
+#: admin/js/admin.js
+msgid "Sent to %s — check your inbox."
+msgstr "An %s gesendet — schau in dein Postfach."
+
+#: admin/js/admin.js
+msgid "WordPress could not send the email. Check your server mail / SMTP setup."
+msgstr "WordPress konnte die E-Mail nicht senden. Prüfe die Server-Mail- / SMTP-Konfiguration."
+
+#: admin/js/admin.js
+msgid "Deliverability check: send a test email to your own address."
+msgstr "Zustellbarkeits-Check: sende eine Test-E-Mail an deine eigene Adresse."
+
+#: admin/js/admin.js
+msgid "Check partners now"
+msgstr "Partner jetzt prüfen"
+
+#: admin/js/admin.js
+msgid "Checking …"
+msgstr "Wird geprüft …"
+
+#: admin/js/admin.js
+msgid "Reachability"
+msgstr "Erreichbarkeit"
+
+#: admin/js/admin.js
+msgid "Reachable"
+msgstr "Erreichbar"
+
+#: admin/js/admin.js
+msgid "Unreachable"
+msgstr "Nicht erreichbar"
+
+#: admin/js/admin.js
+msgid "Partner health"
+msgstr "Partner-Status"
+
+#: admin/js/admin.js
+msgid "Ping every configured partner right now to see which instances are reachable."
+msgstr "Pinge jetzt jeden konfigurierten Partner, um zu sehen, welche Instanzen erreichbar sind."
+
+#: admin/js/admin.js
+msgid "Detail"
+msgstr "Detail"
