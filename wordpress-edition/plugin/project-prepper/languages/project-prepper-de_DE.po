@@ -5069,3 +5069,43 @@ msgstr "Deine Nutzungsbedingungen. Wenn die Durchsetzung aktiv ist, müssen Mitg
 #: admin/js/admin.js
 msgid "Members must accept these terms before using the portal."
 msgstr "Mitglieder müssen diese Bedingungen akzeptieren, bevor sie das Portal nutzen."
+
+#: admin/js/admin.js
+msgid "Legal details (imprint & privacy)"
+msgstr "Rechtsangaben (Impressum & Datenschutz)"
+
+#: admin/js/admin.js
+msgid "These details generate your imprint and privacy policy via the [pp_impressum] and [pp_datenschutz] shortcodes. Stored in the database, not hardcoded."
+msgstr "Diese Angaben erzeugen dein Impressum und deine Datenschutzerklärung über die Shortcodes [pp_impressum] und [pp_datenschutz]. Sie liegen in der Datenbank, nicht fest im Text."
+
+#: admin/js/admin.js
+msgid "Operator (name / company / association)"
+msgstr "Betreiber (Name / Firma / Verein)"
+
+#: admin/js/admin.js
+msgid "Street and number"
+msgstr "Straße und Hausnummer"
+
+#: admin/js/admin.js
+msgid "City"
+msgstr "Ort"
+
+#: admin/js/admin.js
+msgid "Country"
+msgstr "Land"
+
+#: admin/js/admin.js
+msgid "Phone (optional)"
+msgstr "Telefon (optional)"
+
+#: admin/js/admin.js
+msgid "Legal form / register / representation (optional)"
+msgstr "Rechtsform / Register / Vertretung (optional)"
+
+#: admin/js/admin.js
+msgid "Hosting provider (optional, for privacy policy)"
+msgstr "Hosting-Anbieter (optional, für Datenschutz)"
+
+#: includes/Frontend/Legal.php
+msgid "Legal details are not filled in yet — open Manage → Instance → Legal details (imprint/privacy)."
+msgstr "Rechtsangaben sind noch nicht gepflegt — öffne Verwalten → Instanz → Rechtsangaben (Impressum/Datenschutz)."

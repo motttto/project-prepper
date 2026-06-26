@@ -1932,6 +1932,28 @@
 				el("label", { class: "pp-toggle", style: "margin-top:10px" }, [requireAcc, el("span", { text: __("Members must accept these terms before using the portal.", "project-prepper") })])
 			]));
 
+			var imp = d.imprint || {};
+			var imOperator = el("input", { type: "text", value: imp.operator || "", style: "width:100%" });
+			var imStreet = el("input", { type: "text", value: imp.street || "", style: "width:100%" });
+			var imPostal = el("input", { type: "text", value: imp.postal_code || "", style: "width:140px" });
+			var imCity = el("input", { type: "text", value: imp.city || "", style: "width:100%" });
+			var imCountry = el("input", { type: "text", value: imp.country || "", style: "width:100%" });
+			var imEmail = el("input", { type: "email", value: imp.email || "", style: "width:100%" });
+			var imPhone = el("input", { type: "text", value: imp.phone || "", style: "width:100%" });
+			var imForm = el("textarea", { style: "width:100%; min-height:60px" }); imForm.value = imp.legal_form || "";
+			var imHosting = el("input", { type: "text", value: imp.hosting || "", style: "width:100%" });
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Legal details (imprint & privacy)", "project-prepper") }),
+				el("div", { class: "pp-muted", style: "margin-bottom:8px", text: __("These details generate your imprint and privacy policy via the [pp_impressum] and [pp_datenschutz] shortcodes. Stored in the database, not hardcoded.", "project-prepper") }),
+				field(__("Operator (name / company / association)", "project-prepper"), imOperator),
+				field(__("Street and number", "project-prepper"), imStreet),
+				el("div", { class: "pp-row", style: "gap:14px; flex-wrap:wrap" }, [field(__("Postal code", "project-prepper"), imPostal), field(__("City", "project-prepper"), imCity), field(__("Country", "project-prepper"), imCountry)]),
+				field(__("Contact email", "project-prepper"), imEmail),
+				field(__("Phone (optional)", "project-prepper"), imPhone),
+				field(__("Legal form / register / representation (optional)", "project-prepper"), imForm),
+				field(__("Hosting provider (optional, for privacy policy)", "project-prepper"), imHosting)
+			]));
+
 			var saveBtn = el("button", {
 				class: "pp-btn pp-btn-primary", text: __("Save", "project-prepper"),
 				onclick: function () {
@@ -1940,7 +1962,8 @@
 						body: JSON.stringify({
 							name: name.value, purpose: purpose.value, topic: topic.value, postal_code: postal.value, contact_email: contact.value,
 							economy: { model: model.value, amount: amount.value, interval: interval.value, currency: currency.value, note: note.value },
-							legal: { agb_text: agb.value, require_acceptance: requireAcc.checked }
+							legal: { agb_text: agb.value, require_acceptance: requireAcc.checked },
+							imprint: { operator: imOperator.value, street: imStreet.value, postal_code: imPostal.value, city: imCity.value, country: imCountry.value, email: imEmail.value, phone: imPhone.value, legal_form: imForm.value, hosting: imHosting.value }
 						})
 					}).then(function () { toast(__("Saved.", "project-prepper")); }).catch(function (e) { toast(e.message, "error"); });
 				}

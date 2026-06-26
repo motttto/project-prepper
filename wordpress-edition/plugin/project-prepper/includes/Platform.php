@@ -43,6 +43,20 @@ class Platform {
 				'agb_version'        => 0,
 				'require_acceptance' => false,
 			],
+			// Betreiber-/Rechtsangaben — speisen Impressum + Datenschutz (Shortcodes
+			// [pp_impressum] / [pp_datenschutz]). Daten liegen in der DB, nicht im
+			// Seiten- oder Theme-Text.
+			'imprint'       => [
+				'operator'    => '',          // Name/Firma/Verein (§ 5 DDG)
+				'street'      => '',          // Straße + Hausnummer
+				'postal_code' => '',          // PLZ
+				'city'        => '',          // Ort
+				'country'     => 'Deutschland',
+				'email'       => '',          // Kontakt-E-Mail (Impressum/Datenschutz)
+				'phone'       => '',          // optional
+				'legal_form'  => '',          // optional: Rechtsform/Register/Verein/Vertretung
+				'hosting'     => '',          // optional: Hosting-Anbieter (Datenschutz)
+			],
 		];
 	}
 
@@ -54,6 +68,7 @@ class Platform {
 		$out = array_merge( $d, $saved );
 		$out['economy'] = array_merge( $d['economy'], is_array( $saved['economy'] ?? null ) ? $saved['economy'] : [] );
 		$out['legal']   = array_merge( $d['legal'], is_array( $saved['legal'] ?? null ) ? $saved['legal'] : [] );
+		$out['imprint'] = array_merge( $d['imprint'], is_array( $saved['imprint'] ?? null ) ? $saved['imprint'] : [] );
 		return $out;
 	}
 
@@ -103,6 +118,17 @@ class Platform {
 		return (string) self::all()['legal']['agb_text'];
 	}
 
+	/* ---------- Betreiber-/Rechtsangaben (Impressum/Datenschutz) ---------- */
+
+	public static function imprint(): array {
+		return self::all()['imprint'];
+	}
+	/** True, wenn die Pflichtfelder (Betreiber + Ort) gepflegt sind. */
+	public static function imprint_ready(): bool {
+		$i = self::imprint();
+		return '' !== trim( (string) $i['operator'] ) && '' !== trim( (string) $i['city'] );
+	}
+
 	/**
 	 * Eingabe (JSON oder $_POST-artig) säubern + speichern. Die AGB-Version wird
 	 * automatisch erhöht, wenn sich der AGB-Text ändert (für die spätere Akzeptanz-
@@ -146,6 +172,7 @@ class Platform {
 				'agb_version'        => $version,
 				'require_acceptance' => ! empty( $legal_in['require_acceptance'] ),
 			],
+			'imprint'       => self::clean_imprint( is_array( $in['imprint'] ?? null ) ? $in['imprint'] : [] ),
 		];
 		update_option( self::OPTION, $data );
 		return self::all();
@@ -154,5 +181,19 @@ class Platform {
 	private static function clean_amount( string $v ): string {
 		$v = trim( str_replace( ',', '.', $v ) );
 		return is_numeric( $v ) ? (string) round( (float) $v, 2 ) : '';
+	}
+
+	private static function clean_imprint( array $in ): array {
+		return [
+			'operator'    => sanitize_text_field( (string) ( $in['operator'] ?? '' ) ),
+			'street'      => sanitize_text_field( (string) ( $in['street'] ?? '' ) ),
+			'postal_code' => sanitize_text_field( (string) ( $in['postal_code'] ?? '' ) ),
+			'city'        => sanitize_text_field( (string) ( $in['city'] ?? '' ) ),
+			'country'     => sanitize_text_field( (string) ( $in['country'] ?? '' ) ),
+			'email'       => sanitize_email( (string) ( $in['email'] ?? '' ) ),
+			'phone'       => sanitize_text_field( (string) ( $in['phone'] ?? '' ) ),
+			'legal_form'  => sanitize_textarea_field( (string) ( $in['legal_form'] ?? '' ) ),
+			'hosting'     => sanitize_text_field( (string) ( $in['hosting'] ?? '' ) ),
+		];
 	}
 }

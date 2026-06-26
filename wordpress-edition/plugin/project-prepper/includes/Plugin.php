@@ -33,6 +33,7 @@ class Plugin {
 		Users::init();
 		Impersonation::init();
 		Frontend\Shortcodes::init();
+		Frontend\Legal::init();
 		Frontend\Blocks::init();
 		Frontend\ItemDetail::init();
 		Frontend\MemberPortal::init();

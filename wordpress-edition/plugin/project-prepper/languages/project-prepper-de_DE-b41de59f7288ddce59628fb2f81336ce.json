@@ -31,6 +31,33 @@
             "Members must accept these terms before using the portal.": [
                 "Mitglieder müssen diese Bedingungen akzeptieren, bevor sie das Portal nutzen."
             ],
+            "Legal details (imprint & privacy)": [
+                "Rechtsangaben (Impressum & Datenschutz)"
+            ],
+            "These details generate your imprint and privacy policy via the [pp_impressum] and [pp_datenschutz] shortcodes. Stored in the database, not hardcoded.": [
+                "Diese Angaben erzeugen dein Impressum und deine Datenschutzerklärung über die Shortcodes [pp_impressum] und [pp_datenschutz]. Sie liegen in der Datenbank, nicht fest im Text."
+            ],
+            "Operator (name / company / association)": [
+                "Betreiber (Name / Firma / Verein)"
+            ],
+            "Street and number": [
+                "Straße und Hausnummer"
+            ],
+            "City": [
+                "Ort"
+            ],
+            "Country": [
+                "Land"
+            ],
+            "Phone (optional)": [
+                "Telefon (optional)"
+            ],
+            "Legal form / register / representation (optional)": [
+                "Rechtsform / Register / Vertretung (optional)"
+            ],
+            "Hosting provider (optional, for privacy policy)": [
+                "Hosting-Anbieter (optional, für Datenschutz)"
+            ],
             "Inventory": [
                 "Inventar"
             ],
