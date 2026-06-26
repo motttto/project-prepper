@@ -18,8 +18,8 @@
 durch ihre Mitglieder.
 
 (2) Betreiber der Plattform ist:
-**[BETREIBER-NAME]**, [ANSCHRIFT], [ORT], Deutschland,
-E-Mail: [KONTAKT-E-MAIL] (nachfolgend „Betreiber").
+**[BETREIBER-NAME]**, [ANSCHRIFT], E-Mail: [KONTAKT-E-MAIL] (nachfolgend
+„Betreiber").
 
 (3) Mit der Registrierung bzw. der Annahme einer Einladung und der Bestätigung
 dieser Nutzungsbedingungen erkennt das Mitglied diese als verbindlich an.

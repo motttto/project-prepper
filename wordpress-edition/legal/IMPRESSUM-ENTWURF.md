@@ -10,12 +10,13 @@
 ## Angaben gemäß § 5 DDG
 
 **[BETREIBER-NAME]**
-[ANSCHRIFT]
-[ORT]
-Deutschland
+[STRASSE UND HAUSNUMMER]
+[PLZ] [ORT]
+[LAND]
 
 *(Betrieb als natürliche Person, nichtkommerziell — daher keine Angaben zu
-Rechtsform, Register oder USt-IdNr. erforderlich.)*
+Rechtsform, Register oder USt-IdNr. erforderlich. Bei juristischer Person/Verein
+entsprechend ergänzen.)*
 
 ## Kontakt
 

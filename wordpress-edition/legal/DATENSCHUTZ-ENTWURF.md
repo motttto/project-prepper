@@ -11,8 +11,7 @@
 ## 1. Verantwortlicher
 
 Verantwortlich im Sinne der DSGVO ist:
-**[BETREIBER-NAME]**, [ANSCHRIFT], [ORT], Deutschland,
-E-Mail: [KONTAKT-E-MAIL].
+**[BETREIBER-NAME]**, [ANSCHRIFT], E-Mail: [KONTAKT-E-MAIL].
 
 *(Sofern bestellt: Datenschutzbeauftragte/r mit Kontaktdaten ergänzen.)*
 
