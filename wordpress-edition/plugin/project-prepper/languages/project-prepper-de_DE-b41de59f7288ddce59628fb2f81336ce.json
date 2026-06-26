@@ -10,6 +10,27 @@
                 "lang": "de_DE",
                 "plural-forms": "nplurals=2; plural=(n != 1);"
             },
+            "Edit": [
+                "Bearbeiten"
+            ],
+            "Preview": [
+                "Vorschau"
+            ],
+            "characters": [
+                "Zeichen"
+            ],
+            "Nothing to preview yet.": [
+                "Noch nichts für die Vorschau."
+            ],
+            "Write your terms of use here. Plain text — line breaks are kept exactly as members will see them.": [
+                "Schreibe hier deine Nutzungsbedingungen. Reiner Text — Zeilenumbrüche bleiben genau so erhalten, wie Mitglieder sie sehen."
+            ],
+            "Your terms of use. When enforcement is on, members must accept the current version before using the portal. Line breaks are shown to members exactly as typed.": [
+                "Deine Nutzungsbedingungen. Wenn die Durchsetzung aktiv ist, müssen Mitglieder die aktuelle Version akzeptieren, bevor sie das Portal nutzen. Zeilenumbrüche werden Mitgliedern genau so angezeigt, wie eingegeben."
+            ],
+            "Members must accept these terms before using the portal.": [
+                "Mitglieder müssen diese Bedingungen akzeptieren, bevor sie das Portal nutzen."
+            ],
             "Inventory": [
                 "Inventar"
             ],

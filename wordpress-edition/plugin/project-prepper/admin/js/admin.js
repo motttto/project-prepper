@@ -1891,13 +1891,45 @@
 				field(__("Note for members", "project-prepper"), note)
 			]));
 
-			var agb = el("textarea", { style: "width:100%; min-height:160px; font-family:monospace" }); agb.value = d.legal.agb_text;
+			var agb = el("textarea", {
+				style: "width:100%; min-height:320px; line-height:1.6; padding:12px; font-size:14px; resize:vertical",
+				placeholder: __("Write your terms of use here. Plain text — line breaks are kept exactly as members will see them.", "project-prepper")
+			});
+			agb.value = d.legal.agb_text;
 			var requireAcc = el("input", { type: "checkbox" }); requireAcc.checked = !!d.legal.require_acceptance;
+
+			function escHtml(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+			var preview = el("div", { style: "display:none; min-height:320px; padding:12px; border:1px solid #e3e3e3; border-radius:8px; line-height:1.6; background:#fafafa" });
+			var counter = el("span", { class: "pp-muted" });
+			function updateMeta() { counter.textContent = agb.value.length + " " + __("characters", "project-prepper"); }
+			agb.addEventListener("input", updateMeta); updateMeta();
+
+			var tabEdit = el("button", { type: "button", class: "pp-btn" });
+			var tabPrev = el("button", { type: "button", class: "pp-btn" });
+			tabEdit.textContent = __("Edit", "project-prepper");
+			tabPrev.textContent = __("Preview", "project-prepper");
+			function showEdit() { agb.style.display = ""; preview.style.display = "none"; tabEdit.classList.add("pp-btn-primary"); tabPrev.classList.remove("pp-btn-primary"); }
+			function showPrev() {
+				var body = escHtml(agb.value).replace(/\n/g, "<br>");
+				preview.innerHTML = body || ('<span class="pp-muted">' + escHtml(__("Nothing to preview yet.", "project-prepper")) + "</span>");
+				agb.style.display = "none"; preview.style.display = ""; tabPrev.classList.add("pp-btn-primary"); tabEdit.classList.remove("pp-btn-primary");
+			}
+			tabEdit.addEventListener("click", showEdit);
+			tabPrev.addEventListener("click", showPrev);
+			showEdit();
+
 			root.appendChild(el("div", { class: "pp-card" }, [
 				el("h2", { text: __("Terms (legal basis)", "project-prepper") }),
-				el("div", { class: "pp-muted", style: "margin-bottom:8px", text: __("Your terms of use.", "project-prepper") + " " + __("Current version:", "project-prepper") + " " + (d.legal.agb_version || 0) }),
-				field(__("Terms text", "project-prepper"), agb),
-				el("label", { class: "pp-toggle" }, [requireAcc, el("span", { text: __("Members must accept these terms (enforcement in the portal follows in a later step).", "project-prepper") })])
+				el("div", { class: "pp-muted", style: "margin-bottom:10px", text: __("Your terms of use. When enforcement is on, members must accept the current version before using the portal. Line breaks are shown to members exactly as typed.", "project-prepper") }),
+				el("div", { class: "pp-row", style: "gap:8px; align-items:center; margin-bottom:8px" }, [
+					tabEdit, tabPrev,
+					el("span", { style: "flex:1" }),
+					el("span", { class: "pp-muted", text: __("Current version:", "project-prepper") + " " + (d.legal.agb_version || 0) }),
+					counter
+				]),
+				agb,
+				preview,
+				el("label", { class: "pp-toggle", style: "margin-top:10px" }, [requireAcc, el("span", { text: __("Members must accept these terms before using the portal.", "project-prepper") })])
 			]));
 
 			var saveBtn = el("button", {

@@ -5045,3 +5045,27 @@ msgstr "Projekt „%s" löschen? Das kann nicht rückgängig gemacht werden."
 #: admin/js/admin.js
 msgid "Site level"
 msgstr "Site-Ebene"
+
+#: admin/js/admin.js
+msgid "Preview"
+msgstr "Vorschau"
+
+#: admin/js/admin.js
+msgid "characters"
+msgstr "Zeichen"
+
+#: admin/js/admin.js
+msgid "Nothing to preview yet."
+msgstr "Noch nichts für die Vorschau."
+
+#: admin/js/admin.js
+msgid "Write your terms of use here. Plain text — line breaks are kept exactly as members will see them."
+msgstr "Schreibe hier deine Nutzungsbedingungen. Reiner Text — Zeilenumbrüche bleiben genau so erhalten, wie Mitglieder sie sehen."
+
+#: admin/js/admin.js
+msgid "Your terms of use. When enforcement is on, members must accept the current version before using the portal. Line breaks are shown to members exactly as typed."
+msgstr "Deine Nutzungsbedingungen. Wenn die Durchsetzung aktiv ist, müssen Mitglieder die aktuelle Version akzeptieren, bevor sie das Portal nutzen. Zeilenumbrüche werden Mitgliedern genau so angezeigt, wie eingegeben."
+
+#: admin/js/admin.js
+msgid "Members must accept these terms before using the portal."
+msgstr "Mitglieder müssen diese Bedingungen akzeptieren, bevor sie das Portal nutzen."
