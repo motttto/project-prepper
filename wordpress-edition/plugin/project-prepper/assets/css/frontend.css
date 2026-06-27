@@ -882,6 +882,11 @@ a.pp-front-card-media { text-decoration: none; }
 	flex: none;
 	background: var(--pp-muted);
 }
+.pp-portal__item-thumb--empty {
+	display: inline-block;
+	border: 1px dashed var(--pp-border);
+	background: var(--pp-muted);
+}
 .pp-portal__item-num {
 	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 	font-size: .75rem;
