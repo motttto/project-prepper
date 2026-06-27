@@ -2962,10 +2962,12 @@ class MemberPortal {
 		$all_items = MemberInventory::my_items( (int) $user->ID, $q );
 		// KPI + Kategorie-Zählung über alle (such-gefilterten) Artikel.
 		$total_pieces = 0;
+		$total_value  = 0.0;
 		$cat_counts   = [];
 		$cat_labels   = [];
 		foreach ( $all_items as $it ) {
 			$total_pieces += (int) $it->quantity;
+			$total_value  += (float) $it->cost_per_day * (int) $it->quantity;
 			$cid = (int) ( $it->category_id ?? 0 );
 			$cat_counts[ $cid ] = ( $cat_counts[ $cid ] ?? 0 ) + 1;
 			if ( $cid && ! isset( $cat_labels[ $cid ] ) ) {
@@ -3006,7 +3008,8 @@ class MemberPortal {
 				<p class="pp-inv-kpi">
 					<?php
 					/* translators: 1: item count, 2: total pieces. */
-					printf( esc_html__( '%1$d items · %2$d pieces', 'project-prepper' ), count( $all_items ), (int) $total_pieces );
+					$pp_dv = ( (float) $total_value === floor( (float) $total_value ) ) ? number_format_i18n( $total_value, 0 ) : number_format_i18n( $total_value, 2 );
+					printf( esc_html__( '%1$d items · %2$d pieces · daily value %3$s €', 'project-prepper' ), count( $all_items ), (int) $total_pieces, esc_html( $pp_dv ) );
 					?>
 				</p>
 				<div class="pp-inv-pills">
@@ -3032,8 +3035,7 @@ class MemberPortal {
 						<div class="pp-inv-row pp-portal__item-head">
 							<span class="pp-col pp-col--name">
 								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php endif; ?>
-								<span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span>
-								<small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small>
+								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php $pp_sub = $item->model ?: ( $item->description ?? '' ); if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
 							</span>
 							<span class="pp-col pp-col--cat" data-label="<?php esc_attr_e( 'Category', 'project-prepper' ); ?>"><?php echo $item->category_name ? esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) : '—'; ?></span>
 							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) $item->quantity; ?></span>

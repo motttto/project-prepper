@@ -5358,3 +5358,7 @@ msgstr "Tipp: Erst exportieren, um die genauen Spalten zu erhalten, dann Daten e
 #: includes/Frontend/MemberPortal.php
 msgid "Available"
 msgstr "Verfügbar"
+
+#: includes/Frontend/MemberPortal.php
+msgid "%1$d items · %2$d pieces · daily value %3$s €"
+msgstr "%1$d Artikel · %2$d Teile · Tageswert %3$s €"

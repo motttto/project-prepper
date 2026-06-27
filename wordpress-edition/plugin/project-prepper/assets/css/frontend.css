@@ -996,6 +996,9 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-col--name { display: flex; align-items: center; gap: .5rem; font-weight: 600; }
 .pp-col--name .pp-portal__group-name { overflow: hidden; text-overflow: ellipsis; }
 .pp-col--name .pp-portal__item-num { font-weight: 400; flex: none; }
+.pp-inv-name-wrap { display: flex; flex-direction: column; min-width: 0; gap: 1px; }
+.pp-inv-name-top { display: flex; align-items: baseline; gap: .4rem; min-width: 0; }
+.pp-inv-name-sub { font-weight: 400; color: var(--pp-muted-foreground); font-size: .76rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .pp-col--c, .pp-col--r { text-align: right; font-variant-numeric: tabular-nums; }
 /* Inventarzeile: keine Karte, nur dünne Trennlinie (echte Tabellenoptik) */
 .pp-portal__item--row {
