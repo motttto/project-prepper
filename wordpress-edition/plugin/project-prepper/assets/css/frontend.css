@@ -973,9 +973,50 @@ a.pp-front-card-media { text-decoration: none; }
 /* Inventar-Suche + Pagination */
 .pp-inv-search { display: flex; gap: 8px; margin-bottom: 14px; max-width: 420px; }
 .pp-inv-search input[type="search"] { flex: 1; }
-.pp-inv-kpi { color: var(--pp-muted, #64748b); font-size: 0.9rem; margin: 0 0 10px; }
+.pp-inv-kpi { color: var(--pp-muted-foreground); font-size: 0.9rem; margin: 0 0 10px; }
 .pp-inv-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
 .pp-inv-pills .pp-portal__chip { text-decoration: none; }
+
+/* Tabellarische Inventarliste (Mein Inventar) — an die Web-App angeglichen */
+.pp-inv-row {
+	display: grid;
+	grid-template-columns: minmax(150px, 2.4fr) minmax(90px, 1.3fr) 64px 84px minmax(86px, 1fr) 92px minmax(80px, 1fr);
+	gap: 10px;
+	align-items: center;
+	padding: .55rem .4rem;
+}
+.pp-inv-row--head {
+	font-size: .72rem;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--pp-muted-foreground);
+	border-bottom: 1px solid var(--pp-border);
+}
+.pp-col { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pp-col--name { display: flex; align-items: center; gap: .5rem; font-weight: 600; }
+.pp-col--name .pp-portal__group-name { overflow: hidden; text-overflow: ellipsis; }
+.pp-col--name .pp-portal__item-num { font-weight: 400; flex: none; }
+.pp-col--c, .pp-col--r { text-align: right; font-variant-numeric: tabular-nums; }
+/* Inventarzeile: keine Karte, nur dünne Trennlinie (echte Tabellenoptik) */
+.pp-portal__item--row {
+	background: none;
+	border: none;
+	border-bottom: 1px solid var(--pp-border);
+	border-radius: 0;
+	padding: 0;
+	margin: 0;
+}
+.pp-portal__manage { margin: 0 0 .35rem; }
+.pp-portal__manage > summary { display: inline-block; margin: .15rem 0 .4rem .4rem; }
+
+@media (max-width: 720px) {
+	.pp-inv-row--head { display: none; }
+	.pp-portal__item--row { padding: .6rem 0; }
+	.pp-inv-row { grid-template-columns: 1fr 1fr; gap: 6px; }
+	.pp-col--name { grid-column: 1 / -1; }
+	.pp-col--c, .pp-col--r { text-align: left; }
+	.pp-col[data-label]::before { content: attr(data-label) ': '; color: var(--pp-muted-foreground); font-size: .72rem; }
+}
 .pp-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 14px 0; }
 .pp-pagination__info { font-size: .85rem; color: var(--pp-muted-foreground); }
 

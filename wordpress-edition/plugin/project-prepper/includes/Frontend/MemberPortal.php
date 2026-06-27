@@ -3018,36 +3018,33 @@ class MemberPortal {
 			<?php endif; ?>
 
 			<?php if ( $items ) : ?>
+				<div class="pp-inv-row pp-inv-row--head">
+					<span class="pp-col pp-col--name"><?php esc_html_e( 'Item', 'project-prepper' ); ?></span>
+					<span class="pp-col pp-col--cat"><?php esc_html_e( 'Category', 'project-prepper' ); ?></span>
+					<span class="pp-col pp-col--c"><?php esc_html_e( 'Quantity', 'project-prepper' ); ?></span>
+					<span class="pp-col pp-col--c"><?php esc_html_e( 'Available', 'project-prepper' ); ?></span>
+					<span class="pp-col pp-col--cond"><?php esc_html_e( 'Condition', 'project-prepper' ); ?></span>
+					<span class="pp-col pp-col--r">€/<?php echo esc_html__( 'day', 'project-prepper' ); ?></span>
+					<span class="pp-col pp-col--loc"><?php esc_html_e( 'Location', 'project-prepper' ); ?></span>
+				</div>
 				<?php foreach ( $items as $item ) : ?>
-					<div class="pp-portal__item">
-						<div class="pp-portal__item-head">
-							<?php if ( ! empty( $item->image_url ) ) : ?>
-								<img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy">
-							<?php endif; ?>
-							<span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span>
-							<span class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></span>
-							<span class="pp-portal__item-meta">
-								<?php
-								if ( ! empty( $item->category_name ) ) {
-									echo esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) . ' · ';
-								}
-								echo esc_html( $conditions[ $item->condition ] ?? $item->condition );
-								echo ' · ';
-								/* translators: %d: quantity. */
-								printf( esc_html__( 'Qty %d', 'project-prepper' ), (int) $item->quantity );
-								$avail = max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) );
-								/* translators: %d: available quantity. */
-								echo ' · ' . esc_html( sprintf( __( '%d available', 'project-prepper' ), $avail ) );
-								if ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) {
-									echo ' · ' . esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) ) . ' €';
-								}
-								if ( ! empty( $item->location ) ) {
-									echo ' · ' . esc_html( (string) $item->location );
-								}
-								?>
+					<div class="pp-portal__item pp-portal__item--row">
+						<div class="pp-inv-row pp-portal__item-head">
+							<span class="pp-col pp-col--name">
+								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php endif; ?>
+								<span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span>
+								<small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small>
 							</span>
+							<span class="pp-col pp-col--cat" data-label="<?php esc_attr_e( 'Category', 'project-prepper' ); ?>"><?php echo $item->category_name ? esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) : '—'; ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) $item->quantity; ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo (int) max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) ); ?></span>
+							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php echo esc_html( $conditions[ $item->condition ] ?? $item->condition ); ?></span>
+							<span class="pp-col pp-col--r" data-label="€/<?php echo esc_attr__( 'day', 'project-prepper' ); ?>"><?php echo ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) ? esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) . ' €' ) : '—'; ?></span>
+							<span class="pp-col pp-col--loc" data-label="<?php esc_attr_e( 'Location', 'project-prepper' ); ?>"><?php echo ! empty( $item->location ) ? esc_html( (string) $item->location ) : '—'; ?></span>
 						</div>
 
+						<details class="pp-portal__manage">
+							<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Manage', 'project-prepper' ); ?></summary>
 						<?php if ( $groups ) : ?>
 							<?php $shared = MemberInventory::shared_group_ids( (int) $item->id ); ?>
 							<div class="pp-portal__share-row">
@@ -3129,6 +3126,7 @@ class MemberPortal {
 								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
 							</form>
 						</div>
+						</details>
 					</div>
 				<?php endforeach; ?>
 			<?php else : ?>

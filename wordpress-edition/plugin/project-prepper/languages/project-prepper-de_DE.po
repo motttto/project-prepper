@@ -5354,3 +5354,7 @@ msgstr "CSV- oder Excel-Datei"
 #: includes/Frontend/MemberPortal.php
 msgid "Tip: export first to get the exact columns, fill in your data, then import. Excel files (.xlsx) are converted automatically; the “Name” column is required."
 msgstr "Tipp: Erst exportieren, um die genauen Spalten zu erhalten, dann Daten eintragen und importieren. Excel-Dateien (.xlsx) werden automatisch umgewandelt; die Spalte „Name“ ist Pflicht."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Available"
+msgstr "Verfügbar"
