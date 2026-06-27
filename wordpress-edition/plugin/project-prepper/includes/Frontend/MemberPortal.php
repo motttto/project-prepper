@@ -2949,13 +2949,31 @@ class MemberPortal {
 	private static function render_my_inventory( WP_User $user, array $groups, bool $heading = true ): void {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Suche/Navigation
 		$q         = isset( $_GET['pp_q'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_q'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
+		$cat       = isset( $_GET['pp_cat'] ) ? (int) $_GET['pp_cat'] : 0;
 		$all_items = MemberInventory::my_items( (int) $user->ID, $q );
+		// KPI + Kategorie-Zählung über alle (such-gefilterten) Artikel.
+		$total_pieces = 0;
+		$cat_counts   = [];
+		$cat_labels   = [];
+		foreach ( $all_items as $it ) {
+			$total_pieces += (int) $it->quantity;
+			$cid = (int) ( $it->category_id ?? 0 );
+			$cat_counts[ $cid ] = ( $cat_counts[ $cid ] ?? 0 ) + 1;
+			if ( $cid && ! isset( $cat_labels[ $cid ] ) ) {
+				$cat_labels[ $cid ] = trim( ( $it->category_icon ? $it->category_icon . ' ' : '' ) . (string) ( $it->category_name ?? '' ) );
+			}
+		}
+		$shown_items = $cat ? array_values( array_filter( $all_items, static function ( $it ) use ( $cat ) {
+			return (int) ( $it->category_id ?? 0 ) === $cat;
+		} ) ) : $all_items;
 		$per_page  = 12;
-		$total     = count( $all_items );
+		$total     = count( $shown_items );
 		$pages     = max( 1, (int) ceil( $total / $per_page ) );
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$page      = isset( $_GET['pp_p'] ) ? max( 1, min( $pages, (int) $_GET['pp_p'] ) ) : 1;
-		$items     = array_slice( $all_items, ( $page - 1 ) * $per_page, $per_page );
+		$items     = array_slice( $shown_items, ( $page - 1 ) * $per_page, $per_page );
+		$base_url  = self::portal_url();
 		$own_cats   = MemberInventory::own_categories( (int) $user->ID );
 		$tpl_cats   = MemberInventory::template_categories();
 		$categories = [ 'own' => $own_cats, 'templates' => $tpl_cats ];
@@ -2976,6 +2994,21 @@ class MemberPortal {
 				</form>
 			<?php endif; ?>
 
+			<?php if ( $all_items ) : ?>
+				<p class="pp-inv-kpi">
+					<?php
+					/* translators: 1: item count, 2: total pieces. */
+					printf( esc_html__( '%1$d items · %2$d pieces', 'project-prepper' ), count( $all_items ), (int) $total_pieces );
+					?>
+				</p>
+				<div class="pp-inv-pills">
+					<a class="pp-portal__chip <?php echo $cat ? '' : 'pp-portal__chip--on'; ?>" href="<?php echo esc_url( add_query_arg( array_filter( [ 'pp_view' => 'inventory', 'pp_q' => $q ] ), $base_url ) ); ?>"><?php esc_html_e( 'All', 'project-prepper' ); ?> (<?php echo (int) count( $all_items ); ?>)</a>
+					<?php foreach ( $cat_labels as $cid => $label ) : ?>
+						<a class="pp-portal__chip <?php echo $cat === (int) $cid ? 'pp-portal__chip--on' : ''; ?>" href="<?php echo esc_url( add_query_arg( array_filter( [ 'pp_view' => 'inventory', 'pp_q' => $q, 'pp_cat' => (int) $cid ] ), $base_url ) ); ?>"><?php echo esc_html( $label ); ?> (<?php echo (int) $cat_counts[ $cid ]; ?>)</a>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+
 			<?php if ( $items ) : ?>
 				<?php foreach ( $items as $item ) : ?>
 					<div class="pp-portal__item">
@@ -2987,12 +3020,21 @@ class MemberPortal {
 							<span class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></span>
 							<span class="pp-portal__item-meta">
 								<?php
+								if ( ! empty( $item->category_name ) ) {
+									echo esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) . ' · ';
+								}
 								echo esc_html( $conditions[ $item->condition ] ?? $item->condition );
 								echo ' · ';
 								/* translators: %d: quantity. */
 								printf( esc_html__( 'Qty %d', 'project-prepper' ), (int) $item->quantity );
+								$avail = max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) );
+								/* translators: %d: available quantity. */
+								echo ' · ' . esc_html( sprintf( __( '%d available', 'project-prepper' ), $avail ) );
 								if ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) {
 									echo ' · ' . esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) ) . ' €';
+								}
+								if ( ! empty( $item->location ) ) {
+									echo ' · ' . esc_html( (string) $item->location );
 								}
 								?>
 							</span>

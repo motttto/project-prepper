@@ -973,6 +973,9 @@ a.pp-front-card-media { text-decoration: none; }
 /* Inventar-Suche + Pagination */
 .pp-inv-search { display: flex; gap: 8px; margin-bottom: 14px; max-width: 420px; }
 .pp-inv-search input[type="search"] { flex: 1; }
+.pp-inv-kpi { color: var(--pp-muted, #64748b); font-size: 0.9rem; margin: 0 0 10px; }
+.pp-inv-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.pp-inv-pills .pp-portal__chip { text-decoration: none; }
 .pp-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 14px 0; }
 .pp-pagination__info { font-size: .85rem; color: var(--pp-muted-foreground); }
 

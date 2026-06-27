@@ -5330,3 +5330,11 @@ msgstr "aktualisierte ein Teammitglied"
 #: admin/js/admin.js
 msgid "deleted a team member"
 msgstr "löschte ein Teammitglied"
+
+#: includes/Frontend/MemberPortal.php
+msgid "%d available"
+msgstr "%d verfügbar"
+
+#: includes/Frontend/MemberPortal.php
+msgid "%1$d items · %2$d pieces"
+msgstr "%1$d Artikel · %2$d Teile"
