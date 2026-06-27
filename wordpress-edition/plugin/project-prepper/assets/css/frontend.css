@@ -974,6 +974,10 @@ a.pp-front-card-media { text-decoration: none; }
 /* Mein-Inventar Werkzeugleiste (CSV Export/Import) */
 .pp-inv-tools { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 14px; }
 .pp-inv-tools .pp-portal__add { margin-top: 0; }
+.pp-inv-tools__spacer { flex: 1 1 auto; min-width: 0; }
+/* Aufgeklapptes Werkzeug (Kategorien/Import/Neuer Artikel) nimmt die volle Breite ein. */
+.pp-inv-tools > details[open] { flex-basis: 100%; }
+.pp-inv-tools > details[open] > summary { margin-bottom: .5rem; }
 
 /* Inventar-Suche + Pagination */
 .pp-inv-search { display: flex; gap: 8px; margin-bottom: 14px; max-width: 420px; }

@@ -2994,7 +2994,7 @@ class MemberPortal {
 				<h3 class="pp-portal__subtitle"><?php esc_html_e( 'My inventory', 'project-prepper' ); ?></h3>
 			<?php endif; ?>
 
-			<?php self::render_inventory_tools(); ?>
+			<?php self::render_inventory_tools( $categories, $conditions, $own_cats, $tpl_cats ); ?>
 
 			<?php if ( $all_items || '' !== $q ) : ?>
 				<form class="pp-inv-search" method="get">
@@ -3154,12 +3154,6 @@ class MemberPortal {
 				</div>
 			<?php endif; ?>
 
-			<details class="pp-portal__add">
-				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Add item', 'project-prepper' ); ?></summary>
-				<?php self::item_form( 'item_create', $categories, $conditions, null ); ?>
-			</details>
-
-			<?php self::render_my_categories( $own_cats, $tpl_cats ); ?>
 		</section>
 		<?php
 	}
@@ -3321,12 +3315,11 @@ class MemberPortal {
 	/* ---------- Mein Inventar: CSV-Export / -Import ---------- */
 
 	/** Werkzeugleiste über dem eigenen Inventar: Export-Link + Import-Formular. */
-	private static function render_inventory_tools(): void {
+	private static function render_inventory_tools( array $categories, array $conditions, array $own_cats, array $tpl_cats ): void {
 		$export_url = wp_nonce_url( admin_url( 'admin-post.php?action=pp_member_export' ), 'pp_member_export', 'pp_nonce' );
 		?>
 		<div class="pp-inv-tools">
-			<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export (CSV)', 'project-prepper' ); ?></a>
-			<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-xlsx-export="<?php echo esc_url( $export_url ); ?>" data-pp-xlsx-name="mein-inventar-<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>"><?php esc_html_e( 'Export (Excel)', 'project-prepper' ); ?></button>
+			<?php self::render_my_categories( $own_cats, $tpl_cats ); ?>
 			<details class="pp-portal__add">
 				<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Import (CSV / Excel)', 'project-prepper' ); ?></summary>
 				<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -3338,6 +3331,13 @@ class MemberPortal {
 					<p class="pp-poll-opthint"><?php esc_html_e( 'Tip: export first to get the exact columns, fill in your data, then import. Excel files (.xlsx) are converted automatically; the “Name” column is required.', 'project-prepper' ); ?></p>
 					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Import', 'project-prepper' ); ?></button>
 				</form>
+			</details>
+			<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export (CSV)', 'project-prepper' ); ?></a>
+			<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-xlsx-export="<?php echo esc_url( $export_url ); ?>" data-pp-xlsx-name="mein-inventar-<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>"><?php esc_html_e( 'Export (Excel)', 'project-prepper' ); ?></button>
+			<span class="pp-inv-tools__spacer"></span>
+			<details class="pp-portal__add pp-inv-tools__new">
+				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Add item', 'project-prepper' ); ?></summary>
+				<?php self::item_form( 'item_create', $categories, $conditions, null ); ?>
 			</details>
 		</div>
 		<?php
