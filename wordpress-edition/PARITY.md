@@ -3,6 +3,28 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔄 Aktualisierung 2026-06-27 (Plugin v0.94.0 — Inventar-Werkzeuge ins Member-Portal)
+> Die in der App auf der Inventarseite oben verlinkten Werkzeuge sind jetzt im Frontend-Portal
+> („Mein Inventar"/Inventar-Ansicht) gebaut — **kein** Multi-Owner-Blocker, da das Portal das
+> owner_user_id-Modell pro Mitglied bereits voll nutzt (Borrowing, item_group_shares):
+> - **„Mein Equipment unterwegs"** (`Borrowing::equipment_out()`): eigene Artikel, die gerade
+>   verliehen/ausgeliehen sind = genehmigte Kollektiv-Leihen + externe Verleihe (reserved/active)
+>   mit eigener Position. Zeile: Artikel + Inv.-Nr. + Menge + Status + an wen + Zeitraum + Gebühr
+>   (Gebühr nur aus rental_items.daily_rate ableitbar). Sektion in der Inventar-Ansicht.
+> - **„Inventar freigeben"** (Gesamt-Share, `MemberInventory::share_all()`/`unshare_all()`):
+>   alle eigenen Artikel auf einmal mit einer Gruppe teilen, idempotent + reversibel, „n von m
+>   geteilt" pro Gruppe. **Kein** neues Schema — bündelt `item_group_shares` (Migration 092
+>   `inventory_full_shares` bewusst NICHT portiert, da WP keinen User↔User-Share kennt; Ziel
+>   ist immer eine Gruppe).
+> - **„Auswertung"** (`MemberInventory::evaluation()`): Tageswert-Potenzial (Σ cost_per_day×Menge)
+>   + Auslastung (Einsätze/Tage unterwegs aus Borrow- + Rental-Historie) + **belegte** Verleih-
+>   Erträge (nur wo rental_items.daily_rate gesetzt). Ehrlich ohne erfundene Erträge — WP hat
+>   keine Projekt-Ertrags-Snapshots (`inventory_item_earnings`) wie die App.
+>
+> **Damit obsolet:** Die „blockiert: braucht Multi-Owner"-Zeilen unter Verleih („Mein Equipment
+> unterwegs", „Freigabe-Logik pro Position") gelten nur noch fürs **Site-Inventar-Backend**, nicht
+> fürs Member-Portal. Verifiziert in wp-env (Service via wp eval + UI via Chrome-MCP als portaltest).
+
 > ## 🔄 Aktualisierung 2026-06-27 (Plugin v0.85.0 — QA-Sweep, 20 Bereiche)
 > Vollständiger Funktions-QA-Lauf im wp-env (REST + wp-cli, ein Agent pro Bereich): **16× pass, 4× partial, 0× fail.**
 > **Der Code übertrifft diese Matrix an mehreren Stellen — die Detailtabellen unten sind teils veraltet:**
@@ -45,8 +67,10 @@
 | Abrechnung Brutto/Netto/USt, Kaution (§9.4) | ✅ v0.2.0 | — | — |
 | **Tagessatz pro Position** im Anlege-UI (App: equipment-picker) | ✅ v0.4.0 | — (inkl. Vorschlag aus Artikel-Tagessatz) | — |
 | Verleih **bearbeiten** mit Diff-Logik (§9.4) | ✅ v0.4.0 | — (Header + Positionen, nur reserved/active, Verfügbarkeit mit exclude_rental_id) | — |
-| Freigabe-Logik pro Position (§9.2/9.3, approval_status) | ❌ | braucht Multi-Owner | blockiert |
-| "Mein Equipment unterwegs" (§9.3) | ❌ | braucht Multi-Owner | blockiert |
+| Freigabe-Logik pro Position (§9.2/9.3, approval_status) | ⚠️ Portal | Im Portal als Borrow-Workflow (Owner approve/decline pro Anfrage) vorhanden; Site-Verleih-Backend bleibt single-owner | — |
+| "Mein Equipment unterwegs" (§9.3) | ✅ v0.94.0 | — (Portal-Inventar-Ansicht: `Borrowing::equipment_out()`, Kollektiv-Leihen + externe Verleihe eigener Items) | — |
+| Inventar freigeben (Gesamt-Share, Migration 092) | ✅ v0.94.0 | — (Portal: `share_all`/`unshare_all` bündelt item_group_shares; Ziel = Gruppe, kein User↔User) | — |
+| Auswertung (Ertrag/Tagessatz, App: Earnings-Overview) | ✅ v0.94.0 | — (Portal: `evaluation()` — Tageswert + Auslastung + belegte Verleih-Erträge; keine erfundenen Projekt-Erträge) | — |
 
 ## Anfragen (Parität: ~90 %)
 
@@ -191,6 +215,7 @@ Vereinbarung — 4 Multi-User/Gruppen-Tabs, Architektur-Entscheidung nötig).
 
 ## Log
 
+- Inventar-Werkzeuge ins Member-Portal (2026-06-27, v0.94.0): **Die 3 in der App-Inventarseite oben verlinkten Werkzeuge ins Frontend-Portal gebaut — Backend + Frontend + i18n zusammen.** (1) **„Mein Equipment unterwegs"**: `Borrowing::equipment_out($uid)` vereint genehmigte Kollektiv-Leihen (`borrow_requests` status=approved auf eigene Items) + externe Verleihe (`rentals` reserved/active mit Position auf `owner_user_id`-Item); pro Zeile Artikel + Inv.-Nr. + Menge + Status + an wen + Zeitraum (Tage) + Gebühr (nur aus `rental_items.daily_rate` ableitbar, sonst NULL → nicht angezeigt; Kollektiv-Leihe nichtkommerziell → keine Gebühr). Sektion `render_equipment_out()` in der Inventar-Ansicht. (2) **„Inventar freigeben"** (Gesamt-Share): `MemberInventory::share_all`/`unshare_all`/`shared_count_in_group` — alle eigenen Artikel auf einmal mit einer Gruppe teilen, idempotent (überspringt bereits geteilte) + reversibel (DELETE JOIN nur eigene Items, fremde Shares unangetastet); Werkzeug-`<details>` mit „n von m geteilt" + „Alle teilen"/„Zurücknehmen" pro Gruppe; admin-post-Actions `inventory_share_all`/`inventory_unshare_all` über bestehenden `pp_collective`-Dispatcher. **Kein neues Schema** — `inventory_full_shares` (Migration 092) bewusst NICHT portiert (WP kennt keinen User↔User-Share; Ziel ist immer eine Gruppe via `item_group_shares`). (3) **„Auswertung"**: `MemberInventory::evaluation($uid)` — pro Item Tageswert (cost_per_day×Menge) + Auslastung (Einsätze/Tage aus Borrow- approved/returned + Rental- reserved/active/returned-Historie) + belegte Verleih-Erträge (Σ rental_items.daily_rate×Tage×Menge); Σ-KPIs + Tabelle; **ehrlich ohne erfundene Erträge** (WP hat kein `inventory_item_earnings`). **Tests (PASS):** `php -l` alle 3 Services + Portal grün; wp eval als uid 41 (eval: 3 Items, daily_value 83 €, 1 Einsatz; equipment_out: 1 Rental, nach daily_rate=7 € → Gebühr 35 € = 7×5t; share_all → 3 / idempotent 0 / unshare_all → 3, count 0); UI via Chrome-MCP als portaltest — Sektion „Mein Equipment unterwegs" zeigt „LED-PAR Scheinwerfer PP-0001 · Reserviert · an … · 2026-07-01 – 2026-07-05 (5t) · Gebühr 35,00 €" + Tag „Verleih"; Werkzeuge „Inventar freigeben" (5 Gruppen, „3 von 3 geteilt", Share-all disabled bei voll) + „Auswertung" (KPIs Tageswert/Aktive Artikel/Einsätze/Belegte Erträge, Tabelle 3 Zeilen); echter POST-Roundtrip share_all → Redirect `pp_msg=inventory_shared_all` + DE-Notice. i18n: 25 neue DE-Strings an .po angehängt (Dubletten Active/Reserved entfernt), .mo via WP-POMO kompiliert (1160 Entries); keine neuen JS-Strings. Plugin Check nur vorbestehend (`plugin_updater_detected` by design + `hidden_files` + `stable_tag_mismatch` = Release-Agent). Build 0.94.0. **→ „Multi-Owner-blockiert"-Annahme der Matrix widerlegt: Portal nutzt owner_user_id voll.**
 - Projekte-Backend → read-only Moderation (2026-06-15, v0.82.0): **Slice D, Teil 2 — letzte Domänen-Reduktion (§4).** `admin/js/admin.js renderProjects` von **~1821 Z.** (Voll-CRUD: Status-/Gruppen-Selects, Anlege-Formular, klickbares Detail-Modal mit 13 Tabs — Buchungen/Kosten/Gewinn/Material/Dateien/Zeitplan/Checklisten/Aufgaben/Beteiligte/Beschlüsse/Umfragen/Vereinbarung) auf **~70 Z.** read-only reduziert (Python-Splice, 1698 Z. entfernt): Intro/Mechanik-Hinweis + Status-Filter-Pills + Tabelle (Nummer/Name/Zeitraum/Eigentümer/Buchungen/Status) + Löschen pro Zeile (`DELETE /projects/{id}`); Eigentümer-Name via `/groups`-Map (Betreiber=Admin → `Projects::all` zeigt alle). Keine klickbaren Modal-Zeilen, kein Anlegen/Editieren mehr. Dashboard-Deep-Link `#pp-project-{id}` entschärft (Modal weg → nur noch Tab-Link). REST-Edit-Routen bleiben cap-gated/ungenutzt (wie Inventar v0.69). **Tests (PASS):** `node --check` grün; Browser (admin) — Header deutsch (Nummer/Name/Zeitraum/Eigentümer/Buchungen/Status), 5 Zeilen, **0 klickbare Zeilen**, kein Create-Form, 5 Löschen-Buttons, Eigentümer-Spalte zeigt Gruppennamen, Status-Filter „Geplant" → nur Geplant-Projekte. 3 neue de_DE-Strings (.mo 1038; JS-JSON b41de59f neu gebaut). Plugin Check nur `plugin_updater_detected`+`hidden_files`, Build 0.82.0. **→ Admin-Landkarte vollständig grün; alle Domänen-Tabs read-only.**
 
 - Anfragen-Backend-Reduktion + Leak-Fix (2026-06-15, v0.81.0): **Slice D, Teil 1 (§10.1).** Nach Slice A sah der Betreiber Mitglieds-Anfragen im Backend-Tab (Regression). Fix: `Inquiries::all(['site_only'=>true])` (WHERE owner_user_id IS NULL AND owner_group_id IS NULL) → `InquiriesController::index` zeigt nur noch Site-Ebene/öffentliches Formular. Neu: `Inquiries::member_aggregate()` (total + distinct owners, Gruppe via +1e9-Offset gegen ID-Kollision) + Route `GET /inquiries/member-aggregate`; `renderInquiries` zeigt Intro + Aggregat-Zeile „N Anfragen werden von Mitgliedern in M Arbeitsbereichen verwaltet". **Tests (PASS):** wp-cli — Site-Anfrage im Backend sichtbar, Mitglieds-Anfrage NICHT (kein Leak), Aggregat zählt Mitglieds-Anfragen; Browser (admin) — Intro rendert, kein Impersonation. 2 neue de_DE-Strings (.mo 1035; JS-JSON b41de59f). PHP+JS-Syntax grün, Plugin Check nur `plugin_updater_detected`+`hidden_files`, Build 0.81.0. **⚠️ Offen (Slice D Teil 2):** Projekte-Backend → read-only Moderation — `renderProjects` ist ~1821 Z. (Detail-Modal), bewusst auf eine eigene Session vertagt (Vorlage Inventar v0.69); Voll-CRUD bleibt bis dahin funktionsfähig.

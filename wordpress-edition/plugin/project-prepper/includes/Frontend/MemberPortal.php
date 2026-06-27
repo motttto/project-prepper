@@ -268,8 +268,8 @@ class MemberPortal {
 		if ( 'group_leave' === $do ) {
 			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
 		}
-		// Kategorie-Aktionen kehren zur Inventar-Ansicht zurück.
-		if ( in_array( $do, [ 'category_create', 'category_adopt', 'category_delete' ], true ) ) {
+		// Kategorie- und Gesamt-Freigabe-Aktionen kehren zur Inventar-Ansicht zurück.
+		if ( in_array( $do, [ 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		}
 		// Anfragen-Aktionen kehren zur Anfragen-Ansicht zurück.
@@ -349,6 +349,14 @@ class MemberPortal {
 			case 'item_unshare':
 				$result = MemberInventory::unshare( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ), $grp_id );
 				$ok_msg = 'item_unshared';
+				break;
+			case 'inventory_share_all':
+				$result = MemberInventory::share_all( get_current_user_id(), $grp_id );
+				$ok_msg = 'inventory_shared_all';
+				break;
+			case 'inventory_unshare_all':
+				$result = MemberInventory::unshare_all( get_current_user_id(), $grp_id );
+				$ok_msg = 'inventory_unshared_all';
 				break;
 			case 'category_create':
 				$result = MemberInventory::create_category( get_current_user_id(), self::category_input() );
@@ -558,6 +566,8 @@ class MemberPortal {
 			'item_deleted'  => [ 'ok', __( 'Item deleted.', 'project-prepper' ) ],
 			'item_shared'   => [ 'ok', __( 'Item shared with the collective.', 'project-prepper' ) ],
 			'item_unshared'    => [ 'ok', __( 'Item is no longer shared.', 'project-prepper' ) ],
+			'inventory_shared_all'   => [ 'ok', __( 'Your whole inventory is now shared with the collective.', 'project-prepper' ) ],
+			'inventory_unshared_all' => [ 'ok', __( 'Your inventory is no longer shared with the collective.', 'project-prepper' ) ],
 			'category_saved'   => [ 'ok', __( 'Category saved.', 'project-prepper' ) ],
 			'category_adopted' => [ 'ok', __( 'Template category adopted.', 'project-prepper' ) ],
 			'category_deleted' => [ 'ok', __( 'Category deleted.', 'project-prepper' ) ],
@@ -1379,7 +1389,51 @@ class MemberPortal {
 			<p class="pp-app__page-sub"><?php esc_html_e( 'Your personal equipment — share items with your collectives.', 'project-prepper' ); ?></p>
 		</header>
 		<?php
+		self::render_equipment_out( $user );
 		self::render_my_inventory( $user, $groups, false );
+	}
+
+	/**
+	 * „Mein Equipment unterwegs" (App: §9.3) — eigene Artikel, die gerade verliehen/
+	 * ausgeliehen sind (genehmigte Kollektiv-Leihen + externe Verleihe). Pro Zeile:
+	 * Artikel + Inv.-Nr. + Menge + Status + an wen + Zeitraum + Gebühr.
+	 */
+	private static function render_equipment_out( WP_User $user ): void {
+		$out = Borrowing::equipment_out( (int) $user->ID );
+		if ( ! $out ) {
+			return;
+		}
+		?>
+		<section class="pp-portal__section">
+			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'My equipment on the road', 'project-prepper' ); ?></h3>
+			<?php foreach ( $out as $r ) : ?>
+				<div class="pp-portal__invite">
+					<span class="pp-portal__group-name"><?php echo esc_html( $r->item_name ); ?> <small class="pp-portal__item-num"><?php echo esc_html( $r->inventory_number ); ?></small></span>
+					<span class="pp-portal__item-meta">
+						<?php
+						$bits = [];
+						if ( $r->quantity > 1 ) {
+							$bits[] = (int) $r->quantity . '×';
+						}
+						$bits[] = $r->status_label;
+						if ( '' !== trim( (string) $r->to_name ) ) {
+							/* translators: %s: borrower name. */
+							$bits[] = sprintf( __( 'to %s', 'project-prepper' ), $r->to_name );
+						}
+						/* translators: 1: start date, 2: end date, 3: number of days. */
+						$bits[] = sprintf( __( '%1$s – %2$s (%3$dd)', 'project-prepper' ), $r->date_from, $r->date_to, (int) $r->days );
+						if ( null !== $r->fee ) {
+							/* translators: %s: rental fee. */
+							$bits[] = sprintf( __( 'fee %s €', 'project-prepper' ), number_format_i18n( (float) $r->fee, 2 ) );
+						}
+						echo esc_html( implode( ' · ', $bits ) );
+						?>
+					</span>
+					<span class="pp-portal__tag <?php echo 'rental' === $r->kind ? '' : 'pp-portal__tag--muted'; ?>"><?php echo esc_html( 'rental' === $r->kind ? __( 'Rental', 'project-prepper' ) : __( 'Collective', 'project-prepper' ) ); ?></span>
+				</div>
+			<?php endforeach; ?>
+		</section>
+		<?php
 	}
 
 	private static function view_lending( WP_User $user, array $groups ): void {
@@ -2994,7 +3048,7 @@ class MemberPortal {
 				<h3 class="pp-portal__subtitle"><?php esc_html_e( 'My inventory', 'project-prepper' ); ?></h3>
 			<?php endif; ?>
 
-			<?php self::render_inventory_tools( $categories, $conditions, $own_cats, $tpl_cats ); ?>
+			<?php self::render_inventory_tools( $categories, $conditions, $own_cats, $tpl_cats, $user, $groups ); ?>
 
 			<?php if ( $all_items || '' !== $q ) : ?>
 				<form class="pp-inv-search" method="get">
@@ -3315,11 +3369,17 @@ class MemberPortal {
 	/* ---------- Mein Inventar: CSV-Export / -Import ---------- */
 
 	/** Werkzeugleiste über dem eigenen Inventar: Export-Link + Import-Formular. */
-	private static function render_inventory_tools( array $categories, array $conditions, array $own_cats, array $tpl_cats ): void {
+	private static function render_inventory_tools( array $categories, array $conditions, array $own_cats, array $tpl_cats, ?WP_User $user = null, array $groups = [] ): void {
 		$export_url = wp_nonce_url( admin_url( 'admin-post.php?action=pp_member_export' ), 'pp_member_export', 'pp_nonce' );
 		?>
 		<div class="pp-inv-tools">
 			<?php self::render_my_categories( $own_cats, $tpl_cats ); ?>
+			<?php if ( $user && $groups ) : ?>
+				<?php self::render_full_share_tool( $user, $groups ); ?>
+			<?php endif; ?>
+			<?php if ( $user ) : ?>
+				<?php self::render_evaluation_tool( $user ); ?>
+			<?php endif; ?>
 			<details class="pp-portal__add">
 				<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Import (CSV / Excel)', 'project-prepper' ); ?></summary>
 				<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -3340,6 +3400,115 @@ class MemberPortal {
 				<?php self::item_form( 'item_create', $categories, $conditions, null ); ?>
 			</details>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Werkzeug „Inventar freigeben" (App: Gesamt-Share): teilt alle eigenen Artikel
+	 * auf einmal mit einer gewählten Gruppe; reversibel. Nur bei Gruppen-Mitgliedschaft.
+	 */
+	private static function render_full_share_tool( WP_User $user, array $groups ): void {
+		$total = count( MemberInventory::my_items( (int) $user->ID ) );
+		?>
+		<details class="pp-portal__add">
+			<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Share inventory', 'project-prepper' ); ?></summary>
+			<div class="pp-portal__cats">
+				<p class="pp-portal__hint"><?php esc_html_e( 'Share all your items at once with one of your collectives — instead of sharing them one by one. You can revoke it again any time.', 'project-prepper' ); ?></p>
+				<ul class="pp-portal__cat-list">
+					<?php foreach ( $groups as $g ) :
+						$shared = MemberInventory::shared_count_in_group( (int) $user->ID, (int) $g->id ); ?>
+						<li class="pp-portal__cat">
+							<span>
+								<?php echo esc_html( $g->name ); ?>
+								<small class="pp-muted">
+									<?php
+									/* translators: 1: shared item count, 2: total item count. */
+									echo esc_html( sprintf( __( '%1$d of %2$d shared', 'project-prepper' ), $shared, $total ) );
+									?>
+								</small>
+							</span>
+							<span class="pp-portal__actions">
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<?php self::action_fields( 'inventory_share_all' ); ?>
+									<input type="hidden" name="pp_group" value="<?php echo (int) $g->id; ?>">
+									<button type="submit" class="pp-portal__btn pp-portal__btn--sm" <?php disabled( $total > 0 && $shared >= $total ); ?>><?php esc_html_e( 'Share all', 'project-prepper' ); ?></button>
+								</form>
+								<?php if ( $shared > 0 ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Revoke sharing of all your items with this collective?', 'project-prepper' ) ); ?>');">
+										<?php self::action_fields( 'inventory_unshare_all' ); ?>
+										<input type="hidden" name="pp_group" value="<?php echo (int) $g->id; ?>">
+										<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Revoke', 'project-prepper' ); ?></button>
+									</form>
+								<?php endif; ?>
+							</span>
+						</li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+		</details>
+		<?php
+	}
+
+	/**
+	 * Werkzeug „Auswertung" (App: Inventar-Auswertung): Tageswert-Potenzial,
+	 * Auslastung (Einsätze/Tage unterwegs) und belegte Verleih-Erträge je Artikel.
+	 * Ehrlich ohne erfundene Erträge — es gibt keine Projekt-Ertrags-Snapshots.
+	 */
+	private static function render_evaluation_tool( WP_User $user ): void {
+		$eval   = MemberInventory::evaluation( (int) $user->ID );
+		$rows   = $eval['items'];
+		$totals = $eval['totals'];
+		$has_earn = $totals->earnings > 0;
+		?>
+		<details class="pp-portal__add">
+			<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Analysis', 'project-prepper' ); ?></summary>
+			<div class="pp-portal__cats pp-eval">
+				<p class="pp-portal__hint"><?php esc_html_e( 'Daily-rate potential and how often each item was out. Rental earnings are only shown where a per-item daily rate is recorded — nothing is estimated.', 'project-prepper' ); ?></p>
+
+				<div class="pp-eval__kpis">
+					<div class="pp-eval__kpi">
+						<span class="pp-eval__kpi-label"><?php esc_html_e( 'Daily value', 'project-prepper' ); ?></span>
+						<span class="pp-eval__kpi-val"><?php echo esc_html( number_format_i18n( $totals->daily_value, 2 ) . ' €' ); ?></span>
+					</div>
+					<div class="pp-eval__kpi">
+						<span class="pp-eval__kpi-label"><?php esc_html_e( 'Active items', 'project-prepper' ); ?></span>
+						<span class="pp-eval__kpi-val"><?php echo (int) $totals->active . ' / ' . (int) $totals->count; ?></span>
+					</div>
+					<div class="pp-eval__kpi">
+						<span class="pp-eval__kpi-label"><?php esc_html_e( 'Times out', 'project-prepper' ); ?></span>
+						<span class="pp-eval__kpi-val"><?php echo (int) $totals->uses; ?></span>
+					</div>
+					<div class="pp-eval__kpi">
+						<span class="pp-eval__kpi-label"><?php esc_html_e( 'Recorded earnings', 'project-prepper' ); ?></span>
+						<span class="pp-eval__kpi-val"><?php echo esc_html( number_format_i18n( $totals->earnings, 2 ) . ' €' ); ?></span>
+					</div>
+				</div>
+
+				<?php if ( $rows ) : ?>
+					<div class="pp-inv-row pp-inv-row--head pp-eval__head">
+						<span class="pp-col pp-col--name"><?php esc_html_e( 'Item', 'project-prepper' ); ?></span>
+						<span class="pp-col pp-col--c"><?php esc_html_e( 'Daily value', 'project-prepper' ); ?></span>
+						<span class="pp-col pp-col--c"><?php esc_html_e( 'Times out', 'project-prepper' ); ?></span>
+						<span class="pp-col pp-col--c"><?php esc_html_e( 'Days out', 'project-prepper' ); ?></span>
+						<?php if ( $has_earn ) : ?><span class="pp-col pp-col--c"><?php esc_html_e( 'Earnings', 'project-prepper' ); ?></span><?php endif; ?>
+					</div>
+					<?php foreach ( $rows as $r ) : ?>
+						<div class="pp-inv-row pp-eval__row">
+							<span class="pp-col pp-col--name">
+								<span class="pp-portal__group-name"><?php echo esc_html( $r->name ); ?></span>
+								<small class="pp-portal__item-num"><?php echo esc_html( $r->inventory_number ); ?></small>
+							</span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Daily value', 'project-prepper' ); ?>"><?php echo esc_html( number_format_i18n( $r->daily_value, 2 ) . ' €' ); ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Times out', 'project-prepper' ); ?>"><?php echo (int) $r->uses; ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Days out', 'project-prepper' ); ?>"><?php echo (int) $r->days_out; ?></span>
+							<?php if ( $has_earn ) : ?><span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Earnings', 'project-prepper' ); ?>"><?php echo $r->earnings > 0 ? esc_html( number_format_i18n( $r->earnings, 2 ) . ' €' ) : '—'; ?></span><?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				<?php else : ?>
+					<p class="pp-portal__empty"><?php esc_html_e( 'Add items to see an analysis.', 'project-prepper' ); ?></p>
+				<?php endif; ?>
+			</div>
+		</details>
 		<?php
 	}
 

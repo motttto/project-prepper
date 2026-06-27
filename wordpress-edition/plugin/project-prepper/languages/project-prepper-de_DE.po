@@ -5370,3 +5370,103 @@ msgstr "Geteilt"
 #: includes/Frontend/MemberPortal.php
 msgid "Not shared"
 msgstr "Nicht geteilt"
+
+#: includes/Frontend/MemberPortal.php
+msgid "My equipment on the road"
+msgstr "Mein Equipment unterwegs"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Rental"
+msgstr "Verleih"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Collective"
+msgstr "Kollektiv"
+
+#: includes/Services/Borrowing.php
+msgid "Lent out"
+msgstr "Verliehen"
+
+#: includes/Services/Borrowing.php
+msgid "External rental"
+msgstr "Externer Verleih"
+
+#: includes/Frontend/MemberPortal.php
+msgid "to %s"
+msgstr "an %s"
+
+#: includes/Frontend/MemberPortal.php
+msgid "%1$s – %2$s (%3$dd)"
+msgstr "%1$s – %2$s (%3$dt)"
+
+#: includes/Frontend/MemberPortal.php
+msgid "fee %s €"
+msgstr "Gebühr %s €"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Share inventory"
+msgstr "Inventar freigeben"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Share all your items at once with one of your collectives — instead of sharing them one by one. You can revoke it again any time."
+msgstr "Teile alle deine Artikel auf einmal mit einem deiner Kollektive — statt einzeln. Du kannst die Freigabe jederzeit wieder zurücknehmen."
+
+#: includes/Frontend/MemberPortal.php
+msgid "%1$d of %2$d shared"
+msgstr "%1$d von %2$d geteilt"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Share all"
+msgstr "Alle teilen"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Revoke"
+msgstr "Zurücknehmen"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Revoke sharing of all your items with this collective?"
+msgstr "Freigabe aller deiner Artikel für dieses Kollektiv zurücknehmen?"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Analysis"
+msgstr "Auswertung"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Daily-rate potential and how often each item was out. Rental earnings are only shown where a per-item daily rate is recorded — nothing is estimated."
+msgstr "Tagessatz-Potenzial und wie oft jeder Artikel unterwegs war. Verleih-Erträge erscheinen nur, wo ein Tagessatz pro Position hinterlegt ist — nichts wird geschätzt."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Daily value"
+msgstr "Tageswert"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Active items"
+msgstr "Aktive Artikel"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Times out"
+msgstr "Einsätze"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Days out"
+msgstr "Tage unterwegs"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Recorded earnings"
+msgstr "Belegte Erträge"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Earnings"
+msgstr "Erträge"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Add items to see an analysis."
+msgstr "Lege Artikel an, um eine Auswertung zu sehen."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Your whole inventory is now shared with the collective."
+msgstr "Dein gesamtes Inventar ist jetzt mit dem Kollektiv geteilt."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Your inventory is no longer shared with the collective."
+msgstr "Dein Inventar ist nicht mehr mit dem Kollektiv geteilt."

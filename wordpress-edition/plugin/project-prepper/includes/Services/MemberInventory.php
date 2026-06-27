@@ -308,6 +308,181 @@ class MemberInventory {
 		return true;
 	}
 
+	/**
+	 * Gesamt-Freigabe (App: „Inventar freigeben"): teilt ALLE eigenen Artikel auf
+	 * einmal mit einer Gruppe, in der der User Mitglied ist. Reversibel über
+	 * unshare_all(). Idempotent — bereits geteilte Artikel werden übersprungen.
+	 *
+	 * @return int|WP_Error Anzahl neu freigegebener Artikel.
+	 */
+	public static function share_all( int $user_id, int $group_id ) {
+		global $wpdb;
+		if ( ! $user_id || ! current_user_can( Capabilities::COLLECTIVES ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'You are not allowed to share inventory.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		if ( ! Groups::is_member( $group_id, $user_id ) ) {
+			return new WP_Error( 'pp_not_member', __( 'You can only share with collectives you belong to.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$item_ids = $wpdb->get_col( $wpdb->prepare(
+			'SELECT id FROM %i WHERE owner_user_id = %d',
+			Schema::table( 'items' ),
+			$user_id
+		) ) ?: [];
+		$already = $wpdb->get_col( $wpdb->prepare(
+			'SELECT item_id FROM %i WHERE group_id = %d',
+			Schema::table( 'item_group_shares' ),
+			$group_id
+		) ) ?: [];
+		$already = array_map( 'intval', $already );
+		$count   = 0;
+		foreach ( $item_ids as $iid ) {
+			$iid = (int) $iid;
+			if ( in_array( $iid, $already, true ) ) {
+				continue;
+			}
+			$wpdb->insert( Schema::table( 'item_group_shares' ), [
+				'item_id'    => $iid,
+				'group_id'   => $group_id,
+				'shared_by'  => $user_id,
+				'created_at' => current_time( 'mysql' ),
+			] );
+			++$count;
+		}
+		if ( $count > 0 ) {
+			ActivityLog::log( 'item_shared_all', 'group', $group_id, [ 'count' => $count, 'owner' => $user_id ] );
+		}
+		return $count;
+	}
+
+	/**
+	 * Gesamt-Freigabe zurücknehmen: entfernt alle Freigaben EIGENER Artikel an eine
+	 * Gruppe (fremde Freigaben anderer Mitglieder bleiben unangetastet).
+	 *
+	 * @return int|WP_Error Anzahl entfernter Freigaben.
+	 */
+	public static function unshare_all( int $user_id, int $group_id ) {
+		global $wpdb;
+		if ( ! $user_id || ! current_user_can( Capabilities::COLLECTIVES ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'You are not allowed to do this.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		// Nur Freigaben löschen, deren Item dem User gehört.
+		$removed = $wpdb->query( $wpdb->prepare(
+			"DELETE s FROM %i s
+			 JOIN %i i ON i.id = s.item_id
+			 WHERE s.group_id = %d AND i.owner_user_id = %d",
+			Schema::table( 'item_group_shares' ),
+			Schema::table( 'items' ),
+			$group_id,
+			$user_id
+		) );
+		if ( $removed ) {
+			ActivityLog::log( 'item_unshared_all', 'group', $group_id, [ 'count' => (int) $removed, 'owner' => $user_id ] );
+		}
+		return (int) $removed;
+	}
+
+	/**
+	 * Wie viele EIGENE Artikel sind bereits mit einer Gruppe geteilt (für die
+	 * Gesamt-Freigabe-Maske: „12 von 20 geteilt").
+	 */
+	public static function shared_count_in_group( int $user_id, int $group_id ): int {
+		global $wpdb;
+		return (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM %i s
+			 JOIN %i i ON i.id = s.item_id
+			 WHERE s.group_id = %d AND i.owner_user_id = %d",
+			Schema::table( 'item_group_shares' ),
+			Schema::table( 'items' ),
+			$group_id,
+			$user_id
+		) );
+	}
+
+	/**
+	 * Auswertung (App: „Auswertung"): pro eigenem Artikel + gesamt.
+	 *
+	 * Ehrlich, ohne erfundene Erträge: WP/Kollektiv-Leihe ist nichtkommerziell, es
+	 * gibt KEINE projektbasierten Ertrags-Snapshots wie in der App. Stattdessen
+	 * zeigen wir, was sich aus vorhandenen Daten belegen lässt:
+	 *  - Tageswert je Artikel = cost_per_day × Menge (Potenzial)
+	 *  - Auslastung: wie oft / wie viele Tage war der Artikel unterwegs
+	 *    (genehmigte Kollektiv-Leihen + externe Verleihe, returned/active/reserved)
+	 *  - Reale Verleih-Erträge NUR aus externen Verleihen mit Positions-Tagessatz
+	 *    (daily_rate auf rental_items), als belegbarer Beitrag.
+	 *
+	 * @return array{items: array<object>, totals: object}
+	 */
+	public static function evaluation( int $user_id ): array {
+		global $wpdb;
+		$items = self::my_items( $user_id );
+		$rows  = [];
+
+		$brt = Schema::table( 'borrow_requests' );
+		$rl  = Schema::table( 'rentals' );
+		$rli = Schema::table( 'rental_items' );
+
+		foreach ( $items as $it ) {
+			$iid          = (int) $it->id;
+			$qty          = max( 1, (int) $it->quantity );
+			$daily_value  = (float) ( $it->cost_per_day ?? 0 ) * $qty;
+
+			// Auslastung Kollektiv-Leihen (genehmigt/zurückgegeben zählen als Einsatz).
+			$borrow = $wpdb->get_row( $wpdb->prepare(
+				"SELECT COUNT(*) AS uses,
+				        COALESCE(SUM(DATEDIFF(date_to, date_from) + 1), 0) AS days
+				 FROM %i
+				 WHERE item_id = %d AND status IN ('approved','returned')",
+				$brt,
+				$iid
+			) );
+
+			// Externe Verleihe mit eigener Position (Einsätze + Tage + belegte Erträge).
+			$rental = $wpdb->get_row( $wpdb->prepare(
+				"SELECT COUNT(*) AS uses,
+				        COALESCE(SUM(DATEDIFF(r.date_to, r.date_from) + 1), 0) AS days,
+				        COALESCE(SUM(
+				            CASE WHEN ri.daily_rate IS NOT NULL
+				                 THEN ri.daily_rate * (DATEDIFF(r.date_to, r.date_from) + 1) * ri.quantity
+				                 ELSE 0 END
+				        ), 0) AS earnings
+				 FROM %i ri
+				 JOIN %i r ON r.id = ri.rental_id
+				 WHERE ri.item_id = %d AND r.status IN ('reserved','active','returned')",
+				$rli,
+				$rl,
+				$iid
+			) );
+
+			$uses     = (int) ( $borrow->uses ?? 0 ) + (int) ( $rental->uses ?? 0 );
+			$days_out = (int) ( $borrow->days ?? 0 ) + (int) ( $rental->days ?? 0 );
+			$earnings = (float) ( $rental->earnings ?? 0 );
+
+			$rows[] = (object) [
+				'id'               => $iid,
+				'inventory_number' => (string) $it->inventory_number,
+				'name'             => (string) $it->name,
+				'category'         => (string) ( $it->category_name ?? '' ),
+				'quantity'         => $qty,
+				'daily_value'      => $daily_value,
+				'uses'             => $uses,
+				'days_out'         => $days_out,
+				'earnings'         => $earnings,
+			];
+		}
+
+		$totals = (object) [
+			'daily_value' => array_sum( array_map( static fn( $r ) => $r->daily_value, $rows ) ),
+			'uses'        => array_sum( array_map( static fn( $r ) => $r->uses, $rows ) ),
+			'days_out'    => array_sum( array_map( static fn( $r ) => $r->days_out, $rows ) ),
+			'earnings'    => array_sum( array_map( static fn( $r ) => $r->earnings, $rows ) ),
+			'active'      => count( array_filter( $rows, static fn( $r ) => $r->uses > 0 ) ),
+			'count'       => count( $rows ),
+		];
+
+		usort( $rows, static fn( $a, $b ) => ( $b->earnings <=> $a->earnings ) ?: ( $b->daily_value <=> $a->daily_value ) );
+		return [ 'items' => $rows, 'totals' => $totals ];
+	}
+
 	/** Gruppen-IDs, mit denen ein Item geteilt ist. @return int[] */
 	public static function shared_group_ids( int $item_id ): array {
 		global $wpdb;

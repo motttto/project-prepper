@@ -218,6 +218,92 @@ class Borrowing {
 		return self::query( 'owner_id', $user_id );
 	}
 
+	/**
+	 * „Mein Equipment unterwegs" (App: §9.3): alle eigenen Artikel, die aktuell
+	 * unterwegs sind — kollektiv-interne, genehmigte Leihen (borrow_requests,
+	 * Status approved) PLUS externe Verleihe (rentals reserved/active), die eine
+	 * Position mit einem eigenen Artikel enthalten. Liefert eine einheitliche,
+	 * nach Enddatum sortierte Liste mit: Artikel, Inv.-Nr., Menge, Status, an wen,
+	 * Zeitraum, Gebühr (nur bei externem Verleih ableitbar; Kollektiv-Leihe ist
+	 * nichtkommerziell → keine Gebühr).
+	 *
+	 * @return array<object> Zeilen mit ->kind ('borrow'|'rental'), ->item_name,
+	 *   ->inventory_number, ->quantity, ->status, ->status_label, ->to_name,
+	 *   ->date_from, ->date_to, ->days, ->fee (float|null).
+	 */
+	public static function equipment_out( int $user_id ): array {
+		global $wpdb;
+		if ( ! $user_id ) {
+			return [];
+		}
+		$out = [];
+
+		// 1) Kollektiv-interne genehmigte Leihen auf eigene Artikel.
+		foreach ( self::incoming_requests( $user_id ) as $r ) {
+			if ( 'approved' !== $r->status ) {
+				continue;
+			}
+			$from = (string) $r->date_from;
+			$to   = (string) $r->date_to;
+			$days = max( 1, (int) ( ( strtotime( $to ) - strtotime( $from ) ) / DAY_IN_SECONDS ) + 1 );
+			$out[] = (object) [
+				'kind'             => 'borrow',
+				'item_name'        => (string) $r->item_name,
+				'inventory_number' => (string) $r->inventory_number,
+				'quantity'         => 1,
+				'status'           => 'approved',
+				'status_label'     => __( 'Lent out', 'project-prepper' ),
+				'to_name'          => (string) ( $r->counterpart_name ?? '' ),
+				'context'          => (string) ( $r->group_name ?? '' ),
+				'date_from'        => $from,
+				'date_to'          => $to,
+				'days'             => $days,
+				'fee'              => null, // nichtkommerziell
+			];
+		}
+
+		// 2) Externe Verleihe (reserved/active) mit Positionen auf eigene Artikel.
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT r.id AS rental_id, r.borrower_name, r.date_from, r.date_to, r.status,
+			        r.rental_fee, ri.quantity, ri.daily_rate, i.name AS item_name, i.inventory_number
+			 FROM %i ri
+			 JOIN %i i ON i.id = ri.item_id
+			 JOIN %i r ON r.id = ri.rental_id
+			 WHERE i.owner_user_id = %d AND r.status IN ('reserved','active')
+			 ORDER BY r.date_to DESC",
+			Schema::table( 'rental_items' ),
+			Schema::table( 'items' ),
+			Schema::table( 'rentals' ),
+			$user_id
+		) ) ?: [];
+		foreach ( $rows as $r ) {
+			$from = (string) $r->date_from;
+			$to   = (string) $r->date_to;
+			$days = max( 1, (int) ( ( strtotime( $to ) - strtotime( $from ) ) / DAY_IN_SECONDS ) + 1 );
+			// Positions-Gebühr nur ableitbar, wenn ein Tagessatz auf der Position steht.
+			$fee = ( null !== $r->daily_rate && '' !== $r->daily_rate )
+				? (float) $r->daily_rate * $days * max( 1, (int) $r->quantity )
+				: null;
+			$out[] = (object) [
+				'kind'             => 'rental',
+				'item_name'        => (string) $r->item_name,
+				'inventory_number' => (string) $r->inventory_number,
+				'quantity'         => max( 1, (int) $r->quantity ),
+				'status'           => (string) $r->status,
+				'status_label'     => 'active' === $r->status ? __( 'Active', 'project-prepper' ) : __( 'Reserved', 'project-prepper' ),
+				'to_name'          => (string) $r->borrower_name,
+				'context'          => __( 'External rental', 'project-prepper' ),
+				'date_from'        => $from,
+				'date_to'          => $to,
+				'days'             => $days,
+				'fee'              => $fee,
+			];
+		}
+
+		usort( $out, static fn( $a, $b ) => strcmp( (string) $b->date_to, (string) $a->date_to ) );
+		return $out;
+	}
+
 	private static function query( string $column, int $user_id ): array {
 		global $wpdb;
 		if ( ! $user_id ) {
