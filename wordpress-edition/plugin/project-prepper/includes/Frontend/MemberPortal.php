@@ -3028,11 +3028,14 @@ class MemberPortal {
 					<span class="pp-col pp-col--c"><?php esc_html_e( 'Available', 'project-prepper' ); ?></span>
 					<span class="pp-col pp-col--cond"><?php esc_html_e( 'Condition', 'project-prepper' ); ?></span>
 					<span class="pp-col pp-col--r">€/<?php echo esc_html__( 'day', 'project-prepper' ); ?></span>
+					<span class="pp-col pp-col--shared"><?php esc_html_e( 'Shared', 'project-prepper' ); ?></span>
 					<span class="pp-col pp-col--loc"><?php esc_html_e( 'Location', 'project-prepper' ); ?></span>
+					<span class="pp-col pp-col--manage"></span>
 				</div>
 				<?php foreach ( $items as $item ) : ?>
-					<div class="pp-portal__item pp-portal__item--row">
-						<div class="pp-inv-row pp-portal__item-head">
+					<?php $shared = $groups ? MemberInventory::shared_group_ids( (int) $item->id ) : []; $shared_names = []; foreach ( $groups as $pp_g ) { if ( in_array( (int) $pp_g->id, $shared, true ) ) { $shared_names[] = $pp_g->name; } } ?>
+					<details class="pp-portal__item pp-portal__item--row">
+						<summary class="pp-inv-row pp-portal__item-head">
 							<span class="pp-col pp-col--name">
 								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php else : ?><span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span><?php endif; ?>
 								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php $pp_sub = $item->model ?: ( $item->description ?? '' ); if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
@@ -3042,13 +3045,13 @@ class MemberPortal {
 							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo (int) max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) ); ?></span>
 							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php echo esc_html( $conditions[ $item->condition ] ?? $item->condition ); ?></span>
 							<span class="pp-col pp-col--r" data-label="€/<?php echo esc_attr__( 'day', 'project-prepper' ); ?>"><?php echo ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) ? esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) . ' €' ) : '—'; ?></span>
+							<span class="pp-col pp-col--shared" data-label="<?php esc_attr_e( 'Shared', 'project-prepper' ); ?>"><?php echo $shared_names ? esc_html( implode( ', ', $shared_names ) ) : '<span class="pp-muted">' . esc_html__( 'Not shared', 'project-prepper' ) . '</span>'; ?></span>
 							<span class="pp-col pp-col--loc" data-label="<?php esc_attr_e( 'Location', 'project-prepper' ); ?>"><?php echo ! empty( $item->location ) ? esc_html( (string) $item->location ) : '—'; ?></span>
-						</div>
+							<span class="pp-col pp-col--manage"><span class="pp-manage-btn"><?php esc_html_e( 'Manage', 'project-prepper' ); ?></span></span>
+						</summary>
 
-						<details class="pp-portal__manage">
-							<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Manage', 'project-prepper' ); ?></summary>
+						<div class="pp-portal__manage-body">
 						<?php if ( $groups ) : ?>
-							<?php $shared = MemberInventory::shared_group_ids( (int) $item->id ); ?>
 							<div class="pp-portal__share-row">
 								<span class="pp-portal__share-label"><?php esc_html_e( 'Shared with:', 'project-prepper' ); ?></span>
 								<?php foreach ( $groups as $g ) :
@@ -3128,8 +3131,8 @@ class MemberPortal {
 								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
 							</form>
 						</div>
-						</details>
-					</div>
+						</div>
+					</details>
 				<?php endforeach; ?>
 			<?php else : ?>
 				<?php if ( '' !== $q ) : ?>

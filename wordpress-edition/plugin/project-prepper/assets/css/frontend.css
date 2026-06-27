@@ -985,7 +985,7 @@ a.pp-front-card-media { text-decoration: none; }
 /* Tabellarische Inventarliste (Mein Inventar) — an die Web-App angeglichen */
 .pp-inv-row {
 	display: grid;
-	grid-template-columns: minmax(150px, 2.4fr) minmax(90px, 1.3fr) 64px 84px minmax(86px, 1fr) 92px minmax(80px, 1fr);
+	grid-template-columns: minmax(140px, 2.1fr) minmax(78px, 1.05fr) 52px 74px minmax(72px, .85fr) 82px minmax(96px, 1.15fr) minmax(64px, .8fr) 80px;
 	gap: 10px;
 	align-items: center;
 	padding: .55rem .4rem;
@@ -1014,14 +1014,32 @@ a.pp-front-card-media { text-decoration: none; }
 	padding: 0;
 	margin: 0;
 }
-.pp-portal__manage { margin: 0 0 .35rem; }
-.pp-portal__manage > summary { display: inline-block; margin: .15rem 0 .4rem .4rem; }
+/* Ganzes Item ist <details>; die Zeile ist die klickbare <summary>. */
+.pp-portal__item--row > summary { cursor: pointer; list-style: none; }
+.pp-portal__item--row > summary::-webkit-details-marker { display: none; }
+.pp-portal__item--row > summary::marker { content: ""; }
+.pp-col--shared { color: var(--pp-muted-foreground); font-size: .85rem; }
+.pp-col--shared .pp-muted { font-style: italic; }
+.pp-col--manage { text-align: right; }
+.pp-manage-btn {
+	display: inline-block;
+	padding: .15rem .55rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 6px;
+	font-size: .78rem;
+	color: var(--pp-muted-foreground);
+	white-space: nowrap;
+}
+.pp-portal__item--row[open] > summary { background: var(--pp-muted); }
+.pp-portal__item--row[open] .pp-manage-btn { border-color: var(--pp-primary, #6366f1); color: var(--pp-primary, #6366f1); }
+.pp-portal__manage-body { padding: .4rem .4rem .9rem; }
 
 @media (max-width: 720px) {
 	.pp-inv-row--head { display: none; }
 	.pp-portal__item--row { padding: .6rem 0; }
 	.pp-inv-row { grid-template-columns: 1fr 1fr; gap: 6px; }
 	.pp-col--name { grid-column: 1 / -1; }
+	.pp-col--manage { grid-column: 1 / -1; text-align: left; }
 	.pp-col--c, .pp-col--r { text-align: left; }
 	.pp-col[data-label]::before { content: attr(data-label) ': '; color: var(--pp-muted-foreground); font-size: .72rem; }
 }

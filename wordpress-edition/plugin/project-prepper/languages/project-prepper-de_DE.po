@@ -5362,3 +5362,11 @@ msgstr "Verfügbar"
 #: includes/Frontend/MemberPortal.php
 msgid "%1$d items · %2$d pieces · daily value %3$s €"
 msgstr "%1$d Artikel · %2$d Teile · Tageswert %3$s €"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Shared"
+msgstr "Geteilt"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Not shared"
+msgstr "Nicht geteilt"
