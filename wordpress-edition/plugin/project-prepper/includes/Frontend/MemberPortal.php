@@ -85,12 +85,20 @@ class MemberPortal {
 		wp_register_style( 'pp-frontend', PP_PLUGIN_URL . 'assets/css/frontend.css', [], PP_VERSION );
 		// Kleine progressive Erweiterung (z. B. „+ Option" beim Umfrage-Anlegen).
 		wp_register_script( 'pp-portal', PP_PLUGIN_URL . 'assets/js/portal.js', [], PP_VERSION, true );
+		// SheetJS (gebündelt) + Inventar-Excel-Logik — nur auf der Inventar-View geladen.
+		wp_register_script( 'pp-xlsx', PP_PLUGIN_URL . 'admin/js/vendor/xlsx.full.min.js', [], '0.20.3', true );
+		wp_register_script( 'pp-portal-inv', PP_PLUGIN_URL . 'assets/js/portal-inventory.js', [ 'pp-xlsx' ], PP_VERSION, true );
 
 		// Auf der Portal-Seite das Stylesheet hier einreihen — das Vollbild-Template
 		// rendert erst nach wp_head(), ein späteres enqueue käme zu spät.
 		if ( self::is_portal_page() ) {
 			wp_enqueue_style( 'pp-frontend' );
 			wp_enqueue_script( 'pp-portal' );
+			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine View-Erkennung fürs Enqueue.
+			$view = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : '';
+			if ( 'inventory' === $view ) {
+				wp_enqueue_script( 'pp-portal-inv' );
+			}
 		}
 	}
 
@@ -3315,15 +3323,16 @@ class MemberPortal {
 		?>
 		<div class="pp-inv-tools">
 			<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export (CSV)', 'project-prepper' ); ?></a>
+			<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-xlsx-export="<?php echo esc_url( $export_url ); ?>" data-pp-xlsx-name="mein-inventar-<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>"><?php esc_html_e( 'Export (Excel)', 'project-prepper' ); ?></button>
 			<details class="pp-portal__add">
-				<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Import (CSV)', 'project-prepper' ); ?></summary>
+				<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Import (CSV / Excel)', 'project-prepper' ); ?></summary>
 				<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 					<input type="hidden" name="action" value="pp_member_import">
 					<?php wp_nonce_field( 'pp_member_import', 'pp_nonce' ); ?>
-					<label><?php esc_html_e( 'CSV file', 'project-prepper' ); ?>
-						<input type="file" name="pp_file" accept=".csv,text/csv" required>
+					<label><?php esc_html_e( 'CSV or Excel file', 'project-prepper' ); ?>
+						<input type="file" name="pp_file" accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
 					</label>
-					<p class="pp-poll-opthint"><?php esc_html_e( 'Use the same columns as the export (semicolon-separated). Each row becomes one of your items; the “Name” column is required.', 'project-prepper' ); ?></p>
+					<p class="pp-poll-opthint"><?php esc_html_e( 'Tip: export first to get the exact columns, fill in your data, then import. Excel files (.xlsx) are converted automatically; the “Name” column is required.', 'project-prepper' ); ?></p>
 					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Import', 'project-prepper' ); ?></button>
 				</form>
 			</details>

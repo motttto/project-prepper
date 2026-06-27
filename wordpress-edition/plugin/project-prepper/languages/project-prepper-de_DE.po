@@ -5338,3 +5338,19 @@ msgstr "%d verfügbar"
 #: includes/Frontend/MemberPortal.php
 msgid "%1$d items · %2$d pieces"
 msgstr "%1$d Artikel · %2$d Teile"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Export (Excel)"
+msgstr "Export (Excel)"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Import (CSV / Excel)"
+msgstr "Import (CSV / Excel)"
+
+#: includes/Frontend/MemberPortal.php
+msgid "CSV or Excel file"
+msgstr "CSV- oder Excel-Datei"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Tip: export first to get the exact columns, fill in your data, then import. Excel files (.xlsx) are converted automatically; the “Name” column is required."
+msgstr "Tipp: Erst exportieren, um die genauen Spalten zu erhalten, dann Daten eintragen und importieren. Excel-Dateien (.xlsx) werden automatisch umgewandelt; die Spalte „Name“ ist Pflicht."
