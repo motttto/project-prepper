@@ -3,6 +3,33 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔄 Aktualisierung 2026-06-27 (Plugin v0.95.0, Schema 0.25.0 — Externe Verleihe ins Member-Portal)
+> Das App-Modul `src/app/(dashboard)/rentals` (externe Leihgaben an Personen außerhalb der
+> Plattform) ist jetzt im Frontend-Portal verfügbar — Mitglieder können eigene externe Verleihe
+> **anlegen, listen und durch den Status-Flow führen**, nicht mehr nur „Equipment unterwegs" sehen:
+> - **Schema 0.25.0:** `rentals` bekommt `owner_user_id` + `owner_group_id` (nullable, additiv via
+>   dbDelta — bestehende Site-Verleihe bleiben owner=NULL = Backend-/Admin-Ebene, kein Datenverlust).
+> - **`MemberRentals`-Service:** owner-gescopte Wrapper um den owner-agnostischen `Rentals`-Service
+>   (for_owner/kpis/create/set_status/delete + Eigentums-Guards als RLS-Ersatz). Positionen sind auf
+>   die **eigenen Artikel** (owner_user_id) beschränkt. `Rentals::all()` um Owner-Filter erweitert,
+>   `Rentals::create()` stempelt owner.
+> - **Portal-View „Verleih" (`pp_view=lending`):** Sektion „Externe Verleihe" mit den App-KPI-Karten
+>   (Reserviert/Ausgegeben/Zurück/Kaution offen), Status-Pills (reserved→active→returned/cancelled),
+>   Abrechnungszeile netto/USt/brutto + Kaution (`Rentals::billing`), Positions-Liste mit Tagessatz,
+>   Anlege-Formular (Person + Zeitraum + Geld + Mehrfach-Artikelauswahl mit Menge/Tagessatz, Vorschlag
+>   aus `cost_per_day`), „Move to"-Chips für den Status-Flow + Löschen. Verfügbarkeits-Guard greift.
+> - **Dashboard:** zusätzliche KPI-Karte „Aktive externe Verleihe" (reserved+active) aus `MemberRentals::kpis`.
+>
+> **Bewusste Abgrenzung (kein Blocker, dokumentiert):** Portal-Verleihe sind **Solo/persönlich**
+> (owner_user_id). Externer Verleih eines Kollektivs ist eine Multi-Owner-/Haftungs-/Governance-Frage
+> (wessen Item zu wessen Konditionen) und bleibt dem Site-Backend vorbehalten — im WP-Modell hat
+> Inventar keinen `owner_group_id`, Gruppen-Inventar = geteilte Mitglieder-Items.
+> **Anfragen-Detail (Backlog 2):** Das Portal-Anfragen-Feature deckt bereits Detailansicht (alle
+> Schema-Felder), Status-Pipeline (Move-to-Chips), Bearbeiten, Löschen und Anfrage→Projekt ab. Team-
+> Zuweisung + RSVP der App sind Multi-Owner-Governance und bewusst weggelassen — keine offene A/B-Lücke.
+> Verifiziert in wp-env: Service via wp eval (create/billing/KPI/Status/Guards) + UI als portaltest
+> (Anlegen, Status-Flow, Löschen, deutsche i18n via WP-POMO). Plugin Check sauber (keine neuen ERRORs).
+
 > ## 🔄 Aktualisierung 2026-06-27 (Plugin v0.94.0 — Inventar-Werkzeuge ins Member-Portal)
 > Die in der App auf der Inventarseite oben verlinkten Werkzeuge sind jetzt im Frontend-Portal
 > („Mein Inventar"/Inventar-Ansicht) gebaut — **kein** Multi-Owner-Blocker, da das Portal das
@@ -59,10 +86,11 @@
 | Kategorien-Merge (Migration 097) | ✅ v0.7.0 | — (POST /categories/{id}/merge; Button "Zusammenführen…" + Modal mit Ziel-Select und Item-Anzahl; Activity-Log category_merged) | — |
 | Excel **XLSX** Import/Export (§8.6) | ✅ v0.6.0 | — (SheetJS CE 0.20.3 lokal gebündelt, Export mit aktuellen Filtern als inventar-JJJJ-MM-TT.xlsx, Import .xlsx/.xls über denselben Mapping-Editor, Datums-Zellen → JJJJ-MM-TT; CSV bleibt als Fallback) | — |
 
-## Verleih (Parität: ~85 %)
+## Verleih (Parität: ~92 %)
 
 | App-Feature (Quelle) | WP-Status | Lücke | Prio |
 |---|---|---|---|
+| **Verleih im Member-Portal** (App: rentals-Seite als Mitglieds-Feature) | ✅ v0.95.0 | — (Schema 0.25.0 owner_user_id auf rentals; `MemberRentals`-Service owner-gescopt; Portal-Sektion „Externe Verleihe" mit KPI-Karten + Status-Flow + Abrechnung + Anlege-Formular; Solo/persönlich — Gruppen-Verleih = Governance, Site-Backend) | — |
 | Anlegen + Verfügbarkeits-Check + Status-Flow (§9.1/9.4) | ✅ v0.1.0 | — | — |
 | Abrechnung Brutto/Netto/USt, Kaution (§9.4) | ✅ v0.2.0 | — | — |
 | **Tagessatz pro Position** im Anlege-UI (App: equipment-picker) | ✅ v0.4.0 | — (inkl. Vorschlag aus Artikel-Tagessatz) | — |
@@ -169,6 +197,18 @@ Gruppen + Voting, Vereinbarungen + Gewinnverteilung, Sharing/Erträge, Aktivitä
 
 ## Nächster Lauf
 
+**Member-Portal deckt jetzt Inventar + Verleih (intern & extern) + Anfragen + Projekte +
+Dashboard ab (v0.95.0).** Verbleibender Backlog (Mittel/Niedrig, Produktentscheidung):
+- **Kalender im Portal** — read-only Monatsansicht existiert im Backend (v0.21.0); ggf. ins
+  Portal spiegeln (eigene Verleihe/Projekte/Zeitplan), niedrige Prio.
+- **Projekte-Tabs im Portal** — das Portal-Projektdetail bildet bisher Kernfelder + Beschlüsse +
+  Umfragen ab; weitere App-Tabs (Kosten/Material/Team/Dateien/Gewinn/Vereinbarung) existieren im
+  Backend, könnten ins Portal-Detail gespiegelt werden.
+- **Gruppen / Austrittsabrechnung** — App `exit_settlements`/Austritts-Wizard nicht portiert;
+  WP-Gruppen ohne Voting-Beitritt (Architektur-Entscheidung), Austrittsabrechnung wäre v2.x.
+- **Eigenständige Umfragen** (Termin-/Choice-Polls site-weit wie /polls), **Telegram**,
+  **Kosten-Übersicht (global)** — v1.x laut MVP-Schnitt Dok 02 §4.
+
 **Gruppen-Overlay ist abgeschlossen (Phase 1–5 ✅).** Das Projekte-Modul bildet nun alle
 12 App-Tabs ab. Mögliche nächste Schritte (Produktentscheidung des Users):
 
@@ -215,6 +255,7 @@ Vereinbarung — 4 Multi-User/Gruppen-Tabs, Architektur-Entscheidung nötig).
 
 ## Log
 
+- Externe Verleihe ins Member-Portal (2026-06-27, v0.95.0, Schema 0.25.0): **App-Modul `rentals` als Mitglieds-Feature im Portal — Backend + Frontend + i18n zusammen.** (1) **Schema 0.25.0:** `rentals` bekommt `owner_user_id` + `owner_group_id` (nullable, additiv via dbDelta — Bestandszeilen NULL = Site-/Admin-Ebene, kein Datenverlust; `Schema::VERSION` 0.24.0→0.25.0). (2) **`Rentals`-Service** owner-fähig gemacht: `all()` um Owner-Filter (`owner_group_id`>0 → Gruppe, sonst `owner_user_id` & group NULL) erweitert, `create()` stempelt owner. (3) **Neuer `MemberRentals`-Service** (RLS-Ersatz, Solo/persönlich): `for_owner/owns/get_owned/kpis/create/set_status/delete/lendable_items` — Positionen MÜSSEN dem User gehören (`pp_not_your_item`), jede Schreib-Methode Owner-Guard. (4) **Portal-View „Verleih"** (`view_lending`): Sektion „Externe Verleihe" mit App-KPI-Karten (Reserviert/Ausgegeben/Zurück/Kaution offen), Status-Pills (`pp-status--reserved/active/returned`), Abrechnungszeile Tage·Netto·USt·Brutto·Kaution (`Rentals::billing`), Positions-Liste mit Tagessatz, Anlege-Formular (Person + Zeitraum + Kaution/Gebühr + Mehrfach-Artikelauswahl Checkbox/Menge/Tagessatz, Vorschlag aus `cost_per_day`), „Move to"-Chips (Status-Flow) + Löschen; Dispatcher `rental_create/status/delete` über bestehenden admin-post-Mechanismus, Verfügbarkeits-Fehler → eigene Meldung. (5) **Dashboard:** KPI-Karte „Aktive externe Verleihe" (reserved+active). **Tests (PASS):** `php -l` alle 4 Dateien grün; wp eval als uid 41 — create id=49 (3 Tage × 12,50 → Brutto 37,50 / Netto 31,51 / USt 5,99 @19% / Kaution 50), KPIs reserved=1 deposit_open=50, Status reserved→active ok, Fremd-User set_status → `pp_forbidden`, Fremd-Item create → `pp_not_your_item`, leerer Leiher → `pp_missing_borrower`, delete ok; UI via Chrome-MCP als portaltest — Sektion „Externe Verleihe" rendert KPIs + 3 Item-Zeilen im Formular, echter POST-Roundtrip Anlegen → `pp_msg=rental_saved` + Karte „UI Testperson V-2026-0007 · Reserviert · 3 days · Net … · Gross … · Deposit 30,00 €", „Ausgegeben"-Chip → Status `pp-status--active` + KPI Handed out=1, Löschen → Karte weg; Dashboard KPI „Aktive externe Verleihe". i18n: 29 neue DE-Strings (inkl. `%d day`-Plural) an .po angehängt, .mo via WP-POMO kompiliert (1189 Entries), DE-Render verifiziert (Externe Verleihe / Reserviert / Ausgegeben / Zurückgegeben / Kaution offen / Neuer Verleih / Zu verleihende Artikel). Plugin Check: keine neuen ERRORs (nur vorbestehend `plugin_updater_detected` by design + `hidden_files` + `stable_tag_mismatch` Release-Agent). Build 0.95.0. **Bewusste Abgrenzung:** Gruppen-Verleih extern = Multi-Owner-/Governance-Frage, bleibt Site-Backend. **Anfragen-Detail-Parität (Backlog 2):** Portal deckt Detail/Status-Pipeline/Edit/Delete/Anfrage→Projekt bereits ab; Team+RSVP der App = Multi-Owner-Governance, bewusst weggelassen — keine A/B-Lücke.
 - Inventar-Werkzeuge ins Member-Portal (2026-06-27, v0.94.0): **Die 3 in der App-Inventarseite oben verlinkten Werkzeuge ins Frontend-Portal gebaut — Backend + Frontend + i18n zusammen.** (1) **„Mein Equipment unterwegs"**: `Borrowing::equipment_out($uid)` vereint genehmigte Kollektiv-Leihen (`borrow_requests` status=approved auf eigene Items) + externe Verleihe (`rentals` reserved/active mit Position auf `owner_user_id`-Item); pro Zeile Artikel + Inv.-Nr. + Menge + Status + an wen + Zeitraum (Tage) + Gebühr (nur aus `rental_items.daily_rate` ableitbar, sonst NULL → nicht angezeigt; Kollektiv-Leihe nichtkommerziell → keine Gebühr). Sektion `render_equipment_out()` in der Inventar-Ansicht. (2) **„Inventar freigeben"** (Gesamt-Share): `MemberInventory::share_all`/`unshare_all`/`shared_count_in_group` — alle eigenen Artikel auf einmal mit einer Gruppe teilen, idempotent (überspringt bereits geteilte) + reversibel (DELETE JOIN nur eigene Items, fremde Shares unangetastet); Werkzeug-`<details>` mit „n von m geteilt" + „Alle teilen"/„Zurücknehmen" pro Gruppe; admin-post-Actions `inventory_share_all`/`inventory_unshare_all` über bestehenden `pp_collective`-Dispatcher. **Kein neues Schema** — `inventory_full_shares` (Migration 092) bewusst NICHT portiert (WP kennt keinen User↔User-Share; Ziel ist immer eine Gruppe via `item_group_shares`). (3) **„Auswertung"**: `MemberInventory::evaluation($uid)` — pro Item Tageswert (cost_per_day×Menge) + Auslastung (Einsätze/Tage aus Borrow- approved/returned + Rental- reserved/active/returned-Historie) + belegte Verleih-Erträge (Σ rental_items.daily_rate×Tage×Menge); Σ-KPIs + Tabelle; **ehrlich ohne erfundene Erträge** (WP hat kein `inventory_item_earnings`). **Tests (PASS):** `php -l` alle 3 Services + Portal grün; wp eval als uid 41 (eval: 3 Items, daily_value 83 €, 1 Einsatz; equipment_out: 1 Rental, nach daily_rate=7 € → Gebühr 35 € = 7×5t; share_all → 3 / idempotent 0 / unshare_all → 3, count 0); UI via Chrome-MCP als portaltest — Sektion „Mein Equipment unterwegs" zeigt „LED-PAR Scheinwerfer PP-0001 · Reserviert · an … · 2026-07-01 – 2026-07-05 (5t) · Gebühr 35,00 €" + Tag „Verleih"; Werkzeuge „Inventar freigeben" (5 Gruppen, „3 von 3 geteilt", Share-all disabled bei voll) + „Auswertung" (KPIs Tageswert/Aktive Artikel/Einsätze/Belegte Erträge, Tabelle 3 Zeilen); echter POST-Roundtrip share_all → Redirect `pp_msg=inventory_shared_all` + DE-Notice. i18n: 25 neue DE-Strings an .po angehängt (Dubletten Active/Reserved entfernt), .mo via WP-POMO kompiliert (1160 Entries); keine neuen JS-Strings. Plugin Check nur vorbestehend (`plugin_updater_detected` by design + `hidden_files` + `stable_tag_mismatch` = Release-Agent). Build 0.94.0. **→ „Multi-Owner-blockiert"-Annahme der Matrix widerlegt: Portal nutzt owner_user_id voll.**
 - Projekte-Backend → read-only Moderation (2026-06-15, v0.82.0): **Slice D, Teil 2 — letzte Domänen-Reduktion (§4).** `admin/js/admin.js renderProjects` von **~1821 Z.** (Voll-CRUD: Status-/Gruppen-Selects, Anlege-Formular, klickbares Detail-Modal mit 13 Tabs — Buchungen/Kosten/Gewinn/Material/Dateien/Zeitplan/Checklisten/Aufgaben/Beteiligte/Beschlüsse/Umfragen/Vereinbarung) auf **~70 Z.** read-only reduziert (Python-Splice, 1698 Z. entfernt): Intro/Mechanik-Hinweis + Status-Filter-Pills + Tabelle (Nummer/Name/Zeitraum/Eigentümer/Buchungen/Status) + Löschen pro Zeile (`DELETE /projects/{id}`); Eigentümer-Name via `/groups`-Map (Betreiber=Admin → `Projects::all` zeigt alle). Keine klickbaren Modal-Zeilen, kein Anlegen/Editieren mehr. Dashboard-Deep-Link `#pp-project-{id}` entschärft (Modal weg → nur noch Tab-Link). REST-Edit-Routen bleiben cap-gated/ungenutzt (wie Inventar v0.69). **Tests (PASS):** `node --check` grün; Browser (admin) — Header deutsch (Nummer/Name/Zeitraum/Eigentümer/Buchungen/Status), 5 Zeilen, **0 klickbare Zeilen**, kein Create-Form, 5 Löschen-Buttons, Eigentümer-Spalte zeigt Gruppennamen, Status-Filter „Geplant" → nur Geplant-Projekte. 3 neue de_DE-Strings (.mo 1038; JS-JSON b41de59f neu gebaut). Plugin Check nur `plugin_updater_detected`+`hidden_files`, Build 0.82.0. **→ Admin-Landkarte vollständig grün; alle Domänen-Tabs read-only.**
 

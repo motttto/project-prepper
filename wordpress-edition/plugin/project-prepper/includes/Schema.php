@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.24.0';
+	const VERSION    = '0.25.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -142,6 +142,8 @@ class Schema {
 			rental_fee decimal(10,2) DEFAULT NULL,
 			vat_rate decimal(5,2) DEFAULT NULL,
 			notes text,
+			owner_user_id bigint(20) unsigned DEFAULT NULL,
+			owner_group_id bigint(20) unsigned DEFAULT NULL,
 			created_by bigint(20) unsigned DEFAULT NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
@@ -149,7 +151,9 @@ class Schema {
 			UNIQUE KEY rental_number (rental_number),
 			KEY status (status),
 			KEY date_from (date_from),
-			KEY date_to (date_to)
+			KEY date_to (date_to),
+			KEY owner_user_id (owner_user_id),
+			KEY owner_group_id (owner_group_id)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$lines} (

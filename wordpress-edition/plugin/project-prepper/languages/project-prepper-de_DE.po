@@ -5470,3 +5470,93 @@ msgstr "Dein gesamtes Inventar ist jetzt mit dem Kollektiv geteilt."
 #: includes/Frontend/MemberPortal.php
 msgid "Your inventory is no longer shared with the collective."
 msgstr "Dein Inventar ist nicht mehr mit dem Kollektiv geteilt."
+
+msgid "External lending"
+msgstr "Externe Verleihe"
+
+msgid "Lend your own equipment to people outside the platform. Reservation, hand-out, return and billing — just like the app."
+msgstr "Verleih dein eigenes Equipment an Personen außerhalb der Plattform. Reservierung, Ausgabe, Rückgabe und Abrechnung — wie in der App."
+
+msgid "Handed out"
+msgstr "Ausgegeben"
+
+msgid "Deposit held"
+msgstr "Kaution offen"
+
+msgid "Net %s €"
+msgstr "Netto %s €"
+
+msgid "VAT %1$s € (%2$s%%)"
+msgstr "USt %1$s € (%2$s%%)"
+
+msgid "Gross %s €"
+msgstr "Brutto %s €"
+
+msgid "Deposit %s €"
+msgstr "Kaution %s €"
+
+msgid "Delete this rental?"
+msgstr "Diesen Verleih löschen?"
+
+msgid "No external rentals yet. Add your first one below."
+msgstr "Noch keine externen Verleihe. Lege unten deinen ersten an."
+
+msgid "Add items to your inventory first — then you can lend them out."
+msgstr "Lege zuerst Artikel in deinem Inventar an — dann kannst du sie verleihen."
+
+msgid "Items to lend out"
+msgstr "Zu verleihende Artikel"
+
+msgid "€/day"
+msgstr "€/Tag"
+
+msgid "Rental fee (€, gross — optional)"
+msgstr "Leihgebühr (€, brutto — optional)"
+
+msgid "auto from daily rates"
+msgstr "automatisch aus Tagessätzen"
+
+msgid "Deposit (€)"
+msgstr "Kaution (€)"
+
+msgid "Borrower name"
+msgstr "Name des Leihers"
+
+msgid "Active external rentals"
+msgstr "Aktive externe Verleihe"
+
+msgid "Rental created."
+msgstr "Verleih angelegt."
+
+msgid "Rental status updated."
+msgstr "Verleih-Status aktualisiert."
+
+msgid "Rental deleted."
+msgstr "Verleih gelöscht."
+
+msgid "One of the items is not available in that period. Please adjust the dates or quantity."
+msgstr "Einer der Artikel ist in diesem Zeitraum nicht verfügbar. Bitte Zeitraum oder Menge anpassen."
+
+msgid "Pick at least one of your items."
+msgstr "Wähle mindestens einen deiner Artikel."
+
+msgid "You can only lend out your own items."
+msgstr "Du kannst nur deine eigenen Artikel verleihen."
+
+msgid "This rental is not yours."
+msgstr "Dieser Verleih gehört dir nicht."
+
+msgid "You are not allowed to add rentals."
+msgstr "Du darfst keine Verleihe anlegen."
+
+msgid "The rental could not be deleted."
+msgstr "Der Verleih konnte nicht gelöscht werden."
+
+msgid "Browse what your collectives share, request items, manage requests for your own — and lend out your equipment to externals."
+msgstr "Stöbere im geteilten Equipment deiner Kollektive, frage Artikel an, verwalte Anfragen für deine eigenen — und verleihe dein Equipment an Externe."
+
+msgid "%d day"
+msgid_plural "%d days"
+msgstr[0] "%d Tag"
+msgstr[1] "%d Tage"
+

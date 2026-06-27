@@ -1423,7 +1423,33 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-status--won { background: #ecfdf5; color: #059669; }
 .pp-status--lost { background: #fef2f2; color: #dc2626; }
 .pp-status--closed { background: #f1f5f9; color: #475569; }
+/* Verleih-Status (App: rentals) */
+.pp-status--reserved { background: #eff6ff; color: #2563eb; }
+.pp-status--active { background: #fffbeb; color: #b45309; }
+.pp-status--returned { background: #ecfdf5; color: #059669; }
 .pp-portal__inq-msg { margin: .4rem 0; font-size: .85rem; color: var(--pp-muted-foreground); white-space: pre-wrap; }
+
+/* Externe Verleihe (Member-Portal) */
+.pp-kpi-grid--compact { gap: 10px; margin-bottom: 16px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
+.pp-kpi--static { padding: 12px 14px; cursor: default; }
+.pp-kpi--static:hover { box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05); transform: none; }
+.pp-kpi--static .pp-kpi__value { font-size: 1.35rem; }
+.pp-kpi--warning.pp-kpi--static .pp-kpi__value { color: #b45309; }
+.pp-kpi--info.pp-kpi--static .pp-kpi__value { color: #2563eb; }
+.pp-kpi--success.pp-kpi--static .pp-kpi__value { color: #059669; }
+.pp-kpi--primary.pp-kpi--static .pp-kpi__value { color: #4f46e5; }
+.pp-portal__rental-lines { list-style: none; margin: .3rem 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: .88rem; }
+.pp-portal__rental-lines li { display: flex; gap: 8px; align-items: baseline; }
+.pp-portal__rental-bill { margin-top: .3rem; }
+.pp-portal__form-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.pp-portal__form-row > label { flex: 1 1 130px; }
+.pp-portal__rental-items { border: 1px solid #e2e8f0; border-radius: 10px; padding: 10px 12px; margin: 4px 0; }
+.pp-portal__rental-items legend { font-size: .85rem; font-weight: 600; padding: 0 4px; }
+.pp-portal__rental-item-row { display: flex; gap: 10px; align-items: flex-end; padding: 4px 0; flex-wrap: wrap; }
+.pp-portal__rental-item-pick { flex: 1 1 200px; display: flex; align-items: center; gap: 8px; }
+.pp-portal__rental-item-pick input { width: auto; }
+.pp-portal__rental-item-qty { flex: 0 0 70px; }
+.pp-portal__rental-item-rate { flex: 0 0 90px; }
 
 /* Projekt-Liste */
 .pp-proj-list { display: flex; flex-direction: column; gap: 10px; }

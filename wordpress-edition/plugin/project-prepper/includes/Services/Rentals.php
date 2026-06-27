@@ -33,6 +33,15 @@ class Rentals {
 			$where[]  = 'r.status = %s';
 			$params[] = $args['status'];
 		}
+		// Owner-Scoping fürs Member-Portal (RLS-Ersatz): Solo = eigene Verleihe,
+		// Gruppe = Verleihe der Gruppe. Ohne owner-Filter = alle (Site-Backend).
+		if ( array_key_exists( 'owner_group_id', $args ) && (int) $args['owner_group_id'] > 0 ) {
+			$where[]  = 'r.owner_group_id = %d';
+			$params[] = (int) $args['owner_group_id'];
+		} elseif ( array_key_exists( 'owner_user_id', $args ) ) {
+			$where[]  = 'r.owner_user_id = %d AND r.owner_group_id IS NULL';
+			$params[] = (int) $args['owner_user_id'];
+		}
 
 		array_unshift( $params, $lines, $rentals );
 		$sql = $wpdb->prepare(
@@ -157,6 +166,8 @@ class Rentals {
 			'rental_fee'     => isset( $data['rental_fee'] ) && '' !== $data['rental_fee'] ? (float) $data['rental_fee'] : null,
 			'vat_rate'       => isset( $data['vat_rate'] ) && '' !== $data['vat_rate'] ? (float) $data['vat_rate'] : null,
 			'notes'          => $data['notes'] ?? '',
+			'owner_user_id'  => ! empty( $data['owner_user_id'] ) ? (int) $data['owner_user_id'] : null,
+			'owner_group_id' => ! empty( $data['owner_group_id'] ) ? (int) $data['owner_group_id'] : null,
 			'created_by'     => get_current_user_id() ?: null,
 			'created_at'     => $now,
 			'updated_at'     => $now,

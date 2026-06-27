@@ -8,6 +8,8 @@ use ProjectPrepper\Services\GroupGovernance as Governance;
 use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Services\MemberInventory;
 use ProjectPrepper\Services\MemberInquiries;
+use ProjectPrepper\Services\MemberRentals;
+use ProjectPrepper\Services\Rentals;
 use ProjectPrepper\Services\Inquiries;
 use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\Projects;
@@ -276,6 +278,10 @@ class MemberPortal {
 		if ( in_array( $do, [ 'inquiry_create', 'inquiry_update', 'inquiry_status', 'inquiry_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inquiries', self::portal_url() );
 		}
+		// Externe-Verleih-Aktionen kehren zur Verleih-Ansicht zurück.
+		if ( in_array( $do, [ 'rental_create', 'rental_status', 'rental_delete' ], true ) ) {
+			$back = add_query_arg( 'pp_view', 'lending', self::portal_url() );
+		}
 		// Projekt anlegen/löschen → zurück zur Projektliste (Bearbeiten bleibt im Detail).
 		if ( in_array( $do, [ 'project_create', 'project_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'projects', self::portal_url() );
@@ -389,6 +395,19 @@ class MemberPortal {
 			case 'inquiry_to_project':
 				$result = MemberInquiries::to_project( (int) ( $_POST['pp_inquiry'] ?? 0 ), get_current_user_id(), self::active_workspace_group() );
 				$ok_msg = 'inquiry_converted';
+				break;
+			case 'rental_create':
+				$in     = self::rental_input();
+				$result = MemberRentals::create( get_current_user_id(), $in['data'], $in['items'] );
+				$ok_msg = 'rental_saved';
+				break;
+			case 'rental_status':
+				$result = MemberRentals::set_status( (int) ( $_POST['pp_rental'] ?? 0 ), get_current_user_id(), sanitize_key( wp_unslash( (string) ( $_POST['pp_status'] ?? '' ) ) ) );
+				$ok_msg = 'rental_status';
+				break;
+			case 'rental_delete':
+				$result = MemberRentals::delete( (int) ( $_POST['pp_rental'] ?? 0 ), get_current_user_id() );
+				$ok_msg = 'rental_deleted';
 				break;
 			case 'project_create':
 				$result = self::member_create_project();
@@ -536,6 +555,8 @@ class MemberPortal {
 				$msg = 'borrow_unavailable';
 			} elseif ( 'pp_last_founder' === $code ) {
 				$msg = 'leave_last_founder';
+			} elseif ( 'pp_not_available' === $code ) {
+				$msg = 'rental_unavailable';
 			} else {
 				$msg = 'error';
 			}
@@ -575,6 +596,10 @@ class MemberPortal {
 			'inquiry_status'   => [ 'ok', __( 'Inquiry status updated.', 'project-prepper' ) ],
 			'inquiry_deleted'  => [ 'ok', __( 'Inquiry deleted.', 'project-prepper' ) ],
 			'inquiry_converted' => [ 'ok', __( 'Inquiry turned into a project.', 'project-prepper' ) ],
+			'rental_saved'     => [ 'ok', __( 'Rental created.', 'project-prepper' ) ],
+			'rental_status'    => [ 'ok', __( 'Rental status updated.', 'project-prepper' ) ],
+			'rental_deleted'   => [ 'ok', __( 'Rental deleted.', 'project-prepper' ) ],
+			'rental_unavailable' => [ 'err', __( 'One of the items is not available in that period. Please adjust the dates or quantity.', 'project-prepper' ) ],
 			'project_saved'    => [ 'ok', __( 'Project saved.', 'project-prepper' ) ],
 			'project_deleted'  => [ 'ok', __( 'Project deleted.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
@@ -1220,6 +1245,8 @@ class MemberPortal {
 		$inq_count  = MemberInquiries::count_for_owner( (int) $user->ID, self::active_group_id( $groups ) );
 		$incoming   = Borrowing::incoming_requests( (int) $user->ID );
 		$open_reqs  = count( array_filter( $incoming, static fn( $r ) => 'requested' === $r->status ) );
+		$rent_kpis  = MemberRentals::kpis( (int) $user->ID );
+		$rent_out   = (int) $rent_kpis['reserved'] + (int) $rent_kpis['active'];
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title">
@@ -1259,6 +1286,7 @@ class MemberPortal {
 			self::kpi_card( 'inquiries', $inq_count, __( 'Inquiries', 'project-prepper' ), 'info', 'inbox' );
 			self::kpi_card( 'collectives', $grp_count, __( 'Collectives', 'project-prepper' ), 'info', 'users' );
 			self::kpi_card( 'lending', $open_reqs, __( 'Open borrow requests', 'project-prepper' ), 'success', 'package' );
+			self::kpi_card( 'lending', $rent_out, __( 'Active external rentals', 'project-prepper' ), 'warning', 'package' );
 			?>
 		</div>
 
@@ -1440,17 +1468,13 @@ class MemberPortal {
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title"><?php esc_html_e( 'Borrowing & lending', 'project-prepper' ); ?></h1>
-			<p class="pp-app__page-sub"><?php esc_html_e( 'Browse what your collectives share, request items and manage requests for your own.', 'project-prepper' ); ?></p>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Browse what your collectives share, request items, manage requests for your own — and lend out your equipment to externals.', 'project-prepper' ); ?></p>
 		</header>
 		<?php
+		// Externe Verleihe (App: /rentals) — persönlich, daher immer sichtbar.
+		self::render_external_rentals( $user );
+
 		$fed_incoming = FederatedBorrow::inbound_for_owner( (int) $user->ID );
-		if ( ! $groups
-			&& ! Borrowing::my_requests( (int) $user->ID )
-			&& ! Borrowing::incoming_requests( (int) $user->ID )
-			&& ! $fed_incoming ) {
-			echo '<p class="pp-portal__empty">' . esc_html__( 'Join a collective to browse and borrow shared equipment.', 'project-prepper' ) . '</p>';
-			return;
-		}
 		// Stöbern ist auf den aktiven Workspace begrenzt (Solo → kein Stöbern).
 		$active        = self::active_group_id( $groups );
 		$active_groups = array_values( array_filter( $groups, static fn( $g ) => (int) $g->id === $active ) );
@@ -1459,6 +1483,248 @@ class MemberPortal {
 		self::render_incoming_borrows( $user );
 		self::render_incoming_fed_borrows( $fed_incoming );
 		self::render_borrow_history( $user );
+	}
+
+	/**
+	 * Externe Verleihe (App-Pendant src/app/(dashboard)/rentals): eigene Artikel
+	 * an Personen außerhalb der Plattform verleihen — KPI-Karten, Status-Pills,
+	 * Abrechnung (netto/USt/brutto + Kaution) und der Status-Flow
+	 * reserved→active→returned/cancelled. Persönlich (owner_user_id), siehe
+	 * {@see MemberRentals}-Klassendoku zur Gruppen-Abgrenzung.
+	 */
+	private static function render_external_rentals( WP_User $user ): void {
+		$uid      = (int) $user->ID;
+		$rentals  = MemberRentals::for_owner( $uid );
+		$kpis     = MemberRentals::kpis( $uid );
+		$lendable = MemberRentals::lendable_items( $uid );
+		?>
+		<section class="pp-portal__section">
+			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'External lending', 'project-prepper' ); ?></h3>
+			<p class="pp-portal__hint"><?php esc_html_e( 'Lend your own equipment to people outside the platform. Reservation, hand-out, return and billing — just like the app.', 'project-prepper' ); ?></p>
+
+			<div class="pp-kpi-grid pp-kpi-grid--compact">
+				<?php
+				self::rental_kpi( __( 'Reserved', 'project-prepper' ), (string) (int) $kpis['reserved'], 'info' );
+				self::rental_kpi( __( 'Handed out', 'project-prepper' ), (string) (int) $kpis['active'], 'warning' );
+				self::rental_kpi( __( 'Returned', 'project-prepper' ), (string) (int) $kpis['returned'], 'success' );
+				self::rental_kpi(
+					__( 'Deposit held', 'project-prepper' ),
+					number_format_i18n( (float) $kpis['deposit_open'], 2 ) . ' €',
+					'primary'
+				);
+				?>
+			</div>
+
+			<?php if ( $rentals ) : ?>
+				<?php foreach ( $rentals as $r ) :
+					$full = MemberRentals::get_owned( (int) $r->id, $uid );
+					if ( ! $full ) {
+						continue;
+					}
+					$next = Rentals::TRANSITIONS[ $full->status ] ?? [];
+					$bill = $full->billing;
+					?>
+					<div class="pp-portal__item">
+						<div class="pp-portal__item-head">
+							<span class="pp-portal__group-name">
+								<?php echo esc_html( $full->borrower_name ); ?>
+								<small class="pp-portal__item-num"><?php echo esc_html( $full->rental_number ); ?></small>
+							</span>
+							<span class="pp-status pp-status--<?php echo esc_attr( $full->status ); ?>"><?php echo esc_html( self::rental_status_label( $full->status ) ); ?></span>
+							<span class="pp-portal__item-meta"><?php echo esc_html( self::fmt_range( $full->date_from, $full->date_to ) ); ?></span>
+						</div>
+
+						<?php if ( $full->items ) : ?>
+							<ul class="pp-portal__rental-lines">
+								<?php foreach ( $full->items as $line ) : ?>
+									<li>
+										<?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?>
+										<?php if ( (int) $line->quantity > 1 ) : ?>
+											<span class="pp-portal__item-meta"><?php echo (int) $line->quantity; ?>×</span>
+										<?php endif; ?>
+										<?php if ( null !== $line->daily_rate ) : ?>
+											<span class="pp-portal__item-meta"><?php echo esc_html( number_format_i18n( (float) $line->daily_rate, 2 ) ); ?> €/<?php esc_html_e( 'day', 'project-prepper' ); ?></span>
+										<?php endif; ?>
+									</li>
+								<?php endforeach; ?>
+							</ul>
+						<?php endif; ?>
+
+						<div class="pp-portal__item-meta pp-portal__rental-bill">
+							<?php
+							/* translators: %d: number of rental days. */
+							echo esc_html( sprintf( _n( '%d day', '%d days', (int) $bill['days'], 'project-prepper' ), (int) $bill['days'] ) );
+							echo ' · ';
+							/* translators: %s: net amount in euro. */
+							echo esc_html( sprintf( __( 'Net %s €', 'project-prepper' ), number_format_i18n( (float) $bill['net'], 2 ) ) );
+							echo ' · ';
+							/* translators: 1: VAT amount, 2: VAT rate percent. */
+							echo esc_html( sprintf( __( 'VAT %1$s € (%2$s%%)', 'project-prepper' ), number_format_i18n( (float) $bill['vat'], 2 ), number_format_i18n( (float) $bill['vat_rate'], 0 ) ) );
+							echo ' · ';
+							/* translators: %s: gross amount in euro. */
+							echo '<strong>' . esc_html( sprintf( __( 'Gross %s €', 'project-prepper' ), number_format_i18n( (float) $bill['gross'], 2 ) ) ) . '</strong>';
+							if ( (float) $bill['deposit'] > 0 ) {
+								echo ' · ';
+								/* translators: %s: deposit amount in euro. */
+								echo esc_html( sprintf( __( 'Deposit %s €', 'project-prepper' ), number_format_i18n( (float) $bill['deposit'], 2 ) ) );
+							}
+							?>
+						</div>
+
+						<?php if ( '' !== trim( (string) $full->notes ) ) : ?>
+							<p class="pp-portal__inq-msg"><?php echo esc_html( $full->notes ); ?></p>
+						<?php endif; ?>
+
+						<?php if ( $next ) : ?>
+							<div class="pp-portal__share-row">
+								<span class="pp-portal__share-label"><?php esc_html_e( 'Move to:', 'project-prepper' ); ?></span>
+								<?php foreach ( $next as $st ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+										<?php self::action_fields( 'rental_status' ); ?>
+										<input type="hidden" name="pp_rental" value="<?php echo (int) $full->id; ?>">
+										<input type="hidden" name="pp_status" value="<?php echo esc_attr( $st ); ?>">
+										<button type="submit" class="pp-portal__chip"><?php echo esc_html( self::rental_status_label( $st ) ); ?></button>
+									</form>
+								<?php endforeach; ?>
+							</div>
+						<?php endif; ?>
+
+						<div class="pp-portal__actions">
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this rental?', 'project-prepper' ) ); ?>');">
+								<?php self::action_fields( 'rental_delete' ); ?>
+								<input type="hidden" name="pp_rental" value="<?php echo (int) $full->id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
+							</form>
+						</div>
+					</div>
+				<?php endforeach; ?>
+			<?php else : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No external rentals yet. Add your first one below.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+
+			<?php if ( $lendable ) : ?>
+				<details class="pp-portal__add">
+					<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New rental', 'project-prepper' ); ?></summary>
+					<?php self::rental_form( $lendable ); ?>
+				</details>
+			<?php else : ?>
+				<p class="pp-portal__hint"><?php esc_html_e( 'Add items to your inventory first — then you can lend them out.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
+	private static function rental_kpi( string $label, string $value, string $tone ): void {
+		?>
+		<div class="pp-kpi pp-kpi--<?php echo esc_attr( $tone ); ?> pp-kpi--static">
+			<span class="pp-kpi__value"><?php echo esc_html( $value ); ?></span>
+			<span class="pp-kpi__label"><?php echo esc_html( $label ); ?></span>
+		</div>
+		<?php
+	}
+
+	/** @return string Status-Label (App-Begriffe). */
+	private static function rental_status_label( string $status ): string {
+		$labels = [
+			'reserved'  => __( 'Reserved', 'project-prepper' ),
+			'active'    => __( 'Handed out', 'project-prepper' ),
+			'returned'  => __( 'Returned', 'project-prepper' ),
+			'cancelled' => __( 'Cancelled', 'project-prepper' ),
+		];
+		return $labels[ $status ] ?? $status;
+	}
+
+	/**
+	 * Anlege-Formular für einen externen Verleih. Person + Zeitraum + Geld +
+	 * eine Auswahl der eigenen Artikel (Checkbox + Menge + Tagessatz pro Zeile).
+	 *
+	 * @param array<int,object> $lendable Eigene Artikel (ID → Objekt).
+	 */
+	private static function rental_form( array $lendable ): void {
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( 'rental_create' ); ?>
+			<label><?php esc_html_e( 'Borrower name', 'project-prepper' ); ?>
+				<input type="text" name="pp_borrower" required>
+			</label>
+			<label><?php esc_html_e( 'Email', 'project-prepper' ); ?>
+				<input type="email" name="pp_email">
+			</label>
+			<label><?php esc_html_e( 'Phone', 'project-prepper' ); ?>
+				<input type="text" name="pp_phone">
+			</label>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+					<input type="date" name="pp_from" required>
+				</label>
+				<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+					<input type="date" name="pp_to" required>
+				</label>
+			</div>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Deposit (€)', 'project-prepper' ); ?>
+					<input type="number" name="pp_deposit" min="0" step="0.01" placeholder="0.00">
+				</label>
+				<label><?php esc_html_e( 'Rental fee (€, gross — optional)', 'project-prepper' ); ?>
+					<input type="number" name="pp_fee" min="0" step="0.01" placeholder="<?php esc_attr_e( 'auto from daily rates', 'project-prepper' ); ?>">
+				</label>
+			</div>
+
+			<fieldset class="pp-portal__rental-items">
+				<legend><?php esc_html_e( 'Items to lend out', 'project-prepper' ); ?></legend>
+				<?php foreach ( $lendable as $item ) :
+					$rate = isset( $item->cost_per_day ) && '' !== (string) $item->cost_per_day ? (float) $item->cost_per_day : '';
+					?>
+					<div class="pp-portal__rental-item-row">
+						<label class="pp-portal__rental-item-pick">
+							<input type="checkbox" name="pp_item[<?php echo (int) $item->id; ?>][on]" value="1">
+							<span><?php echo esc_html( $item->name ); ?> <small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ?? '' ); ?></small></span>
+						</label>
+						<label class="pp-portal__rental-item-qty"><?php esc_html_e( 'Qty', 'project-prepper' ); ?>
+							<input type="number" name="pp_item[<?php echo (int) $item->id; ?>][qty]" min="1" value="1">
+						</label>
+						<label class="pp-portal__rental-item-rate"><?php esc_html_e( '€/day', 'project-prepper' ); ?>
+							<input type="number" name="pp_item[<?php echo (int) $item->id; ?>][rate]" min="0" step="0.01" value="<?php echo esc_attr( '' === $rate ? '' : number_format( (float) $rate, 2, '.', '' ) ); ?>">
+						</label>
+					</div>
+				<?php endforeach; ?>
+			</fieldset>
+
+			<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
+				<textarea name="pp_notes" rows="2"></textarea>
+			</label>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create rental', 'project-prepper' ); ?></button>
+		</form>
+		<?php
+	}
+
+	/** Eingaben des Verleih-Formulars einsammeln (Header + Positionen). */
+	private static function rental_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		$data = [
+			'borrower_name'  => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_borrower'] ?? '' ) ) ),
+			'borrower_email' => sanitize_email( wp_unslash( (string) ( $_POST['pp_email'] ?? '' ) ) ),
+			'borrower_phone' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_phone'] ?? '' ) ) ),
+			'date_from'      => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
+			'date_to'        => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
+			'deposit_amount' => '' !== (string) ( $_POST['pp_deposit'] ?? '' ) ? (float) $_POST['pp_deposit'] : '',
+			'rental_fee'     => '' !== (string) ( $_POST['pp_fee'] ?? '' ) ? (float) $_POST['pp_fee'] : '',
+			'notes'          => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_notes'] ?? '' ) ) ),
+		];
+		$items = [];
+		$raw   = isset( $_POST['pp_item'] ) && is_array( $_POST['pp_item'] ) ? wp_unslash( $_POST['pp_item'] ) : [];
+		foreach ( $raw as $item_id => $line ) {
+			if ( empty( $line['on'] ) ) {
+				continue;
+			}
+			$items[] = [
+				'item_id'    => (int) $item_id,
+				'quantity'   => max( 1, (int) ( $line['qty'] ?? 1 ) ),
+				'daily_rate' => isset( $line['rate'] ) && '' !== $line['rate'] ? (float) $line['rate'] : '',
+			];
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		return [ 'data' => $data, 'items' => $items ];
 	}
 
 	/** Eingehende föderierte Leih-Anfragen für die eigenen Artikel (Slice 4). */
