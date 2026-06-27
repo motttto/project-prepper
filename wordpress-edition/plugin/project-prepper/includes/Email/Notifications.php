@@ -152,7 +152,9 @@ class Notifications {
 		foreach ( $vars as $key => $value ) {
 			$template = str_replace( '{{' . $key . '}}', (string) $value, $template );
 		}
-		return $template;
+		// Nicht ersetzte Platzhalter entfernen, damit kein rohes {{foo}} in der Mail landet.
+		$template = preg_replace( '/\{\{\s*[a-zA-Z0-9_]+\s*\}\}/', '', $template );
+		return (string) $template;
 	}
 
 	public static function on_rental_created( int $rental_id ): void {

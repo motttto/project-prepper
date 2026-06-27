@@ -5109,3 +5109,224 @@ msgstr "Hosting-Anbieter (optional, für Datenschutz)"
 #: includes/Frontend/Legal.php
 msgid "Legal details are not filled in yet — open Manage → Instance → Legal details (imprint/privacy)."
 msgstr "Rechtsangaben sind noch nicht gepflegt — öffne Verwalten → Instanz → Rechtsangaben (Impressum/Datenschutz)."
+
+
+#: admin/js/admin.js
+msgid "created an agreement"
+msgstr "erstellte eine Vereinbarung"
+#: admin/js/admin.js
+msgid "updated an agreement"
+msgstr "aktualisierte eine Vereinbarung"
+#: admin/js/admin.js
+msgid "opened an agreement"
+msgstr "öffnete eine Vereinbarung"
+#: admin/js/admin.js
+msgid "activated an agreement"
+msgstr "aktivierte eine Vereinbarung"
+#: admin/js/admin.js
+msgid "signed an agreement"
+msgstr "unterzeichnete eine Vereinbarung"
+#: admin/js/admin.js
+msgid "declined an agreement"
+msgstr "lehnte eine Vereinbarung ab"
+#: admin/js/admin.js
+msgid "revised an agreement"
+msgstr "überarbeitete eine Vereinbarung"
+#: admin/js/admin.js
+msgid "terminated an agreement"
+msgstr "beendete eine Vereinbarung"
+#: admin/js/admin.js
+msgid "deleted an agreement"
+msgstr "löschte eine Vereinbarung"
+#: admin/js/admin.js
+msgid "merged categories"
+msgstr "führte Kategorien zusammen"
+#: admin/js/admin.js
+msgid "added a consumable"
+msgstr "fügte Verbrauchsmaterial hinzu"
+#: admin/js/admin.js
+msgid "updated a consumable"
+msgstr "aktualisierte Verbrauchsmaterial"
+#: admin/js/admin.js
+msgid "deleted a consumable"
+msgstr "löschte Verbrauchsmaterial"
+#: admin/js/admin.js
+msgid "added a contact"
+msgstr "fügte einen Kontakt hinzu"
+#: admin/js/admin.js
+msgid "updated a contact"
+msgstr "aktualisierte einen Kontakt"
+#: admin/js/admin.js
+msgid "deleted a contact"
+msgstr "löschte einen Kontakt"
+#: admin/js/admin.js
+msgid "added a cost item"
+msgstr "fügte einen Kostenposten hinzu"
+#: admin/js/admin.js
+msgid "updated a cost item"
+msgstr "aktualisierte einen Kostenposten"
+#: admin/js/admin.js
+msgid "deleted a cost item"
+msgstr "löschte einen Kostenposten"
+#: admin/js/admin.js
+msgid "created a decision"
+msgstr "erstellte einen Beschluss"
+#: admin/js/admin.js
+msgid "updated a decision"
+msgstr "aktualisierte einen Beschluss"
+#: admin/js/admin.js
+msgid "resolved a decision"
+msgstr "schloss einen Beschluss ab"
+#: admin/js/admin.js
+msgid "cancelled a decision"
+msgstr "brach einen Beschluss ab"
+#: admin/js/admin.js
+msgid "deleted a decision"
+msgstr "löschte einen Beschluss"
+#: admin/js/admin.js
+msgid "voted on a decision"
+msgstr "stimmte über einen Beschluss ab"
+#: admin/js/admin.js
+msgid "attached a file"
+msgstr "hängte eine Datei an"
+#: admin/js/admin.js
+msgid "updated a file"
+msgstr "aktualisierte eine Datei"
+#: admin/js/admin.js
+msgid "removed a file"
+msgstr "entfernte eine Datei"
+#: admin/js/admin.js
+msgid "started viewing as another user"
+msgstr "begann „Ansehen als“"
+#: admin/js/admin.js
+msgid "stopped viewing as another user"
+msgstr "beendete „Ansehen als“"
+#: admin/js/admin.js
+msgid "created an inquiry"
+msgstr "erstellte eine Anfrage"
+#: admin/js/admin.js
+msgid "changed an inquiry status"
+msgstr "änderte einen Anfrage-Status"
+#: admin/js/admin.js
+msgid "converted an inquiry"
+msgstr "wandelte eine Anfrage um"
+#: admin/js/admin.js
+msgid "turned an inquiry into a project"
+msgstr "machte aus einer Anfrage ein Projekt"
+#: admin/js/admin.js
+msgid "deleted an inquiry"
+msgstr "löschte eine Anfrage"
+#: admin/js/admin.js
+msgid "created a poll"
+msgstr "erstellte eine Umfrage"
+#: admin/js/admin.js
+msgid "updated a poll"
+msgstr "aktualisierte eine Umfrage"
+#: admin/js/admin.js
+msgid "closed a poll"
+msgstr "schloss eine Umfrage"
+#: admin/js/admin.js
+msgid "reopened a poll"
+msgstr "öffnete eine Umfrage erneut"
+#: admin/js/admin.js
+msgid "deleted a poll"
+msgstr "löschte eine Umfrage"
+#: admin/js/admin.js
+msgid "voted in a poll"
+msgstr "stimmte in einer Umfrage ab"
+#: admin/js/admin.js
+msgid "added a profit share"
+msgstr "fügte eine Gewinnbeteiligung hinzu"
+#: admin/js/admin.js
+msgid "updated a profit share"
+msgstr "aktualisierte eine Gewinnbeteiligung"
+#: admin/js/admin.js
+msgid "removed a profit share"
+msgstr "entfernte eine Gewinnbeteiligung"
+#: admin/js/admin.js
+msgid "created a project"
+msgstr "erstellte ein Projekt"
+#: admin/js/admin.js
+msgid "updated a project"
+msgstr "aktualisierte ein Projekt"
+#: admin/js/admin.js
+msgid "deleted a project"
+msgstr "löschte ein Projekt"
+#: admin/js/admin.js
+msgid "changed a project status"
+msgstr "änderte einen Projekt-Status"
+#: admin/js/admin.js
+msgid "added equipment to a project"
+msgstr "fügte einem Projekt Equipment hinzu"
+#: admin/js/admin.js
+msgid "updated project equipment"
+msgstr "aktualisierte Projekt-Equipment"
+#: admin/js/admin.js
+msgid "removed equipment from a project"
+msgstr "entfernte Equipment aus einem Projekt"
+#: admin/js/admin.js
+msgid "added a project member"
+msgstr "fügte ein Projektmitglied hinzu"
+#: admin/js/admin.js
+msgid "updated a project member"
+msgstr "aktualisierte ein Projektmitglied"
+#: admin/js/admin.js
+msgid "removed a project member"
+msgstr "entfernte ein Projektmitglied"
+#: admin/js/admin.js
+msgid "added a task"
+msgstr "fügte eine Aufgabe hinzu"
+#: admin/js/admin.js
+msgid "updated a task"
+msgstr "aktualisierte eine Aufgabe"
+#: admin/js/admin.js
+msgid "deleted a task"
+msgstr "löschte eine Aufgabe"
+#: admin/js/admin.js
+msgid "added a checklist"
+msgstr "fügte eine Checkliste hinzu"
+#: admin/js/admin.js
+msgid "updated a checklist"
+msgstr "aktualisierte eine Checkliste"
+#: admin/js/admin.js
+msgid "deleted a checklist"
+msgstr "löschte eine Checkliste"
+#: admin/js/admin.js
+msgid "added a checklist item"
+msgstr "fügte einen Checklisten-Punkt hinzu"
+#: admin/js/admin.js
+msgid "updated a checklist item"
+msgstr "aktualisierte einen Checklisten-Punkt"
+#: admin/js/admin.js
+msgid "deleted a checklist item"
+msgstr "löschte einen Checklisten-Punkt"
+#: admin/js/admin.js
+msgid "created a rental"
+msgstr "erstellte einen Verleih"
+#: admin/js/admin.js
+msgid "updated a rental"
+msgstr "aktualisierte einen Verleih"
+#: admin/js/admin.js
+msgid "changed a rental status"
+msgstr "änderte einen Verleih-Status"
+#: admin/js/admin.js
+msgid "deleted a rental"
+msgstr "löschte einen Verleih"
+#: admin/js/admin.js
+msgid "added a schedule entry"
+msgstr "fügte einen Zeitplan-Eintrag hinzu"
+#: admin/js/admin.js
+msgid "updated a schedule entry"
+msgstr "aktualisierte einen Zeitplan-Eintrag"
+#: admin/js/admin.js
+msgid "deleted a schedule entry"
+msgstr "löschte einen Zeitplan-Eintrag"
+#: admin/js/admin.js
+msgid "added a team member"
+msgstr "fügte ein Teammitglied hinzu"
+#: admin/js/admin.js
+msgid "updated a team member"
+msgstr "aktualisierte ein Teammitglied"
+#: admin/js/admin.js
+msgid "deleted a team member"
+msgstr "löschte ein Teammitglied"

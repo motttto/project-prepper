@@ -1,7 +1,7 @@
 {
     "translation-revision-date": "YEAR-MO-DA HO:MI+ZONE",
-    "generator": "WP-CLI\/2.12.0",
-    "source": "admin\/js\/a.js",
+    "generator": "WP-CLI/2.12.0",
+    "source": "admin/js/a.js",
     "domain": "messages",
     "locale_data": {
         "messages": {
@@ -118,11 +118,11 @@
             "Notes": [
                 "Notizen"
             ],
-            "\u2014": [
-                "\u2014"
+            "—": [
+                "—"
             ],
             "A poll needs at least two valid options.": [
-                "Eine Umfrage braucht mindestens zwei g\u00fcltige Optionen."
+                "Eine Umfrage braucht mindestens zwei gültige Optionen."
             ],
             "Equipment": [
                 "Equipment"
@@ -149,7 +149,7 @@
                 "Verliehen"
             ],
             "Returned": [
-                "Zur\u00fcckgegeben"
+                "Zurückgegeben"
             ],
             "Cancelled": [
                 "Storniert"
@@ -158,7 +158,7 @@
                 "Ausgeben"
             ],
             "Take back": [
-                "R\u00fccknahme"
+                "Rücknahme"
             ],
             "rental status action\u0004Cancel": [
                 "Abbrechen"
@@ -187,14 +187,14 @@
             "Other": [
                 "Sonstiges"
             ],
-            "Daily rate \u20ac": [
-                "Tagessatz \u20ac"
+            "Daily rate €": [
+                "Tagessatz €"
             ],
             "remove": [
                 "entfernen"
             ],
             "delete": [
-                "l\u00f6schen"
+                "löschen"
             ],
             "Draft": [
                 "Entwurf"
@@ -203,7 +203,7 @@
                 "Geplant"
             ],
             "Confirmed": [
-                "Best\u00e4tigt"
+                "Bestätigt"
             ],
             "Running": [
                 "Laufend"
@@ -212,10 +212,10 @@
                 "Erledigt"
             ],
             "Item deleted.": [
-                "Artikel gel\u00f6scht."
+                "Artikel gelöscht."
             ],
             "Close": [
-                "Schlie\u00dfen"
+                "Schließen"
             ],
             "Save": [
                 "Speichern"
@@ -233,7 +233,7 @@
                 "Positionen"
             ],
             "Fee": [
-                "Geb\u00fchr"
+                "Gebühr"
             ],
             "No rentals yet.": [
                 "Noch keine Verleihe."
@@ -241,11 +241,11 @@
             "Borrower *": [
                 "Leiher *"
             ],
-            "Fee \u20ac": [
-                "Geb\u00fchr \u20ac"
+            "Fee €": [
+                "Gebühr €"
             ],
-            "Deposit \u20ac": [
-                "Kaution \u20ac"
+            "Deposit €": [
+                "Kaution €"
             ],
             "VAT %": [
                 "MwSt %"
@@ -256,8 +256,8 @@
             "No line items.": [
                 "Keine Positionen."
             ],
-            "\u2014 select item \u2014": [
-                "\u2014 Artikel w\u00e4hlen \u2014"
+            "— select item —": [
+                "— Artikel wählen —"
             ],
             "+ Line item": [
                 "+ Position"
@@ -281,13 +281,13 @@
                 "Abrechnung"
             ],
             "Delete": [
-                "L\u00f6schen"
+                "Löschen"
             ],
             "Delete rental %s?": [
-                "Verleih %s l\u00f6schen?"
+                "Verleih %s löschen?"
             ],
             "available": [
-                "verf\u00fcgbar"
+                "verfügbar"
             ],
             "Rental %s created.": [
                 "Verleih %s angelegt."
@@ -325,8 +325,8 @@
             "External services": [
                 "Fremdleistung"
             ],
-            "\u2014 site level \u2014": [
-                "\u2014 Site-Ebene \u2014"
+            "— site level —": [
+                "— Site-Ebene —"
             ],
             "Venue": [
                 "Veranstaltungsort"
@@ -422,7 +422,7 @@
                 "Gewinn-Pool"
             ],
             "Set project revenue to calculate amounts.": [
-                "Hinterlege den Umsatz, um Betr\u00e4ge zu berechnen."
+                "Hinterlege den Umsatz, um Beträge zu berechnen."
             ],
             "Participant": [
                 "Beteiligter"
@@ -449,19 +449,19 @@
                 "Nicht zugeteilt"
             ],
             "Over-allocated": [
-                "\u00dcberverteilt"
+                "Überverteilt"
             ],
             "All group members already have a share.": [
                 "Alle Gruppenmitglieder haben bereits einen Anteil."
             ],
-            "\u2014 select group member \u2014": [
-                "\u2014 Gruppenmitglied w\u00e4hlen \u2014"
+            "— select group member —": [
+                "— Gruppenmitglied wählen —"
             ],
             "Value": [
                 "Wert"
             ],
             "Add share": [
-                "Anteil hinzuf\u00fcgen"
+                "Anteil hinzufügen"
             ],
             "Materials": [
                 "Material"
@@ -491,19 +491,19 @@
                 "Keine Dateien."
             ],
             "Add file": [
-                "Datei hinzuf\u00fcgen"
+                "Datei hinzufügen"
             ],
             "Media library is not available.": [
-                "Die Medienbibliothek ist nicht verf\u00fcgbar."
+                "Die Medienbibliothek ist nicht verfügbar."
             ],
             "Select files": [
-                "Dateien ausw\u00e4hlen"
+                "Dateien auswählen"
             ],
             "Schedule": [
                 "Zeitplan"
             ],
             "No schedule entries.": [
-                "Keine Zeitplan-Eintr\u00e4ge."
+                "Keine Zeitplan-Einträge."
             ],
             "Date": [
                 "Datum"
@@ -518,10 +518,10 @@
                 "Checklisten"
             ],
             "Delete checklist \"%s\"?": [
-                "Checkliste \"%s\" l\u00f6schen?"
+                "Checkliste \"%s\" löschen?"
             ],
             "No entries.": [
-                "Keine Eintr\u00e4ge."
+                "Keine Einträge."
             ],
             "New entry": [
                 "Neuer Eintrag"
@@ -539,13 +539,13 @@
                 "Aufgaben"
             ],
             "Change status": [
-                "Status \u00e4ndern"
+                "Status ändern"
             ],
             "Priority": [
-                "Priorit\u00e4t"
+                "Priorität"
             ],
             "Due date": [
-                "F\u00e4llig am"
+                "Fällig am"
             ],
             "No tasks.": [
                 "Keine Aufgaben."
@@ -560,19 +560,19 @@
                 "Beteiligte"
             ],
             "Assign a group to add members.": [
-                "Ordne erst eine Gruppe zu, um Beteiligte hinzuzuf\u00fcgen."
+                "Ordne erst eine Gruppe zu, um Beteiligte hinzuzufügen."
             ],
             "No members yet.": [
                 "Noch keine Beteiligten."
             ],
             "All group members are already listed.": [
-                "Alle Gruppenmitglieder sind bereits aufgef\u00fchrt."
+                "Alle Gruppenmitglieder sind bereits aufgeführt."
             ],
             "Role": [
                 "Rolle"
             ],
             "Add member": [
-                "Mitglied hinzuf\u00fcgen"
+                "Mitglied hinzufügen"
             ],
             "Approved": [
                 "Angenommen"
@@ -590,7 +590,7 @@
                 "Enthalten"
             ],
             "Decisions": [
-                "Beschl\u00fcsse"
+                "Beschlüsse"
             ],
             "Assign a group to hold votes.": [
                 "Ordne erst eine Gruppe zu, um abzustimmen."
@@ -601,20 +601,20 @@
             "Majority": [
                 "Mehrheit"
             ],
-            "Approve %1$d \u00b7 Reject %2$d \u00b7 Abstain %3$d of %4$d": [
-                "Zustimmung %1$d \u00b7 Ablehnung %2$d \u00b7 Enthaltung %3$d von %4$d"
+            "Approve %1$d · Reject %2$d · Abstain %3$d of %4$d": [
+                "Zustimmung %1$d · Ablehnung %2$d · Enthaltung %3$d von %4$d"
             ],
             "%d votes": [
                 "%d Stimmen"
             ],
             "Close this decision early?": [
-                "Diesen Beschluss vorzeitig schlie\u00dfen?"
+                "Diesen Beschluss vorzeitig schließen?"
             ],
             "Delete this decision and all votes?": [
-                "Diesen Beschluss und alle Stimmen l\u00f6schen?"
+                "Diesen Beschluss und alle Stimmen löschen?"
             ],
             "No decisions yet.": [
-                "Noch keine Beschl\u00fcsse."
+                "Noch keine Beschlüsse."
             ],
             "Requires unanimous": [
                 "Einstimmigkeit erforderlich"
@@ -641,7 +641,7 @@
                 "Umfragen"
             ],
             "Assign a group to run polls.": [
-                "Ordne erst eine Gruppe zu, um Umfragen durchzuf\u00fchren."
+                "Ordne erst eine Gruppe zu, um Umfragen durchzuführen."
             ],
             "Closed": [
                 "Abgeschlossen"
@@ -649,14 +649,14 @@
             "Best option": [
                 "Beste Option"
             ],
-            "\u2713 %1$d \u00b7 \u25cb %2$d \u00b7 \u2717 %3$d": [
-                "\u2713 %1$d \u00b7 \u25cb %2$d \u00b7 \u2717 %3$d"
+            "✓ %1$d · ○ %2$d · ✗ %3$d": [
+                "✓ %1$d · ○ %2$d · ✗ %3$d"
             ],
             "Reopen": [
-                "Wieder \u00f6ffnen"
+                "Wieder öffnen"
             ],
             "Delete this poll and all votes?": [
-                "Diese Umfrage und alle Stimmen l\u00f6schen?"
+                "Diese Umfrage und alle Stimmen löschen?"
             ],
             "No polls yet.": [
                 "Noch keine Umfragen."
@@ -665,7 +665,7 @@
                 "Option"
             ],
             "Add option": [
-                "Option hinzuf\u00fcgen"
+                "Option hinzufügen"
             ],
             "Create poll": [
                 "Umfrage anlegen"
@@ -752,10 +752,10 @@
                 "Keine Gruppenmitglieder."
             ],
             "Revise": [
-                "\u00dcberarbeiten"
+                "Überarbeiten"
             ],
             "Revise this agreement? All signatures will be cleared.": [
-                "Diese Vereinbarung \u00fcberarbeiten? Alle Unterschriften werden verworfen."
+                "Diese Vereinbarung überarbeiten? Alle Unterschriften werden verworfen."
             ],
             "Terminate": [
                 "Beenden"
@@ -764,13 +764,13 @@
                 "Diese Vereinbarung beenden?"
             ],
             "Delete this agreement and all signatures?": [
-                "Diese Vereinbarung samt aller Unterschriften l\u00f6schen?"
+                "Diese Vereinbarung samt aller Unterschriften löschen?"
             ],
             "Delete project": [
-                "Projekt l\u00f6schen"
+                "Projekt löschen"
             ],
             "Delete project \"%s\"? Bookings, checklists and tasks will be deleted too.": [
-                "Projekt \"%s\" l\u00f6schen? Buchungen, Checklisten und Aufgaben werden mit gel\u00f6scht."
+                "Projekt \"%s\" löschen? Buchungen, Checklisten und Aufgaben werden mit gelöscht."
             ],
             "New project": [
                 "Neues Projekt"
@@ -784,29 +784,29 @@
             "No other category available as target.": [
                 "Keine andere Kategorie als Ziel vorhanden."
             ],
-            "Counting items \u2026": [
-                "Artikel werden gez\u00e4hlt \u2026"
+            "Counting items …": [
+                "Artikel werden gezählt …"
             ],
             "%1$d items will be moved to the target category, then \"%2$s\" will be deleted.": [
-                "%1$d Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%2$s\" gel\u00f6scht."
+                "%1$d Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%2$s\" gelöscht."
             ],
             "All items will be moved to the target category, then \"%s\" will be deleted.": [
-                "Alle Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%s\" gel\u00f6scht."
+                "Alle Artikel werden in die Ziel-Kategorie verschoben, danach wird \"%s\" gelöscht."
             ],
             "Target category for \"%s\"": [
-                "Ziel-Kategorie f\u00fcr \"%s\""
+                "Ziel-Kategorie für \"%s\""
             ],
             "Cancel": [
                 "Abbrechen"
             ],
             "Merge": [
-                "Zusammenf\u00fchren"
+                "Zusammenführen"
             ],
             "%d items moved, category deleted.": [
-                "%d Artikel verschoben, Kategorie gel\u00f6scht."
+                "%d Artikel verschoben, Kategorie gelöscht."
             ],
             "Merge category": [
-                "Kategorie zusammenf\u00fchren"
+                "Kategorie zusammenführen"
             ],
             "Icon": [
                 "Icon"
@@ -814,11 +814,11 @@
             "Prefix": [
                 "Prefix"
             ],
-            "Merge\u2026": [
-                "Zusammenf\u00fchren\u2026"
+            "Merge…": [
+                "Zusammenführen…"
             ],
             "Delete category \"%s\"? Items will be kept.": [
-                "Kategorie \"%s\" l\u00f6schen? Artikel bleiben erhalten."
+                "Kategorie \"%s\" löschen? Artikel bleiben erhalten."
             ],
             "Icon (emoji)": [
                 "Icon (Emoji)"
@@ -842,16 +842,16 @@
                 "Verloren"
             ],
             "Convert to rental": [
-                "In Verleih \u00fcbernehmen"
+                "In Verleih übernehmen"
             ],
             "Convert the inquiry from \"%s\" into a rental? The inquiry will be marked as won.": [
-                "Anfrage von \"%s\" in einen Verleih \u00fcbernehmen? Die Anfrage wird als gewonnen markiert."
+                "Anfrage von \"%s\" in einen Verleih übernehmen? Die Anfrage wird als gewonnen markiert."
             ],
-            "Date range missing \u2014 cannot convert": [
-                "Zeitraum fehlt \u2014 Konvertierung nicht m\u00f6glich"
+            "Date range missing — cannot convert": [
+                "Zeitraum fehlt — Konvertierung nicht möglich"
             ],
             "Delete the inquiry from \"%s\"?": [
-                "Anfrage von \"%s\" l\u00f6schen?"
+                "Anfrage von \"%s\" löschen?"
             ],
             "Received on": [
                 "Eingegangen am"
@@ -889,8 +889,8 @@
             "Calendar feed (iCal)": [
                 "Kalender-Feed (iCal)"
             ],
-            "Read-only feed of all reserved\/active rentals \u2014 subscribe in Apple\/Google\/Outlook.": [
-                "Read-only Feed aller reservierten\/aktiven Verleihe \u2014 in Apple\/Google\/Outlook abonnierbar."
+            "Read-only feed of all reserved/active rentals — subscribe in Apple/Google/Outlook.": [
+                "Read-only Feed aller reservierten/aktiven Verleihe — in Apple/Google/Outlook abonnierbar."
             ],
             "Copy URL": [
                 "URL kopieren"
@@ -908,25 +908,25 @@
                 "Token erneuert."
             ],
             "Public frontend": [
-                "\u00d6ffentliches Frontend"
+                "Öffentliches Frontend"
             ],
-            "Show daily rates publicly (item detail page \/equipment-item\/\u2026)": [
-                "Tagess\u00e4tze \u00f6ffentlich zeigen (Artikel-Detailseite \/equipment-item\/\u2026)"
+            "Show daily rates publicly (item detail page /equipment-item/…)": [
+                "Tagessätze öffentlich zeigen (Artikel-Detailseite /equipment-item/…)"
             ],
             "Inventory cards link to a public detail page per item. Purchase price and serial number are never shown there.": [
-                "Die Inventar-Karten verlinken auf eine \u00f6ffentliche Detailseite pro Artikel. Kaufpreis und Seriennummer sind dort nie sichtbar."
+                "Die Inventar-Karten verlinken auf eine öffentliche Detailseite pro Artikel. Kaufpreis und Seriennummer sind dort nie sichtbar."
             ],
             "Data": [
                 "Daten"
             ],
             "Delete all plugin data on uninstall": [
-                "Alle Plugin-Daten beim Deinstallieren l\u00f6schen"
+                "Alle Plugin-Daten beim Deinstallieren löschen"
             ],
-            "GDPR: export & anonymization of borrower data via Tools \u2192 Personal Data (search by email address).": [
-                "DSGVO: Export & Anonymisierung von Leiher-Daten \u00fcber Werkzeuge \u2192 Personenbezogene Daten (Suche per E-Mail-Adresse)."
+            "GDPR: export & anonymization of borrower data via Tools → Personal Data (search by email address).": [
+                "DSGVO: Export & Anonymisierung von Leiher-Daten über Werkzeuge → Personenbezogene Daten (Suche per E-Mail-Adresse)."
             ],
             "Founder": [
-                "Gr\u00fcnder"
+                "Gründer"
             ],
             "Member": [
                 "Mitglied"
@@ -943,14 +943,14 @@
             "No members.": [
                 "Keine Mitglieder."
             ],
-            "\u2014 select user \u2014": [
-                "\u2014 Benutzer w\u00e4hlen \u2014"
+            "— select user —": [
+                "— Benutzer wählen —"
             ],
             "Delete group": [
-                "Gruppe l\u00f6schen"
+                "Gruppe löschen"
             ],
             "Delete group \"%s\"? Projects of this group return to site level.": [
-                "Gruppe \u201e%s\u201c l\u00f6schen? Projekte dieser Gruppe fallen auf die Site-Ebene zur\u00fcck."
+                "Gruppe „%s“ löschen? Projekte dieser Gruppe fallen auf die Site-Ebene zurück."
             ],
             "New group": [
                 "Neue Gruppe"
@@ -965,7 +965,7 @@
                 "Artikel aktualisiert"
             ],
             "Item deleted": [
-                "Artikel gel\u00f6scht"
+                "Artikel gelöscht"
             ],
             "Category created": [
                 "Kategorie angelegt"
@@ -974,10 +974,10 @@
                 "Kategorie aktualisiert"
             ],
             "Category deleted": [
-                "Kategorie gel\u00f6scht"
+                "Kategorie gelöscht"
             ],
             "Categories merged": [
-                "Kategorien zusammengef\u00fchrt"
+                "Kategorien zusammengeführt"
             ],
             "Rental created": [
                 "Verleih angelegt"
@@ -986,10 +986,10 @@
                 "Verleih aktualisiert"
             ],
             "Rental status changed": [
-                "Verleih-Status ge\u00e4ndert"
+                "Verleih-Status geändert"
             ],
             "Rental deleted": [
-                "Verleih gel\u00f6scht"
+                "Verleih gelöscht"
             ],
             "Project created": [
                 "Projekt angelegt"
@@ -998,19 +998,19 @@
                 "Projekt aktualisiert"
             ],
             "Project deleted": [
-                "Projekt gel\u00f6scht"
+                "Projekt gelöscht"
             ],
             "Inquiry created": [
                 "Anfrage angelegt"
             ],
             "Inquiry status changed": [
-                "Anfrage-Status ge\u00e4ndert"
+                "Anfrage-Status geändert"
             ],
             "Inquiry converted": [
                 "Anfrage umgewandelt"
             ],
             "Inquiry deleted": [
-                "Anfrage gel\u00f6scht"
+                "Anfrage gelöscht"
             ],
             "Group created": [
                 "Gruppe angelegt"
@@ -1019,16 +1019,16 @@
                 "Gruppe aktualisiert"
             ],
             "Group deleted": [
-                "Gruppe gel\u00f6scht"
+                "Gruppe gelöscht"
             ],
             "Participant added": [
-                "Beteiligter hinzugef\u00fcgt"
+                "Beteiligter hinzugefügt"
             ],
             "Decision created": [
                 "Beschluss angelegt"
             ],
             "Profit share added": [
-                "Gewinnanteil hinzugef\u00fcgt"
+                "Gewinnanteil hinzugefügt"
             ],
             "Agreement created": [
                 "Vereinbarung angelegt"
@@ -1043,7 +1043,7 @@
                 "Vereinbarung abgelehnt"
             ],
             "Agreement revised": [
-                "Vereinbarung \u00fcberarbeitet"
+                "Vereinbarung überarbeitet"
             ],
             "Agreement terminated": [
                 "Vereinbarung beendet"
@@ -1072,11 +1072,11 @@
             "Open inquiries": [
                 "Offene Anfragen"
             ],
-            "Running \/ planned projects": [
-                "Laufende \/ geplante Projekte"
+            "Running / planned projects": [
+                "Laufende / geplante Projekte"
             ],
             "Upcoming (next 14 days)": [
-                "Anstehend (n\u00e4chste 14 Tage)"
+                "Anstehend (nächste 14 Tage)"
             ],
             "Nothing scheduled.": [
                 "Nichts geplant."
@@ -1085,10 +1085,10 @@
                 "(ohne Titel)"
             ],
             "Recent activity": [
-                "Letzte Aktivit\u00e4t"
+                "Letzte Aktivität"
             ],
             "No activity yet.": [
-                "Noch keine Aktivit\u00e4t."
+                "Noch keine Aktivität."
             ],
             "Today": [
                 "Heute"
@@ -1097,10 +1097,10 @@
                 "Voriger Monat"
             ],
             "Next month": [
-                "N\u00e4chster Monat"
+                "Nächster Monat"
             ],
             "available in the settings.": [
-                "in den Einstellungen verf\u00fcgbar."
+                "in den Einstellungen verfügbar."
             ],
             "weekday\u0004Mon": [
                 "Mo"
@@ -1130,7 +1130,7 @@
                 "Februar"
             ],
             "March": [
-                "M\u00e4rz"
+                "März"
             ],
             "April": [
                 "April"
@@ -1160,7 +1160,7 @@
                 "Dezember"
             ],
             "Overview": [
-                "\u00dcbersicht"
+                "Übersicht"
             ],
             "Team & contacts": [
                 "Team & Kontakte"
@@ -1178,7 +1178,7 @@
                 "Inventar aufbauen"
             ],
             "Items with number ranges, conditions and daily rates.": [
-                "Artikel mit Nummernkreisen, Zustand und Tagess\u00e4tzen."
+                "Artikel mit Nummernkreisen, Zustand und Tagessätzen."
             ],
             "Plan projects": [
                 "Projekte planen"
@@ -1190,7 +1190,7 @@
                 "Als Gruppe arbeiten"
             ],
             "Share a project with a team: members, decisions and polls.": [
-                "Ein Projekt im Team teilen: Beteiligte, Beschl\u00fcsse und Umfragen."
+                "Ein Projekt im Team teilen: Beteiligte, Beschlüsse und Umfragen."
             ],
             "Settle the profit": [
                 "Gewinn abrechnen"
@@ -1202,7 +1202,7 @@
                 "Angefragt"
             ],
             "Where the member portal comes together: collectives, join voting, member inventory and borrow requests. Manage members under Groups.": [
-                "Hier laufen die Member-Portal-Prozesse zusammen: Gruppen, Beitritts-Voting, Mitglieder-Inventar und Leih-Anfragen. Mitglieder verwaltest du unter \u201eGruppen\"."
+                "Hier laufen die Member-Portal-Prozesse zusammen: Gruppen, Beitritts-Voting, Mitglieder-Inventar und Leih-Anfragen. Mitglieder verwaltest du unter „Gruppen\"."
             ],
             "Collectives": [
                 "Gruppen"
@@ -1238,7 +1238,7 @@
                 "Letzte Leih-Anfragen"
             ],
             "Owner": [
-                "Eigent\u00fcmer"
+                "Eigentümer"
             ],
             "No borrow requests yet.": [
                 "Noch keine Leih-Anfragen."
@@ -1252,8 +1252,8 @@
             "In voting": [
                 "In Abstimmung"
             ],
-            "Frontend hardening for the member portal. Everything is OFF by default \u2014 nothing changes until you enable it here.": [
-                "Frontend-H\u00e4rtung f\u00fcr das Member-Portal. Standardm\u00e4\u00dfig ist alles AUS \u2014 es \u00e4ndert sich nichts, bis du es hier aktivierst."
+            "Frontend hardening for the member portal. Everything is OFF by default — nothing changes until you enable it here.": [
+                "Frontend-Härtung für das Member-Portal. Standardmäßig ist alles AUS — es ändert sich nichts, bis du es hier aktivierst."
             ],
             "Security settings saved.": [
                 "Sicherheits-Einstellungen gespeichert."
@@ -1285,11 +1285,11 @@
             "When on, members get a one-time code by email at portal sign-in. Admins and managers keep the normal wp-admin login.": [
                 "Wenn aktiv, erhalten Mitglieder beim Portal-Login einen Einmal-Code per E-Mail. Admins und Manager nutzen weiter den normalen wp-admin-Login."
             ],
-            "Make this instance discoverable to other Project Prepper instances by postal code and topic. Opt-in and OFF by default \u2014 while off, nothing is published and the discovery endpoint returns 404. Only coarse, non-personal data is shared (name, postal code, topic, counts).": [
-                "Mache diese Instanz f\u00fcr andere Project-Prepper-Instanzen per Postleitzahl und Thema auffindbar. Opt-in und standardm\u00e4\u00dfig AUS \u2014 solange aus, wird nichts ver\u00f6ffentlicht und der Discovery-Endpoint liefert 404. Es werden nur grobe, nicht-personenbezogene Daten geteilt (Name, PLZ, Thema, Anzahlen)."
+            "Make this instance discoverable to other Project Prepper instances by postal code and topic. Opt-in and OFF by default — while off, nothing is published and the discovery endpoint returns 404. Only coarse, non-personal data is shared (name, postal code, topic, counts).": [
+                "Mache diese Instanz für andere Project-Prepper-Instanzen per Postleitzahl und Thema auffindbar. Opt-in und standardmäßig AUS — solange aus, wird nichts veröffentlicht und der Discovery-Endpoint liefert 404. Es werden nur grobe, nicht-personenbezogene Daten geteilt (Name, PLZ, Thema, Anzahlen)."
             ],
             "Federation settings saved.": [
-                "F\u00f6derations-Einstellungen gespeichert."
+                "Föderations-Einstellungen gespeichert."
             ],
             "Postal code": [
                 "Postleitzahl"
@@ -1304,13 +1304,13 @@
                 "Discovery-Endpoint"
             ],
             "Save federation settings": [
-                "F\u00f6derations-Einstellungen speichern"
+                "Föderations-Einstellungen speichern"
             ],
             "Partner instances": [
                 "Partner-Instanzen"
             ],
             "One instance URL per line. Their public profiles are fetched and listed below (cached for an hour).": [
-                "Eine Instanz-URL pro Zeile. Ihre \u00f6ffentlichen Profile werden abgerufen und unten gelistet (1 Stunde gecacht)."
+                "Eine Instanz-URL pro Zeile. Ihre öffentlichen Profile werden abgerufen und unten gelistet (1 Stunde gecacht)."
             ],
             "Known instances": [
                 "Bekannte Instanzen"
@@ -1334,10 +1334,10 @@
                 "Aktion"
             ],
             "No activity recorded yet.": [
-                "Noch keine Aktivit\u00e4t aufgezeichnet."
+                "Noch keine Aktivität aufgezeichnet."
             ],
             "founded a collective": [
-                "hat eine Gruppe gegr\u00fcndet"
+                "hat eine Gruppe gegründet"
             ],
             "invited someone": [
                 "hat jemanden eingeladen"
@@ -1352,7 +1352,7 @@
                 "wurde abgelehnt"
             ],
             "added a member": [
-                "hat ein Mitglied hinzugef\u00fcgt"
+                "hat ein Mitglied hinzugefügt"
             ],
             "removed a member": [
                 "hat ein Mitglied entfernt"
@@ -1361,7 +1361,7 @@
                 "hat einen Artikel angelegt"
             ],
             "deleted an item": [
-                "hat einen Artikel gel\u00f6scht"
+                "hat einen Artikel gelöscht"
             ],
             "shared an item": [
                 "hat einen Artikel geteilt"
@@ -1379,7 +1379,7 @@
                 "hat eine Leih-Anfrage abgelehnt"
             ],
             "marked a loan returned": [
-                "hat eine Leihe als zur\u00fcckgegeben markiert"
+                "hat eine Leihe als zurückgegeben markiert"
             ],
             "Accept borrow requests from partner instances (members moderate each request).": [
                 "Leih-Anfragen von Partner-Instanzen annehmen (Mitglieder moderieren jede Anfrage)."
@@ -1394,16 +1394,16 @@
                 "Schneeball-Schutz (Limits)"
             ],
             "0 = unlimited. Invitations counted per member over a rolling 24 hours.": [
-                "0 = unbegrenzt. Einladungen werden pro Mitglied \u00fcber rollende 24 Stunden gez\u00e4hlt."
+                "0 = unbegrenzt. Einladungen werden pro Mitglied über rollende 24 Stunden gezählt."
             ],
             "Public profile": [
-                "\u00d6ffentliches Profil"
+                "Öffentliches Profil"
             ],
-            "Manage roles and fine-grained permissions for every account. Members edit their own inventory and projects in the front-end portal \u2014 here you steer who may do what.": [
-                "Verwalte Rolle und feingranulare Rechte jedes Kontos. Mitglieder pflegen ihr eigenes Inventar und ihre Projekte im Frontend-Portal \u2014 hier steuerst du, wer was darf."
+            "Manage roles and fine-grained permissions for every account. Members edit their own inventory and projects in the front-end portal — here you steer who may do what.": [
+                "Verwalte Rolle und feingranulare Rechte jedes Kontos. Mitglieder pflegen ihr eigenes Inventar und ihre Projekte im Frontend-Portal — hier steuerst du, wer was darf."
             ],
-            "Search name or email \u2026": [
-                "Name oder E-Mail suchen \u2026"
+            "Search name or email …": [
+                "Name oder E-Mail suchen …"
             ],
             "Permissions": [
                 "Rechte"
@@ -1426,14 +1426,14 @@
             "Send notification emails (rentals, invitations, borrow requests, login codes)": [
                 "Benachrichtigungs-Mails senden (Verleih, Einladungen, Leih-Anfragen, Login-Codes)"
             ],
-            "Edit email templates \u2192": [
-                "E-Mail-Templates bearbeiten \u2192"
+            "Edit email templates →": [
+                "E-Mail-Templates bearbeiten →"
             ],
-            "Every email the plugin sends, in one place. Keep the {{placeholders}} \u2014 they get replaced with the real values.": [
-                "Alle E-Mails, die das Plugin verschickt, an einem Ort. Lass die {{Platzhalter}} stehen \u2014 sie werden durch die echten Werte ersetzt."
+            "Every email the plugin sends, in one place. Keep the {{placeholders}} — they get replaced with the real values.": [
+                "Alle E-Mails, die das Plugin verschickt, an einem Ort. Lass die {{Platzhalter}} stehen — sie werden durch die echten Werte ersetzt."
             ],
-            "Email sending is currently off \u2014 turn it on under Settings \u2192 Email notifications for these templates to take effect.": [
-                "E-Mail-Versand ist derzeit aus \u2014 schalte ihn unter Einstellungen \u2192 E-Mail-Benachrichtigungen ein, damit diese Templates greifen."
+            "Email sending is currently off — turn it on under Settings → Email notifications for these templates to take effect.": [
+                "E-Mail-Versand ist derzeit aus — schalte ihn unter Einstellungen → E-Mail-Benachrichtigungen ein, damit diese Templates greifen."
             ],
             "Save templates": [
                 "Templates speichern"
@@ -1441,11 +1441,11 @@
             "Templates saved.": [
                 "Templates gespeichert."
             ],
-            "Read-only oversight of all inventory. Members add and edit their own items in the member portal \u2014 here you review and, for moderation, remove items.": [
-                "Read-only-Aufsicht \u00fcber das gesamte Inventar. Mitglieder legen ihre eigenen Artikel im Mitglieder-Portal an und bearbeiten sie \u2014 hier pr\u00fcfst du sie und entfernst sie zur Moderation."
+            "Read-only oversight of all inventory. Members add and edit their own items in the member portal — here you review and, for moderation, remove items.": [
+                "Read-only-Aufsicht über das gesamte Inventar. Mitglieder legen ihre eigenen Artikel im Mitglieder-Portal an und bearbeiten sie — hier prüfst du sie und entfernst sie zur Moderation."
             ],
-            "Search items \u2026": [
-                "Artikel suchen \u2026"
+            "Search items …": [
+                "Artikel suchen …"
             ],
             "All categories": [
                 "Alle Kategorien"
@@ -1463,22 +1463,22 @@
                 "Menge"
             ],
             "Delete this item? This cannot be undone.": [
-                "Diesen Artikel l\u00f6schen? Das kann nicht r\u00fcckg\u00e4ngig gemacht werden."
+                "Diesen Artikel löschen? Das kann nicht rückgängig gemacht werden."
             ],
             "List this instance in the federation (publish the public profile).": [
-                "Diese Instanz in der F\u00f6deration listen (\u00f6ffentliches Profil ver\u00f6ffentlichen)."
+                "Diese Instanz in der Föderation listen (öffentliches Profil veröffentlichen)."
             ],
             "The published name, topic, postal code and contact come from the": [
-                "Ver\u00f6ffentlichter Name, Thema, PLZ und Kontakt stammen von der"
+                "Veröffentlichter Name, Thema, PLZ und Kontakt stammen von der"
             ],
             "Instance page": [
                 "Instanz-Seite"
             ],
             "Who you are, how your instance is funded, and your terms. The federation publishes your identity from here.": [
-                "Wer du bist, wie deine Instanz finanziert wird und deine Bedingungen. Die F\u00f6deration ver\u00f6ffentlicht deine Identit\u00e4t von hier."
+                "Wer du bist, wie deine Instanz finanziert wird und deine Bedingungen. Die Föderation veröffentlicht deine Identität von hier."
             ],
             "Identity & purpose": [
-                "Identit\u00e4t & Zweck"
+                "Identität & Zweck"
             ],
             "Purpose": [
                 "Zweck"
@@ -1490,10 +1490,10 @@
                 "pro Monat"
             ],
             "Economy model": [
-                "\u00d6konomie-Modell"
+                "Ökonomie-Modell"
             ],
-            "Declare how your instance is funded. Payment processing and tracking are a separate, later step \u2014 this just records the model.": [
-                "Lege fest, wie deine Instanz finanziert wird. Zahlungsabwicklung und Tracking sind ein eigener sp\u00e4terer Schritt \u2014 hier wird nur das Modell festgehalten."
+            "Declare how your instance is funded. Payment processing and tracking are a separate, later step — this just records the model.": [
+                "Lege fest, wie deine Instanz finanziert wird. Zahlungsabwicklung und Tracking sind ein eigener späterer Schritt — hier wird nur das Modell festgehalten."
             ],
             "Amount": [
                 "Betrag"
@@ -1502,10 +1502,10 @@
                 "Intervall"
             ],
             "Currency": [
-                "W\u00e4hrung"
+                "Währung"
             ],
             "Note for members": [
-                "Hinweis f\u00fcr Mitglieder"
+                "Hinweis für Mitglieder"
             ],
             "Terms (legal basis)": [
                 "Bedingungen (Rechtsgrundlage)"
@@ -1520,13 +1520,13 @@
                 "Bedingungs-Text"
             ],
             "Members must accept these terms (enforcement in the portal follows in a later step).": [
-                "Mitglieder m\u00fcssen diese Bedingungen akzeptieren (Durchsetzung im Portal folgt in einem sp\u00e4teren Schritt)."
+                "Mitglieder müssen diese Bedingungen akzeptieren (Durchsetzung im Portal folgt in einem späteren Schritt)."
             ],
             "Open join votes": [
                 "Offene Beitritts-Abstimmungen"
             ],
             "Overdue loans": [
-                "\u00dcberf\u00e4llige Ausleihen"
+                "Überfällige Ausleihen"
             ],
             "Incoming network requests": [
                 "Eingehende Netzwerk-Anfragen"
@@ -1541,7 +1541,7 @@
                 "Auf einen Blick"
             ],
             "Due": [
-                "F\u00e4llig"
+                "Fällig"
             ],
             "None.": [
                 "Keine."
@@ -1553,13 +1553,13 @@
                 "hat eine Gruppe bearbeitet"
             ],
             "deleted a collective": [
-                "hat eine Gruppe gel\u00f6scht"
+                "hat eine Gruppe gelöscht"
             ],
             "declined an invitation": [
                 "hat eine Einladung abgelehnt"
             ],
             "cancelled an invitation": [
-                "hat eine Einladung zur\u00fcckgezogen"
+                "hat eine Einladung zurückgezogen"
             ],
             "imported inventory": [
                 "hat Inventar importiert"
@@ -1568,7 +1568,7 @@
                 "hat Inventar exportiert"
             ],
             "ran a GDPR erasure": [
-                "hat eine DSGVO-L\u00f6schung durchgef\u00fchrt"
+                "hat eine DSGVO-Löschung durchgeführt"
             ],
             "received a network request": [
                 "hat eine Netzwerk-Anfrage erhalten"
@@ -1577,49 +1577,49 @@
                 "hat eine Netzwerk-Anfrage entschieden"
             ],
             "marked a network loan returned": [
-                "hat eine Netzwerk-Leihe als zur\u00fcckgegeben markiert"
+                "hat eine Netzwerk-Leihe als zurückgegeben markiert"
             ],
             "sent a network request": [
                 "hat eine Netzwerk-Anfrage gesendet"
             ],
             "These are the template categories. Members get them suggested in their portal and can adopt them or create their own. Categories members create themselves are not shown here.": [
-                "Dies sind die Vorlagen-Kategorien. Mitglieder bekommen sie im Portal vorgeschlagen und k\u00f6nnen sie \u00fcbernehmen oder eigene anlegen. Von Mitgliedern selbst angelegte Kategorien erscheinen hier nicht."
+                "Dies sind die Vorlagen-Kategorien. Mitglieder bekommen sie im Portal vorgeschlagen und können sie übernehmen oder eigene anlegen. Von Mitgliedern selbst angelegte Kategorien erscheinen hier nicht."
             ],
             "Calendar mechanic and oversight. The iCal feed below publishes all scheduled entries; the schedule itself (rentals, projects) is maintained where those records live.": [
-                "Kalender-Mechanik und Aufsicht. Der iCal-Feed unten ver\u00f6ffentlicht alle geplanten Eintr\u00e4ge; der Zeitplan selbst (Verleihe, Projekte) wird dort gepflegt, wo diese Datens\u00e4tze leben."
+                "Kalender-Mechanik und Aufsicht. Der iCal-Feed unten veröffentlicht alle geplanten Einträge; der Zeitplan selbst (Verleihe, Projekte) wird dort gepflegt, wo diese Datensätze leben."
             ],
             "Subscribe to this read-only feed in any calendar app. Regenerating the token revokes existing subscriptions.": [
                 "Abonniere diesen read-only Feed in jeder Kalender-App. Das Erneuern des Tokens widerruft bestehende Abonnements."
             ],
             "Upcoming entries (next 90 days)": [
-                "Kommende Eintr\u00e4ge (n\u00e4chste 90 Tage)"
+                "Kommende Einträge (nächste 90 Tage)"
             ],
             "No scheduled entries in the next 90 days.": [
-                "Keine geplanten Eintr\u00e4ge in den n\u00e4chsten 90 Tagen."
+                "Keine geplanten Einträge in den nächsten 90 Tagen."
             ],
-            "Loading \u2026": [
-                "Wird geladen \u2026"
+            "Loading …": [
+                "Wird geladen …"
             ],
             "Send test email": [
                 "Test-E-Mail senden"
             ],
-            "Sending \u2026": [
-                "Wird gesendet \u2026"
+            "Sending …": [
+                "Wird gesendet …"
             ],
-            "Sent to %s \u2014 check your inbox.": [
-                "An %s gesendet \u2014 schau in dein Postfach."
+            "Sent to %s — check your inbox.": [
+                "An %s gesendet — schau in dein Postfach."
             ],
-            "WordPress could not send the email. Check your server mail \/ SMTP setup.": [
-                "WordPress konnte die E-Mail nicht senden. Pr\u00fcfe die Server-Mail- \/ SMTP-Konfiguration."
+            "WordPress could not send the email. Check your server mail / SMTP setup.": [
+                "WordPress konnte die E-Mail nicht senden. Prüfe die Server-Mail- / SMTP-Konfiguration."
             ],
             "Deliverability check: send a test email to your own address.": [
                 "Zustellbarkeits-Check: sende eine Test-E-Mail an deine eigene Adresse."
             ],
             "Check partners now": [
-                "Partner jetzt pr\u00fcfen"
+                "Partner jetzt prüfen"
             ],
-            "Checking \u2026": [
-                "Wird gepr\u00fcft \u2026"
+            "Checking …": [
+                "Wird geprüft …"
             ],
             "Reachability": [
                 "Erreichbarkeit"
@@ -1642,23 +1642,242 @@
             "View as": [
                 "Ansehen als"
             ],
-            "Open the member portal as this user \u2014 a banner lets you switch back.": [
-                "Das Mitglieder-Portal als dieser Benutzer \u00f6ffnen \u2014 ein Banner f\u00fchrt dich zur\u00fcck."
+            "Open the member portal as this user — a banner lets you switch back.": [
+                "Das Mitglieder-Portal als dieser Benutzer öffnen — ein Banner führt dich zurück."
             ],
             "Inquiries from the public request form (without a member owner). Inquiries that belong to a member or group are managed in the member portal and only counted here.": [
-                "Anfragen aus dem \u00f6ffentlichen Anfrageformular (ohne Mitglieds-Eigent\u00fcmer). Anfragen, die einem Mitglied oder einer Gruppe geh\u00f6ren, werden im Mitglieder-Portal verwaltet und hier nur gez\u00e4hlt."
+                "Anfragen aus dem öffentlichen Anfrageformular (ohne Mitglieds-Eigentümer). Anfragen, die einem Mitglied oder einer Gruppe gehören, werden im Mitglieder-Portal verwaltet und hier nur gezählt."
             ],
             "%1$d inquiries are managed by members across %2$d workspaces.": [
                 "%1$d Anfragen werden von Mitgliedern in %2$d Arbeitsbereichen verwaltet."
             ],
-            "Read-only moderation. Projects belong to the groups that own them \u2014 members create and edit projects in the member portal. Here you oversee them and can remove a project. The status flow is fixed: Draft \u2192 Planned \u2192 Confirmed \u2192 Running \u2192 Done (or Cancelled).": [
-                "Read-only Moderation. Projekte geh\u00f6ren den Gruppen, die sie besitzen \u2014 Mitglieder legen Projekte im Mitglieder-Portal an und bearbeiten sie. Hier beh\u00e4ltst du den \u00dcberblick und kannst ein Projekt entfernen. Der Status-Ablauf ist fest: Entwurf \u2192 Geplant \u2192 Best\u00e4tigt \u2192 L\u00e4uft \u2192 Fertig (oder Abgesagt)."
+            "Read-only moderation. Projects belong to the groups that own them — members create and edit projects in the member portal. Here you oversee them and can remove a project. The status flow is fixed: Draft → Planned → Confirmed → Running → Done (or Cancelled).": [
+                "Read-only Moderation. Projekte gehören den Gruppen, die sie besitzen — Mitglieder legen Projekte im Mitglieder-Portal an und bearbeiten sie. Hier behältst du den Überblick und kannst ein Projekt entfernen. Der Status-Ablauf ist fest: Entwurf → Geplant → Bestätigt → Läuft → Fertig (oder Abgesagt)."
             ],
             "Delete project \"%s\"? This cannot be undone.": [
-                "Projekt \u201e%s\" l\u00f6schen? Das kann nicht r\u00fcckg\u00e4ngig gemacht werden."
+                "Projekt „%s\" löschen? Das kann nicht rückgängig gemacht werden."
             ],
             "Site level": [
                 "Site-Ebene"
+            ],
+            "created an agreement": [
+                "erstellte eine Vereinbarung"
+            ],
+            "updated an agreement": [
+                "aktualisierte eine Vereinbarung"
+            ],
+            "opened an agreement": [
+                "öffnete eine Vereinbarung"
+            ],
+            "activated an agreement": [
+                "aktivierte eine Vereinbarung"
+            ],
+            "signed an agreement": [
+                "unterzeichnete eine Vereinbarung"
+            ],
+            "declined an agreement": [
+                "lehnte eine Vereinbarung ab"
+            ],
+            "revised an agreement": [
+                "überarbeitete eine Vereinbarung"
+            ],
+            "terminated an agreement": [
+                "beendete eine Vereinbarung"
+            ],
+            "deleted an agreement": [
+                "löschte eine Vereinbarung"
+            ],
+            "merged categories": [
+                "führte Kategorien zusammen"
+            ],
+            "added a consumable": [
+                "fügte Verbrauchsmaterial hinzu"
+            ],
+            "updated a consumable": [
+                "aktualisierte Verbrauchsmaterial"
+            ],
+            "deleted a consumable": [
+                "löschte Verbrauchsmaterial"
+            ],
+            "added a contact": [
+                "fügte einen Kontakt hinzu"
+            ],
+            "updated a contact": [
+                "aktualisierte einen Kontakt"
+            ],
+            "deleted a contact": [
+                "löschte einen Kontakt"
+            ],
+            "added a cost item": [
+                "fügte einen Kostenposten hinzu"
+            ],
+            "updated a cost item": [
+                "aktualisierte einen Kostenposten"
+            ],
+            "deleted a cost item": [
+                "löschte einen Kostenposten"
+            ],
+            "created a decision": [
+                "erstellte einen Beschluss"
+            ],
+            "updated a decision": [
+                "aktualisierte einen Beschluss"
+            ],
+            "resolved a decision": [
+                "schloss einen Beschluss ab"
+            ],
+            "cancelled a decision": [
+                "brach einen Beschluss ab"
+            ],
+            "deleted a decision": [
+                "löschte einen Beschluss"
+            ],
+            "voted on a decision": [
+                "stimmte über einen Beschluss ab"
+            ],
+            "attached a file": [
+                "hängte eine Datei an"
+            ],
+            "updated a file": [
+                "aktualisierte eine Datei"
+            ],
+            "removed a file": [
+                "entfernte eine Datei"
+            ],
+            "started viewing as another user": [
+                "begann „Ansehen als“"
+            ],
+            "stopped viewing as another user": [
+                "beendete „Ansehen als“"
+            ],
+            "created an inquiry": [
+                "erstellte eine Anfrage"
+            ],
+            "changed an inquiry status": [
+                "änderte einen Anfrage-Status"
+            ],
+            "converted an inquiry": [
+                "wandelte eine Anfrage um"
+            ],
+            "turned an inquiry into a project": [
+                "machte aus einer Anfrage ein Projekt"
+            ],
+            "deleted an inquiry": [
+                "löschte eine Anfrage"
+            ],
+            "created a poll": [
+                "erstellte eine Umfrage"
+            ],
+            "updated a poll": [
+                "aktualisierte eine Umfrage"
+            ],
+            "closed a poll": [
+                "schloss eine Umfrage"
+            ],
+            "reopened a poll": [
+                "öffnete eine Umfrage erneut"
+            ],
+            "deleted a poll": [
+                "löschte eine Umfrage"
+            ],
+            "voted in a poll": [
+                "stimmte in einer Umfrage ab"
+            ],
+            "added a profit share": [
+                "fügte eine Gewinnbeteiligung hinzu"
+            ],
+            "updated a profit share": [
+                "aktualisierte eine Gewinnbeteiligung"
+            ],
+            "removed a profit share": [
+                "entfernte eine Gewinnbeteiligung"
+            ],
+            "created a project": [
+                "erstellte ein Projekt"
+            ],
+            "updated a project": [
+                "aktualisierte ein Projekt"
+            ],
+            "deleted a project": [
+                "löschte ein Projekt"
+            ],
+            "changed a project status": [
+                "änderte einen Projekt-Status"
+            ],
+            "added equipment to a project": [
+                "fügte einem Projekt Equipment hinzu"
+            ],
+            "updated project equipment": [
+                "aktualisierte Projekt-Equipment"
+            ],
+            "removed equipment from a project": [
+                "entfernte Equipment aus einem Projekt"
+            ],
+            "added a project member": [
+                "fügte ein Projektmitglied hinzu"
+            ],
+            "updated a project member": [
+                "aktualisierte ein Projektmitglied"
+            ],
+            "removed a project member": [
+                "entfernte ein Projektmitglied"
+            ],
+            "added a task": [
+                "fügte eine Aufgabe hinzu"
+            ],
+            "updated a task": [
+                "aktualisierte eine Aufgabe"
+            ],
+            "deleted a task": [
+                "löschte eine Aufgabe"
+            ],
+            "added a checklist": [
+                "fügte eine Checkliste hinzu"
+            ],
+            "updated a checklist": [
+                "aktualisierte eine Checkliste"
+            ],
+            "deleted a checklist": [
+                "löschte eine Checkliste"
+            ],
+            "added a checklist item": [
+                "fügte einen Checklisten-Punkt hinzu"
+            ],
+            "updated a checklist item": [
+                "aktualisierte einen Checklisten-Punkt"
+            ],
+            "deleted a checklist item": [
+                "löschte einen Checklisten-Punkt"
+            ],
+            "created a rental": [
+                "erstellte einen Verleih"
+            ],
+            "updated a rental": [
+                "aktualisierte einen Verleih"
+            ],
+            "changed a rental status": [
+                "änderte einen Verleih-Status"
+            ],
+            "deleted a rental": [
+                "löschte einen Verleih"
+            ],
+            "added a schedule entry": [
+                "fügte einen Zeitplan-Eintrag hinzu"
+            ],
+            "updated a schedule entry": [
+                "aktualisierte einen Zeitplan-Eintrag"
+            ],
+            "deleted a schedule entry": [
+                "löschte einen Zeitplan-Eintrag"
+            ],
+            "added a team member": [
+                "fügte ein Teammitglied hinzu"
+            ],
+            "updated a team member": [
+                "aktualisierte ein Teammitglied"
+            ],
+            "deleted a team member": [
+                "löschte ein Teammitglied"
             ]
         }
     }

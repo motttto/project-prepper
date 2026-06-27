@@ -35,6 +35,10 @@ class Privacy {
 
 	public static function export_rentals( string $email, int $page = 1 ): array {
 		global $wpdb;
+		// Leere E-Mail würde sonst anonymisierte/leere Datensätze matchen (Daten-Leak).
+		if ( '' === trim( $email ) ) {
+			return [ 'data' => [], 'done' => true ];
+		}
 		$rentals = $wpdb->get_results( $wpdb->prepare(
 			'SELECT * FROM %i WHERE borrower_email = %s ORDER BY id ASC',
 			Schema::table( 'rentals' ),
@@ -64,6 +68,10 @@ class Privacy {
 
 	public static function erase_rentals( string $email, int $page = 1 ): array {
 		global $wpdb;
+		// Leere E-Mail würde sonst alle bereits anonymisierten Rentals erneut treffen.
+		if ( '' === trim( $email ) ) {
+			return [ 'items_removed' => false, 'items_retained' => false, 'messages' => [], 'done' => true ];
+		}
 		$count = (int) $wpdb->get_var( $wpdb->prepare(
 			'SELECT COUNT(*) FROM %i WHERE borrower_email = %s',
 			Schema::table( 'rentals' ),

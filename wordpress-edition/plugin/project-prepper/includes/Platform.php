@@ -144,7 +144,10 @@ class Platform {
 		if ( ! in_array( $model, self::ECONOMY_MODELS, true ) ) {
 			$model = 'free';
 		}
-		$interval = in_array( (string) ( $eco_in['interval'] ?? 'year' ), [ 'year', 'month' ], true ) ? (string) $eco_in['interval'] : 'year';
+		$interval = (string) ( $eco_in['interval'] ?? 'year' );
+		if ( ! in_array( $interval, [ 'year', 'month' ], true ) ) {
+			$interval = 'year';
+		}
 
 		$legal_in = is_array( $in['legal'] ?? null ) ? $in['legal'] : [];
 		$agb_text = sanitize_textarea_field( (string) ( $legal_in['agb_text'] ?? '' ) );

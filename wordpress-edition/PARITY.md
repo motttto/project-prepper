@@ -3,6 +3,20 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔄 Aktualisierung 2026-06-27 (Plugin v0.85.0 — QA-Sweep, 20 Bereiche)
+> Vollständiger Funktions-QA-Lauf im wp-env (REST + wp-cli, ein Agent pro Bereich): **16× pass, 4× partial, 0× fail.**
+> **Der Code übertrifft diese Matrix an mehreren Stellen — die Detailtabellen unten sind teils veraltet:**
+> - **Impersonation** ist VOLL implementiert (`includes/Impersonation.php`, v0.77) — nicht „offen".
+> - **Security / 2FA** ist VOLL funktional (Login-Drosselung, Limits, E-Mail-2FA) — nicht nur „vorbereitet".
+> - **Föderation** Slice 1–4 fertig (Discovery, Partner, Cross-Instance-Leihe) — über v0.35.0 hinaus.
+> - **Anfrage→Verleih/Projekt** setzt Status `won` (nicht „closed").
+> - **Benutzer & Rechte · E-Mail-Templates · Instanz-Konfig · Rechtsangaben-Maske** (Impressum/Datenschutz, v0.84) existieren als Backend-Masken.
+>
+> **In v0.85.0 behobene QA-Befunde:** B1 DSGVO-Leak bei leerer E-Mail (`Privacy::export_/erase_rentals` Guard) · B2 Anfrage-Datumsvalidierung (ungültig→NULL) · B3 Aktivitätslog-Labels vervollständigt (73 Actions) · B4 PHP-Warning `Platform::save_from` (interval) · B5 Template-Renderer entfernt übrige `{{platzhalter}}`.
+>
+> **Bewusst NICHT portiert (keine Mängel):** CalDAV→iCal, In-App-SMTP→WP-Plugins, Multi-Owner-Sharing/Realtime.
+> **Echte Lücke:** Verleih-Freigabe pro Position + „Mein Equipment unterwegs" (Multi-Owner-blockiert, ~85 %).
+
 > **🎯 MVP-Parität erreicht (Lauf 3), C-Lücken geschlossen (Lauf 4):** Im MVP-Scope (Inventar,
 > Verleih, Anfragen, E-Mail, Kalender-Feed, Einstellungen, DSGVO) sind keine A-, B- oder
 > C-Lücken mehr offen. Übrig sind nur die blockierten Multi-Owner-Punkte. Weitere Läufe nur

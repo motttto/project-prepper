@@ -96,8 +96,8 @@ class Inquiries {
 			'email'      => $data['email'] ?? '',
 			'phone'      => $data['phone'] ?? '',
 			'message'    => $data['message'] ?? '',
-			'date_from'  => ! empty( $data['date_from'] ) ? $data['date_from'] : null,
-			'date_to'    => ! empty( $data['date_to'] ) ? $data['date_to'] : null,
+			'date_from'  => self::valid_date( (string) ( $data['date_from'] ?? '' ) ) ?: null,
+			'date_to'    => self::valid_date( (string) ( $data['date_to'] ?? '' ) ) ?: null,
 			'items'      => wp_json_encode( $data['items'] ?? [] ),
 			'status'     => 'new',
 			'created_at' => $now,
@@ -230,5 +230,12 @@ class Inquiries {
 	private static function decode( object $row ): object {
 		$row->items = json_decode( $row->items ?? '[]', true ) ?: [];
 		return $row;
+	}
+
+	/** Akzeptiert nur ein gültiges Y-m-d-Datum, sonst '' (→ NULL). Wie Borrowing::valid_date. */
+	private static function valid_date( string $value ): string {
+		$value = sanitize_text_field( $value );
+		$d     = \DateTime::createFromFormat( 'Y-m-d', $value );
+		return ( $d && $d->format( 'Y-m-d' ) === $value ) ? $value : '';
 	}
 }
