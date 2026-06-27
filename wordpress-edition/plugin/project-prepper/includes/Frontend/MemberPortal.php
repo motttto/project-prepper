@@ -17,6 +17,7 @@ use ProjectPrepper\Services\Schedule;
 use ProjectPrepper\Services\Decisions;
 use ProjectPrepper\Services\Polls;
 use ProjectPrepper\Services\FederatedBorrow;
+use ProjectPrepper\Rest\CalendarController;
 use ProjectPrepper\Federation;
 use WP_User;
 
@@ -2378,9 +2379,230 @@ class MemberPortal {
 			</section>
 		<?php endif;
 
-		// 10) Beschlüsse + 11) Umfragen — interaktiv (Voting), nur Gruppenmitglieder.
+		// 10) Beteiligte (read-only Roster aus der besitzenden Gruppe).
+		self::render_project_members( $p );
+
+		// 11) Kosten + Budget/Gewinn (read-only). Alle Betrachter dieses Details
+		// sind aktive Mitglieder der besitzenden Gruppe (oben erzwungen) — das ist
+		// das WP-Pendant zu canViewCosts=isMember der App. Kein Finanz-Leak gegen
+		// Nicht-Mitglieder, weil die das Detail gar nicht erreichen.
+		self::render_project_costs( $p );
+
+		// 12) Gewinnverteilung (read-only, gleiche Mitglieder-Sicht wie Kosten).
+		self::render_project_profit( $p );
+
+		// 13) Kooperationsvereinbarung (read-only Status + Signatur-Roster).
+		self::render_project_agreement_summary( $p );
+
+		// 14) Beschlüsse + 15) Umfragen — interaktiv (Voting), nur Gruppenmitglieder.
 		self::render_decisions( $p );
 		self::render_polls( $p );
+	}
+
+	/** Beteiligten-Roster (read-only) — Name + Rolle/Notiz, verwaiste markiert. */
+	private static function render_project_members( object $p ): void {
+		$members = (array) ( $p->members ?? [] );
+		if ( ! $members ) {
+			return;
+		}
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Participants', 'project-prepper' ); ?></h3>
+			<div class="pp-rows">
+				<?php foreach ( $members as $m ) :
+					$meta = trim( (string) ( $m->role_title ?? '' ) . ( ! empty( $m->note ) ? ' · ' . $m->note : '' ) ); ?>
+					<div class="pp-row">
+						<span class="pp-row__main">
+							<?php echo esc_html( (string) $m->display_name ); ?>
+							<?php if ( ! empty( $m->missing ) ) : ?>
+								<small class="pp-row__meta">(<?php esc_html_e( 'former member', 'project-prepper' ); ?>)</small>
+							<?php endif; ?>
+						</span>
+						<?php if ( '' !== $meta ) : ?>
+							<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
+						<?php endif; ?>
+					</div>
+				<?php endforeach; ?>
+			</div>
+		</section>
+		<?php
+	}
+
+	/** Kosten + Budget/Gewinn (read-only). Mitglieder-Sicht = canViewCosts der App. */
+	private static function render_project_costs( object $p ): void {
+		$items   = (array) ( $p->cost_items ?? [] );
+		$summary = (array) ( $p->cost_summary ?? [] );
+		$has_money = $items
+			|| null !== ( $summary['budget_planned'] ?? null )
+			|| null !== ( $summary['revenue_actual'] ?? null );
+		if ( ! $has_money ) {
+			return;
+		}
+		$eur = static fn( $v ) => number_format_i18n( (float) $v, 2 ) . ' €';
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Costs & budget', 'project-prepper' ); ?></h3>
+
+			<?php if ( $items ) : ?>
+				<div class="pp-rows">
+					<?php foreach ( $items as $c ) :
+						$cat_label = self::cost_category_label( (string) ( $c->category ?? '' ) );
+						$label = trim( $cat_label . ( ! empty( $c->description ) ? ' · ' . $c->description : '' ) );
+						if ( '' === $label ) {
+							$label = __( 'Cost item', 'project-prepper' );
+						}
+						$amount = null !== $c->amount_actual ? (float) $c->amount_actual : (float) $c->amount_planned;
+						$is_planned = ( null === $c->amount_actual ); ?>
+						<div class="pp-row">
+							<span class="pp-row__main"><?php echo esc_html( $label ); ?></span>
+							<span class="pp-row__meta">
+								<?php
+								echo esc_html( $eur( $amount ) );
+								if ( (float) $c->vat_rate > 0 ) {
+									/* translators: %s: VAT rate, e.g. 19. */
+									echo ' · ' . esc_html( sprintf( __( '%s%% VAT', 'project-prepper' ), number_format_i18n( (float) $c->vat_rate, (float) $c->vat_rate == (int) $c->vat_rate ? 0 : 1 ) ) );
+								}
+								if ( $is_planned ) {
+									echo ' · ' . esc_html__( 'planned', 'project-prepper' );
+								}
+								?>
+							</span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+
+			<dl class="pp-dl pp-dl--money">
+				<?php
+				self::dl_row( __( 'Planned (net)', 'project-prepper' ), $eur( $summary['planned_net'] ?? 0 ) );
+				self::dl_row( __( 'Planned (gross)', 'project-prepper' ), $eur( $summary['planned_gross'] ?? 0 ) );
+				if ( ( $summary['actual_net'] ?? 0 ) > 0 || ( $summary['actual_gross'] ?? 0 ) > 0 ) {
+					self::dl_row( __( 'Actual (net)', 'project-prepper' ), $eur( $summary['actual_net'] ?? 0 ) );
+					self::dl_row( __( 'Actual (gross)', 'project-prepper' ), $eur( $summary['actual_gross'] ?? 0 ) );
+				}
+				if ( null !== ( $summary['budget_planned'] ?? null ) ) {
+					self::dl_row( __( 'Budget', 'project-prepper' ), $eur( $summary['budget_planned'] ) );
+				}
+				if ( null !== ( $summary['revenue_actual'] ?? null ) ) {
+					self::dl_row( __( 'Revenue', 'project-prepper' ), $eur( $summary['revenue_actual'] ) );
+				}
+				if ( null !== ( $summary['profit'] ?? null ) ) {
+					self::dl_row( __( 'Profit', 'project-prepper' ), $eur( $summary['profit'] ) );
+				}
+				?>
+			</dl>
+		</section>
+		<?php
+	}
+
+	/** Gewinnverteilung (read-only) — Anteile je Mitglied + berechneter Betrag. */
+	private static function render_project_profit( object $p ): void {
+		$shares  = (array) ( $p->profit_shares ?? [] );
+		if ( ! $shares ) {
+			return;
+		}
+		$summary = (array) ( $p->profit_summary ?? [] );
+		$eur     = static fn( $v ) => number_format_i18n( (float) $v, 2 ) . ' €';
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Profit distribution', 'project-prepper' ); ?></h3>
+			<div class="pp-rows">
+				<?php foreach ( $shares as $s ) :
+					$is_pct = ( 'percentage' === ( $s->share_type ?? '' ) );
+					$basis  = $is_pct
+						? number_format_i18n( (float) $s->share_value, (float) $s->share_value == (int) $s->share_value ? 0 : 1 ) . ' %'
+						: $eur( $s->share_value );
+					$calc   = ( null !== ( $s->calculated_amount ?? null ) ) ? $eur( $s->calculated_amount ) : '—'; ?>
+					<div class="pp-row">
+						<span class="pp-row__main">
+							<?php echo esc_html( (string) $s->display_name ); ?>
+							<?php if ( ! empty( $s->missing ) ) : ?>
+								<small class="pp-row__meta">(<?php esc_html_e( 'former member', 'project-prepper' ); ?>)</small>
+							<?php endif; ?>
+						</span>
+						<span class="pp-row__meta"><?php echo esc_html( $basis ); ?></span>
+						<span class="pp-row__meta pp-row__meta--strong"><?php echo esc_html( $calc ); ?></span>
+					</div>
+				<?php endforeach; ?>
+			</div>
+			<?php if ( $summary ) : ?>
+				<dl class="pp-dl pp-dl--money">
+					<?php
+					if ( null !== ( $summary['pool'] ?? null ) ) {
+						self::dl_row( __( 'Profit pool', 'project-prepper' ), $eur( $summary['pool'] ) );
+					}
+					if ( null !== ( $summary['total_allocated'] ?? null ) ) {
+						self::dl_row( __( 'Allocated', 'project-prepper' ), $eur( $summary['total_allocated'] ) );
+					}
+					if ( ! empty( $summary['over_allocated'] ) ) {
+						echo '<dt>' . esc_html__( 'Note', 'project-prepper' ) . '</dt><dd class="pp-money-warn">' . esc_html__( 'More than the pool is allocated.', 'project-prepper' ) . '</dd>';
+					}
+					?>
+				</dl>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
+	/** Kooperationsvereinbarung (read-only) — Status, Version, Signatur-Roster. */
+	private static function render_project_agreement_summary( object $p ): void {
+		$a = $p->agreement ?? null;
+		if ( ! $a ) {
+			return;
+		}
+		$status_labels = [
+			'draft'      => __( 'Draft', 'project-prepper' ),
+			'signing'    => __( 'In signing', 'project-prepper' ),
+			'active'     => __( 'Active', 'project-prepper' ),
+			'terminated' => __( 'Terminated', 'project-prepper' ),
+		];
+		$sig_labels = [
+			'signed'   => __( 'Signed', 'project-prepper' ),
+			'declined' => __( 'Declined', 'project-prepper' ),
+			'pending'  => __( 'Pending', 'project-prepper' ),
+		];
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Cooperation agreement', 'project-prepper' ); ?></h3>
+			<div class="pp-proj-detail-head" style="margin-bottom:.5rem">
+				<span class="pp-status pp-status--<?php echo esc_attr( (string) $a->status ); ?>"><?php echo esc_html( $status_labels[ $a->status ] ?? $a->status ); ?></span>
+				<?php if ( ! empty( $a->title ) ) : ?>
+					<span class="pp-row__main"><?php echo esc_html( (string) $a->title ); ?></span>
+				<?php endif; ?>
+				<span class="pp-row__meta">
+					<?php
+					/* translators: %d: agreement version. */
+					printf( esc_html__( 'Version %d', 'project-prepper' ), (int) $a->version );
+					?>
+				</span>
+			</div>
+
+			<?php if ( ! empty( $a->terms ) ) : ?>
+				<p class="pp-agreement__terms"><?php echo nl2br( esc_html( (string) $a->terms ) ); ?></p>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $a->signatures ) ) : ?>
+				<div class="pp-rows">
+					<?php foreach ( $a->signatures as $s ) :
+						$st   = (string) ( $s->status ?? 'pending' );
+						$when = '';
+						if ( 'signed' === $st && ! empty( $s->signed_at ) ) {
+							$when = self::fmt_date( substr( (string) $s->signed_at, 0, 10 ) );
+						} elseif ( 'declined' === $st && ! empty( $s->declined_at ) ) {
+							$when = self::fmt_date( substr( (string) $s->declined_at, 0, 10 ) );
+						} ?>
+						<div class="pp-row">
+							<span class="pp-status pp-status--<?php echo esc_attr( $st ); ?>"><?php echo esc_html( $sig_labels[ $st ] ?? $st ); ?></span>
+							<span class="pp-row__main"><?php echo esc_html( (string) $s->display_name ); ?></span>
+							<?php if ( '' !== $when ) : ?>
+								<span class="pp-row__meta"><?php echo esc_html( $when ); ?></span>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+		</section>
+		<?php
 	}
 
 	/* ---------- Beschlüsse + Umfragen (interaktiv) ---------- */
@@ -2687,6 +2909,17 @@ class MemberPortal {
 		return $map[ $s ] ?? $s;
 	}
 
+	private static function cost_category_label( string $s ): string {
+		$map = [
+			'personnel' => __( 'Personnel', 'project-prepper' ),
+			'material'  => __( 'Material', 'project-prepper' ),
+			'inventory' => __( 'Inventory', 'project-prepper' ),
+			'external'  => __( 'External services', 'project-prepper' ),
+			'other'     => __( 'Other', 'project-prepper' ),
+		];
+		return $map[ $s ] ?? $s;
+	}
+
 	/* ---------- Kalender (read-only Monatsraster) ---------- */
 
 	private static function view_calendar( WP_User $user, array $groups ): void {
@@ -2845,6 +3078,21 @@ class MemberPortal {
 			<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--borrow"></span><?php esc_html_e( 'Loan', 'project-prepper' ); ?></span>
 		</div>
 		<?php
+		// iCal-Feed-Link nur für Betrachter, die ohnehin die Site-Verleihe sehen
+		// dürfen (der Feed ist betreiberweit, nicht persönlich) — kein Leak.
+		if ( current_user_can( Capabilities::VIEW_RENTALS ) ) {
+			$feed = add_query_arg(
+				'token',
+				CalendarController::token(),
+				rest_url( 'project-prepper/v1/calendar.ics' )
+			);
+			?>
+			<p class="pp-cal__feed">
+				<a href="<?php echo esc_url( $feed ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'Subscribe to the rentals calendar (iCal feed)', 'project-prepper' ); ?></a>
+				<span class="pp-muted-inline"><?php esc_html_e( 'read-only · operator-wide rentals', 'project-prepper' ); ?></span>
+			</p>
+			<?php
+		}
 	}
 
 	/**
@@ -2897,6 +3145,25 @@ class MemberPortal {
 			self::cal_span( $by_day, $start, $end, $ms, $me, [
 				'type'  => 'borrow',
 				'label' => $b->item_name,
+				'url'   => $lending_url,
+			] );
+		}
+
+		// Eigene externe Verleihe (an Personen außerhalb der Plattform) —
+		// reserved/active. Owner = aktueller User (Solo/persönlich), kein Leak
+		// fremder/Site-Verleihe.
+		foreach ( MemberRentals::for_owner( (int) $user->ID ) as $r ) {
+			if ( ! in_array( $r->status, [ 'reserved', 'active' ], true ) ) {
+				continue;
+			}
+			$start = (string) $r->date_from;
+			if ( '' === $start ) {
+				continue;
+			}
+			$end = ! empty( $r->date_to ) ? (string) $r->date_to : $start;
+			self::cal_span( $by_day, $start, $end, $ms, $me, [
+				'type'  => 'borrow',
+				'label' => $r->borrower_name,
 				'url'   => $lending_url,
 			] );
 		}

@@ -5560,3 +5560,42 @@ msgid_plural "%d days"
 msgstr[0] "%d Tag"
 msgstr[1] "%d Tage"
 
+
+msgid "Participants"
+msgstr "Beteiligte"
+
+msgid "former member"
+msgstr "ehemaliges Mitglied"
+
+msgid "Costs & budget"
+msgstr "Kosten & Budget"
+
+msgid "Cost item"
+msgstr "Kostenposten"
+
+msgid "%s%% VAT"
+msgstr "%s %% MwSt."
+
+msgid "planned"
+msgstr "geplant"
+
+msgid "Planned (gross)"
+msgstr "Geplant (brutto)"
+
+msgid "Actual (gross)"
+msgstr "Ist (brutto)"
+
+msgid "Profit distribution"
+msgstr "Gewinnverteilung"
+
+msgid "Note"
+msgstr "Hinweis"
+
+msgid "More than the pool is allocated."
+msgstr "Es ist mehr als der Pool verteilt."
+
+msgid "Subscribe to the rentals calendar (iCal feed)"
+msgstr "Verleih-Kalender abonnieren (iCal-Feed)"
+
+msgid "read-only · operator-wide rentals"
+msgstr "schreibgeschützt · betreiberweite Verleihe"

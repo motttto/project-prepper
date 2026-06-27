@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.82.0
+Stable tag: 0.96.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.96.0 =
+* Member portal — project detail: added read-only Participants, Costs & budget (net/gross/VAT/budget/revenue/profit), Profit distribution (per-member shares with calculated amounts) and a Cooperation agreement summary (status, version, signature roster). These are visible to group members only — viewing the detail already requires membership of the owning group, so financial figures are never exposed to outsiders.
+* Member portal — calendar: own external rentals (reserved/active) now appear alongside collective loans, and members who may view operator rentals get a link to subscribe to the read-only iCal feed.
 
 = 0.82.0 =
 * Control centre: the admin Projects tab is now a read-only moderation list (number, name, period, owner, bookings, status, with status filters and a remove action). Members create and edit projects in the member portal; the backend is for oversight, not data entry. The large editing modal was removed.

@@ -1427,6 +1427,13 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-status--reserved { background: #eff6ff; color: #2563eb; }
 .pp-status--active { background: #fffbeb; color: #b45309; }
 .pp-status--returned { background: #ecfdf5; color: #059669; }
+/* Vereinbarungs- + Signatur-Status (read-only im Portal-Projektdetail) */
+.pp-status--draft { background: #f1f5f9; color: #475569; }
+.pp-status--signing { background: #eff6ff; color: #2563eb; }
+.pp-status--terminated { background: #fef2f2; color: #dc2626; }
+.pp-status--signed { background: #ecfdf5; color: #059669; }
+.pp-status--declined { background: #fef2f2; color: #dc2626; }
+.pp-status--pending { background: #f1f5f9; color: #475569; }
 .pp-portal__inq-msg { margin: .4rem 0; font-size: .85rem; color: var(--pp-muted-foreground); white-space: pre-wrap; }
 
 /* Externe Verleihe (Member-Portal) */
@@ -1513,7 +1520,22 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-row__main[href] { color: #4f46e5; text-decoration: none; }
 .pp-row__main[href]:hover { text-decoration: underline; }
 .pp-row__meta { color: #64748b; font-size: .82rem; margin-left: auto; }
+.pp-row__meta + .pp-row__meta { margin-left: 0; }
+.pp-row__meta--strong { color: #0f172a; font-weight: 600; min-width: 5.5em; text-align: right; }
 .pp-muted-inline { color: #64748b; font-size: .82rem; }
+
+/* Geld-Zusammenfassungen (Kosten/Gewinn) — rechtsbündige Beträge. */
+.pp-dl--money { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9; }
+.pp-dl--money dd { text-align: right; font-variant-numeric: tabular-nums; }
+.pp-money-warn { color: #b91c1c; text-align: right; }
+
+/* Vereinbarungs-Freitext (read-only). */
+.pp-agreement__terms { font-size: .9rem; color: #334155; margin: 0 0 12px; white-space: normal; }
+
+/* iCal-Feed-Link unter dem Kalender. */
+.pp-cal__feed { margin-top: 10px; font-size: .82rem; display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+.pp-cal__feed a { color: #4f46e5; text-decoration: none; }
+.pp-cal__feed a:hover { text-decoration: underline; }
 
 .pp-checklist + .pp-checklist { margin-top: 12px; }
 .pp-checklist__name { font-weight: 600; font-size: .9rem; margin: 0 0 6px; }
