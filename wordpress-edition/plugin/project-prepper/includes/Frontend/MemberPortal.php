@@ -3484,6 +3484,32 @@ class MemberPortal {
 			$map[ self::norm_head( (string) $label ) ] = $key;
 			$map[ self::norm_head( $key ) ]            = $key;
 		}
+		// Aliase für gängige Fremd-Exporte (z. B. Project-Prepper-Web-App / Supabase),
+		// damit Inventarnummer, Tagessatz & Co. auch bei abweichenden Überschriften ankommen.
+		$aliases = [
+			'inv.-nr.'          => 'inventory_number',
+			'inv-nr.'           => 'inventory_number',
+			'inv-nr'            => 'inventory_number',
+			'inventarnummer'    => 'inventory_number',
+			'nummer'            => 'inventory_number',
+			'preis/tag (€)'     => 'cost_per_day',
+			'preis/tag'         => 'cost_per_day',
+			'€/tag'             => 'cost_per_day',
+			'tagessatz (€)'     => 'cost_per_day',
+			'kaufpreis (€)'     => 'purchase_price',
+			'kaufpreis'         => 'purchase_price',
+			'abmaße'            => 'dimensions',
+			'abmaße (mm)'       => 'dimensions',
+			'leistung (w)'      => 'power_watts',
+			'hersteller-link'   => 'manufacturer_url',
+			'manual-link'       => 'manual_url',
+			'gerätebezeichnung' => 'model',
+			'freifeld'          => 'notes',
+			'pate'              => 'funding_source',
+		];
+		foreach ( $aliases as $head => $key ) {
+			$map[ self::norm_head( $head ) ] = $key;
+		}
 		// Kategorie-Namen → ID (eigene Kategorien + Betreiber-Vorlagen; keine Auto-Anlage).
 		$cat_map = [];
 		foreach ( MemberInventory::template_categories() as $cat ) {
@@ -3538,6 +3564,7 @@ class MemberPortal {
 			? array_values( array_filter( array_map( 'trim', explode( ',', $d['tags'] ) ) ) )
 			: [];
 		return [
+			'inventory_number' => sanitize_text_field( $d['inventory_number'] ?? '' ),
 			'name'           => sanitize_text_field( $d['name'] ?? '' ),
 			'description'    => sanitize_textarea_field( $d['description'] ?? '' ),
 			'manufacturer'   => sanitize_text_field( $d['manufacturer'] ?? '' ),
@@ -3547,6 +3574,9 @@ class MemberPortal {
 			'dimensions'     => sanitize_text_field( $d['dimensions'] ?? '' ),
 			'accessories'    => sanitize_text_field( $d['accessories'] ?? '' ),
 			'notes'          => sanitize_textarea_field( $d['notes'] ?? '' ),
+			'manufacturer_url' => esc_url_raw( $d['manufacturer_url'] ?? '' ),
+			'manual_url'     => esc_url_raw( $d['manual_url'] ?? '' ),
+			'funding_source' => sanitize_text_field( $d['funding_source'] ?? '' ),
 			'category_id'    => $cat_map[ self::norm_head( $d['category_name'] ?? '' ) ] ?? 0,
 			'quantity'       => max( 1, (int) ( $d['quantity'] ?? 1 ) ),
 			'condition'      => $cond,
