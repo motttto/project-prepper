@@ -672,6 +672,29 @@ a.pp-front-card-media { text-decoration: none; }
 	color: var(--pp-muted-foreground);
 	margin: 0 0 .5rem;
 }
+.pp-portal__memberlist { margin: 0 0 .75rem; }
+.pp-portal__memberhead {
+	font-size: .72rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--pp-muted-foreground);
+	margin: 0 0 .4rem;
+}
+.pp-portal__member {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: .75rem;
+	flex-wrap: wrap;
+	padding: .4rem 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+.pp-portal__member:last-child { border-bottom: none; }
+.pp-portal__member-name { font-size: .9rem; font-weight: 500; color: var(--pp-foreground); }
+.pp-portal__member-you { font-size: .78rem; font-weight: 400; color: var(--pp-muted-foreground); }
+.pp-portal__member-meta { display: inline-flex; align-items: center; gap: .5rem; }
+.pp-portal__member-joined { font-size: .78rem; color: var(--pp-muted-foreground); }
 .pp-portal__collective-foot {
 	margin-top: .6rem;
 	padding-top: .6rem;
@@ -1523,6 +1546,12 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-row__meta + .pp-row__meta { margin-left: 0; }
 .pp-row__meta--strong { color: #0f172a; font-weight: 600; min-width: 5.5em; text-align: right; }
 .pp-muted-inline { color: #64748b; font-size: .82rem; }
+
+/* Globale Kosten-Übersicht: Projekt-Link + Kategorie/Beschreibung als Unterzeile. */
+.pp-row--costs .pp-row__main { display: flex; flex-direction: column; gap: 2px; }
+.pp-row--costs .pp-row__link { color: #4f46e5; text-decoration: none; font-weight: 500; }
+.pp-row--costs .pp-row__link:hover { text-decoration: underline; }
+.pp-row__sub { color: #64748b; font-size: .8rem; font-weight: 400; }
 
 /* Geld-Zusammenfassungen (Kosten/Gewinn) — rechtsbündige Beträge. */
 .pp-dl--money { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f1f5f9; }

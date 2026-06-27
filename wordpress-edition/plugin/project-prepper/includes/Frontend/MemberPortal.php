@@ -13,6 +13,7 @@ use ProjectPrepper\Services\Rentals;
 use ProjectPrepper\Services\Inquiries;
 use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\Projects;
+use ProjectPrepper\Services\Costs;
 use ProjectPrepper\Services\Schedule;
 use ProjectPrepper\Services\Decisions;
 use ProjectPrepper\Services\Polls;
@@ -916,6 +917,9 @@ class MemberPortal {
 							case 'calendar':
 								self::view_calendar( $user, $groups );
 								break;
+							case 'costs':
+								self::view_costs( $user, $groups );
+								break;
 							case 'polls':
 								self::view_polls( $groups );
 								break;
@@ -941,7 +945,7 @@ class MemberPortal {
 	private static function current_view(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$view    = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : 'dashboard';
-		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'inquiries', 'calendar', 'polls', 'network', 'collectives' ];
+		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'inquiries', 'calendar', 'costs', 'polls', 'network', 'collectives' ];
 		return in_array( $view, $allowed, true ) ? $view : 'dashboard';
 	}
 
@@ -959,8 +963,10 @@ class MemberPortal {
 			[ 'view' => 'inquiries', 'icon' => 'inbox',     'label' => $solo ? __( 'My inquiries', 'project-prepper' ) : __( 'Inquiries', 'project-prepper' ) ],
 			[ 'view' => 'calendar',  'icon' => 'calendar',  'label' => __( 'Calendar', 'project-prepper' ) ],
 		];
-		// Eigenständige Umfragen NUR im Gruppen-Modus (wie die App).
+		// Eigenständige Umfragen + globale Kostenübersicht NUR im Gruppen-Modus
+		// (wie die App: Solo zeigt Kosten/Umfragen direkt im Projekt bzw. gar nicht).
 		if ( ! $solo ) {
+			$items[] = [ 'view' => 'costs', 'icon' => 'costs', 'label' => __( 'Costs', 'project-prepper' ) ];
 			$items[] = [ 'view' => 'polls', 'icon' => 'clipboard', 'label' => __( 'Polls', 'project-prepper' ) ];
 		}
 		$items[] = [ 'view' => 'network',     'icon' => 'globe', 'label' => __( 'Network', 'project-prepper' ) ];
@@ -1227,6 +1233,7 @@ class MemberPortal {
 			'calendar'  => '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/>',
 			'globe'     => '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
 			'clipboard' => '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12h6"/><path d="M9 16h6"/>',
+			'costs'     => '<line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
 			'inbox'     => '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>',
 			'admin'     => '<path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/>',
 			'logout'    => '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
@@ -2798,6 +2805,98 @@ class MemberPortal {
 		<?php
 	}
 
+	/**
+	 * Globale Kostenübersicht (Pendant zur App-Seite `/costs`): aggregiert die
+	 * Kostenposten über ALLE Projekte des aktiven Workspace. Wie die App nur im
+	 * Gruppen-Modus — im Solo-Modus stehen Kosten direkt im jeweiligen Projekt.
+	 * Leak-sicher: Quelle ist `member_projects()` (nur Projekte der aktiven
+	 * Gruppe, in der der User Mitglied ist) → `Costs::for_projects()`.
+	 */
+	private static function view_costs( WP_User $user, array $groups ): void {
+		$active = self::active_group_id( $groups );
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'Costs', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Aggregated across all projects of your active group.', 'project-prepper' ); ?></p>
+		</header>
+		<?php
+		if ( ! $active ) {
+			echo '<p class="pp-portal__empty">' . esc_html__( 'You are in Solo. In solo mode you find costs directly inside each project. Pick a group in the workspace switcher (top left) for the aggregated view.', 'project-prepper' ) . '</p>';
+			return;
+		}
+
+		$projects     = self::member_projects( $groups );
+		$project_ids  = array_map( static fn( $p ) => (int) $p->id, $projects );
+		$all_costs    = Costs::for_projects( $project_ids );
+
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reiner Filter, keine Mutation.
+		$filter = isset( $_GET['pp_cat'] ) ? sanitize_key( wp_unslash( $_GET['pp_cat'] ) ) : 'all';
+		if ( 'all' !== $filter && ! in_array( $filter, Costs::CATEGORIES, true ) ) {
+			$filter = 'all';
+		}
+		$shown = 'all' === $filter
+			? $all_costs
+			: array_values( array_filter( $all_costs, static fn( $c ) => (string) $c->category === $filter ) );
+
+		$planned = 0.0;
+		$actual  = 0.0;
+		foreach ( $shown as $c ) {
+			$planned += (float) $c->amount_planned;
+			$actual  += null !== $c->amount_actual ? (float) $c->amount_actual : 0.0;
+		}
+		$eur     = static fn( $v ) => number_format_i18n( (float) $v, 2 ) . ' €';
+		$base    = self::portal_url();
+		?>
+		<div class="pp-kpi-grid pp-kpi-grid--compact">
+			<?php
+			self::rental_kpi( __( 'Projects', 'project-prepper' ), (string) count( $projects ), 'info' );
+			self::rental_kpi( __( 'Planned costs', 'project-prepper' ), $eur( $planned ), 'primary' );
+			self::rental_kpi( __( 'Actual costs', 'project-prepper' ), $eur( $actual ), $actual > $planned ? 'warning' : 'success' );
+			?>
+		</div>
+
+		<div class="pp-inv-pills">
+			<?php
+			$cats = array_merge( [ 'all' ], Costs::CATEGORIES );
+			foreach ( $cats as $cat ) :
+				$label = 'all' === $cat ? __( 'All', 'project-prepper' ) : self::cost_category_label( $cat );
+				$url   = add_query_arg( [ 'pp_view' => 'costs', 'pp_cat' => $cat ], $base );
+				?>
+				<a class="pp-portal__chip <?php echo $filter === $cat ? 'pp-portal__chip--on' : ''; ?>" href="<?php echo esc_url( $url ); ?>"><?php echo esc_html( $label ); ?></a>
+			<?php endforeach; ?>
+		</div>
+
+		<?php if ( ! $shown ) : ?>
+			<p class="pp-portal__empty"><?php esc_html_e( 'No cost items.', 'project-prepper' ); ?></p>
+		<?php else : ?>
+			<section class="pp-card">
+				<div class="pp-rows">
+					<?php foreach ( $shown as $c ) :
+						$purl = add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $c->project_id ], $base );
+						$desc = '' !== (string) $c->description ? $c->description : '';
+						$amount     = null !== $c->amount_actual ? (float) $c->amount_actual : (float) $c->amount_planned;
+						$is_planned = ( null === $c->amount_actual ); ?>
+						<div class="pp-row pp-row--costs">
+							<span class="pp-row__main">
+								<a class="pp-row__link" href="<?php echo esc_url( $purl ); ?>"><?php echo esc_html( $c->project_name ?: '—' ); ?></a>
+								<span class="pp-row__sub"><?php echo esc_html( trim( self::cost_category_label( (string) $c->category ) . ( '' !== $desc ? ' · ' . $desc : '' ) ) ); ?></span>
+							</span>
+							<span class="pp-row__meta">
+								<?php
+								echo esc_html( $eur( $amount ) );
+								if ( $is_planned ) {
+									echo ' · ' . esc_html__( 'planned', 'project-prepper' );
+								}
+								?>
+							</span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			</section>
+		<?php endif; ?>
+		<?php
+	}
+
 	/** Eigenständiger „Umfragen"-Tab (gruppen-weit, nur im Gruppen-Modus). */
 	private static function view_polls( array $groups ): void {
 		$active = self::active_group_id( $groups );
@@ -3458,12 +3557,36 @@ class MemberPortal {
 				<?php endif; ?>
 			</div>
 
-			<p class="pp-portal__members">
+			<div class="pp-portal__memberlist">
 				<?php
-				$names = array_map( static fn( $m ) => $m->display_name, $members );
-				echo esc_html( implode( ', ', $names ) );
-				?>
-			</p>
+				/* translators: %d: number of members. */
+				echo '<h4 class="pp-portal__memberhead">' . esc_html( sprintf( _n( '%d member', '%d members', count( $members ), 'project-prepper' ), count( $members ) ) ) . '</h4>';
+				foreach ( $members as $m ) :
+					$is_founder = ( 'founder' === $m->member_role );
+					$is_self    = ( (int) $m->user_id === $user_id );
+					$joined     = self::fmt_date( $m->joined_at );
+					?>
+					<div class="pp-portal__member">
+						<span class="pp-portal__member-name">
+							<?php echo esc_html( $m->display_name ); ?>
+							<?php if ( $is_self ) : ?>
+								<span class="pp-portal__member-you"><?php esc_html_e( '(you)', 'project-prepper' ); ?></span>
+							<?php endif; ?>
+						</span>
+						<span class="pp-portal__member-meta">
+							<span class="pp-portal__tag<?php echo $is_founder ? '' : ' pp-portal__tag--muted'; ?>"><?php echo esc_html( $is_founder ? __( 'Founder', 'project-prepper' ) : __( 'Member', 'project-prepper' ) ); ?></span>
+							<?php if ( '' !== $joined ) : ?>
+								<span class="pp-portal__member-joined">
+									<?php
+									/* translators: %s: join date. */
+									printf( esc_html__( 'since %s', 'project-prepper' ), esc_html( $joined ) );
+									?>
+								</span>
+							<?php endif; ?>
+						</span>
+					</div>
+				<?php endforeach; ?>
+			</div>
 
 			<?php foreach ( $invitations as $inv ) :
 				$is_invitee = ( (int) $inv->invited_user_id === $user_id ); ?>

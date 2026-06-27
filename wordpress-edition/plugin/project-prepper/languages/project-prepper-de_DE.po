@@ -5599,3 +5599,26 @@ msgstr "Verleih-Kalender abonnieren (iCal-Feed)"
 
 msgid "read-only · operator-wide rentals"
 msgstr "schreibgeschützt · betreiberweite Verleihe"
+
+msgid "Aggregated across all projects of your active group."
+msgstr "Aggregiert über alle Projekte deiner aktiven Gruppe."
+
+msgid "Planned costs"
+msgstr "Plan-Kosten"
+
+msgid "Actual costs"
+msgstr "Ist-Kosten"
+
+msgid "You are in Solo. In solo mode you find costs directly inside each project. Pick a group in the workspace switcher (top left) for the aggregated view."
+msgstr "Du bist im Solo-Modus. Im Solo-Modus findest du Kosten direkt im jeweiligen Projekt. Wähle oben links eine Gruppe für die aggregierte Übersicht."
+
+msgid "%d member"
+msgid_plural "%d members"
+msgstr[0] "%d Mitglied"
+msgstr[1] "%d Mitglieder"
+
+msgid "(you)"
+msgstr "(du)"
+
+msgid "since %s"
+msgstr "seit %s"

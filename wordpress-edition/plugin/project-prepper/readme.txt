@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.96.0
+Stable tag: 0.97.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.97.0 =
+* Member portal — new "Costs" view (group mode): a global cost overview aggregated across all projects of the active group, mirroring the app's `/costs` page — KPI cards (projects, planned, actual), category filter pills and a per-item list (project link · category · description · amount, with a "planned" marker for items that have no actual yet). Solo mode shows the same hint as the app (costs live inside each project). Leak-safe: the source is the member's own group projects only.
+* Member portal — group detail: the member roster is now a proper list (member count header, each member with founder/member role badge and join date, "you" marker) instead of a comma-separated line of names.
 
 = 0.96.0 =
 * Member portal — project detail: added read-only Participants, Costs & budget (net/gross/VAT/budget/revenue/profit), Profit distribution (per-member shares with calculated amounts) and a Cooperation agreement summary (status, version, signature roster). These are visible to group members only — viewing the detail already requires membership of the owning group, so financial figures are never exposed to outsiders.

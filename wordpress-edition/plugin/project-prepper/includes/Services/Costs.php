@@ -34,6 +34,38 @@ class Costs {
 		) ) ?: [];
 	}
 
+	/**
+	 * Kostenposten über mehrere Projekte aggregiert (Pendant zur globalen
+	 * `/costs`-Seite der App). Jede Zeile bekommt den Projektnamen mitgeliefert,
+	 * sortiert nach Erstellung (neueste zuerst, wie die App). Aufrufer ist für
+	 * die Leak-Sicherheit verantwortlich: nur IDs von Projekten übergeben, die
+	 * der aktuelle User erreichen darf (im Portal die Projekte seiner Gruppe).
+	 *
+	 * @param int[] $project_ids
+	 * @return array<object>
+	 */
+	public static function for_projects( array $project_ids ): array {
+		$project_ids = array_values( array_filter( array_map( 'intval', $project_ids ) ) );
+		if ( ! $project_ids ) {
+			return [];
+		}
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $project_ids ), '%d' ) );
+		$costs        = Schema::table( 'cost_items' );
+		$projects     = Schema::table( 'projects' );
+		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Tabellennamen via %i, IDs via Placeholder.
+		$sql = $wpdb->prepare(
+			"SELECT c.*, p.name AS project_name
+			 FROM %i c
+			 LEFT JOIN %i p ON p.id = c.project_id
+			 WHERE c.project_id IN ($placeholders)
+			 ORDER BY c.created_at DESC, c.id DESC",
+			array_merge( [ $costs, $projects ], $project_ids )
+		);
+		// phpcs:enable
+		return $wpdb->get_results( $sql ) ?: [];
+	}
+
 	public static function get( int $id ): ?object {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare(
