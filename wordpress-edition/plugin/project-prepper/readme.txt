@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.98.8
+Stable tag: 0.98.9
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.98.9 =
+* Critical fix: hidden pop-ups no longer stack up. A change in 0.98.8 accidentally forced every dialog to be visible at once, so closed windows piled up on the screen. Dialogs are now only shown when actually opened.
+* Dark mode: the member portal now follows your device's light/dark setting automatically, matching the main app. Light mode looks exactly as before; in dark mode the background, top bar and panels switch to the dark palette (the sidebar stays dark in both modes).
+* Dark-mode polish: the feedback pop-up and all pop-up form fields (including number fields) now render correctly in dark mode instead of appearing white.
 
 = 0.98.8 =
 * Inventory "manage" pop-up in the app look: the detail/edit window now mirrors the main app — the photo sits at the top, the edit fields are laid out in a two-column grid, sharing and documents follow as sections below, and a fixed footer keeps "Close" on the right and "Delete" on the left while the body scrolls.

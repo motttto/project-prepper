@@ -3,6 +3,20 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release 2026-06-28 (Plugin v0.98.9, Schema 0.27.0 — Modal-Stacking-Fix + Dark Mode mit Auto-Umschaltung)
+> Reiner CSS-Release (nur `assets/css/frontend.css`), KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration, keine i18n-Strings.
+> 1. Kritischer Regressions-Fix aus 0.98.8: `display:flex` lag auf `.pp-modal` und überschrieb
+>    `dialog:not([open]){display:none}` → alle versteckten Modals wurden gleichzeitig sichtbar.
+>    Jetzt nur noch `.pp-modal[open]`.
+> 2. Dark Mode wie die App via `@media (prefers-color-scheme: dark)`: fest verdrahtete Inhaltsfarben
+>    laufen jetzt über die `--pp-*`-Variablen (Light-Werte unverändert); Dark-Block setzt Variablen +
+>    Body/Topbar auf die App-Dark-Palette. Sidebar bleibt in beiden Modi dunkel.
+> 3. Dark-Mode-Politur: `--pp-*` auch auf `.pp-app` definiert (globales Feedback-Modal lag außerhalb
+>    `.pp-front` → war weiß); konsistentes `.pp-modal input/select/textarea`-Styling inkl. number-Feldern.
+> Plugin-Check: KEINE neuen ERROR-Findings ggü. v0.98.8 (geänderte Datei ist reines CSS; die bestehenden
+> PHP/i18n-Findings in MemberPortal/Legal/Costs sind unverändert vorgetragen). `update.json` auf 0.98.9
+> mitgepflegt. Build `dist/project-prepper-0.98.9.zip` (1,1 MB, 112 Dateien).
+>
 > ## 🧩 Release 2026-06-28 (Plugin v0.98.8, Schema 0.27.0 — Inventar-„Verwalten"-Modal im App-Look + reiches Gesamt-Teilen)
 > Reiner Feature-Release, KEIN Schema-Change (Schema bleibt 0.27.0), keine DB-Migration.
 > Zwei Parität-Lücken zur Next.js-App geschlossen:

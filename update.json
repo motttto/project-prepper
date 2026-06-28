@@ -1,9 +1,9 @@
 {
-  "version": "0.98.8",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.8/project-prepper-0.98.8.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.8",
+  "version": "0.98.9",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.9/project-prepper-0.98.9.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.9",
   "published": "2026-06-28",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Inventar-\"Verwalten\"-Modal im App-Look (Foto oben, 2-Spalten-Raster, fixer Footer); reiches Gesamt-Teilen: Default-Tagessatz/-Freigabepflicht/-Bedingungen beim Teilen des gesamten Inventars mit einer Gruppe (nur fuer neu geteilte Artikel)."
+  "changelog": "Kritischer Fix: versteckte Modals stapeln sich nicht mehr (Regression aus 0.98.8 — geschlossene Dialoge waren alle gleichzeitig sichtbar). Dark Mode mit automatischer Umschaltung wie die App (Light unveraendert; Sidebar bleibt dunkel). Dark-Mode-Politur: Feedback-Modal und alle Modal-Felder inkl. Zahlenfelder werden jetzt korrekt dunkel statt weiss."
 }
