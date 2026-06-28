@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.98.0
+Stable tag: 0.98.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.98.1 =
+* Fix: corrected the plugin's "Plugin URI" header. It used to point at the Next.js web app; it now points at the plugin's actual home and update source on GitHub, so the "Visit plugin site" link on the WordPress Plugins page leads to the right place.
 
 = 0.98.0 =
 * Member portal — inventory is now workspace-aware: when a group is the active workspace, the inventory page shows that group's shared equipment pool (every item members have shared into the group) instead of always showing your personal items. The shared view is read-only and lists the owner per item, with a count of shared items and a friendly hint when nothing has been shared yet. Solo mode is unchanged and still shows "My inventory".
