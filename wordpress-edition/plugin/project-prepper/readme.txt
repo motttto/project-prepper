@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.98.7
+Stable tag: 0.98.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.98.8 =
+* Inventory "manage" pop-up in the app look: the detail/edit window now mirrors the main app — the photo sits at the top, the edit fields are laid out in a two-column grid, sharing and documents follow as sections below, and a fixed footer keeps "Close" on the right and "Delete" on the left while the body scrolls.
+* Richer "share whole inventory": when you share your entire inventory with a group you can now set a default daily rate, default approval requirement and default conditions (just like single-item sharing). These defaults only apply to items that are newly shared — items you already shared keep their individual terms.
 
 = 0.98.7 =
 * Update checks are now token- and limit-free on every site: the in-plugin updater first reads update info from a small static manifest served over GitHub's CDN — no 60-per-hour rate limit and no token required. The GitHub API (with the optional token from 0.98.6) stays in place as an automatic fallback. The manifest source can be overridden via the PP_UPDATE_MANIFEST constant or the pp_updater_manifest filter.

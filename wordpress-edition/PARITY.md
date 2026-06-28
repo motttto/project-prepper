@@ -3,6 +3,24 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release 2026-06-28 (Plugin v0.98.8, Schema 0.27.0 — Inventar-„Verwalten"-Modal im App-Look + reiches Gesamt-Teilen)
+> Reiner Feature-Release, KEIN Schema-Change (Schema bleibt 0.27.0), keine DB-Migration.
+> Zwei Parität-Lücken zur Next.js-App geschlossen:
+> 1. **Inventar-„Verwalten"-Modal im App-Look** (`MemberPortal.php`, `frontend.css`): Detail-/Bearbeiten-
+>    Modal an das Supabase-App-Modal angeglichen — Foto oben, Bearbeiten-Felder im 2-Spalten-Raster,
+>    Teilen/Dokumente als Abschnitte darunter, fixer Footer (Schließen rechts, Löschen links),
+>    Flex-Column-Layout (Kopf/Footer fix, Body scrollt).
+> 2. **Reiches Gesamt-Teilen („Inventar freigeben")** (`MemberPortal.php` Full-Share-Modal +
+>    `inventory_share_all`-Handler, `MemberInventory::share_all($opts)`): Default-Tagessatz,
+>    Default-Freigabepflicht und Default-Bedingungen beim Gesamt-Teilen mit einer Gruppe (wie beim
+>    Einzel-Teilen seit 0.98.4). Defaults gelten nur für NEU geteilte Artikel; bereits geteilte behalten
+>    ihre individuellen Konditionen. Share-Spalten existieren seit 0.27.0/0.98.4.
+> Neue i18n-Strings (DE): „Standard-Konditionen (für neu geteilte Artikel)", „Alle zurücknehmen"
+> („Schließen" existierte bereits). .mo via WP-POMO gebaut, kein JS-JSON nötig. `update.json` auf 0.98.8
+> mitgepflegt. Plugin-Check: KEINE neuen ERROR-Findings ggü. v0.98.7 — die geänderten MemberPortal-Hunks
+> erzeugen keine neuen ERRORs; verbleibende ERRORs in Legal.php/Costs.php/Updater.php/MemberPortal.php:3999
+> sind unverändert pre-existing. Erwartete ERRORs `hidden_files` + `plugin_updater_detected` by design.
+>
 > ## 🔄 Release 2026-06-28 (Plugin v0.98.7, Schema 0.27.0 — Auto-Updates token- und limitfrei via statischem Manifest)
 > Reiner Feature-/Fix-Release, KEIN Schema-Change (Schema bleibt 0.27.0), keine DB-Migration.
 > Der In-Plugin-Updater (`includes/Updater.php`) liest die Update-Info jetzt zuerst aus einem

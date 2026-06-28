@@ -1085,6 +1085,9 @@ a.pp-front-card-media { text-decoration: none; }
 	/* App --shadow-lg */
 	box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
 	overflow: hidden;
+	/* Flex-Column wie das App-Modal: Kopf/Footer fix, Body scrollt. */
+	display: flex;
+	flex-direction: column;
 }
 .pp-modal::backdrop { background: rgba(0, 0, 0, 0.5); }
 .pp-modal-header {
@@ -1129,9 +1132,32 @@ a.pp-front-card-media { text-decoration: none; }
 	transition: background .15s, color .15s;
 }
 .pp-modal-close:hover { background: var(--pp-muted, #f1f5f9); color: var(--pp-foreground, #0f172a); }
-.pp-modal-body { padding: 1.25rem 1.5rem; overflow-y: auto; max-height: calc(85vh - 64px); }
+.pp-modal-body { padding: 1.25rem 1.5rem; overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 /* App space-y-6 zwischen Modal-Sektionen. */
 .pp-modal-body > * + * { margin-top: 1.5rem; }
+
+/* Edit-Formular im Modal: 2-Spalten-Raster wie das App-Modal. */
+.pp-modal-body > .pp-portal__form { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem .9rem; }
+.pp-modal-body > .pp-portal__form > label { display: flex; flex-direction: column; gap: .25rem; font-size: .78rem; color: var(--pp-muted-foreground); min-width: 0; }
+.pp-modal-body > .pp-portal__form > label input,
+.pp-modal-body > .pp-portal__form > label select,
+.pp-modal-body > .pp-portal__form > label textarea { width: 100%; color: var(--pp-foreground); }
+.pp-modal-body > .pp-portal__form > label:has( textarea ) { grid-column: 1 / -1; }
+.pp-modal-body > .pp-portal__form > button { grid-column: 1 / -1; justify-self: start; margin-top: .2rem; }
+
+/* Foto-Bereich oben im Modal */
+.pp-modal-photo__img { width: 100%; max-height: 220px; object-fit: contain; border: 1px solid var(--pp-border); border-radius: 10px; background: var(--pp-muted); margin-bottom: .6rem; }
+.pp-modal-photo__form { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.pp-modal-photo__remove { margin-top: .4rem; }
+
+/* Einklappbare Sektion (Dokumente) — dezenter Trenner */
+.pp-modal-section { border-top: 1px solid var(--pp-muted); padding-top: .85rem; }
+.pp-modal-section__head { cursor: pointer; font-weight: 600; font-size: .9rem; list-style: none; }
+.pp-modal-section__head::-webkit-details-marker { display: none; }
+
+/* Footer: fix unten, Schließen rechts, Löschen links */
+.pp-modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex: none; padding: .8rem 1.5rem; border-top: 1px solid var(--pp-border); background: var(--pp-surface); }
+.pp-modal-footer__del { color: var(--pp-destructive, #ef4444); }
 
 /* Reiches Gruppen-Teilen im Item-Modal (Pendant zum App-Sharing-Modal):
  * Konditionen erscheinen erst, wenn die Gruppe angehakt ist — rein per :has(). */
@@ -1149,6 +1175,13 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-share__conds label:has( input:checked ) { background: var(--pp-primary, #6366f1); color: #fff; border-color: var(--pp-primary, #6366f1); }
 .pp-share__notes { display: flex; flex-direction: column; gap: .2rem; font-size: .82rem; }
 .pp-share__notes textarea { width: 100%; }
+
+/* Gesamt-Teilen-Modal: jede Gruppe als Block mit optionalen Default-Konditionen. */
+.pp-fullshare__list { display: flex; flex-direction: column; gap: .6rem; }
+.pp-fullshare__group { border: 1px solid var(--pp-border); border-radius: 8px; padding: .6rem .75rem; }
+.pp-fullshare__head { display: flex; align-items: baseline; justify-content: space-between; gap: .75rem; margin-bottom: .5rem; }
+.pp-fullshare__defaults { margin-bottom: .5rem; }
+.pp-fullshare__defaults > summary { display: inline-block; margin-bottom: .4rem; }
 
 @media (max-width: 720px) {
 	.pp-inv-row--head { display: none; }

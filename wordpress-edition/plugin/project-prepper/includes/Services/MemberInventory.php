@@ -395,9 +395,12 @@ class MemberInventory {
 	 * einmal mit einer Gruppe, in der der User Mitglied ist. Reversibel über
 	 * unshare_all(). Idempotent — bereits geteilte Artikel werden übersprungen.
 	 *
+	 * @param array $opts Default-Konditionen für die NEU erstellten Freigaben
+	 *                    (daily_rate, requires_approval, conditions_tags, conditions).
+	 *                    Bereits geteilte Artikel behalten ihre Einzel-Konditionen.
 	 * @return int|WP_Error Anzahl neu freigegebener Artikel.
 	 */
-	public static function share_all( int $user_id, int $group_id ) {
+	public static function share_all( int $user_id, int $group_id, array $opts = [] ) {
 		global $wpdb;
 		if ( ! $user_id || ! current_user_can( Capabilities::COLLECTIVES ) ) {
 			return new WP_Error( 'pp_forbidden', __( 'You are not allowed to share inventory.', 'project-prepper' ), [ 'status' => 403 ] );
@@ -405,6 +408,16 @@ class MemberInventory {
 		if ( ! Groups::is_member( $group_id, $user_id ) ) {
 			return new WP_Error( 'pp_not_member', __( 'You can only share with collectives you belong to.', 'project-prepper' ), [ 'status' => 403 ] );
 		}
+		// Default-Konditionen für die neuen Freigaben (gleiche Logik wie set_share()).
+		$rate     = ( isset( $opts['daily_rate'] ) && '' !== $opts['daily_rate'] && null !== $opts['daily_rate'] ) ? round( (float) $opts['daily_rate'], 2 ) : null;
+		$valid    = array_keys( self::condition_presets() );
+		$tags     = array_values( array_intersect( $valid, array_map( 'sanitize_key', (array) ( $opts['conditions_tags'] ?? [] ) ) ) );
+		$defaults = [
+			'daily_rate'        => $rate,
+			'requires_approval' => ! empty( $opts['requires_approval'] ) ? 1 : 0,
+			'conditions_tags'   => wp_json_encode( $tags ),
+			'conditions'        => sanitize_textarea_field( (string) ( $opts['conditions'] ?? '' ) ),
+		];
 		$item_ids = $wpdb->get_col( $wpdb->prepare(
 			'SELECT id FROM %i WHERE owner_user_id = %d',
 			Schema::table( 'items' ),
@@ -422,12 +435,12 @@ class MemberInventory {
 			if ( in_array( $iid, $already, true ) ) {
 				continue;
 			}
-			$wpdb->insert( Schema::table( 'item_group_shares' ), [
+			$wpdb->insert( Schema::table( 'item_group_shares' ), array_merge( $defaults, [
 				'item_id'    => $iid,
 				'group_id'   => $group_id,
 				'shared_by'  => $user_id,
 				'created_at' => current_time( 'mysql' ),
-			] );
+			] ) );
 			++$count;
 		}
 		if ( $count > 0 ) {

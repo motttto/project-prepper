@@ -447,7 +447,12 @@ class MemberPortal {
 				}
 				break;
 			case 'inventory_share_all':
-				$result = MemberInventory::share_all( get_current_user_id(), $grp_id );
+				$result = MemberInventory::share_all( get_current_user_id(), $grp_id, [
+					'daily_rate'        => isset( $_POST['pp_rate'] ) ? wp_unslash( (string) $_POST['pp_rate'] ) : null,
+					'requires_approval' => ! empty( $_POST['pp_approval'] ),
+					'conditions_tags'   => array_map( 'sanitize_key', (array) wp_unslash( $_POST['pp_cond'] ?? [] ) ),
+					'conditions'        => isset( $_POST['pp_conditions'] ) ? wp_unslash( (string) $_POST['pp_conditions'] ) : '',
+				] );
 				$ok_msg = 'inventory_shared_all';
 				break;
 			case 'inventory_unshare_all':
@@ -4038,6 +4043,28 @@ class MemberPortal {
 							<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
 						</div>
 						<div class="pp-modal-body">
+							<div class="pp-modal-photo">
+								<?php if ( ! empty( $item->image_url ) ) : ?>
+									<img class="pp-modal-photo__img" src="<?php echo esc_url( $item->image_url ); ?>" alt="">
+								<?php endif; ?>
+								<form class="pp-modal-photo__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<input type="hidden" name="action" value="pp_member_photo">
+									<?php wp_nonce_field( 'pp_member_photo', 'pp_nonce' ); ?>
+									<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+									<input type="file" name="pp_photo" accept="image/*" required>
+									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save photo', 'project-prepper' ); ?></button>
+								</form>
+								<?php if ( ! empty( $item->image_url ) ) : ?>
+									<form class="pp-modal-photo__remove" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+										<input type="hidden" name="action" value="pp_member_photo">
+										<?php wp_nonce_field( 'pp_member_photo', 'pp_nonce' ); ?>
+										<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+										<input type="hidden" name="pp_remove" value="1">
+										<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Remove photo', 'project-prepper' ); ?></button>
+									</form>
+								<?php endif; ?>
+							</div>
+							<?php self::item_form( 'item_update', $categories, $conditions, $item ); ?>
 						<?php if ( $groups ) :
 							$pp_share_cfg = MemberInventory::share_settings( (int) $item->id );
 							$pp_presets   = MemberInventory::condition_presets(); ?>
@@ -4075,37 +4102,8 @@ class MemberPortal {
 								<?php endforeach; ?>
 							</div>
 						<?php endif; ?>
-
-						<div class="pp-portal__actions">
-							<details class="pp-portal__edit" open>
-								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
-								<?php self::item_form( 'item_update', $categories, $conditions, $item ); ?>
-							</details>
-							<details class="pp-portal__edit">
-								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Photo', 'project-prepper' ); ?></summary>
-								<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-									<input type="hidden" name="action" value="pp_member_photo">
-									<?php wp_nonce_field( 'pp_member_photo', 'pp_nonce' ); ?>
-									<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
-									<label><?php esc_html_e( 'Image file', 'project-prepper' ); ?>
-										<input type="file" name="pp_photo" accept="image/*" required>
-									</label>
-									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save photo', 'project-prepper' ); ?></button>
-								</form>
-								<?php if ( ! empty( $item->image_url ) ) : ?>
-									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:.4rem;">
-										<input type="hidden" name="action" value="pp_member_photo">
-										<?php wp_nonce_field( 'pp_member_photo', 'pp_nonce' ); ?>
-										<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
-										<input type="hidden" name="pp_remove" value="1">
-										<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Remove photo', 'project-prepper' ); ?></button>
-									</form>
-								<?php endif; ?>
-							</details>
-							<details class="pp-portal__edit">
-								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm">
-									<?php esc_html_e( 'Documents', 'project-prepper' ); ?><?php if ( ! empty( $item->documents ) ) : ?> (<?php echo (int) count( $item->documents ); ?>)<?php endif; ?>
-								</summary>
+							<details class="pp-modal-section">
+								<summary class="pp-modal-section__head"><?php esc_html_e( 'Documents', 'project-prepper' ); ?><?php if ( ! empty( $item->documents ) ) : ?> (<?php echo (int) count( $item->documents ); ?>)<?php endif; ?></summary>
 								<?php if ( ! empty( $item->documents ) ) : ?>
 									<ul class="pp-portal__docs">
 										<?php foreach ( $item->documents as $doc ) : ?>
@@ -4133,12 +4131,14 @@ class MemberPortal {
 									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Upload document', 'project-prepper' ); ?></button>
 								</form>
 							</details>
+						</div>
+						<div class="pp-modal-footer">
 							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this item?', 'project-prepper' ) ); ?>');">
 								<?php self::action_fields( 'item_delete' ); ?>
 								<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
-								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-modal-footer__del"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
 							</form>
-						</div>
+							<button type="button" class="pp-portal__btn pp-portal__btn--sm" data-pp-modal-close><?php esc_html_e( 'Close', 'project-prepper' ); ?></button>
 						</div>
 						</dialog>
 					</div>
@@ -4374,36 +4374,47 @@ class MemberPortal {
 			<div class="pp-modal-body">
 			<div class="pp-portal__cats">
 				<p class="pp-portal__hint"><?php esc_html_e( 'Share all your items at once with one of your collectives — instead of sharing them one by one. You can revoke it again any time.', 'project-prepper' ); ?></p>
-				<ul class="pp-portal__cat-list">
+				<?php $fp_presets = MemberInventory::condition_presets(); ?>
+				<div class="pp-fullshare__list">
 					<?php foreach ( $groups as $g ) :
 						$shared = MemberInventory::shared_count_in_group( (int) $user->ID, (int) $g->id ); ?>
-						<li class="pp-portal__cat">
-							<span>
-								<?php echo esc_html( $g->name ); ?>
-								<small class="pp-muted">
-									<?php
-									/* translators: 1: shared item count, 2: total item count. */
-									echo esc_html( sprintf( __( '%1$d of %2$d shared', 'project-prepper' ), $shared, $total ) );
-									?>
-								</small>
-							</span>
-							<span class="pp-portal__actions">
-								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-									<?php self::action_fields( 'inventory_share_all' ); ?>
-									<input type="hidden" name="pp_group" value="<?php echo (int) $g->id; ?>">
-									<button type="submit" class="pp-portal__btn pp-portal__btn--sm" <?php disabled( $total > 0 && $shared >= $total ); ?>><?php esc_html_e( 'Share all', 'project-prepper' ); ?></button>
-								</form>
-								<?php if ( $shared > 0 ) : ?>
-									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Revoke sharing of all your items with this collective?', 'project-prepper' ) ); ?>');">
-										<?php self::action_fields( 'inventory_unshare_all' ); ?>
-										<input type="hidden" name="pp_group" value="<?php echo (int) $g->id; ?>">
-										<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Revoke', 'project-prepper' ); ?></button>
-									</form>
-								<?php endif; ?>
-							</span>
-						</li>
+					<div class="pp-fullshare__group">
+						<div class="pp-fullshare__head">
+							<span class="pp-share__name"><?php echo esc_html( $g->name ); ?></span>
+							<small class="pp-muted"><?php /* translators: 1: shared item count, 2: total item count. */ printf( esc_html__( '%1$d of %2$d shared', 'project-prepper' ), (int) $shared, (int) $total ); ?></small>
+						</div>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<?php self::action_fields( 'inventory_share_all' ); ?>
+							<input type="hidden" name="pp_group" value="<?php echo (int) $g->id; ?>">
+							<details class="pp-fullshare__defaults">
+								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Default conditions (for newly shared items)', 'project-prepper' ); ?></summary>
+								<div class="pp-share__fields">
+									<label class="pp-share__rate"><?php esc_html_e( 'Daily rate (€)', 'project-prepper' ); ?>
+										<input type="number" step="0.01" min="0" name="pp_rate">
+									</label>
+									<label class="pp-share__approval"><input type="checkbox" name="pp_approval" value="1"> <?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></label>
+								</div>
+								<div class="pp-share__conds">
+									<?php foreach ( $fp_presets as $fp_key => $fp_label ) : ?>
+										<label class="pp-portal__chip"><input type="checkbox" name="pp_cond[]" value="<?php echo esc_attr( $fp_key ); ?>" hidden><?php echo esc_html( $fp_label ); ?></label>
+									<?php endforeach; ?>
+								</div>
+								<label class="pp-share__notes"><?php esc_html_e( 'Notes (optional)', 'project-prepper' ); ?>
+									<textarea name="pp_conditions" rows="2"></textarea>
+								</label>
+							</details>
+							<button type="submit" class="pp-portal__btn pp-portal__btn--sm" <?php disabled( $total > 0 && $shared >= $total ); ?>><?php esc_html_e( 'Share all', 'project-prepper' ); ?></button>
+						</form>
+						<?php if ( $shared > 0 ) : ?>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Revoke sharing of all your items with this collective?', 'project-prepper' ) ); ?>');">
+								<?php self::action_fields( 'inventory_unshare_all' ); ?>
+								<input type="hidden" name="pp_group" value="<?php echo (int) $g->id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Revoke all', 'project-prepper' ); ?></button>
+							</form>
+						<?php endif; ?>
+					</div>
 					<?php endforeach; ?>
-				</ul>
+				</div>
 			</div>
 			</div>
 		</dialog>

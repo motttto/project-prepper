@@ -1,9 +1,9 @@
 {
-  "version": "0.98.7",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.7/project-prepper-0.98.7.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.7",
+  "version": "0.98.8",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.8/project-prepper-0.98.8.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.8",
   "published": "2026-06-28",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Updates jetzt token- und limitfrei ueber ein statisches Manifest (GitHub-CDN); GitHub-API nur noch als Fallback."
+  "changelog": "Inventar-\"Verwalten\"-Modal im App-Look (Foto oben, 2-Spalten-Raster, fixer Footer); reiches Gesamt-Teilen: Default-Tagessatz/-Freigabepflicht/-Bedingungen beim Teilen des gesamten Inventars mit einer Gruppe (nur fuer neu geteilte Artikel)."
 }
