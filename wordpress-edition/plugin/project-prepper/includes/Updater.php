@@ -133,6 +133,63 @@ class Updater {
 			return null;
 		}
 
+		// Bevorzugt das statische Manifest (über GitHubs CDN, daher KEIN 60/h-API-
+		// Limit und kein Token nötig); Fallback auf die GitHub-API (mit Token).
+		$rel = self::fetch_from_manifest();
+		if ( ! is_array( $rel ) ) {
+			$rel = self::fetch_from_api();
+		}
+		// Fehlversuche (z. B. 403 Rate-Limit) nur kurz cachen, damit ein erneuter
+		// Check bald wieder die Quelle fragt, statt 6 h „kein Release" festzuhalten.
+		if ( ! is_array( $rel ) ) {
+			set_transient( self::CACHE_KEY, 'none', self::FAIL_TTL );
+			return null;
+		}
+		set_transient( self::CACHE_KEY, $rel, self::CACHE_TTL );
+		return $rel;
+	}
+
+	/**
+	 * URL des statischen Update-Manifests (über GitHubs CDN ausgeliefert, daher
+	 * KEIN 60/h-API-Limit und kein Token nötig). Default: raw-URL des Vertriebs-
+	 * Branches. Per Konstante `PP_UPDATE_MANIFEST` / Filter `pp_updater_manifest`
+	 * überschreibbar; leerer String schaltet das Manifest ab (nur API).
+	 */
+	public static function manifest_url(): string {
+		$default = 'https://raw.githubusercontent.com/' . self::repo() . '/wordpress-edition/update.json';
+		$url     = defined( 'PP_UPDATE_MANIFEST' ) ? (string) PP_UPDATE_MANIFEST : $default;
+		return (string) apply_filters( 'pp_updater_manifest', $url );
+	}
+
+	/** Update-Info aus dem statischen Manifest (update.json). Null bei Fehler. */
+	private static function fetch_from_manifest(): ?array {
+		$url = self::manifest_url();
+		if ( '' === $url ) {
+			return null;
+		}
+		$resp = wp_remote_get( $url, [
+			'timeout' => 8,
+			'headers' => [ 'Accept' => 'application/json', 'User-Agent' => 'project-prepper-updater' ],
+		] );
+		if ( is_wp_error( $resp ) || 200 !== (int) wp_remote_retrieve_response_code( $resp ) ) {
+			return null;
+		}
+		$m = json_decode( wp_remote_retrieve_body( $resp ), true );
+		if ( ! is_array( $m ) || empty( $m['version'] ) || empty( $m['package'] ) ) {
+			return null;
+		}
+		return [
+			'version'   => ltrim( (string) $m['version'], 'vV' ),
+			'package'   => (string) $m['package'],
+			'changelog' => (string) ( $m['changelog'] ?? '' ),
+			'url'       => (string) ( $m['url'] ?? ( 'https://github.com/' . self::repo() ) ),
+			'published' => (string) ( $m['published'] ?? '' ),
+			'is_asset'  => true,
+		];
+	}
+
+	/** Update-Info aus der GitHub-API (Fallback; nutzt optionales Token). Null bei Fehler. */
+	private static function fetch_from_api(): ?array {
 		$headers = [
 			'Accept'     => 'application/vnd.github+json',
 			'User-Agent' => 'project-prepper-updater',
@@ -150,20 +207,14 @@ class Updater {
 				'headers' => $headers,
 			]
 		);
-		// Fehlversuche (z. B. 403 Rate-Limit) nur kurz cachen, damit ein erneuter
-		// Check bald wieder GitHub fragt, statt 6 h „kein Release" festzuhalten.
 		if ( is_wp_error( $resp ) || 200 !== (int) wp_remote_retrieve_response_code( $resp ) ) {
-			set_transient( self::CACHE_KEY, 'none', self::FAIL_TTL );
 			return null;
 		}
 		$data = json_decode( wp_remote_retrieve_body( $resp ), true );
 		if ( ! is_array( $data ) || empty( $data['tag_name'] ) ) {
-			set_transient( self::CACHE_KEY, 'none', self::FAIL_TTL );
 			return null;
 		}
-		$rel = self::normalize_release( $data );
-		set_transient( self::CACHE_KEY, $rel, self::CACHE_TTL );
-		return $rel;
+		return self::normalize_release( $data );
 	}
 
 	/** GitHub-Release-Payload auf die fürs Update nötigen Felder reduzieren. */

@@ -3,6 +3,22 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔄 Release 2026-06-28 (Plugin v0.98.7, Schema 0.27.0 — Auto-Updates token- und limitfrei via statischem Manifest)
+> Reiner Feature-/Fix-Release, KEIN Schema-Change (Schema bleibt 0.27.0), keine DB-Migration.
+> Der In-Plugin-Updater (`includes/Updater.php`) liest die Update-Info jetzt zuerst aus einem
+> statischen Manifest `update.json` im Repo-Root, ausgeliefert über GitHubs CDN
+> (`raw.githubusercontent.com/motttto/project-prepper/wordpress-edition/update.json`) — **kein
+> 60/h-Rate-Limit, kein Token nötig, auf KEINER Instanz**. Die GitHub-API (mit optionalem Token aus
+> 0.98.6) bleibt als automatischer Fallback. Refactor: `fetch_from_manifest()` zuerst,
+> `fetch_from_api()` als Fallback, neue `manifest_url()`. Quelle überschreibbar per Konstante
+> `PP_UPDATE_MANIFEST` / Filter `pp_updater_manifest`. Die Root-`update.json` wird ab jetzt bei
+> JEDEM Release mitgepflegt (zeigt aufs neue Release-Asset). Keine neuen i18n-Strings.
+> Build `dist/project-prepper-0.98.7.zip` (1,1 MB, 112 Dateien; `update.json` NICHT im ZIP — wird via
+> raw geladen). Plugin-Check: keine NEUEN ERROR-Findings ggü. v0.98.6 — die einzige Änderung
+> `Updater.php` erzeugt außer dem erwarteten `plugin_updater_detected` (by design) keine ERRORs;
+> verbleibende ERRORs in Legal.php/Costs.php/MemberPortal.php sind unverändert pre-existing.
+> Erwartete ERRORs `hidden_files` + `plugin_updater_detected` by design.
+>
 > ## 🔄 Release 2026-06-28 (Plugin v0.98.6, Schema 0.27.0 — Zuverlässigerer Auto-Updater via optionalem GitHub-Token)
 > Reiner Feature-/Fix-Release, KEIN Schema-Change (Schema bleibt 0.27.0), keine DB-Migration.
 > Der In-Plugin-Updater (`includes/Updater.php`) kann jetzt ein optionales GitHub-Token nutzen

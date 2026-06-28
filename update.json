@@ -1,0 +1,9 @@
+{
+  "version": "0.98.7",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.7/project-prepper-0.98.7.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.7",
+  "published": "2026-06-28",
+  "requires": "6.4",
+  "requires_php": "8.0",
+  "changelog": "Updates jetzt token- und limitfrei ueber ein statisches Manifest (GitHub-CDN); GitHub-API nur noch als Fallback."
+}

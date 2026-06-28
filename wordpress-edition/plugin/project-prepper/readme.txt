@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.98.6
+Stable tag: 0.98.7
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.98.7 =
+* Update checks are now token- and limit-free on every site: the in-plugin updater first reads update info from a small static manifest served over GitHub's CDN — no 60-per-hour rate limit and no token required. The GitHub API (with the optional token from 0.98.6) stays in place as an automatic fallback. The manifest source can be overridden via the PP_UPDATE_MANIFEST constant or the pp_updater_manifest filter.
 
 = 0.98.6 =
 * More reliable auto-updates: the in-plugin updater can now use an optional GitHub token. Without one, GitHub limits update checks to 60 requests per hour per server IP, which fails intermittently on shared hosting. With a token the limit rises to 5000 per hour. Set it via the PP_UPDATE_TOKEN constant in wp-config.php (most secure) or under Project Prepper → Security. For a public repository a token without any scopes is enough.
