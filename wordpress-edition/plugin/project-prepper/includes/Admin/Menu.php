@@ -280,6 +280,38 @@ class Menu {
 	}
 
 	public static function render_security(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Security', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="security"></div></div>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Security', 'project-prepper' ) . '</h1>';
+		self::render_update_token_card();
+		echo '<div id="pp-admin" data-page="security"></div></div>';
+	}
+
+	/** Feld für das optionale GitHub-Update-Token (gegen das 60/h-Rate-Limit). */
+	private static function render_update_token_card(): void {
+		$has    = '' !== \ProjectPrepper\Updater::token();
+		$locked = \ProjectPrepper\Updater::token_locked_by_constant();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Anzeige nach Redirect.
+		$saved  = isset( $_GET['pp_msg'] ) && 'token_saved' === $_GET['pp_msg'];
+		echo '<div class="card" style="max-width:680px;margin:1em 0;padding:4px 18px 14px">';
+		echo '<h2>' . esc_html__( 'Update token (GitHub)', 'project-prepper' ) . '</h2>';
+		if ( $saved ) {
+			echo '<div class="notice notice-success inline"><p>' . esc_html__( 'Saved.', 'project-prepper' ) . '</p></div>';
+		}
+		echo '<p class="description">' . esc_html__( 'Optional. Authenticated update checks raise GitHub’s rate limit from 60 to 5000 requests per hour — recommended on shared hosting, where the auto-updater otherwise fails intermittently. A token WITHOUT any scopes is enough for a public repository.', 'project-prepper' ) . '</p>';
+		echo '<p>' . esc_html__( 'Status:', 'project-prepper' ) . ' <strong>' . ( $has ? esc_html__( 'token active', 'project-prepper' ) : esc_html__( 'no token (unauthenticated, 60/h)', 'project-prepper' ) ) . '</strong></p>';
+		if ( $locked ) {
+			echo '<p><strong>' . esc_html__( 'The token is set via the PP_UPDATE_TOKEN constant in wp-config.php (the most secure option). The field below is therefore disabled.', 'project-prepper' ) . '</strong></p>';
+		} else {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" autocomplete="off">';
+			echo '<input type="hidden" name="action" value="pp_save_update_token">';
+			wp_nonce_field( 'pp_save_update_token' );
+			echo '<input type="password" name="pp_update_token" autocomplete="new-password" class="regular-text" placeholder="github_pat_… / ghp_…" style="width:100%;max-width:440px" aria-label="' . esc_attr__( 'GitHub token', 'project-prepper' ) . '">';
+			echo '<p><button class="button button-primary" name="pp_do" value="save">' . esc_html__( 'Save token', 'project-prepper' ) . '</button> ';
+			if ( $has ) {
+				echo '<button class="button" name="pp_do" value="remove">' . esc_html__( 'Remove token', 'project-prepper' ) . '</button>';
+			}
+			echo '</p></form>';
+		}
+		echo '<p class="description"><a href="https://github.com/settings/personal-access-tokens" target="_blank" rel="noopener noreferrer">' . esc_html__( 'Create a fine-grained token on GitHub (Read-only, no scopes needed) →', 'project-prepper' ) . '</a></p>';
+		echo '</div>';
 	}
 }

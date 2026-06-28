@@ -25,6 +25,8 @@ class Updater {
 	const DEFAULT_REPO = 'motttto/project-prepper';
 	const CACHE_KEY    = 'pp_update_release';
 	const CACHE_TTL    = 6 * HOUR_IN_SECONDS;
+	const FAIL_TTL     = 15 * MINUTE_IN_SECONDS;
+	const TOKEN_OPTION = 'pp_update_token';
 
 	public static function init(): void {
 		if ( ! apply_filters( 'pp_updater_enabled', ! ( defined( 'PP_DISABLE_UPDATER' ) && PP_DISABLE_UPDATER ) ) ) {
@@ -37,11 +39,50 @@ class Updater {
 		add_filter( 'pre_set_site_transient_update_plugins', [ self::class, 'inject_update' ] );
 		add_filter( 'plugins_api', [ self::class, 'details' ], 20, 3 );
 		add_filter( 'upgrader_source_selection', [ self::class, 'fix_source_dir' ], 10, 4 );
+		add_action( 'admin_post_pp_save_update_token', [ self::class, 'handle_save_token' ] );
+	}
+
+	/** Update-Token im Admin speichern/entfernen (nur Betreiber:innen). */
+	public static function handle_save_token(): void {
+		if ( ! current_user_can( Capabilities::OPERATE ) || ! check_admin_referer( 'pp_save_update_token' ) ) {
+			wp_die( esc_html__( 'You are not allowed to do this.', 'project-prepper' ) );
+		}
+		if ( ! self::token_locked_by_constant() ) {
+			$do = sanitize_key( wp_unslash( (string) ( $_POST['pp_do'] ?? 'save' ) ) );
+			if ( 'remove' === $do ) {
+				delete_option( self::TOKEN_OPTION );
+			} else {
+				$token = isset( $_POST['pp_update_token'] ) ? trim( (string) wp_unslash( $_POST['pp_update_token'] ) ) : '';
+				if ( '' !== $token ) {
+					update_option( self::TOKEN_OPTION, sanitize_text_field( $token ) );
+				}
+			}
+			// Cache leeren, damit der nächste Check sofort (authentifiziert) frisch fragt.
+			delete_transient( self::CACHE_KEY );
+		}
+		wp_safe_redirect( add_query_arg( 'pp_msg', 'token_saved', admin_url( 'admin.php?page=pp-security' ) ) );
+		exit;
 	}
 
 	public static function repo(): string {
 		$repo = defined( 'PP_UPDATE_REPO' ) ? PP_UPDATE_REPO : self::DEFAULT_REPO;
 		return (string) apply_filters( 'pp_updater_repo', $repo );
+	}
+
+	/**
+	 * Optionales GitHub-Token für authentifizierte API-Abrufe (5000/h statt 60/h).
+	 * Reihenfolge: Konstante `PP_UPDATE_TOKEN` (sicherste, hat Vorrang) → Option
+	 * `pp_update_token` (im Admin setzbar) → Filter `pp_updater_token`. Für ein
+	 * öffentliches Repo genügt ein Token OHNE Scopes.
+	 */
+	public static function token(): string {
+		$token = defined( 'PP_UPDATE_TOKEN' ) ? (string) PP_UPDATE_TOKEN : (string) get_option( self::TOKEN_OPTION, '' );
+		return trim( (string) apply_filters( 'pp_updater_token', $token ) );
+	}
+
+	/** Token nur aus der DB-Option setzbar? (Per Konstante gesetzt = im UI gesperrt.) */
+	public static function token_locked_by_constant(): bool {
+		return defined( 'PP_UPDATE_TOKEN' );
 	}
 
 	public static function basename(): string {
@@ -92,23 +133,32 @@ class Updater {
 			return null;
 		}
 
+		$headers = [
+			'Accept'     => 'application/vnd.github+json',
+			'User-Agent' => 'project-prepper-updater',
+		];
+		// Optionales GitHub-Token hebt das 60/h-Limit unauthentifizierter Abrufe
+		// (problematisch auf Shared-Hosting mit geteilter IP) auf 5000/h.
+		$gh_token = self::token();
+		if ( '' !== $gh_token ) {
+			$headers['Authorization'] = 'Bearer ' . $gh_token;
+		}
 		$resp = wp_remote_get(
 			'https://api.github.com/repos/' . self::repo() . '/releases/latest',
 			[
 				'timeout' => 8,
-				'headers' => [
-					'Accept'     => 'application/vnd.github+json',
-					'User-Agent' => 'project-prepper-updater',
-				],
+				'headers' => $headers,
 			]
 		);
+		// Fehlversuche (z. B. 403 Rate-Limit) nur kurz cachen, damit ein erneuter
+		// Check bald wieder GitHub fragt, statt 6 h „kein Release" festzuhalten.
 		if ( is_wp_error( $resp ) || 200 !== (int) wp_remote_retrieve_response_code( $resp ) ) {
-			set_transient( self::CACHE_KEY, 'none', self::CACHE_TTL );
+			set_transient( self::CACHE_KEY, 'none', self::FAIL_TTL );
 			return null;
 		}
 		$data = json_decode( wp_remote_retrieve_body( $resp ), true );
 		if ( ! is_array( $data ) || empty( $data['tag_name'] ) ) {
-			set_transient( self::CACHE_KEY, 'none', self::CACHE_TTL );
+			set_transient( self::CACHE_KEY, 'none', self::FAIL_TTL );
 			return null;
 		}
 		$rel = self::normalize_release( $data );

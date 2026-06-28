@@ -3,6 +3,21 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔄 Release 2026-06-28 (Plugin v0.98.6, Schema 0.27.0 — Zuverlässigerer Auto-Updater via optionalem GitHub-Token)
+> Reiner Feature-/Fix-Release, KEIN Schema-Change (Schema bleibt 0.27.0), keine DB-Migration.
+> Der In-Plugin-Updater (`includes/Updater.php`) kann jetzt ein optionales GitHub-Token nutzen
+> (Limit 60 → 5000 Anfragen/h). Quelle in Vorrang-Reihenfolge: Konstante `PP_UPDATE_TOKEN`
+> (wp-config.php) → Admin-Feld unter **Project Prepper → Sicherheit** (`render_update_token_card()`
+> in `includes/Admin/Menu.php`) → Filter `pp_updater_token`. Für ein öffentliches Repo genügt ein
+> Token OHNE Scopes. Fehlversuche (z. B. 403) werden nur noch 15 min statt 6 h gecacht (`FAIL_TTL`),
+> damit „Erneut prüfen" bald wieder bei GitHub anfragt. Neue i18n-Strings (Sicherheit-Tab) auf
+> Deutsch übersetzt, `.po`/`.pot`/`.mo` (WP-POMO, 1131 Einträge) neu gebaut; kein JS-JSON nötig.
+> Build `dist/project-prepper-0.98.6.zip` (1,1 MB, 112 Dateien). Plugin-Check: keine NEUEN ERROR-Findings
+> ggü. v0.98.5 — die geänderten Dateien `Updater.php`/`Menu.php` erzeugen außer dem erwarteten
+> `plugin_updater_detected` (by design) keine ERRORs; verbleibende ERRORs in Legal.php/Costs.php/
+> MemberPortal.php sind unverändert pre-existing. Erwartete ERRORs `hidden_files` +
+> `plugin_updater_detected` by design.
+>
 > ## 🎨 Release 2026-06-28 (Plugin v0.98.5, Schema 0.27.0 — Portal-Modale optisch 1:1 an Supabase-App angeglichen)
 > Reiner CSS-Patch (`.pp-modal`-Block in `assets/css/frontend.css`), kein Schema-/JS-/i18n-Change.
 > Die Portal-Modals (Inventar-Detail, Feedback, Inventar-freigeben, Neue Umfrage, Leihen) übernehmen

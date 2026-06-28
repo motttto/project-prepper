@@ -1249,6 +1249,7 @@ msgstr "Schließen"
 msgid "Save"
 msgstr "Speichern"
 
+#: includes/Admin/Menu.php:297
 #: admin/js/admin.js:391
 #: admin/js/admin.js:683
 #: admin/js/admin.js:1101
@@ -3783,7 +3784,7 @@ msgstr "0 = unbegrenzt. Einladungen werden pro Mitglied über rollende 24 Stunde
 msgid "Public profile"
 msgstr "Öffentliches Profil"
 
-#: includes/Updater.php:262
+#: includes/Updater.php:312
 msgid "See the GitHub release notes."
 msgstr "Siehe die GitHub-Release-Notes."
 
@@ -4971,8 +4972,9 @@ msgid "You are not allowed to share inventory."
 msgstr "Du darfst kein Inventar teilen."
 
 #: includes/Services/MemberInventory.php:448
+#: includes/Updater.php:48
 msgid "You are not allowed to do this."
-msgstr "Du darfst das nicht tun."
+msgstr "Dazu hast du keine Berechtigung."
 
 #: admin/js/admin.js:1457
 msgid "created an agreement"
@@ -5381,3 +5383,43 @@ msgstr "Vorherige Einweisung"
 #: includes/Services/MemberInventory.php:325
 msgid "Qualified users only"
 msgstr "Nur mit Fachkunde"
+
+#: includes/Admin/Menu.php:295
+msgid "Update token (GitHub)"
+msgstr "Update-Token (GitHub)"
+
+#: includes/Admin/Menu.php:299
+msgid "Optional. Authenticated update checks raise GitHub’s rate limit from 60 to 5000 requests per hour — recommended on shared hosting, where the auto-updater otherwise fails intermittently. A token WITHOUT any scopes is enough for a public repository."
+msgstr "Optional. Authentifizierte Update-Prüfungen heben GitHubs Limit von 60 auf 5000 Anfragen pro Stunde an — empfohlen auf Shared-Hosting, wo der Auto-Updater sonst zeitweise fehlschlägt. Für ein öffentliches Repository genügt ein Token OHNE jegliche Scopes."
+
+#: includes/Admin/Menu.php:300
+msgid "Status:"
+msgstr "Status:"
+
+#: includes/Admin/Menu.php:300
+msgid "token active"
+msgstr "Token aktiv"
+
+#: includes/Admin/Menu.php:300
+msgid "no token (unauthenticated, 60/h)"
+msgstr "kein Token (unauthentifiziert, 60/h)"
+
+#: includes/Admin/Menu.php:302
+msgid "The token is set via the PP_UPDATE_TOKEN constant in wp-config.php (the most secure option). The field below is therefore disabled."
+msgstr "Das Token wird über die Konstante PP_UPDATE_TOKEN in der wp-config.php gesetzt (die sicherste Option). Das Feld unten ist daher deaktiviert."
+
+#: includes/Admin/Menu.php:307
+msgid "GitHub token"
+msgstr "GitHub-Token"
+
+#: includes/Admin/Menu.php:308
+msgid "Save token"
+msgstr "Token speichern"
+
+#: includes/Admin/Menu.php:310
+msgid "Remove token"
+msgstr "Token entfernen"
+
+#: includes/Admin/Menu.php:314
+msgid "Create a fine-grained token on GitHub (Read-only, no scopes needed) →"
+msgstr "Fine-grained Token auf GitHub erstellen (Read-only, keine Scopes nötig) →"
