@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.98.2
+Stable tag: 0.98.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.98.3 =
+* Privacy: the whole site is now private to the outside world — only the login is publicly reachable. Visitors who are not logged in are sent straight to the member portal (login) from every public page: the start page, equipment catalogue, request form, archives, search and 404. The old public marketing start page with unprotected inventory is gone.
+* Exceptions that stay reachable without logging in: the portal page itself plus the legally required Imprint and Privacy policy pages (detected by their shortcodes or the official WordPress privacy page, regardless of slug). robots.txt and favicon are untouched.
+* Logged-in members browse freely as before; only the marketing start page redirects them into the portal.
+* The login screen now links to Imprint and Privacy policy underneath it, so the legal disclosure duty (§ 5 DDG) is met.
+* For developers: the restriction can be turned off with the filter "pp_restrict_public_pages", and individual pages can be made public again via "pp_page_is_public".
 
 = 0.98.2 =
 * Fix (updates): clicking "Check again" on Dashboard → Updates now also clears the plugin's own 6-hour update cache and queries GitHub immediately. Previously a freshly published release could stay invisible for up to 6 hours. Routine background checks still use the cache, so there is no extra traffic.

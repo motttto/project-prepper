@@ -24,6 +24,41 @@ class Legal {
 		add_shortcode( 'pp_datenschutz', [ self::class, 'datenschutz' ] );
 	}
 
+	/**
+	 * URLs der Rechtstexte (Impressum, Datenschutz) für die Verlinkung z. B. unter
+	 * dem Login. Leerer String, wenn die jeweilige Seite (noch) nicht existiert.
+	 *
+	 * @return array{impressum:string,datenschutz:string}
+	 */
+	public static function links(): array {
+		return [
+			'impressum'   => self::page_url_for( 'pp_impressum', 'impressum' ),
+			'datenschutz' => get_privacy_policy_url() ?: self::page_url_for( 'pp_datenschutz', 'datenschutz' ),
+		];
+	}
+
+	/**
+	 * Permalink der veröffentlichten Seite, die den gegebenen Rechts-Shortcode
+	 * enthält (slug-unabhängig); Fallback über den üblichen Slug. 1 h gecacht.
+	 */
+	private static function page_url_for( string $shortcode, string $fallback_slug ): string {
+		$cache_key = 'pp_legal_url_' . $shortcode;
+		$id        = get_transient( $cache_key );
+		if ( false === $id ) {
+			global $wpdb;
+			$id = (int) $wpdb->get_var( $wpdb->prepare(
+				"SELECT ID FROM {$wpdb->posts} WHERE post_type = 'page' AND post_status = 'publish' AND post_content LIKE %s ORDER BY ID ASC LIMIT 1",
+				'%[' . $wpdb->esc_like( $shortcode ) . ']%'
+			) );
+			if ( ! $id ) {
+				$page = get_page_by_path( $fallback_slug );
+				$id   = $page ? (int) $page->ID : 0;
+			}
+			set_transient( $cache_key, $id, HOUR_IN_SECONDS );
+		}
+		return $id ? (string) get_permalink( $id ) : '';
+	}
+
 	/** Hinweis, falls noch nichts gepflegt ist — nur für den Betreiber sichtbar. */
 	private static function not_configured(): string {
 		if ( current_user_can( Capabilities::OPERATE ) ) {

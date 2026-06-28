@@ -3,6 +3,24 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔒 Release 2026-06-28 (Plugin v0.98.3 — Instanz nach außen privat: nur Login öffentlich)
+> Was im Release steckt:
+> - **Feature (`includes/Frontend/MemberPortal.php`):** Neuer Hook `restrict_public_to_portal` auf
+>   `template_redirect` leitet alle Frontend-Anfragen ausgeloggter Besucher (Startseite, Seiten,
+>   Equipment-Katalog, Anfrage-Formular, Archive, Suche, 404 …) auf das Mitglieder-Portal (= Login) um.
+>   Die öffentliche Marketing-Startseite mit ungeschütztem Inventar entfällt. Ausnahmen ohne Login:
+>   die Portal-Seite selbst + die gesetzlich nötigen Rechtstexte **Impressum** und **Datenschutz**
+>   (Helper `is_legally_public`, slug-unabhängig erkannt über Shortcodes `[pp_impressum]`/`[pp_datenschutz]`
+>   bzw. die offizielle WP-Datenschutzseite). robots.txt/Favicon unberührt. Eingeloggte Mitglieder surfen
+>   frei; nur die Marketing-Startseite leitet auch sie ins Portal. Abschaltbar per Filter
+>   `pp_restrict_public_pages`, Einzelseiten freischaltbar per `pp_page_is_public`.
+> - **Recht (`includes/Frontend/Legal.php`):** Neuer Resolver `Legal::links()` + `page_url_for()`; unter
+>   dem Login werden Impressum & Datenschutz verlinkt (Impressumspflicht § 5 DDG erfüllt). CSS
+>   `.pp-portal__legal` in `assets/css/frontend.css`.
+> - **i18n:** zwei neue PHP-Strings (`Imprint` → „Impressum", `Privacy policy` → „Datenschutz"), .pot/.po/.mo
+>   aktualisiert (WP-POMO). Reiner Feature-/Patch-Bump (0.98.2 → 0.98.3), kein Schema-Change.
+>   Build `dist/project-prepper-0.98.3.zip` (1,1 MB, 111 Dateien). Plugin-Check: keine NEUEN Findings ggü. v0.98.2.
+>
 > ## 🛠 Release 2026-06-28 (Plugin v0.98.2 — Updater: erzwungener Check umgeht Eigencache)
 > Was im Release steckt:
 > - **Fix (Updater, `includes/Updater.php`):** Ein erzwungener WP-Update-Check („Erneut prüfen" auf

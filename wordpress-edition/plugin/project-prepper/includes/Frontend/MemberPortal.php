@@ -82,6 +82,77 @@ class MemberPortal {
 		// Vollbild-App-Shell: die Portal-Seite bekommt ein eigenes Template
 		// (theme-unabhängig, Sidebar + Topbar wie die Next.js-App).
 		add_filter( 'template_include', [ self::class, 'portal_template' ], 99 );
+
+		// Private Instanz: nach außen gibt es nur das Login. Alle Frontend-Anfragen
+		// Ausgeloggter gehen aufs Portal; Ausnahme nur die Rechtstexte.
+		add_action( 'template_redirect', [ self::class, 'restrict_public_to_portal' ] );
+	}
+
+	/**
+	 * Diese Instanz hat KEINE öffentliche Außendarstellung außer dem Login: jede
+	 * Frontend-Anfrage Ausgeloggter (Startseite, Seiten, Archive, Suche, Feeds,
+	 * 404 …) wird aufs Portal (= Login) umgeleitet. Ausnahmen:
+	 *  - die Portal-Seite selbst (Login/App; Schleifenschutz),
+	 *  - gesetzlich nötige Rechtstexte (Impressum/Datenschutz, WP-Datenschutzseite).
+	 * Eingeloggte Mitglieder surfen frei; nur die Marketing-Startseite führt auch
+	 * sie ins Portal. Abschaltbar per Filter `pp_restrict_public_pages`; einzelne
+	 * Seiten per `pp_page_is_public` wieder öffentlich schaltbar.
+	 */
+	public static function restrict_public_to_portal(): void {
+		// Infrastruktur (robots.txt, Favicon) nicht umleiten.
+		if ( is_robots() || is_favicon() ) {
+			return;
+		}
+		if ( ! apply_filters( 'pp_restrict_public_pages', true ) ) {
+			return;
+		}
+		$portal_id = (int) get_option( self::PAGE_OPTION );
+		if ( $portal_id <= 0 ) {
+			return; // Portal noch nicht angelegt → nicht aussperren.
+		}
+		// Portal selbst (Login/App) nie umleiten.
+		if ( (int) get_queried_object_id() === $portal_id ) {
+			return;
+		}
+
+		if ( is_user_logged_in() ) {
+			// Mitglieder: nur die Marketing-Startseite ins Portal lenken, sonst frei.
+			if ( is_front_page() ) {
+				wp_safe_redirect( self::portal_url() );
+				exit;
+			}
+			return;
+		}
+
+		// Ausgeloggt: alles dicht außer den Rechtstexten.
+		$public = (bool) apply_filters( 'pp_page_is_public', self::is_legally_public(), get_queried_object() );
+		if ( $public ) {
+			return;
+		}
+		wp_safe_redirect( self::portal_url() );
+		exit;
+	}
+
+	/**
+	 * Gesetzlich ohne Login erreichbar zu haltende Seiten: Impressum (§5 DDG) und
+	 * Datenschutzerklärung. Erkennung über die Plugin-Shortcodes bzw. die offiziell
+	 * gesetzte WP-Datenschutzseite — slug-unabhängig.
+	 */
+	private static function is_legally_public(): bool {
+		if ( ! is_singular() ) {
+			return false;
+		}
+		$post = get_post();
+		if ( ! $post ) {
+			return false;
+		}
+		$privacy_id = (int) get_option( 'wp_page_for_privacy_policy' );
+		if ( $privacy_id > 0 && (int) $post->ID === $privacy_id ) {
+			return true;
+		}
+		$content = (string) $post->post_content;
+		return has_shortcode( $content, 'pp_impressum' )
+			|| has_shortcode( $content, 'pp_datenschutz' );
 	}
 
 	public static function register_assets(): void {
@@ -876,6 +947,22 @@ class MemberPortal {
 				<?php endif; ?>
 				<a href="<?php echo esc_url( wp_lostpassword_url( self::portal_url() ) ); ?>"><?php esc_html_e( 'Forgot your password?', 'project-prepper' ); ?></a>
 			</p>
+
+			<?php
+			// Rechtstexte: einzige neben dem Login öffentlich erreichbaren Seiten —
+			// daher hier direkt verlinkt (Impressum-Pflicht, § 5 DDG).
+			$pp_legal = Legal::links();
+			if ( $pp_legal['impressum'] || $pp_legal['datenschutz'] ) : ?>
+				<p class="pp-portal__legal">
+					<?php if ( $pp_legal['impressum'] ) : ?>
+						<a href="<?php echo esc_url( $pp_legal['impressum'] ); ?>"><?php esc_html_e( 'Imprint', 'project-prepper' ); ?></a>
+					<?php endif; ?>
+					<?php if ( $pp_legal['impressum'] && $pp_legal['datenschutz'] ) : ?> · <?php endif; ?>
+					<?php if ( $pp_legal['datenschutz'] ) : ?>
+						<a href="<?php echo esc_url( $pp_legal['datenschutz'] ); ?>"><?php esc_html_e( 'Privacy policy', 'project-prepper' ); ?></a>
+					<?php endif; ?>
+				</p>
+			<?php endif; ?>
 		</div>
 		<?php
 		return (string) ob_get_clean();

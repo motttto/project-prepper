@@ -453,6 +453,15 @@ a.pp-front-card-media { text-decoration: none; }
 	color: var(--pp-muted-foreground);
 	margin-top: 1rem;
 }
+/* Rechtstexte unter dem Login (Impressum/Datenschutz) — die einzigen weiteren
+ * öffentlich erreichbaren Seiten der Instanz. */
+.pp-portal__legal {
+	font-size: .8rem;
+	color: var(--pp-muted-foreground);
+	margin-top: .85rem;
+	text-align: center;
+}
+.pp-portal__legal a { color: var(--pp-muted-foreground); }
 
 /* Buttons */
 .pp-portal__btn,
