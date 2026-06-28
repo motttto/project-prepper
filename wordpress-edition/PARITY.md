@@ -3,6 +3,16 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🛠 Release 2026-06-28 (Plugin v0.98.2 — Updater: erzwungener Check umgeht Eigencache)
+> Was im Release steckt:
+> - **Fix (Updater, `includes/Updater.php`):** Ein erzwungener WP-Update-Check („Erneut prüfen" auf
+>   Dashboard → Aktualisierungen, hängt `force-check` an die URL) verwirft jetzt auch den plugin-eigenen
+>   6-h-Cache (`pp_update_release`) und fragt GitHub sofort frisch ab. Neue private Methode `is_forced_check()`,
+>   `latest_release()` bekam `bool $force` mit Einmal-pro-Request-Cache-Bust, `inject_update()` reicht das
+>   Force-Signal durch. Hintergrund-Checks behalten den Cache (kein unnötiger Traffic). Reiner Patch-Bump
+>   (0.98.1 → 0.98.2), kein Schema-Change, keine neuen i18n-Strings. Build `dist/project-prepper-0.98.2.zip`
+>   (1,1 MB, 111 Dateien). Plugin-Check: keine NEUEN Findings ggü. v0.98.1.
+>
 > ## 🚀 Release 2026-06-28 (Plugin v0.98.0 — Arbeitsbereich-bewusstes Gruppen-Inventar + Desktop-Layout)
 > Was im Release steckt:
 > - **Inventar-Seite ist jetzt Arbeitsbereich-bewusst** (`pp_view=inventory`): Im **Gruppen-Modus** zeigt sie

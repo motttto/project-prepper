@@ -53,15 +53,35 @@ class Updater {
 	}
 
 	/**
+	 * Hat der Nutzer einen erzwungenen Update-Check ausgelöst? WordPress setzt
+	 * `force-check` beim Klick auf „Erneut prüfen" (update-core.php) — dann soll
+	 * auch unser eigener 6-h-Cache verworfen werden, sonst zeigt ein frisch
+	 * öffentlich gewordenes Release erst nach Cache-Ablauf auf.
+	 */
+	private static function is_forced_check(): bool {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reines Lese-Signal; WP setzt force-check selbst, keine Schreibaktion.
+		return ! empty( $_GET['force-check'] );
+	}
+
+	/**
 	 * Daten des letzten GitHub-Releases (6 h gecacht). Per Filter überschreibbar
 	 * (Tests / fortgeschrittene Setups). Nicht erreichbar / kein Release → null.
 	 *
+	 * @param bool $force Cache verwerfen und frisch von GitHub holen (erzwungener Check).
 	 * @return array{version:string,package:string,changelog:string,url:string,published:string,is_asset:bool}|null
 	 */
-	public static function latest_release(): ?array {
+	public static function latest_release( bool $force = false ): ?array {
 		$override = apply_filters( 'pp_updater_latest_release', null );
 		if ( is_array( $override ) ) {
 			return $override;
+		}
+
+		// Bei erzwungenem Check den Eigencache genau EINMAL pro Request leeren —
+		// die anschließende set_transient()-Frischung verhindert Mehrfach-Fetches.
+		static $forced_fetched = false;
+		if ( $force && ! $forced_fetched ) {
+			delete_transient( self::CACHE_KEY );
+			$forced_fetched = true;
 		}
 
 		$cached = get_transient( self::CACHE_KEY );
@@ -135,7 +155,7 @@ class Updater {
 		if ( ! is_object( $transient ) ) {
 			$transient = new \stdClass();
 		}
-		$rel = self::latest_release();
+		$rel = self::latest_release( self::is_forced_check() );
 		if ( ! $rel || '' === (string) $rel['package'] ) {
 			return $transient;
 		}

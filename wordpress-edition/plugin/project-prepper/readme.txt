@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.98.1
+Stable tag: 0.98.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.98.2 =
+* Fix (updates): clicking "Check again" on Dashboard → Updates now also clears the plugin's own 6-hour update cache and queries GitHub immediately. Previously a freshly published release could stay invisible for up to 6 hours. Routine background checks still use the cache, so there is no extra traffic.
 
 = 0.98.1 =
 * Fix: corrected the plugin's "Plugin URI" header. It used to point at the Next.js web app; it now points at the plugin's actual home and update source on GitHub, so the "Visit plugin site" link on the WordPress Plugins page leads to the right place.
