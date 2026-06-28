@@ -1066,9 +1066,64 @@ a.pp-front-card-media { text-decoration: none; }
 	color: var(--pp-muted-foreground);
 	white-space: nowrap;
 }
-.pp-portal__item--row[open] > summary { background: var(--pp-muted); }
-.pp-portal__item--row[open] .pp-manage-btn { border-color: var(--pp-primary, #6366f1); color: var(--pp-primary, #6366f1); }
+/* Inventarzeile öffnet jetzt ein Detail-Modal statt inline aufzuklappen. */
+.pp-inv-row--click { cursor: pointer; }
+.pp-inv-row--click:hover { background: var(--pp-muted); }
+.pp-inv-row--click:hover .pp-manage-btn { border-color: var(--pp-primary, #6366f1); color: var(--pp-primary, #6366f1); }
 .pp-portal__manage-body { padding: .4rem .4rem .9rem; }
+
+/* Detail-Modal (Inventar bearbeiten/teilen) — natives <dialog>. */
+.pp-modal {
+	width: min(680px, 94vw);
+	max-height: 88vh;
+	padding: 0;
+	border: 1px solid var(--pp-border);
+	border-radius: 12px;
+	background: var(--pp-surface);
+	color: var(--pp-foreground);
+	box-shadow: 0 24px 60px rgba(15, 23, 42, .28);
+	overflow: hidden;
+}
+.pp-modal::backdrop { background: rgba(15, 23, 42, .55); }
+.pp-modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: .9rem 1.2rem;
+	border-bottom: 1px solid var(--pp-border);
+}
+.pp-modal__title { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.pp-modal__title .pp-portal__item-num { font-weight: 400; color: var(--pp-muted-foreground); }
+.pp-modal-close {
+	background: none;
+	border: none;
+	font-size: 1.15rem;
+	line-height: 1;
+	cursor: pointer;
+	color: var(--pp-muted-foreground);
+	padding: .25rem .4rem;
+	border-radius: 6px;
+}
+.pp-modal-close:hover { background: var(--pp-muted); color: var(--pp-foreground); }
+.pp-modal-body { padding: 1rem 1.2rem 1.25rem; overflow: auto; max-height: calc(88vh - 56px); }
+
+/* Reiches Gruppen-Teilen im Item-Modal (Pendant zum App-Sharing-Modal):
+ * Konditionen erscheinen erst, wenn die Gruppe angehakt ist — rein per :has(). */
+.pp-share__title { margin: .25rem 0 .6rem; font-size: .95rem; }
+.pp-share__group { border: 1px solid var(--pp-border); border-radius: 8px; padding: .6rem .75rem; margin-bottom: .5rem; }
+.pp-share__head { display: flex; align-items: center; gap: .5rem; font-weight: 600; cursor: pointer; }
+.pp-share__body { display: none; margin-top: .6rem; padding-top: .6rem; border-top: 1px solid var(--pp-border); }
+.pp-share__group:has( [data-pp-share-toggle]:checked ) .pp-share__body { display: block; }
+.pp-share__fields { display: flex; flex-wrap: wrap; gap: .8rem; align-items: center; margin-bottom: .55rem; }
+.pp-share__rate { display: flex; flex-direction: column; gap: .2rem; font-size: .82rem; }
+.pp-share__rate input { width: 120px; }
+.pp-share__approval { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem; }
+.pp-share__conds { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .55rem; }
+.pp-share__conds .pp-portal__chip { cursor: pointer; }
+.pp-share__conds label:has( input:checked ) { background: var(--pp-primary, #6366f1); color: #fff; border-color: var(--pp-primary, #6366f1); }
+.pp-share__notes { display: flex; flex-direction: column; gap: .2rem; font-size: .82rem; }
+.pp-share__notes textarea { width: 100%; }
 
 @media (max-width: 720px) {
 	.pp-inv-row--head { display: none; }
@@ -1327,6 +1382,16 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 }
 .pp-app__icon-btn:hover { background: #f1f5f9; color: #0f172a; }
 .pp-app__icon-btn svg { width: 18px; height: 18px; }
+/* Feedback-Button: Text statt Icon (bewusst kein Icon). */
+.pp-app__feedback-btn {
+	width: auto;
+	padding: 0 .7rem;
+	font: inherit;
+	font-size: .82rem;
+	border: 1px solid var(--pp-border, #e2e8f0);
+	background: none;
+	cursor: pointer;
+}
 
 .pp-app__main { flex: 1; padding: clamp(20px, 3vw, 36px); }
 .pp-app__content { max-width: 1180px; margin: 0 auto; }

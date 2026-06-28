@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.25.0';
+	const VERSION    = '0.27.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -63,6 +63,7 @@ class Schema {
 		$borrows    = self::table( 'borrow_requests' );
 		$fed_in     = self::table( 'fed_borrow_in' );
 		$fed_out    = self::table( 'fed_borrow_out' );
+		$feedback   = self::table( 'app_feedback' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -612,15 +613,19 @@ class Schema {
 			) {$charset};" );
 
 			// Inventar-Freigabe in Kollektive (v0.18.0, Member-Portal Phase 3) —
-			// Pendant zu `inventory_group_shares` der App (vereinfacht): ein
-			// Mitglied teilt ein EIGENES Item (owner_user_id) mit einer Gruppe, in
-			// der es Mitglied ist. Eine Zeile pro (Item, Gruppe). Nichtkommerziell:
-			// keine Tagessatz-/Bedingungsfelder hier (kommen ggf. mit Phase 4).
+			// Pendant zu `inventory_group_shares` der App: ein Mitglied teilt ein
+			// EIGENES Item (owner_user_id) mit einer Gruppe, in der es Mitglied ist.
+			// Eine Zeile pro (Item, Gruppe). Seit v0.26.0 mit Konditionen wie in der
+			// App: Tagessatz, Freigabe-Pflicht, Bedingungs-Tags + Freitext.
 			dbDelta( "CREATE TABLE {$item_share} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				item_id bigint(20) unsigned NOT NULL,
 				group_id bigint(20) unsigned NOT NULL,
 				shared_by bigint(20) unsigned DEFAULT NULL,
+				daily_rate decimal(10,2) DEFAULT NULL,
+				requires_approval tinyint(1) NOT NULL DEFAULT 0,
+				conditions_tags longtext,
+				conditions text,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
 				UNIQUE KEY item_group (item_id,group_id),
@@ -695,6 +700,20 @@ class Schema {
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
 				KEY requester_id (requester_id)
+			) {$charset};" );
+
+			// Mitglieder-Feedback an die Betreiber:innen (v0.27.0) — Pendant zur
+			// App-Tabelle `app_feedback`: Bug/Idee/Sonstiges aus dem Portal.
+			dbDelta( "CREATE TABLE {$feedback} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				user_id bigint(20) unsigned DEFAULT NULL,
+				feedback_type varchar(20) NOT NULL DEFAULT 'other',
+				message text NOT NULL,
+				route varchar(190) NOT NULL DEFAULT '',
+				status varchar(20) NOT NULL DEFAULT 'new',
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY status (status)
 			) {$charset};" );
 
 		self::upgrade_data();

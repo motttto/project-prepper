@@ -3,6 +3,28 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release 2026-06-28 (Plugin v0.98.4, Schema 0.27.0 — Portal-Modale, reiches Gruppen-Teilen, Mitglieder-Feedback)
+> Was im Release steckt — drei Parität-Lücken zur Next.js-App geschlossen:
+> - **Inventar-Detail-Modal (`MemberPortal.php`, `assets/js/portal.js`, `.pp-modal` in `frontend.css`):**
+>   Inventarzeile öffnet jetzt ein natives `<dialog>`-Modal statt inline aufzuklappen — Pendant zum
+>   App-`inventory-detail-modal`.
+> - **Reiches Gruppen-Teilen (`MemberInventory.php` set_share/share_settings/condition_presets,
+>   `MemberPortal.php`):** Beim Teilen mit einer Gruppe lassen sich **Tagessatz, Freigabe-Pflicht und
+>   Bedingungen** (Presets + Freitext) setzen — Pendant zum App-`share-with-group-modal`. **Schema-Migration:**
+>   `item_group_shares` um `daily_rate, requires_approval, conditions_tags, conditions` erweitert.
+> - **Mitglieder-Feedback (NEU `includes/Services/Feedback.php`, `Admin/Menu.php`, `MemberPortal.php`):**
+>   Topbar-Button → Modal (Bug/Idee/Sonstiges); neue Tabelle `app_feedback`; Betreiber lesen es unter
+>   **Verwalten → Feedback** (mit Ungelesen-Badge). Pendant zu App-`app_feedback` + `feedback-tab`.
+> - **Inline → Modal:** „Inventar freigeben" (Gesamt-Teilen), „Neue Umfrage" und „Leihen" öffnen jetzt
+>   ebenfalls Modals.
+> - **Schema 0.25.0 → 0.27.0** (zwei Migrationen via dbDelta beim Update: Sharing-Spalten + `app_feedback`).
+> - **i18n:** ~25 neue PHP-Strings auf Deutsch übersetzt (u. a. „Mit deinen Gruppen teilen", „Feedback senden",
+>   „Mitglieder-Feedback", Bedingungs-Presets), .pot/.po/.mo aktualisiert (WP-POMO). Kein JS-JSON nötig.
+>   Reiner Feature-Release mit Schema-Migration, kein Breaking Change (0.98.3 → 0.98.4).
+>   Build `dist/project-prepper-0.98.4.zip` (1,1 MB, 112 Dateien). Plugin-Check: keine NEUEN ERROR-Findings
+>   ggü. v0.98.3 (verbleibende ERRORs in Legal.php/Costs.php/MemberPortal.php sind unverändert pre-existing,
+>   dazu erwartet `hidden_files` + `plugin_updater_detected`).
+>
 > ## 🔒 Release 2026-06-28 (Plugin v0.98.3 — Instanz nach außen privat: nur Login öffentlich)
 > Was im Release steckt:
 > - **Feature (`includes/Frontend/MemberPortal.php`):** Neuer Hook `restrict_public_to_portal` auf

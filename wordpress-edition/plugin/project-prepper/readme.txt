@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.98.3
+Stable tag: 0.98.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.98.4 =
+* Inventory detail in the member portal now opens in a proper pop-up window instead of expanding the row inline — clearer overview, especially on larger inventories.
+* Richer group sharing: when you share an item with one of your collectives you can now set a daily rate, decide whether handover needs your approval, and attach conditions — both ready-made presets (e.g. non-commercial use only, deposit required, prior instruction) and free-text notes.
+* New feedback channel: members can send feedback (bug, idea or something else) straight from the portal via a button in the top bar. Operators read it under Manage → Feedback, with an unread badge.
+* "Share inventory", "New poll" and "Borrow" now open in a pop-up window instead of an inline drop-down, matching the rest of the portal.
+* On update the database is automatically migrated (schema 0.27.0): new sharing options and the feedback inbox.
 
 = 0.98.3 =
 * Privacy: the whole site is now private to the outside world — only the login is publicly reachable. Visitors who are not logged in are sent straight to the member portal (login) from every public page: the start page, equipment catalogue, request form, archives, search and 404. The old public marketing start page with unprotected inventory is gone.

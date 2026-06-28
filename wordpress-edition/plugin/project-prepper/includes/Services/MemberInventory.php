@@ -309,6 +309,88 @@ class MemberInventory {
 	}
 
 	/**
+	 * Bedingungs-Presets fürs Gruppen-Teilen (Pendant zur App `CONDITION_PRESETS`).
+	 *
+	 * @return array<string,string> key => Label
+	 */
+	public static function condition_presets(): array {
+		return [
+			'free_use'             => __( 'Free to use', 'project-prepper' ),
+			'owner_pickup'         => __( 'Only the owner hands it out', 'project-prepper' ),
+			'group_projects_only'  => __( 'Group projects only', 'project-prepper' ),
+			'rental_fee'           => __( 'Against a rental fee', 'project-prepper' ),
+			'deposit_required'     => __( 'Deposit required', 'project-prepper' ),
+			'non_commercial'       => __( 'Non-commercial use only', 'project-prepper' ),
+			'instruction_required' => __( 'Prior instruction required', 'project-prepper' ),
+			'expert_only'          => __( 'Qualified users only', 'project-prepper' ),
+		];
+	}
+
+	/**
+	 * Item mit einer Gruppe teilen ODER die Konditionen einer bestehenden Freigabe
+	 * aktualisieren (Upsert). Pendant zum App-Modal: Tagessatz, Freigabe-Pflicht,
+	 * Bedingungs-Tags + Freitext.
+	 *
+	 * @param array $opts daily_rate (float|string|null), requires_approval (bool),
+	 *                    conditions_tags (string[]), conditions (string).
+	 * @return true|WP_Error
+	 */
+	public static function set_share( int $user_id, int $item_id, int $group_id, array $opts ) {
+		global $wpdb;
+		if ( ! self::owns( $user_id, $item_id ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'This item is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		if ( ! Groups::is_member( $group_id, $user_id ) ) {
+			return new WP_Error( 'pp_not_member', __( 'You can only share with collectives you belong to.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$rate  = ( isset( $opts['daily_rate'] ) && '' !== $opts['daily_rate'] && null !== $opts['daily_rate'] )
+			? round( (float) $opts['daily_rate'], 2 ) : null;
+		$valid = array_keys( self::condition_presets() );
+		$tags  = array_values( array_intersect( $valid, array_map( 'sanitize_key', (array) ( $opts['conditions_tags'] ?? [] ) ) ) );
+		$data  = [
+			'daily_rate'        => $rate,
+			'requires_approval' => ! empty( $opts['requires_approval'] ) ? 1 : 0,
+			'conditions_tags'   => wp_json_encode( $tags ),
+			'conditions'        => sanitize_textarea_field( (string) ( $opts['conditions'] ?? '' ) ),
+		];
+		$table = Schema::table( 'item_group_shares' );
+		$id    = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE item_id = %d AND group_id = %d', $table, $item_id, $group_id ) );
+		if ( $id ) {
+			$wpdb->update( $table, $data, [ 'id' => (int) $id ] );
+		} else {
+			$wpdb->insert( $table, array_merge( $data, [
+				'item_id'    => $item_id,
+				'group_id'   => $group_id,
+				'shared_by'  => $user_id,
+				'created_at' => current_time( 'mysql' ),
+			] ) );
+		}
+		ActivityLog::log( 'item_shared', 'group', $group_id, [ 'item_id' => $item_id ] );
+		return true;
+	}
+
+	/**
+	 * Freigabe-Konditionen eines Items je Gruppe (zur Vorbelegung im Modal).
+	 *
+	 * @return array<int,object> group_id => { daily_rate, requires_approval, conditions_tags[], conditions }
+	 */
+	public static function share_settings( int $item_id ): array {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT group_id, daily_rate, requires_approval, conditions_tags, conditions FROM %i WHERE item_id = %d',
+			Schema::table( 'item_group_shares' ),
+			$item_id
+		) ) ?: [];
+		$out = [];
+		foreach ( $rows as $r ) {
+			$tags                = json_decode( (string) $r->conditions_tags, true );
+			$r->conditions_tags  = is_array( $tags ) ? $tags : [];
+			$out[ (int) $r->group_id ] = $r;
+		}
+		return $out;
+	}
+
+	/**
 	 * Gesamt-Freigabe (App: „Inventar freigeben"): teilt ALLE eigenen Artikel auf
 	 * einmal mit einer Gruppe, in der der User Mitglied ist. Reversibel über
 	 * unshare_all(). Idempotent — bereits geteilte Artikel werden übersprungen.

@@ -6,6 +6,7 @@ use ProjectPrepper\Security;
 use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance as Governance;
 use ProjectPrepper\Services\Inventory;
+use ProjectPrepper\Services\Feedback;
 use ProjectPrepper\Services\MemberInventory;
 use ProjectPrepper\Services\MemberInquiries;
 use ProjectPrepper\Services\MemberRentals;
@@ -71,6 +72,7 @@ class MemberPortal {
 		add_action( 'admin_post_pp_member_data', [ self::class, 'handle_member_data_export' ] );
 		add_action( 'admin_post_pp_member_avatar', [ self::class, 'handle_member_avatar' ] );
 		add_action( 'admin_post_pp_accept_terms', [ self::class, 'handle_accept_terms' ] );
+		add_action( 'admin_post_pp_member_feedback', [ self::class, 'handle_feedback' ] );
 
 		// Eigene Profilfotos als WP-Avatar überall im Portal (Mitgliederlisten,
 		// Topbar) durchreichen — Fallback bleibt Gravatar/Initialen.
@@ -344,7 +346,7 @@ class MemberPortal {
 			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
 		}
 		// Kategorie- und Gesamt-Freigabe-Aktionen kehren zur Inventar-Ansicht zurück.
-		if ( in_array( $do, [ 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all' ], true ) ) {
+		if ( in_array( $do, [ 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all', 'item_share', 'item_unshare', 'item_share_set' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		}
 		// Anfragen-Aktionen kehren zur Anfragen-Ansicht zurück.
@@ -428,6 +430,21 @@ class MemberPortal {
 			case 'item_unshare':
 				$result = MemberInventory::unshare( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ), $grp_id );
 				$ok_msg = 'item_unshared';
+				break;
+			case 'item_share_set':
+				$pp_item = (int) ( $_POST['pp_item'] ?? 0 );
+				if ( empty( $_POST['pp_shared'] ) ) {
+					$result = MemberInventory::unshare( get_current_user_id(), $pp_item, $grp_id );
+					$ok_msg = 'item_unshared';
+				} else {
+					$result = MemberInventory::set_share( get_current_user_id(), $pp_item, $grp_id, [
+						'daily_rate'        => isset( $_POST['pp_rate'] ) ? wp_unslash( (string) $_POST['pp_rate'] ) : null,
+						'requires_approval' => ! empty( $_POST['pp_approval'] ),
+						'conditions_tags'   => array_map( 'sanitize_key', (array) wp_unslash( $_POST['pp_cond'] ?? [] ) ),
+						'conditions'        => isset( $_POST['pp_conditions'] ) ? wp_unslash( (string) $_POST['pp_conditions'] ) : '',
+					] );
+					$ok_msg = 'item_shared';
+				}
 				break;
 			case 'inventory_share_all':
 				$result = MemberInventory::share_all( get_current_user_id(), $grp_id );
@@ -651,6 +668,8 @@ class MemberPortal {
 	private static function messages(): array {
 		return [
 			'founded'   => [ 'ok', __( 'Collective founded. You are its founder.', 'project-prepper' ) ],
+			'feedback_ok'  => [ 'ok', __( 'Thanks for your feedback!', 'project-prepper' ) ],
+			'feedback_err' => [ 'err', __( 'Please enter a message.', 'project-prepper' ) ],
 			'invited'   => [ 'ok', __( 'Invitation sent.', 'project-prepper' ) ],
 			'accepted'  => [ 'ok', __( 'Invitation accepted.', 'project-prepper' ) ],
 			'declined'  => [ 'ok', __( 'Invitation declined.', 'project-prepper' ) ],
@@ -845,6 +864,26 @@ class MemberPortal {
 		exit;
 	}
 
+	/** Mitglieder-Feedback aus dem Portal-Modal entgegennehmen. */
+	public static function handle_feedback(): void {
+		$back = self::portal_url();
+		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] )
+			|| ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_member_feedback' ) ) {
+			wp_safe_redirect( $back );
+			exit;
+		}
+		$route = isset( $_POST['pp_route'] ) ? esc_url_raw( wp_unslash( (string) $_POST['pp_route'] ) ) : '';
+		$res   = \ProjectPrepper\Services\Feedback::create(
+			get_current_user_id(),
+			sanitize_key( wp_unslash( (string) ( $_POST['pp_type'] ?? 'other' ) ) ),
+			wp_unslash( (string) ( $_POST['pp_message'] ?? '' ) ),
+			$route
+		);
+		$target = $route ?: $back;
+		wp_safe_redirect( add_query_arg( 'pp_msg', is_wp_error( $res ) ? 'feedback_err' : 'feedback_ok', $target ) );
+		exit;
+	}
+
 	private static function render_login(): string {
 		// phpcs:disable WordPress.Security.NonceVerification.Recommended -- reine Status-Anzeige
 		$login_msg  = isset( $_GET['pp_login'] ) ? sanitize_key( wp_unslash( $_GET['pp_login'] ) ) : '';
@@ -1023,9 +1062,42 @@ class MemberPortal {
 					</div>
 				</main>
 			</div>
+			<?php self::render_feedback_modal(); ?>
 		</div>
 		<?php
 		return (string) ob_get_clean();
+	}
+
+	/** Feedback-Modal (global in der App-Shell) — Bug/Idee/Sonstiges an die Betreiber. */
+	private static function render_feedback_modal(): void {
+		$route = add_query_arg( 'pp_view', self::current_view(), self::portal_url() );
+		?>
+		<dialog class="pp-modal pp-modal--portal" id="pp-feedback-modal">
+			<div class="pp-modal-header">
+				<h2 class="pp-modal__title"><?php esc_html_e( 'Send feedback', 'project-prepper' ); ?></h2>
+				<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+			</div>
+			<div class="pp-modal-body">
+				<p class="pp-portal__hint"><?php esc_html_e( 'Found a bug or have an idea? Let the operators know.', 'project-prepper' ); ?></p>
+				<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="pp_member_feedback">
+					<?php wp_nonce_field( 'pp_member_feedback', 'pp_nonce' ); ?>
+					<input type="hidden" name="pp_route" value="<?php echo esc_url( $route ); ?>">
+					<label><?php esc_html_e( 'Type', 'project-prepper' ); ?>
+						<select name="pp_type">
+							<?php foreach ( Feedback::types() as $pp_k => $pp_label ) : ?>
+								<option value="<?php echo esc_attr( $pp_k ); ?>"><?php echo esc_html( $pp_label ); ?></option>
+							<?php endforeach; ?>
+						</select>
+					</label>
+					<label><?php esc_html_e( 'Your message', 'project-prepper' ); ?>
+						<textarea name="pp_message" rows="4" required></textarea>
+					</label>
+					<button type="submit" class="pp-portal__btn"><?php esc_html_e( 'Send feedback', 'project-prepper' ); ?></button>
+				</form>
+			</div>
+		</dialog>
+		<?php
 	}
 
 	/** Erlaubte Views — Default Dashboard. */
@@ -1170,6 +1242,7 @@ class MemberPortal {
 						<?php endif; ?>
 					</div>
 				</details>
+				<button type="button" class="pp-app__icon-btn pp-app__feedback-btn" data-pp-modal="pp-feedback-modal" title="<?php esc_attr_e( 'Send feedback', 'project-prepper' ); ?>"><?php esc_html_e( 'Feedback', 'project-prepper' ); ?></button>
 				<div class="pp-app__user">
 					<?php $topbar_avatar = self::avatar_url( (int) $user->ID, 'thumbnail' ); ?>
 					<?php if ( $topbar_avatar ) : ?>
@@ -2962,8 +3035,13 @@ class MemberPortal {
 			<?php endforeach;
 		endif; ?>
 
-		<details class="pp-portal__add">
-			<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New poll', 'project-prepper' ); ?></summary>
+		<button type="button" class="pp-portal__btn pp-portal__btn--sm" data-pp-modal="pp-poll-create"><?php esc_html_e( 'New poll', 'project-prepper' ); ?></button>
+		<dialog class="pp-modal pp-modal--portal" id="pp-poll-create">
+			<div class="pp-modal-header">
+				<h2 class="pp-modal__title"><?php esc_html_e( 'New poll', 'project-prepper' ); ?></h2>
+				<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+			</div>
+			<div class="pp-modal-body">
 			<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<?php self::action_fields( $pre . '_create' ); ?>
 				<?php self::poll_ctx_hidden( $ctx ); ?>
@@ -2994,7 +3072,8 @@ class MemberPortal {
 				</label>
 				<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create poll', 'project-prepper' ); ?></button>
 			</form>
-		</details>
+			</div>
+		</dialog>
 		<?php
 	}
 
@@ -3937,8 +4016,8 @@ class MemberPortal {
 				</div>
 				<?php foreach ( $items as $item ) : ?>
 					<?php $shared = $groups ? MemberInventory::shared_group_ids( (int) $item->id ) : []; $shared_names = []; foreach ( $groups as $pp_g ) { if ( in_array( (int) $pp_g->id, $shared, true ) ) { $shared_names[] = $pp_g->name; } } ?>
-					<details class="pp-portal__item pp-portal__item--row">
-						<summary class="pp-inv-row pp-portal__item-head">
+					<div class="pp-portal__item pp-portal__item--row">
+						<div class="pp-inv-row pp-portal__item-head pp-inv-row--click" role="button" tabindex="0" data-pp-modal="pp-item-<?php echo (int) $item->id; ?>">
 							<span class="pp-col pp-col--name">
 								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php else : ?><span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span><?php endif; ?>
 								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php $pp_sub = $item->model ?: ( $item->description ?? '' ); if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
@@ -3951,28 +4030,54 @@ class MemberPortal {
 							<span class="pp-col pp-col--shared" data-label="<?php esc_attr_e( 'Shared', 'project-prepper' ); ?>"><?php echo $shared_names ? esc_html( implode( ', ', $shared_names ) ) : '<span class="pp-muted">' . esc_html__( 'Not shared', 'project-prepper' ) . '</span>'; ?></span>
 							<span class="pp-col pp-col--loc" data-label="<?php esc_attr_e( 'Location', 'project-prepper' ); ?>"><?php echo ! empty( $item->location ) ? esc_html( (string) $item->location ) : '—'; ?></span>
 							<span class="pp-col pp-col--manage"><span class="pp-manage-btn"><?php esc_html_e( 'Manage', 'project-prepper' ); ?></span></span>
-						</summary>
+						</div>
 
-						<div class="pp-portal__manage-body">
-						<?php if ( $groups ) : ?>
-							<div class="pp-portal__share-row">
-								<span class="pp-portal__share-label"><?php esc_html_e( 'Shared with:', 'project-prepper' ); ?></span>
+						<dialog class="pp-modal pp-modal--portal" id="pp-item-<?php echo (int) $item->id; ?>">
+						<div class="pp-modal-header">
+							<h2 class="pp-modal__title"><?php echo esc_html( $item->name ); ?> <small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></h2>
+							<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+						</div>
+						<div class="pp-modal-body">
+						<?php if ( $groups ) :
+							$pp_share_cfg = MemberInventory::share_settings( (int) $item->id );
+							$pp_presets   = MemberInventory::condition_presets(); ?>
+							<div class="pp-share">
+								<h4 class="pp-share__title"><?php esc_html_e( 'Share with your collectives', 'project-prepper' ); ?></h4>
 								<?php foreach ( $groups as $g ) :
-									$is_shared = in_array( (int) $g->id, $shared, true ); ?>
-									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-										<?php self::action_fields( $is_shared ? 'item_unshare' : 'item_share' ); ?>
+									$pp_cfg = $pp_share_cfg[ (int) $g->id ] ?? null; ?>
+									<form class="pp-share__group" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+										<?php self::action_fields( 'item_share_set' ); ?>
 										<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
 										<input type="hidden" name="pp_group" value="<?php echo (int) $g->id; ?>">
-										<button type="submit" class="pp-portal__chip <?php echo $is_shared ? 'pp-portal__chip--on' : ''; ?>">
-											<?php echo esc_html( $g->name ); ?><?php echo $is_shared ? ' ✕' : ' +'; ?>
-										</button>
+										<label class="pp-share__head">
+											<input type="checkbox" name="pp_shared" value="1" data-pp-share-toggle <?php checked( null !== $pp_cfg ); ?>>
+											<span class="pp-share__name"><?php echo esc_html( $g->name ); ?></span>
+										</label>
+										<div class="pp-share__body">
+											<div class="pp-share__fields">
+												<label class="pp-share__rate"><?php esc_html_e( 'Daily rate (€)', 'project-prepper' ); ?>
+													<input type="number" step="0.01" min="0" name="pp_rate" value="<?php echo ( $pp_cfg && null !== $pp_cfg->daily_rate ) ? esc_attr( number_format( (float) $pp_cfg->daily_rate, 2, '.', '' ) ) : ''; ?>">
+												</label>
+												<label class="pp-share__approval"><input type="checkbox" name="pp_approval" value="1" <?php checked( $pp_cfg && $pp_cfg->requires_approval ); ?>> <?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></label>
+											</div>
+											<div class="pp-share__conds">
+												<?php foreach ( $pp_presets as $pp_key => $pp_label ) :
+													$pp_on = $pp_cfg && in_array( $pp_key, (array) $pp_cfg->conditions_tags, true ); ?>
+													<label class="pp-portal__chip"><input type="checkbox" name="pp_cond[]" value="<?php echo esc_attr( $pp_key ); ?>" <?php checked( $pp_on ); ?> hidden><?php echo esc_html( $pp_label ); ?></label>
+												<?php endforeach; ?>
+											</div>
+											<label class="pp-share__notes"><?php esc_html_e( 'Notes (optional)', 'project-prepper' ); ?>
+												<textarea name="pp_conditions" rows="2"><?php echo esc_textarea( $pp_cfg->conditions ?? '' ); ?></textarea>
+											</label>
+										</div>
+										<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save sharing', 'project-prepper' ); ?></button>
 									</form>
 								<?php endforeach; ?>
 							</div>
 						<?php endif; ?>
 
 						<div class="pp-portal__actions">
-							<details class="pp-portal__edit">
+							<details class="pp-portal__edit" open>
 								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
 								<?php self::item_form( 'item_update', $categories, $conditions, $item ); ?>
 							</details>
@@ -4035,7 +4140,8 @@ class MemberPortal {
 							</form>
 						</div>
 						</div>
-					</details>
+						</dialog>
+					</div>
 				<?php endforeach; ?>
 			<?php else : ?>
 				<?php if ( '' !== $q ) : ?>
@@ -4259,8 +4365,13 @@ class MemberPortal {
 	private static function render_full_share_tool( WP_User $user, array $groups ): void {
 		$total = count( MemberInventory::my_items( (int) $user->ID ) );
 		?>
-		<details class="pp-portal__add">
-			<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Share inventory', 'project-prepper' ); ?></summary>
+		<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-fullshare"><?php esc_html_e( 'Share inventory', 'project-prepper' ); ?></button>
+		<dialog class="pp-modal pp-modal--portal" id="pp-fullshare">
+			<div class="pp-modal-header">
+				<h2 class="pp-modal__title"><?php esc_html_e( 'Share inventory', 'project-prepper' ); ?></h2>
+				<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+			</div>
+			<div class="pp-modal-body">
 			<div class="pp-portal__cats">
 				<p class="pp-portal__hint"><?php esc_html_e( 'Share all your items at once with one of your collectives — instead of sharing them one by one. You can revoke it again any time.', 'project-prepper' ); ?></p>
 				<ul class="pp-portal__cat-list">
@@ -4294,7 +4405,8 @@ class MemberPortal {
 					<?php endforeach; ?>
 				</ul>
 			</div>
-		</details>
+			</div>
+		</dialog>
 		<?php
 	}
 
@@ -4872,8 +4984,13 @@ class MemberPortal {
 						<?php if ( $is_mine ) : ?>
 							<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Your item', 'project-prepper' ); ?></span>
 						<?php else : ?>
-							<details class="pp-portal__edit">
-								<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Borrow', 'project-prepper' ); ?></summary>
+							<button type="button" class="pp-portal__btn pp-portal__btn--sm" data-pp-modal="pp-borrow-<?php echo (int) $group->id; ?>-<?php echo (int) $item->id; ?>"><?php esc_html_e( 'Borrow', 'project-prepper' ); ?></button>
+							<dialog class="pp-modal pp-modal--portal" id="pp-borrow-<?php echo (int) $group->id; ?>-<?php echo (int) $item->id; ?>">
+								<div class="pp-modal-header">
+									<h2 class="pp-modal__title"><?php echo esc_html( $item->name ); ?></h2>
+									<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+								</div>
+								<div class="pp-modal-body">
 								<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 									<?php self::action_fields( 'borrow_request' ); ?>
 									<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
@@ -4889,7 +5006,8 @@ class MemberPortal {
 									</label>
 									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Send request', 'project-prepper' ); ?></button>
 								</form>
-							</details>
+								</div>
+							</dialog>
 						<?php endif; ?>
 					</div>
 				<?php endforeach; ?>

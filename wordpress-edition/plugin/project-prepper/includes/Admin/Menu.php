@@ -112,6 +112,51 @@ class Menu {
 			'pp-security',
 			[ self::class, 'render_security' ]
 		);
+
+		// Mitglieder-Feedback lesen (Pendant zum App-Feedback-Tab).
+		$fb_count = \ProjectPrepper\Services\Feedback::new_count();
+		$fb_label = __( 'Feedback', 'project-prepper' );
+		add_submenu_page(
+			'project-prepper',
+			__( 'Feedback', 'project-prepper' ),
+			$fb_count > 0 ? $fb_label . ' <span class="awaiting-mod">' . (int) $fb_count . '</span>' : $fb_label,
+			Capabilities::OPERATE,
+			'pp-feedback',
+			[ self::class, 'render_feedback' ]
+		);
+	}
+
+	/** Mitglieder-Feedback (Liste + Status setzen). */
+	public static function render_feedback(): void {
+		if ( isset( $_POST['pp_fb_id'], $_POST['pp_fb_status'] ) && check_admin_referer( 'pp_feedback_status' ) ) {
+			\ProjectPrepper\Services\Feedback::set_status( (int) $_POST['pp_fb_id'], sanitize_key( wp_unslash( (string) $_POST['pp_fb_status'] ) ) );
+		}
+		$rows  = \ProjectPrepper\Services\Feedback::recent();
+		$types = \ProjectPrepper\Services\Feedback::types();
+		echo '<div class="wrap"><h1>' . esc_html__( 'Member feedback', 'project-prepper' ) . '</h1>';
+		if ( ! $rows ) {
+			echo '<p>' . esc_html__( 'No feedback yet.', 'project-prepper' ) . '</p></div>';
+			return;
+		}
+		echo '<table class="wp-list-table widefat fixed striped"><thead><tr>';
+		echo '<th>' . esc_html__( 'When', 'project-prepper' ) . '</th><th>' . esc_html__( 'From', 'project-prepper' ) . '</th><th>' . esc_html__( 'Type', 'project-prepper' ) . '</th><th>' . esc_html__( 'Message', 'project-prepper' ) . '</th><th>' . esc_html__( 'Status', 'project-prepper' ) . '</th><th></th></tr></thead><tbody>';
+		foreach ( $rows as $r ) {
+			$u    = $r->user_id ? get_userdata( (int) $r->user_id ) : null;
+			$next = 'done' === $r->status ? 'new' : ( 'read' === $r->status ? 'done' : 'read' );
+			echo '<tr>';
+			echo '<td>' . esc_html( $r->created_at ) . '</td>';
+			echo '<td>' . esc_html( $u ? $u->display_name : '—' ) . '</td>';
+			echo '<td>' . esc_html( $types[ $r->feedback_type ] ?? $r->feedback_type ) . '</td>';
+			echo '<td>' . nl2br( esc_html( $r->message ) ) . '</td>';
+			echo '<td>' . esc_html( $r->status ) . '</td>';
+			echo '<td><form method="post" style="display:inline">';
+			wp_nonce_field( 'pp_feedback_status' );
+			echo '<input type="hidden" name="pp_fb_id" value="' . (int) $r->id . '">';
+			/* translators: %s = next status (read/done/new). */
+			echo '<button class="button button-small" name="pp_fb_status" value="' . esc_attr( $next ) . '">' . esc_html( sprintf( __( 'Mark as %s', 'project-prepper' ), $next ) ) . '</button>';
+			echo '</form></td></tr>';
+		}
+		echo '</tbody></table></div>';
 	}
 
 	public static function enqueue_assets( string $hook ): void {
