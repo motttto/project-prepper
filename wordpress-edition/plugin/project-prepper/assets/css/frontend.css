@@ -1072,41 +1072,66 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-inv-row--click:hover .pp-manage-btn { border-color: var(--pp-primary, #6366f1); color: var(--pp-primary, #6366f1); }
 .pp-portal__manage-body { padding: .4rem .4rem .9rem; }
 
-/* Detail-Modal (Inventar bearbeiten/teilen) — natives <dialog>. */
+/* Detail-Modal (Inventar bearbeiten/teilen) — natives <dialog>, 1:1 an das
+ * Supabase-App-Modal: max-w-2xl, rounded-xl, --shadow-lg, px-6/py-4 Header. */
 .pp-modal {
-	width: min(680px, 94vw);
-	max-height: 88vh;
+	width: min(672px, 94vw);
+	max-height: 85vh;
 	padding: 0;
-	border: 1px solid var(--pp-border);
+	border: 1px solid var(--pp-border, #e2e8f0);
 	border-radius: 12px;
-	background: var(--pp-surface);
-	color: var(--pp-foreground);
-	box-shadow: 0 24px 60px rgba(15, 23, 42, .28);
+	background: var(--pp-surface, #fff);
+	color: var(--pp-foreground, #0f172a);
+	/* App --shadow-lg */
+	box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
 	overflow: hidden;
 }
-.pp-modal::backdrop { background: rgba(15, 23, 42, .55); }
+.pp-modal::backdrop { background: rgba(0, 0, 0, 0.5); }
 .pp-modal-header {
 	display: flex;
-	align-items: center;
+	align-items: flex-start;
 	justify-content: space-between;
 	gap: 1rem;
-	padding: .9rem 1.2rem;
-	border-bottom: 1px solid var(--pp-border);
+	padding: 1rem 1.5rem;
+	/* App --color-border-light */
+	border-bottom: 1px solid var(--pp-muted, #f1f5f9);
 }
-.pp-modal__title { margin: 0; font-size: 1.05rem; font-weight: 700; }
-.pp-modal__title .pp-portal__item-num { font-weight: 400; color: var(--pp-muted-foreground); }
+.pp-modal__title {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: .35rem;
+	margin: 0;
+	font-size: 1.125rem;
+	font-weight: 700;
+	line-height: 1.3;
+}
+.pp-modal__title .pp-portal__item-num {
+	display: inline-block;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: .72rem;
+	font-weight: 400;
+	padding: .1rem .4rem;
+	border-radius: 4px;
+	background: var(--pp-muted, #f1f5f9);
+	color: var(--pp-muted-foreground, #64748b);
+}
 .pp-modal-close {
+	flex: none;
 	background: none;
 	border: none;
-	font-size: 1.15rem;
+	font-size: 1.05rem;
 	line-height: 1;
 	cursor: pointer;
-	color: var(--pp-muted-foreground);
-	padding: .25rem .4rem;
-	border-radius: 6px;
+	color: var(--pp-muted-foreground, #64748b);
+	padding: .35rem;
+	border-radius: 8px;
+	transition: background .15s, color .15s;
 }
-.pp-modal-close:hover { background: var(--pp-muted); color: var(--pp-foreground); }
-.pp-modal-body { padding: 1rem 1.2rem 1.25rem; overflow: auto; max-height: calc(88vh - 56px); }
+.pp-modal-close:hover { background: var(--pp-muted, #f1f5f9); color: var(--pp-foreground, #0f172a); }
+.pp-modal-body { padding: 1.25rem 1.5rem; overflow-y: auto; max-height: calc(85vh - 64px); }
+/* App space-y-6 zwischen Modal-Sektionen. */
+.pp-modal-body > * + * { margin-top: 1.5rem; }
 
 /* Reiches Gruppen-Teilen im Item-Modal (Pendant zum App-Sharing-Modal):
  * Konditionen erscheinen erst, wenn die Gruppe angehakt ist — rein per :has(). */

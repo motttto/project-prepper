@@ -3,6 +3,17 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🎨 Release 2026-06-28 (Plugin v0.98.5, Schema 0.27.0 — Portal-Modale optisch 1:1 an Supabase-App angeglichen)
+> Reiner CSS-Patch (`.pp-modal`-Block in `assets/css/frontend.css`), kein Schema-/JS-/i18n-Change.
+> Die Portal-Modals (Inventar-Detail, Feedback, Inventar-freigeben, Neue Umfrage, Leihen) übernehmen
+> jetzt exakt das App-Modal-Layout: `max-w-2xl` (672px), `rounded-xl`, weicher `--shadow-lg`,
+> Header `px-6/py-4` mit hellem Trenner, Titel `text-lg` + Inventarnummer als Mono-Chip,
+> Body `px-6/py-5` mit `space-y-6`, Backdrop `rgba(0,0,0,.5)`.
+> Build `dist/project-prepper-0.98.5.zip` (1,1 MB, 112 Dateien). Plugin-Check: keine NEUEN ERROR-Findings
+> ggü. v0.98.4 (verbleibende ERRORs in Legal.php/Costs.php/MemberPortal.php sind unverändert pre-existing
+> in PHP-Dateien, dieser Patch berührt nur CSS); erwartete ERRORs `hidden_files` + `plugin_updater_detected`
+> by design.
+>
 > ## 🧩 Release 2026-06-28 (Plugin v0.98.4, Schema 0.27.0 — Portal-Modale, reiches Gruppen-Teilen, Mitglieder-Feedback)
 > Was im Release steckt — drei Parität-Lücken zur Next.js-App geschlossen:
 > - **Inventar-Detail-Modal (`MemberPortal.php`, `assets/js/portal.js`, `.pp-modal` in `frontend.css`):**

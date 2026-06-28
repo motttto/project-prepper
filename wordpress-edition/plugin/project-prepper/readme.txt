@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.98.4
+Stable tag: 0.98.5
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.98.5 =
+* Visual polish: the member portal pop-up windows (inventory detail, feedback, share inventory, new poll, borrow) now match the look of the main app exactly — a tidier, more compact card with a clear title row, the inventory number shown as a small badge underneath, calmer spacing and a softer shadow.
 
 = 0.98.4 =
 * Inventory detail in the member portal now opens in a proper pop-up window instead of expanding the row inline — clearer overview, especially on larger inventories.
