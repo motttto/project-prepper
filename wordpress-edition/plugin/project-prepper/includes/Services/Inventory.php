@@ -180,6 +180,13 @@ class Inventory {
 			$where[]        = 'i.owner_user_id = %d';
 			$where_params[] = (int) $args['owner_user_id'];
 		}
+		if ( ! empty( $args['shared_with_group'] ) ) {
+			// Gruppen-Inventar (Member-Portal): alle Artikel, die Mitglieder mit
+			// dieser Gruppe geteilt haben (Pendant zur owner_group_id-Sicht der App).
+			$where[]        = 'i.id IN ( SELECT s.item_id FROM %i s WHERE s.group_id = %d )';
+			$where_params[] = Schema::table( 'item_group_shares' );
+			$where_params[] = (int) $args['shared_with_group'];
+		}
 		if ( ! empty( $args['usable_only'] ) ) {
 			// Öffentliches Frontend: defekte/ausgemusterte Artikel ausblenden.
 			$where[] = "i.item_condition NOT IN ('broken', 'retired')";

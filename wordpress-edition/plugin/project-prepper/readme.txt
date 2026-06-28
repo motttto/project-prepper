@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.97.0
+Stable tag: 0.98.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.98.0 =
+* Member portal — inventory is now workspace-aware: when a group is the active workspace, the inventory page shows that group's shared equipment pool (every item members have shared into the group) instead of always showing your personal items. The shared view is read-only and lists the owner per item, with a count of shared items and a friendly hint when nothing has been shared yet. Solo mode is unchanged and still shows "My inventory".
+* Wider, denser desktop layout: on screens from 1024px up the content area now uses up to 1440px (was 1180px) and a slightly smaller base font, so more of your lists and tables fit on screen.
+* Wording: the "Browse" labels in the borrowing area are now "Search" ("Search & borrow", "Search the shared …"), matching how the feature is actually used.
 
 = 0.97.0 =
 * Member portal — new "Costs" view (group mode): a global cost overview aggregated across all projects of the active group, mirroring the app's `/costs` page — KPI cards (projects, planned, actual), category filter pills and a per-item list (project link · category · description · amount, with a "planned" marker for items that have no actual yet). Solo mode shows the same hint as the app (costs live inside each project). Leak-safe: the source is the member's own group projects only.

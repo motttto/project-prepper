@@ -1419,6 +1419,13 @@ class MemberPortal {
 	}
 
 	private static function view_inventory( WP_User $user, array $groups ): void {
+		// Arbeitsbereich-bewusst (wie Projekte/Anfragen): im Gruppen-Modus zeigt
+		// die Seite das geteilte Gruppen-Inventar, nicht das persönliche.
+		$active = self::active_group_id( $groups );
+		if ( $active > 0 ) {
+			self::view_group_inventory( $user, $groups, $active );
+			return;
+		}
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title"><?php esc_html_e( 'My inventory', 'project-prepper' ); ?></h1>
@@ -1427,6 +1434,105 @@ class MemberPortal {
 		<?php
 		self::render_equipment_out( $user );
 		self::render_my_inventory( $user, $groups, false );
+	}
+
+	/**
+	 * Gruppen-Inventar (Member-Portal): der Pool aller Artikel, die Mitglieder
+	 * MIT dieser Gruppe geteilt haben (Tabelle item_group_shares). Read-only —
+	 * eigene Artikel verwaltet man weiterhin über „Mein Inventar" (Solo). Pendant
+	 * zur owner_group_id-Inventarsicht der Next.js-App.
+	 */
+	private static function view_group_inventory( WP_User $user, array $groups, int $group_id ): void {
+		$group = null;
+		foreach ( $groups as $g ) {
+			if ( (int) $g->id === $group_id ) {
+				$group = $g;
+				break;
+			}
+		}
+		$name = $group ? (string) $group->name : __( 'Group', 'project-prepper' );
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Suche/Navigation
+		$q    = isset( $_GET['pp_q'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_q'] ) ) : '';
+		$args = [ 'shared_with_group' => $group_id ];
+		if ( '' !== trim( $q ) ) {
+			$args['search'] = trim( $q );
+		}
+		$items        = Inventory::items( $args );
+		$conditions   = Shortcodes::condition_labels();
+		$uid          = (int) $user->ID;
+		$total_pieces = 0;
+		$total_value  = 0.0;
+		foreach ( $items as $it ) {
+			$total_pieces += (int) $it->quantity;
+			$total_value  += (float) $it->cost_per_day * (int) $it->quantity;
+		}
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title">
+				<?php /* translators: %s: group name. */ printf( esc_html__( 'Inventory of %s', 'project-prepper' ), esc_html( $name ) ); ?>
+			</h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Equipment that members have shared with this group.', 'project-prepper' ); ?></p>
+		</header>
+
+		<section class="pp-portal__section pp-ginv">
+			<?php if ( ! $items && '' === $q ) : ?>
+				<p class="pp-portal__empty">
+					<?php esc_html_e( 'Nothing shared with this group yet. Members add equipment from their own inventory: switch your workspace to “Solo”, open “My inventory”, and use the share buttons on an item.', 'project-prepper' ); ?>
+				</p>
+			<?php else : ?>
+				<form class="pp-inv-search" method="get">
+					<input type="hidden" name="pp_view" value="inventory">
+					<input type="search" name="pp_q" value="<?php echo esc_attr( $q ); ?>" placeholder="<?php esc_attr_e( 'Search this group’s inventory …', 'project-prepper' ); ?>">
+					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Search', 'project-prepper' ); ?></button>
+				</form>
+
+				<?php if ( $items ) : ?>
+					<p class="pp-inv-kpi">
+						<?php
+						$pp_dv = ( (float) $total_value === floor( (float) $total_value ) ) ? number_format_i18n( $total_value, 0 ) : number_format_i18n( $total_value, 2 );
+						/* translators: 1: item count, 2: total pieces, 3: total daily value. */
+						printf( esc_html__( '%1$d items · %2$d pieces · daily value %3$s €', 'project-prepper' ), count( $items ), (int) $total_pieces, esc_html( $pp_dv ) );
+						?>
+					</p>
+
+					<div class="pp-inv-row pp-inv-row--head">
+						<span class="pp-col pp-col--name"><?php esc_html_e( 'Item', 'project-prepper' ); ?></span>
+						<span class="pp-col pp-col--cat"><?php esc_html_e( 'Category', 'project-prepper' ); ?></span>
+						<span class="pp-col pp-col--owner"><?php esc_html_e( 'Owner', 'project-prepper' ); ?></span>
+						<span class="pp-col pp-col--c"><?php esc_html_e( 'Quantity', 'project-prepper' ); ?></span>
+						<span class="pp-col pp-col--c"><?php esc_html_e( 'Available', 'project-prepper' ); ?></span>
+						<span class="pp-col pp-col--cond"><?php esc_html_e( 'Condition', 'project-prepper' ); ?></span>
+						<span class="pp-col pp-col--r">€/<?php echo esc_html__( 'day', 'project-prepper' ); ?></span>
+						<span class="pp-col pp-col--loc"><?php esc_html_e( 'Location', 'project-prepper' ); ?></span>
+					</div>
+					<?php
+					foreach ( $items as $item ) :
+						$is_mine  = ( (int) ( $item->owner_user_id ?? 0 ) === $uid );
+						$owner    = $is_mine ? null : get_userdata( (int) ( $item->owner_user_id ?? 0 ) );
+						$avail    = (int) max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) );
+						$owner_lb = $is_mine ? __( 'You', 'project-prepper' ) : ( $owner ? $owner->display_name : '—' );
+						$pp_sub   = $item->model ?: ( $item->description ?? '' );
+						?>
+						<div class="pp-inv-row pp-ginv__row">
+							<span class="pp-col pp-col--name">
+								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php else : ?><span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span><?php endif; ?>
+								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
+							</span>
+							<span class="pp-col pp-col--cat" data-label="<?php esc_attr_e( 'Category', 'project-prepper' ); ?>"><?php echo $item->category_name ? esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) : '—'; ?></span>
+							<span class="pp-col pp-col--owner" data-label="<?php esc_attr_e( 'Owner', 'project-prepper' ); ?>"><?php echo esc_html( $owner_lb ); ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) $item->quantity; ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo (int) $avail; ?></span>
+							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php echo esc_html( $conditions[ $item->item_condition ] ?? $item->item_condition ); ?></span>
+							<span class="pp-col pp-col--r" data-label="€/<?php echo esc_attr__( 'day', 'project-prepper' ); ?>"><?php echo ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) ? esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) . ' €' ) : '—'; ?></span>
+							<span class="pp-col pp-col--loc" data-label="<?php esc_attr_e( 'Location', 'project-prepper' ); ?>"><?php echo ! empty( $item->location ) ? esc_html( (string) $item->location ) : '—'; ?></span>
+						</div>
+					<?php endforeach; ?>
+				<?php else : ?>
+					<p class="pp-portal__empty"><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
+				<?php endif; ?>
+			<?php endif; ?>
+		</section>
+		<?php
 	}
 
 	/**

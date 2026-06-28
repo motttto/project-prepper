@@ -1087,6 +1087,17 @@ a.pp-front-card-media { text-decoration: none; }
 	.pp-eval__head { display: none; }
 }
 
+/* Gruppen-Inventar (read-only Pool geteilter Artikel): eigenes 8-Spalten-Raster
+ * (Item · Kategorie · Owner · Menge · Verfügbar · Zustand · €/Tag · Standort). */
+.pp-ginv .pp-inv-row {
+	grid-template-columns: minmax(140px, 2.1fr) minmax(78px, 1.05fr) minmax(90px, 1.15fr) 52px 74px minmax(72px, .85fr) 82px minmax(64px, .8fr);
+}
+.pp-ginv__row { border-bottom: 1px solid var(--pp-border); }
+.pp-col--owner { color: var(--pp-muted-foreground); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 720px) {
+	.pp-ginv .pp-inv-row { grid-template-columns: 1fr 1fr; gap: 6px; }
+}
+
 /* Member-Portal Phase 4 — Stöbern & Leihen */
 .pp-portal__browse-item {
 	background: var(--pp-muted);
@@ -1313,6 +1324,12 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 /* Inhalt in der Shell nicht auf die 760px der Standalone-Variante begrenzen. */
 .pp-app__content.pp-front { margin: 0 auto; }
 .pp-app__content .pp-portal { max-width: none; margin: 0; }
+
+/* Desktop: breitere Inhaltsbox + etwas kompaktere Schrift (App-Look). */
+@media (min-width: 1024px) {
+	.pp-app { font-size: 0.9rem; }
+	.pp-app__content { max-width: 1440px; }
+}
 
 /* Seitenkopf */
 .pp-app__page-head { margin-bottom: 24px; }

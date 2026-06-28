@@ -3,6 +3,28 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release 2026-06-28 (Plugin v0.98.0 — Arbeitsbereich-bewusstes Gruppen-Inventar + Desktop-Layout)
+> Was im Release steckt:
+> - **Inventar-Seite ist jetzt Arbeitsbereich-bewusst** (`pp_view=inventory`): Im **Gruppen-Modus** zeigt sie
+>   das **geteilte Gruppen-Inventar** (Pool aller via `item_group_shares` geteilten Artikel) statt immer
+>   „Mein Inventar" — read-only, mit Eigentümer-Spalte, KPI und Leer-Zustand-Hinweis. Solo-Modus
+>   unverändert „Mein Inventar". Technisch: neuer Query-Filter `shared_with_group` in
+>   `includes/Services/Inventory.php`, Verzweigung in `MemberPortal::view_inventory()` + neue Methode
+>   `view_group_inventory()`, neues 8-Spalten-Raster `.pp-ginv` in `frontend.css`. Leak-sicher:
+>   nur Items, die in die aktive Gruppe geteilt wurden.
+> - **Desktop-Layout kompakter/breiter** (`frontend.css`, ab `min-width:1024px`): Inhaltsbox
+>   `.pp-app__content` 1180px → **1440px**, App-Basisschrift 16px → **0,9rem**.
+> - **Terminologie „Stöbern" → „Suche"**: „Browse & borrow" → „Suche & leihen" + die beiden
+>   „Browse what your collectives share…"-Untertitel auf „Suche im geteilten …".
+> - i18n: `.pot/.po` neu generiert, neue Feature-Strings auf Deutsch übersetzt, `.mo` via WP-POMO
+>   neu kompiliert (1095 Einträge), JS-JSON via make-json (md5-Gotcha: Inhalt nach
+>   `…-b41de59f….json` kopiert, überzählige `…-cb151ef6….json` entfernt; bereinigt 623→445 Strings,
+>   da viele Alt-Strings nicht mehr aus admin.js stammen).
+> - Plugin Check: keine **neuen** ERRORs. Erwartet/ignoriert: `hidden_files` (`.wp-env.json`, nicht im ZIP),
+>   `plugin_updater_detected` (Selbst-Updater, BY DESIGN). Übrige ERRORs (Legal.php OutputNotEscaped,
+>   Costs.php NotPrepared, MemberPortal.php:3828 MissingTranslatorsComment) sind vorbestehend/HEAD,
+>   außerhalb des Session-Diffs. Build `dist/project-prepper-0.98.0.zip` (1,1 MB, 111 Dateien).
+>
 > ## 🏁 Endabgleich + Aktualisierung 2026-06-27 (Plugin v0.97.0 — Kosten-Übersicht + Gruppen-Mitgliederliste)
 > Restliche Portal-Lücken geschlossen und ein systematischer Seite-für-Seite-Abgleich aller
 > Mitglieder-Seiten durchgeführt. **Urteil: funktionsfähiger Klon erreicht** im MVP- + v1.x-Scope;
