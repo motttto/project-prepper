@@ -320,3 +320,30 @@ kann — ohne Editierfelder. Getrennt von den Mechanik-Seiten.
     wordpress.org verbietet Selbst-Updater. Für den GitHub-Vertrieb ist das korrekt.
     Ein optionaler wordpress.org-Build müsste den Updater **ausschließen**
     (`PP_DISABLE_UPDATER` reicht zur Laufzeit nicht — PCP prüft statisch; Datei weglassen).
+  - **Manifest-first (v0.98.7):** Primärquelle ist das statische `update.json` im
+    Repo-Root, ausgeliefert über GitHubs raw-CDN → **kein API-Rate-Limit, kein Token**
+    (das 60/h-Limit unauthentifizierter API-Abrufe war auf Shared-Hosting mit geteilter
+    IP der Killer). Die GitHub-API bleibt nur Fallback.
+    ⚠️ **Pro Plugin-Release MUSS `update.json` mit aktualisiert und committet werden**,
+    sonst sieht keine Instanz das Update.
+
+### Theme-Updater (`prepper-site`)
+
+Das Theme wird genauso über GitHub vertrieben und hat seit **v0.4.0** denselben
+Mechanismus — vorher musste jede Theme-Version manuell hochgeladen werden.
+
+- **`prepper-site/inc/updater.php`** (`Prepper_Site_Updater`) hängt sich in
+  `pre_set_site_transient_update_themes` + `themes_api` + `upgrader_source_selection`
+  und zeigt „Update verfügbar" unter Design → Themes inkl. Ein-Klick-Update.
+- **Manifest-only, bewusst ohne API-Fallback:** Theme-Releases tragen den Tag-Präfix
+  **`theme-v`**, ein Abruf von `/releases/latest` würde also das jüngste *Plugin*-Release
+  liefern. Quelle ist ausschließlich **`theme-update.json`** im Repo-Root. Ist es nicht
+  erreichbar → kein Update gemeldet (nie ein falsches).
+- **`Update URI:`** im style.css-Header verhindert, dass wordpress.org bei Slug-Kollision
+  ein fremdes Theme als Update unterschiebt.
+- Abschaltbar via `PREPPER_SITE_DISABLE_UPDATER`; Repo/Manifest per Konstante
+  (`PREPPER_SITE_UPDATE_REPO` / `PREPPER_SITE_UPDATE_MANIFEST`) oder Filter überschreibbar.
+- **Release:** `theme/release.sh <version>` erledigt alles in einem Rutsch — Version in
+  `style.css`, Changelog in `readme.txt`, ZIP-Build, **`theme-update.json`**, Commit+Push,
+  GitHub-Release `theme-v{version}` mit angehängtem ZIP. `--dry-run` zeigt nur an.
+  Das ZIP liegt in `theme/dist/` (gitignored) und geht ausschließlich als Release-Asset raus.

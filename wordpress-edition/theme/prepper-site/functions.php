@@ -5,6 +5,10 @@
 
 defined( 'ABSPATH' ) || exit;
 
+// Selbst-Updater für den GitHub-Vertrieb (das Theme läuft nicht über wordpress.org).
+require_once get_template_directory() . '/inc/updater.php';
+Prepper_Site_Updater::init();
+
 add_action( 'after_setup_theme', function () {
 	// Gebündelte Übersetzungen aus languages/ — nötig, solange das Theme
 	// nicht auf wordpress.org gehostet ist (keine automatischen Language Packs).
