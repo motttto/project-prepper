@@ -3,6 +3,18 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release 2026-07-16 (Plugin v0.98.10, Schema 0.27.0 — Inventar-Import: Kategorien-Auto-Anlage + Zustands-Mapping)
+> Patch-Release, KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration, keine neuen i18n-Strings.
+> 1. Portal-Import (Mein Inventar, `MemberPortal::import_inventory_csv`): unbekannte Kategorien aus
+>    CSV/XLSX werden automatisch als eigene Kategorien angelegt (3-Buchstaben-Prefix) statt in der
+>    Standard-Kategorie zu landen — Parität zum Excel-Import der Next.js-App.
+> 2. Zustands-Mapping (`ImportExportController::CONDITION_MAP`): „Befriedigend" aus Supabase-App-Exporten
+>    wird jetzt auf `fair`/Mittel gemappt statt still auf „Gut" zu fallen.
+> Getestet mit echtem Supabase-Export (81 Artikel, 14 Kategorien) in wp-env. Plugin-Check: KEINE neuen
+> ERROR-Findings ggü. v0.98.9 (nur die bekannten Altfehler Legal/Costs/MemberPortal + hidden_files +
+> plugin_updater_detected). `update.json` auf 0.98.10 mitgepflegt. Build `dist/project-prepper-0.98.10.zip`
+> (1,1 MB, 112 Dateien).
+>
 > ## 🧩 Release 2026-06-28 (Plugin v0.98.9, Schema 0.27.0 — Modal-Stacking-Fix + Dark Mode mit Auto-Umschaltung)
 > Reiner CSS-Release (nur `assets/css/frontend.css`), KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration, keine i18n-Strings.
 > 1. Kritischer Regressions-Fix aus 0.98.8: `display:flex` lag auf `.pp-modal` und überschrieb

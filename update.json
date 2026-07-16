@@ -1,9 +1,9 @@
 {
-  "version": "0.98.9",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.9/project-prepper-0.98.9.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.9",
-  "published": "2026-06-28",
+  "version": "0.98.10",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.10/project-prepper-0.98.10.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.10",
+  "published": "2026-07-16",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Kritischer Fix: versteckte Modals stapeln sich nicht mehr (Regression aus 0.98.8 — geschlossene Dialoge waren alle gleichzeitig sichtbar). Dark Mode mit automatischer Umschaltung wie die App (Light unveraendert; Sidebar bleibt dunkel). Dark-Mode-Politur: Feedback-Modal und alle Modal-Felder inkl. Zahlenfelder werden jetzt korrekt dunkel statt weiss."
+  "changelog": "Inventar-Import: unbekannte Kategorien werden beim CSV-/Excel-Import automatisch als eigene Kategorien angelegt (mit 3-Buchstaben-Praefix) statt in der Standard-Kategorie zu landen. Zustand 'Befriedigend' aus App-Exporten wird jetzt als 'Mittel' importiert statt still auf 'Gut' zu fallen."
 }

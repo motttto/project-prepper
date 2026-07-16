@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.98.9
+Stable tag: 0.98.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.98.10 =
+* Inventory import: unknown categories from a CSV/XLSX file are now created automatically as new categories (with a three-letter prefix) instead of landing in the default category — matching the Excel import of the main app.
+* Inventory import: the condition "Befriedigend" from app exports is now imported as "Fair" instead of silently becoming "Good".
 
 = 0.98.9 =
 * Critical fix: hidden pop-ups no longer stack up. A change in 0.98.8 accidentally forced every dialog to be visible at once, so closed windows piled up on the screen. Dialogs are now only shown when actually opened.
