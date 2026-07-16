@@ -4656,7 +4656,8 @@ class MemberPortal {
 		foreach ( $aliases as $head => $key ) {
 			$map[ self::norm_head( $head ) ] = $key;
 		}
-		// Kategorie-Namen → ID (eigene Kategorien + Betreiber-Vorlagen; keine Auto-Anlage).
+		// Kategorie-Namen → ID (eigene Kategorien + Betreiber-Vorlagen; unbekannte
+		// Namen werden beim Import als eigene Kategorien angelegt — wie in der App).
 		$cat_map = [];
 		foreach ( MemberInventory::template_categories() as $cat ) {
 			$cat_map[ self::norm_head( $cat->name ) ] = (int) $cat->id;
@@ -4693,6 +4694,16 @@ class MemberPortal {
 			}
 			if ( empty( $d['name'] ) ) {
 				continue;
+			}
+			$cat_name = trim( (string) ( $d['category_name'] ?? '' ) );
+			if ( '' !== $cat_name && ! isset( $cat_map[ self::norm_head( $cat_name ) ] ) ) {
+				$new_cat = MemberInventory::create_category( $user_id, [
+					'name'   => $cat_name,
+					'prefix' => mb_strtoupper( mb_substr( $cat_name, 0, 3 ) ),
+				] );
+				if ( ! is_wp_error( $new_cat ) ) {
+					$cat_map[ self::norm_head( $cat_name ) ] = (int) $new_cat;
+				}
 			}
 			$result = MemberInventory::create( $user_id, self::build_import_item( $d, $cat_map ) );
 			if ( ! is_wp_error( $result ) ) {

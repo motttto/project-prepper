@@ -55,6 +55,7 @@ class ImportExportController extends BaseController {
 		'ok'           => 'fair',
 		'mittel'       => 'fair',
 		'gebraucht'    => 'fair',
+		'befriedigend' => 'fair',
 		'fair'         => 'fair',
 		'schlecht'     => 'poor',
 		'poor'         => 'poor',
