@@ -1232,9 +1232,6 @@ a.pp-front-card-media { text-decoration: none; }
 	.pp-col--c, .pp-col--r { text-align: left; }
 	.pp-col[data-label]::before { content: attr(data-label) ': '; color: var(--pp-muted-foreground); font-size: .72rem; }
 }
-.pp-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 14px 0; }
-.pp-pagination__info { font-size: .85rem; color: var(--pp-muted-foreground); }
-
 /* Inventar-Auswertung (Analysis) */
 .pp-eval__kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: .6rem 0 1rem; }
 .pp-eval__kpi { background: var(--pp-muted); border-radius: 8px; padding: .55rem .7rem; }

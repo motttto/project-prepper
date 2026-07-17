@@ -3,6 +3,20 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release 2026-07-17 (Plugin v0.98.12, Schema 0.27.0 — Mein Inventar ohne Pagination)
+> Patch-Release, KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration; ein i18n-String entfallen
+> („Page %1$d of %2$d" → .pot/.po/.mo/JSON regeneriert, keine neuen Strings).
+> 1. „Mein Inventar" (`MemberPortal::render_inventory`) listet jetzt ALLE Artikel auf einer Seite:
+>    12er-Pagination entfernt (`$per_page/$pages/$page/array_slice` raus, `$items = $shown_items`),
+>    Pagination-UI-Block („Seite x von y", ‹/›-Links) entfernt, ungenutzter Helper
+>    `inventory_page_url()` entfernt. Suche + Kategorie-Chips unverändert.
+> 2. `assets/css/frontend.css`: verwaiste `.pp-pagination`-Styles entfernt.
+> End-to-end in wp-env verifiziert: 81/81 Artikel in einer Liste, kein Pagination-Element mehr,
+> Kategorie-Filter (Projektion → 16) und Suche intakt. Plugin-Check: KEINE neuen ERROR-Findings
+> ggü. v0.98.11 (nur die bekannten Altfehler Legal/Costs/MemberPortal + hidden_files +
+> plugin_updater_detected). `update.json` auf 0.98.12 mitgepflegt. Build `dist/project-prepper-0.98.12.zip`
+> (1,1 MB, 112 Dateien).
+>
 > ## 🧩 Release 2026-07-17 (Plugin v0.98.11, Schema 0.27.0 — Fix: Button-Trigger öffneten ihr Modal nicht)
 > Reiner JS-Patch (nur `assets/js/portal.js`), KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration, keine neuen i18n-Strings.
 > 1. Der Klick-Handler für `[data-pp-modal]`-Trigger hatte einen Guard, der Klicks auf interaktive

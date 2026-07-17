@@ -1,9 +1,9 @@
 {
-  "version": "0.98.11",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.11/project-prepper-0.98.11.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.11",
+  "version": "0.98.12",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.12/project-prepper-0.98.12.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.12",
   "published": "2026-07-17",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Fix: Buttons, die ein Pop-up oeffnen ('Inventar freigeben', 'Neue Umfrage', 'Leihen', Feedback), reagierten nicht mehr - ein Klick-Guard fuer interaktive Kind-Elemente hat den Trigger-Button selbst abgefangen. Die Buttons oeffnen ihr Fenster jetzt wieder; Klicks auf Links/Buttons innerhalb von Listenzeilen werden weiterhin durchgereicht."
+  "changelog": "Mein Inventar zeigt jetzt alle Artikel auf einer Seite - die 12er-Seitenaufteilung (Pagination) wurde entfernt. Suche und Kategorie-Filter funktionieren unveraendert."
 }

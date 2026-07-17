@@ -3964,12 +3964,7 @@ class MemberPortal {
 		$shown_items = $cat ? array_values( array_filter( $all_items, static function ( $it ) use ( $cat ) {
 			return (int) ( $it->category_id ?? 0 ) === $cat;
 		} ) ) : $all_items;
-		$per_page  = 12;
-		$total     = count( $shown_items );
-		$pages     = max( 1, (int) ceil( $total / $per_page ) );
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
-		$page      = isset( $_GET['pp_p'] ) ? max( 1, min( $pages, (int) $_GET['pp_p'] ) ) : 1;
-		$items     = array_slice( $shown_items, ( $page - 1 ) * $per_page, $per_page );
+		$items     = $shown_items;
 		$base_url  = self::portal_url();
 		$own_cats   = MemberInventory::own_categories( (int) $user->ID );
 		$tpl_cats   = MemberInventory::template_categories();
@@ -4149,18 +4144,6 @@ class MemberPortal {
 				<?php else : ?>
 					<p class="pp-portal__empty"><?php esc_html_e( 'You have no personal inventory yet. Add your first item below.', 'project-prepper' ); ?></p>
 				<?php endif; ?>
-			<?php endif; ?>
-
-			<?php if ( $pages > 1 ) : ?>
-				<div class="pp-pagination">
-					<?php if ( $page > 1 ) : ?>
-						<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::inventory_page_url( $q, $page - 1 ) ); ?>">‹</a>
-					<?php endif; ?>
-					<span class="pp-pagination__info"><?php /* translators: 1: current page, 2: total pages. */ printf( esc_html__( 'Page %1$d of %2$d', 'project-prepper' ), (int) $page, (int) $pages ); ?></span>
-					<?php if ( $page < $pages ) : ?>
-						<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::inventory_page_url( $q, $page + 1 ) ); ?>">›</a>
-					<?php endif; ?>
-				</div>
 			<?php endif; ?>
 
 		</section>
@@ -4482,18 +4465,6 @@ class MemberPortal {
 			</div>
 		</details>
 		<?php
-	}
-
-	/** URL einer Inventar-Seite (Suche + Pagination erhalten). */
-	private static function inventory_page_url( string $q, int $page ): string {
-		$args = [ 'pp_view' => 'inventory' ];
-		if ( '' !== $q ) {
-			$args['pp_q'] = $q;
-		}
-		if ( $page > 1 ) {
-			$args['pp_p'] = $page;
-		}
-		return add_query_arg( $args, self::portal_url() );
 	}
 
 	/** CSV-Download des eigenen Inventars (Semikolon + BOM → deutsches Excel). */

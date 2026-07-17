@@ -255,7 +255,7 @@ msgid "Rental number"
 msgstr "Verleihnummer"
 
 #: includes/Frontend/MemberPortal.php:972
-#: includes/Frontend/MemberPortal.php:4263
+#: includes/Frontend/MemberPortal.php:4246
 #: includes/Privacy.php:56
 #: includes/Rest/ImportExportController.php:28
 #: admin/js/admin.js:165
@@ -338,7 +338,7 @@ msgid "Target category is missing."
 msgstr "Ziel-Kategorie fehlt."
 
 #: includes/Rest/CategoriesController.php:70
-#: includes/Rest/ImportExportController.php:140
+#: includes/Rest/ImportExportController.php:141
 #: includes/Rest/ItemsController.php:93
 #: includes/Services/Consumables.php:43
 #: includes/Services/Consumables.php:80
@@ -365,9 +365,9 @@ msgstr "Inventarnummer"
 
 #: includes/Frontend/MemberPortal.php:1665
 #: includes/Frontend/MemberPortal.php:1686
-#: includes/Frontend/MemberPortal.php:4013
-#: includes/Frontend/MemberPortal.php:4030
-#: includes/Frontend/MemberPortal.php:4266
+#: includes/Frontend/MemberPortal.php:4008
+#: includes/Frontend/MemberPortal.php:4025
+#: includes/Frontend/MemberPortal.php:4249
 #: includes/Rest/ImportExportController.php:29
 #: admin/js/admin.js:165
 #: admin/js/admin.js:1220
@@ -382,27 +382,27 @@ msgstr "Kategorie"
 msgid "Description"
 msgstr "Beschreibung"
 
-#: includes/Frontend/MemberPortal.php:4298
+#: includes/Frontend/MemberPortal.php:4281
 #: includes/Rest/ImportExportController.php:31
 msgid "Manufacturer"
 msgstr "Hersteller"
 
-#: includes/Frontend/MemberPortal.php:4301
+#: includes/Frontend/MemberPortal.php:4284
 #: includes/Rest/ImportExportController.php:32
 #: admin/js/admin.js:1962
 msgid "Model"
 msgstr "Modell"
 
-#: includes/Frontend/MemberPortal.php:4304
+#: includes/Frontend/MemberPortal.php:4287
 #: includes/Rest/ImportExportController.php:33
 msgid "Serial number"
 msgstr "Seriennummer"
 
 #: includes/Frontend/MemberPortal.php:1667
 #: includes/Frontend/MemberPortal.php:1688
-#: includes/Frontend/MemberPortal.php:4014
-#: includes/Frontend/MemberPortal.php:4031
-#: includes/Frontend/MemberPortal.php:4285
+#: includes/Frontend/MemberPortal.php:4009
+#: includes/Frontend/MemberPortal.php:4026
+#: includes/Frontend/MemberPortal.php:4268
 #: includes/Rest/ImportExportController.php:34
 #: admin/js/admin.js:301
 #: admin/js/admin.js:326
@@ -412,9 +412,9 @@ msgstr "Menge"
 
 #: includes/Frontend/MemberPortal.php:1669
 #: includes/Frontend/MemberPortal.php:1690
-#: includes/Frontend/MemberPortal.php:4016
-#: includes/Frontend/MemberPortal.php:4033
-#: includes/Frontend/MemberPortal.php:4288
+#: includes/Frontend/MemberPortal.php:4011
+#: includes/Frontend/MemberPortal.php:4028
+#: includes/Frontend/MemberPortal.php:4271
 #: includes/Rest/ImportExportController.php:35
 #: admin/js/admin.js:165
 msgid "Condition"
@@ -422,9 +422,9 @@ msgstr "Zustand"
 
 #: includes/Frontend/MemberPortal.php:1671
 #: includes/Frontend/MemberPortal.php:1692
-#: includes/Frontend/MemberPortal.php:4019
-#: includes/Frontend/MemberPortal.php:4036
-#: includes/Frontend/MemberPortal.php:4307
+#: includes/Frontend/MemberPortal.php:4014
+#: includes/Frontend/MemberPortal.php:4031
+#: includes/Frontend/MemberPortal.php:4290
 #: includes/Rest/ImportExportController.php:36
 msgid "Location"
 msgstr "Lagerort"
@@ -445,7 +445,7 @@ msgstr "Kaufdatum"
 msgid "Current value"
 msgstr "Aktueller Wert"
 
-#: includes/Frontend/MemberPortal.php:4310
+#: includes/Frontend/MemberPortal.php:4293
 #: includes/Rest/ImportExportController.php:41
 msgid "Dimensions"
 msgstr "Maße"
@@ -472,11 +472,11 @@ msgid "Notes"
 msgstr "Notizen"
 
 #. translators: Export file name prefix — results in e.g. inventory-2026-06-12.csv
-#: includes/Rest/ImportExportController.php:100
+#: includes/Rest/ImportExportController.php:101
 msgid "inventory"
 msgstr "inventar"
 
-#: includes/Rest/ImportExportController.php:184
+#: includes/Rest/ImportExportController.php:185
 msgid "Could not be created (inventory number already taken?)."
 msgstr "Konnte nicht angelegt werden (Inventarnummer bereits vergeben?)."
 
@@ -985,8 +985,8 @@ msgstr "— wählen —"
 #: includes/Frontend/MemberPortal.php:2243
 #: includes/Frontend/MemberPortal.php:2340
 #: includes/Frontend/MemberPortal.php:3676
-#: includes/Frontend/MemberPortal.php:5009
-#: includes/Frontend/MemberPortal.php:5037
+#: includes/Frontend/MemberPortal.php:4991
+#: includes/Frontend/MemberPortal.php:5019
 #: templates/availability.php:33
 #: templates/request-form.php:41
 #: admin/js/admin.js:211
@@ -999,8 +999,8 @@ msgstr "Von"
 #: includes/Frontend/MemberPortal.php:2246
 #: includes/Frontend/MemberPortal.php:2343
 #: includes/Frontend/MemberPortal.php:3679
-#: includes/Frontend/MemberPortal.php:5012
-#: includes/Frontend/MemberPortal.php:5040
+#: includes/Frontend/MemberPortal.php:4994
+#: includes/Frontend/MemberPortal.php:5022
 #: templates/availability.php:37
 #: templates/request-form.php:45
 #: admin/js/admin.js:211
@@ -1009,7 +1009,7 @@ msgstr "Von"
 msgid "To"
 msgstr "Bis"
 
-#: includes/Frontend/MemberPortal.php:5043
+#: includes/Frontend/MemberPortal.php:5025
 #: templates/availability.php:40
 msgid "Check availability"
 msgstr "Verfügbarkeit prüfen"
@@ -1031,7 +1031,7 @@ msgid "Search equipment …"
 msgstr "Equipment suchen …"
 
 #: includes/Frontend/MemberPortal.php:1651
-#: includes/Frontend/MemberPortal.php:3990
+#: includes/Frontend/MemberPortal.php:3985
 #: templates/inventory-list.php:19
 msgid "Search"
 msgstr "Suchen"
@@ -1095,7 +1095,7 @@ msgstr "Verliehen"
 
 #: includes/Frontend/MemberPortal.php:1788
 #: includes/Frontend/MemberPortal.php:1910
-#: includes/Frontend/MemberPortal.php:5198
+#: includes/Frontend/MemberPortal.php:5180
 #: admin/js/admin.js:119
 #: admin/js/admin.js:1425
 msgid "Returned"
@@ -1104,7 +1104,7 @@ msgstr "Zurückgegeben"
 #: includes/Frontend/MemberPortal.php:1911
 #: includes/Frontend/MemberPortal.php:3220
 #: includes/Frontend/MemberPortal.php:3265
-#: includes/Frontend/MemberPortal.php:5197
+#: includes/Frontend/MemberPortal.php:5179
 #: admin/js/admin.js:119
 #: admin/js/admin.js:546
 #: admin/js/admin.js:1424
@@ -1141,7 +1141,7 @@ msgid "Daily inventory value"
 msgstr "Tageswert Inventar"
 
 #: includes/Frontend/MemberPortal.php:3139
-#: includes/Frontend/MemberPortal.php:4003
+#: includes/Frontend/MemberPortal.php:3998
 #: admin/js/admin.js:563
 msgid "All"
 msgstr "Alle"
@@ -1172,11 +1172,11 @@ msgid "Photo saved."
 msgstr "Foto gespeichert."
 
 #: includes/Frontend/MemberPortal.php:1527
-#: includes/Frontend/MemberPortal.php:4063
+#: includes/Frontend/MemberPortal.php:4058
 msgid "Remove photo"
 msgstr "Foto entfernen"
 
-#: includes/Frontend/MemberPortal.php:4111
+#: includes/Frontend/MemberPortal.php:4106
 msgid "Document"
 msgstr "Dokument"
 
@@ -1228,10 +1228,10 @@ msgstr "Artikel gelöscht."
 #: includes/Frontend/MemberPortal.php:2937
 #: includes/Frontend/MemberPortal.php:3036
 #: includes/Frontend/MemberPortal.php:3047
-#: includes/Frontend/MemberPortal.php:4043
-#: includes/Frontend/MemberPortal.php:4141
-#: includes/Frontend/MemberPortal.php:4372
-#: includes/Frontend/MemberPortal.php:5002
+#: includes/Frontend/MemberPortal.php:4038
+#: includes/Frontend/MemberPortal.php:4136
+#: includes/Frontend/MemberPortal.php:4355
+#: includes/Frontend/MemberPortal.php:4984
 #: admin/js/admin.js:368
 #: admin/js/admin.js:859
 #: admin/js/admin.js:1105
@@ -1259,7 +1259,7 @@ msgstr "Gespeichert."
 msgid "Create"
 msgstr "Anlegen"
 
-#: includes/Frontend/MemberPortal.php:4347
+#: includes/Frontend/MemberPortal.php:4330
 msgid "Import"
 msgstr "Import"
 
@@ -1309,8 +1309,8 @@ msgstr "MwSt %"
 #: includes/Frontend/MemberPortal.php:1691
 #: includes/Frontend/MemberPortal.php:1825
 #: includes/Frontend/MemberPortal.php:3663
-#: includes/Frontend/MemberPortal.php:4017
-#: includes/Frontend/MemberPortal.php:4034
+#: includes/Frontend/MemberPortal.php:4012
+#: includes/Frontend/MemberPortal.php:4029
 #: admin/js/admin.js:297
 #: admin/js/admin.js:447
 msgid "day"
@@ -1358,8 +1358,8 @@ msgstr "Abrechnung"
 
 #: includes/Frontend/MemberPortal.php:1875
 #: includes/Frontend/MemberPortal.php:2209
-#: includes/Frontend/MemberPortal.php:4139
-#: includes/Frontend/MemberPortal.php:4195
+#: includes/Frontend/MemberPortal.php:4134
+#: includes/Frontend/MemberPortal.php:4178
 #: admin/js/admin.js:169
 #: admin/js/admin.js:408
 msgid "Delete"
@@ -1383,8 +1383,8 @@ msgid "Rental %s created."
 msgstr "Verleih %s angelegt."
 
 #: includes/Frontend/MemberPortal.php:1664
-#: includes/Frontend/MemberPortal.php:4012
-#: includes/Frontend/MemberPortal.php:4461
+#: includes/Frontend/MemberPortal.php:4007
+#: includes/Frontend/MemberPortal.php:4444
 #: admin/js/admin.js:506
 #: admin/js/admin.js:1219
 #: admin/js/admin.js:1579
@@ -1548,7 +1548,7 @@ msgid "Add member"
 msgstr "Mitglied hinzufügen"
 
 #: includes/Frontend/MemberPortal.php:3218
-#: includes/Frontend/MemberPortal.php:5195
+#: includes/Frontend/MemberPortal.php:5177
 #: admin/js/admin.js:1423
 msgid "Approved"
 msgstr "Angenommen"
@@ -1560,7 +1560,7 @@ msgstr "Abgelehnt"
 #: includes/Frontend/MemberPortal.php:2040
 #: includes/Frontend/MemberPortal.php:2921
 #: includes/Frontend/MemberPortal.php:3890
-#: includes/Frontend/MemberPortal.php:5117
+#: includes/Frontend/MemberPortal.php:5099
 msgid "Approve"
 msgstr "Zustimmen"
 
@@ -1679,7 +1679,7 @@ msgid "Signed"
 msgstr "Unterschrieben"
 
 #: includes/Frontend/MemberPortal.php:2839
-#: includes/Frontend/MemberPortal.php:5196
+#: includes/Frontend/MemberPortal.php:5178
 #: admin/js/admin.js:1424
 msgid "Declined"
 msgstr "Abgelehnt"
@@ -1700,7 +1700,7 @@ msgstr "Version %d"
 
 #: includes/Frontend/MemberPortal.php:2045
 #: includes/Frontend/MemberPortal.php:3797
-#: includes/Frontend/MemberPortal.php:5118
+#: includes/Frontend/MemberPortal.php:5100
 msgid "Decline"
 msgstr "Ablehnen"
 
@@ -1743,7 +1743,7 @@ msgid "Target category for \"%s\""
 msgstr "Ziel-Kategorie für \"%s\""
 
 #: includes/Frontend/MemberPortal.php:3904
-#: includes/Frontend/MemberPortal.php:5079
+#: includes/Frontend/MemberPortal.php:5061
 #: admin/js/admin.js:649
 msgid "Cancel"
 msgstr "Abbrechen"
@@ -2355,7 +2355,7 @@ msgstr "Gruppe gründen"
 
 #: includes/Frontend/MemberPortal.php:1124
 #: includes/Frontend/MemberPortal.php:1596
-#: includes/Frontend/MemberPortal.php:3981
+#: includes/Frontend/MemberPortal.php:3976
 msgid "My inventory"
 msgstr "Mein Inventar"
 
@@ -2484,7 +2484,7 @@ msgstr "Name der Gruppe"
 #: includes/Frontend/MemberPortal.php:2087
 #: includes/Frontend/MemberPortal.php:2952
 #: includes/Frontend/MemberPortal.php:3075
-#: includes/Frontend/MemberPortal.php:4316
+#: includes/Frontend/MemberPortal.php:4299
 msgid "Description (optional)"
 msgstr "Beschreibung (optional)"
 
@@ -2561,27 +2561,27 @@ msgstr "Anz. %d"
 msgid "Edit"
 msgstr "Bearbeiten"
 
-#: includes/Frontend/MemberPortal.php:4136
+#: includes/Frontend/MemberPortal.php:4131
 msgid "Delete this item?"
 msgstr "Diesen Artikel löschen?"
 
-#: includes/Frontend/MemberPortal.php:4150
+#: includes/Frontend/MemberPortal.php:4145
 msgid "You have no personal inventory yet. Add your first item below."
 msgstr "Du hast noch kein eigenes Inventar. Lege unten deinen ersten Artikel an."
 
-#: includes/Frontend/MemberPortal.php:4354
+#: includes/Frontend/MemberPortal.php:4337
 msgid "Add item"
 msgstr "Artikel hinzufügen"
 
-#: includes/Frontend/MemberPortal.php:4268
+#: includes/Frontend/MemberPortal.php:4251
 msgid "— none —"
 msgstr "— keine —"
 
-#: includes/Frontend/MemberPortal.php:4295
+#: includes/Frontend/MemberPortal.php:4278
 msgid "Daily rate (€, optional)"
 msgstr "Tagessatz (€, optional)"
 
-#: includes/Frontend/MemberPortal.php:4319
+#: includes/Frontend/MemberPortal.php:4302
 msgid "Save item"
 msgstr "Artikel speichern"
 
@@ -2652,49 +2652,49 @@ msgstr "Anfrage abgebrochen."
 msgid "Marked as returned."
 msgstr "Als zurückgegeben markiert."
 
-#: includes/Frontend/MemberPortal.php:5034
+#: includes/Frontend/MemberPortal.php:5016
 msgid "Available in your collectives"
 msgstr "In deinen Gruppen verfügbar"
 
 #. translators: %s: owner display name.
-#: includes/Frontend/MemberPortal.php:4980
+#: includes/Frontend/MemberPortal.php:4962
 #, php-format
 msgid "from %s"
 msgstr "von %s"
 
-#: includes/Frontend/MemberPortal.php:4996
+#: includes/Frontend/MemberPortal.php:4978
 msgid "Your item"
 msgstr "Dein Artikel"
 
-#: includes/Frontend/MemberPortal.php:4998
+#: includes/Frontend/MemberPortal.php:4980
 msgid "Borrow"
 msgstr "Ausleihen"
 
 #: includes/Frontend/MemberPortal.php:3682
-#: includes/Frontend/MemberPortal.php:5015
+#: includes/Frontend/MemberPortal.php:4997
 msgid "Message (optional)"
 msgstr "Nachricht (optional)"
 
 #: includes/Frontend/MemberPortal.php:3685
-#: includes/Frontend/MemberPortal.php:5018
+#: includes/Frontend/MemberPortal.php:5000
 msgid "Send request"
 msgstr "Anfrage senden"
 
-#: includes/Frontend/MemberPortal.php:5072
+#: includes/Frontend/MemberPortal.php:5054
 msgid "My borrow requests"
 msgstr "Meine Leih-Anfragen"
 
 #: includes/Frontend/MemberPortal.php:2053
-#: includes/Frontend/MemberPortal.php:5081
-#: includes/Frontend/MemberPortal.php:5120
+#: includes/Frontend/MemberPortal.php:5063
+#: includes/Frontend/MemberPortal.php:5102
 msgid "Mark returned"
 msgstr "Als zurückgegeben markieren"
 
-#: includes/Frontend/MemberPortal.php:5099
+#: includes/Frontend/MemberPortal.php:5081
 msgid "Borrow requests for your items"
 msgstr "Leih-Anfragen für deine Artikel"
 
-#: includes/Frontend/MemberPortal.php:5194
+#: includes/Frontend/MemberPortal.php:5176
 #: admin/js/admin.js:1423
 msgid "Requested"
 msgstr "Angefragt"
@@ -2904,7 +2904,7 @@ msgstr "Noch keine Leih-Anfragen."
 #: includes/Admin/Menu.php:49
 #: includes/Admin/Menu.php:242
 #: includes/Frontend/MemberPortal.php:1471
-#: includes/Frontend/MemberPortal.php:4037
+#: includes/Frontend/MemberPortal.php:4032
 msgid "Manage"
 msgstr "Verwalten"
 
@@ -3538,7 +3538,7 @@ msgid_plural "%d items imported."
 msgstr[0] "%d Artikel importiert."
 msgstr[1] "%d Artikel importiert."
 
-#: includes/Frontend/MemberPortal.php:4350
+#: includes/Frontend/MemberPortal.php:4333
 msgid "Export (CSV)"
 msgstr "Export (CSV)"
 
@@ -3556,11 +3556,11 @@ msgid "Image file"
 msgstr "Bilddatei"
 
 #: includes/Frontend/MemberPortal.php:1520
-#: includes/Frontend/MemberPortal.php:4055
+#: includes/Frontend/MemberPortal.php:4050
 msgid "Save photo"
 msgstr "Foto speichern"
 
-#: includes/Frontend/MemberPortal.php:4313
+#: includes/Frontend/MemberPortal.php:4296
 msgid "Tags (comma-separated)"
 msgstr "Tags (kommagetrennt)"
 
@@ -3570,25 +3570,19 @@ msgid "No units of this item are free in that period. Please pick other dates."
 msgstr "In diesem Zeitraum ist kein Stück dieses Artikels frei. Bitte andere Daten wählen."
 
 #. translators: 1: free units today, 2: total quantity.
-#: includes/Frontend/MemberPortal.php:4990
+#: includes/Frontend/MemberPortal.php:4972
 #, php-format
 msgid "%1$d of %2$d free today"
 msgstr "%1$d von %2$d heute frei"
 
-#: includes/Frontend/MemberPortal.php:3989
+#: includes/Frontend/MemberPortal.php:3984
 msgid "Search your inventory …"
 msgstr "Eigenes Inventar durchsuchen …"
 
 #: includes/Frontend/MemberPortal.php:1696
-#: includes/Frontend/MemberPortal.php:4148
+#: includes/Frontend/MemberPortal.php:4143
 msgid "No items match your search."
 msgstr "Keine Artikel passen zur Suche."
-
-#. translators: 1: current page, 2: total pages.
-#: includes/Frontend/MemberPortal.php:4159
-#, php-format
-msgid "Page %1$d of %2$d"
-msgstr "Seite %1$d von %2$d"
 
 #: includes/Frontend/MemberPortal.php:725
 msgid "You have left the group."
@@ -3622,19 +3616,19 @@ msgstr "Dokument entfernt."
 msgid "The document could not be uploaded. Please use a PDF or image file."
 msgstr "Das Dokument konnte nicht hochgeladen werden. Bitte verwende eine PDF- oder Bilddatei."
 
-#: includes/Frontend/MemberPortal.php:4106
+#: includes/Frontend/MemberPortal.php:4101
 msgid "Documents"
 msgstr "Dokumente"
 
-#: includes/Frontend/MemberPortal.php:4118
+#: includes/Frontend/MemberPortal.php:4113
 msgid "Remove"
 msgstr "Entfernen"
 
-#: includes/Frontend/MemberPortal.php:4128
+#: includes/Frontend/MemberPortal.php:4123
 msgid "PDF or image"
 msgstr "PDF oder Bild"
 
-#: includes/Frontend/MemberPortal.php:4131
+#: includes/Frontend/MemberPortal.php:4126
 msgid "Upload document"
 msgstr "Dokument hochladen"
 
@@ -3651,12 +3645,12 @@ msgid "Download my data (JSON)"
 msgstr "Meine Daten herunterladen (JSON)"
 
 #. translators: 1: free units, 2: total quantity, 3: start date, 4: end date.
-#: includes/Frontend/MemberPortal.php:4985
+#: includes/Frontend/MemberPortal.php:4967
 #, php-format
 msgid "%1$d of %2$d free (%3$s – %4$s)"
 msgstr "%1$d von %2$d frei (%3$s – %4$s)"
 
-#: includes/Frontend/MemberPortal.php:5045
+#: includes/Frontend/MemberPortal.php:5027
 msgid "Reset"
 msgstr "Zurücksetzen"
 
@@ -3729,15 +3723,15 @@ msgid_plural "%d network borrow requests"
 msgstr[0] "%d Netzwerk-Leih-Anfrage"
 msgstr[1] "%d Netzwerk-Leih-Anfragen"
 
-#: includes/Frontend/MemberPortal.php:5156
+#: includes/Frontend/MemberPortal.php:5138
 msgid "Borrowing history"
 msgstr "Ausleih-Historie"
 
-#: includes/Frontend/MemberPortal.php:5166
+#: includes/Frontend/MemberPortal.php:5148
 msgid "borrowed"
 msgstr "geliehen"
 
-#: includes/Frontend/MemberPortal.php:5167
+#: includes/Frontend/MemberPortal.php:5149
 msgid "lent out"
 msgstr "verliehen"
 
@@ -4205,44 +4199,44 @@ msgstr "Vorlagen-Kategorie nicht gefunden."
 msgid "This category is not yours."
 msgstr "Diese Kategorie gehört dir nicht."
 
-#: includes/Frontend/MemberPortal.php:4183
-#: includes/Frontend/MemberPortal.php:4270
+#: includes/Frontend/MemberPortal.php:4166
+#: includes/Frontend/MemberPortal.php:4253
 msgid "My categories"
 msgstr "Meine Kategorien"
 
-#: includes/Frontend/MemberPortal.php:4277
+#: includes/Frontend/MemberPortal.php:4260
 msgid "Templates"
 msgstr "Vorlagen"
 
-#: includes/Frontend/MemberPortal.php:4185
+#: includes/Frontend/MemberPortal.php:4168
 msgid "Organise your inventory with your own categories. Adopt one of the operator’s suggested templates or create your own."
 msgstr "Organisiere dein Inventar mit eigenen Kategorien. Übernimm eine der vom Betreiber vorgeschlagenen Vorlagen oder lege eigene an."
 
-#: includes/Frontend/MemberPortal.php:4192
+#: includes/Frontend/MemberPortal.php:4175
 msgid "Delete this category? Items keep their data but lose this category."
 msgstr "Diese Kategorie löschen? Artikel behalten ihre Daten, verlieren aber diese Kategorie."
 
-#: includes/Frontend/MemberPortal.php:4205
+#: includes/Frontend/MemberPortal.php:4188
 msgid "Suggested templates"
 msgstr "Vorgeschlagene Vorlagen"
 
-#: includes/Frontend/MemberPortal.php:4201
+#: includes/Frontend/MemberPortal.php:4184
 msgid "You have no own categories yet."
 msgstr "Du hast noch keine eigenen Kategorien."
 
-#: includes/Frontend/MemberPortal.php:4221
+#: includes/Frontend/MemberPortal.php:4204
 msgid "New category name"
 msgstr "Name der neuen Kategorie"
 
-#: includes/Frontend/MemberPortal.php:4224
+#: includes/Frontend/MemberPortal.php:4207
 msgid "Icon (emoji, optional)"
 msgstr "Symbol (Emoji, optional)"
 
-#: includes/Frontend/MemberPortal.php:4227
+#: includes/Frontend/MemberPortal.php:4210
 msgid "Number prefix (optional)"
 msgstr "Nummern-Präfix (optional)"
 
-#: includes/Frontend/MemberPortal.php:4230
+#: includes/Frontend/MemberPortal.php:4213
 msgid "Create category"
 msgstr "Kategorie anlegen"
 
@@ -4574,42 +4568,42 @@ msgstr "Rechtsangaben sind noch nicht gepflegt — öffne Verwalten → Instanz 
 msgid "deleted a team member"
 msgstr "löschte ein Teammitglied"
 
-#: includes/Frontend/MemberPortal.php:4351
+#: includes/Frontend/MemberPortal.php:4334
 msgid "Export (Excel)"
 msgstr "Export (Excel)"
 
-#: includes/Frontend/MemberPortal.php:4339
+#: includes/Frontend/MemberPortal.php:4322
 msgid "Import (CSV / Excel)"
 msgstr "Import (CSV / Excel)"
 
-#: includes/Frontend/MemberPortal.php:4343
+#: includes/Frontend/MemberPortal.php:4326
 msgid "CSV or Excel file"
 msgstr "CSV- oder Excel-Datei"
 
-#: includes/Frontend/MemberPortal.php:4346
+#: includes/Frontend/MemberPortal.php:4329
 msgid "Tip: export first to get the exact columns, fill in your data, then import. Excel files (.xlsx) are converted automatically; the “Name” column is required."
 msgstr "Tipp: Erst exportieren, um die genauen Spalten zu erhalten, dann Daten eintragen und importieren. Excel-Dateien (.xlsx) werden automatisch umgewandelt; die Spalte „Name“ ist Pflicht."
 
 #: includes/Frontend/MemberPortal.php:1668
 #: includes/Frontend/MemberPortal.php:1689
-#: includes/Frontend/MemberPortal.php:4015
-#: includes/Frontend/MemberPortal.php:4032
+#: includes/Frontend/MemberPortal.php:4010
+#: includes/Frontend/MemberPortal.php:4027
 msgid "Available"
 msgstr "Verfügbar"
 
 #. translators: 1: item count, 2: total pieces, 3: total daily value.
 #: includes/Frontend/MemberPortal.php:1659
-#: includes/Frontend/MemberPortal.php:3999
+#: includes/Frontend/MemberPortal.php:3994
 #, php-format
 msgid "%1$d items · %2$d pieces · daily value %3$s €"
 msgstr "%1$d Artikel · %2$d Teile · Tageswert %3$s €"
 
-#: includes/Frontend/MemberPortal.php:4018
-#: includes/Frontend/MemberPortal.php:4035
+#: includes/Frontend/MemberPortal.php:4013
+#: includes/Frontend/MemberPortal.php:4030
 msgid "Shared"
 msgstr "Geteilt"
 
-#: includes/Frontend/MemberPortal.php:4035
+#: includes/Frontend/MemberPortal.php:4030
 msgid "Not shared"
 msgstr "Nicht geteilt"
 
@@ -4643,68 +4637,68 @@ msgstr "%1$s – %2$s (%3$dt)"
 msgid "fee %s €"
 msgstr "Gebühr %s €"
 
-#: includes/Frontend/MemberPortal.php:4368
-#: includes/Frontend/MemberPortal.php:4371
+#: includes/Frontend/MemberPortal.php:4351
+#: includes/Frontend/MemberPortal.php:4354
 msgid "Share inventory"
 msgstr "Inventar freigeben"
 
-#: includes/Frontend/MemberPortal.php:4376
+#: includes/Frontend/MemberPortal.php:4359
 msgid "Share all your items at once with one of your collectives — instead of sharing them one by one. You can revoke it again any time."
 msgstr "Teile alle deine Artikel auf einmal mit einem deiner Kollektive — statt einzeln. Du kannst die Freigabe jederzeit wieder zurücknehmen."
 
 #. translators: 1: shared item count, 2: total item count.
-#: includes/Frontend/MemberPortal.php:4384
+#: includes/Frontend/MemberPortal.php:4367
 #, php-format
 msgid "%1$d of %2$d shared"
 msgstr "%1$d von %2$d geteilt"
 
-#: includes/Frontend/MemberPortal.php:4406
+#: includes/Frontend/MemberPortal.php:4389
 msgid "Share all"
 msgstr "Alle teilen"
 
-#: includes/Frontend/MemberPortal.php:4409
+#: includes/Frontend/MemberPortal.php:4392
 msgid "Revoke sharing of all your items with this collective?"
 msgstr "Freigabe aller deiner Artikel für dieses Kollektiv zurücknehmen?"
 
-#: includes/Frontend/MemberPortal.php:4436
+#: includes/Frontend/MemberPortal.php:4419
 msgid "Analysis"
 msgstr "Auswertung"
 
-#: includes/Frontend/MemberPortal.php:4438
+#: includes/Frontend/MemberPortal.php:4421
 msgid "Daily-rate potential and how often each item was out. Rental earnings are only shown where a per-item daily rate is recorded — nothing is estimated."
 msgstr "Tagessatz-Potenzial und wie oft jeder Artikel unterwegs war. Verleih-Erträge erscheinen nur, wo ein Tagessatz pro Position hinterlegt ist — nichts wird geschätzt."
 
-#: includes/Frontend/MemberPortal.php:4442
-#: includes/Frontend/MemberPortal.php:4462
-#: includes/Frontend/MemberPortal.php:4473
+#: includes/Frontend/MemberPortal.php:4425
+#: includes/Frontend/MemberPortal.php:4445
+#: includes/Frontend/MemberPortal.php:4456
 msgid "Daily value"
 msgstr "Tageswert"
 
-#: includes/Frontend/MemberPortal.php:4446
+#: includes/Frontend/MemberPortal.php:4429
 msgid "Active items"
 msgstr "Aktive Artikel"
 
-#: includes/Frontend/MemberPortal.php:4450
-#: includes/Frontend/MemberPortal.php:4463
-#: includes/Frontend/MemberPortal.php:4474
+#: includes/Frontend/MemberPortal.php:4433
+#: includes/Frontend/MemberPortal.php:4446
+#: includes/Frontend/MemberPortal.php:4457
 msgid "Times out"
 msgstr "Einsätze"
 
-#: includes/Frontend/MemberPortal.php:4464
-#: includes/Frontend/MemberPortal.php:4475
+#: includes/Frontend/MemberPortal.php:4447
+#: includes/Frontend/MemberPortal.php:4458
 msgid "Days out"
 msgstr "Tage unterwegs"
 
-#: includes/Frontend/MemberPortal.php:4454
+#: includes/Frontend/MemberPortal.php:4437
 msgid "Recorded earnings"
 msgstr "Belegte Erträge"
 
-#: includes/Frontend/MemberPortal.php:4465
-#: includes/Frontend/MemberPortal.php:4476
+#: includes/Frontend/MemberPortal.php:4448
+#: includes/Frontend/MemberPortal.php:4459
 msgid "Earnings"
 msgstr "Erträge"
 
-#: includes/Frontend/MemberPortal.php:4480
+#: includes/Frontend/MemberPortal.php:4463
 msgid "Add items to see an analysis."
 msgstr "Lege Artikel an, um eine Auswertung zu sehen."
 
@@ -5311,26 +5305,26 @@ msgstr "Fehler gefunden oder eine Idee? Sag es den Betreiber:innen."
 msgid "Your message"
 msgstr "Deine Nachricht"
 
-#: includes/Frontend/MemberPortal.php:4072
+#: includes/Frontend/MemberPortal.php:4067
 msgid "Share with your collectives"
 msgstr "Mit deinen Gruppen teilen"
 
-#: includes/Frontend/MemberPortal.php:4085
-#: includes/Frontend/MemberPortal.php:4392
+#: includes/Frontend/MemberPortal.php:4080
+#: includes/Frontend/MemberPortal.php:4375
 msgid "Daily rate (€)"
 msgstr "Tagessatz (€)"
 
-#: includes/Frontend/MemberPortal.php:4088
-#: includes/Frontend/MemberPortal.php:4395
+#: includes/Frontend/MemberPortal.php:4083
+#: includes/Frontend/MemberPortal.php:4378
 msgid "Requires approval"
 msgstr "Freigabe erforderlich"
 
-#: includes/Frontend/MemberPortal.php:4096
-#: includes/Frontend/MemberPortal.php:4402
+#: includes/Frontend/MemberPortal.php:4091
+#: includes/Frontend/MemberPortal.php:4385
 msgid "Notes (optional)"
 msgstr "Hinweise (optional)"
 
-#: includes/Frontend/MemberPortal.php:4100
+#: includes/Frontend/MemberPortal.php:4095
 msgid "Save sharing"
 msgstr "Freigabe speichern"
 
@@ -5418,10 +5412,10 @@ msgstr "Token entfernen"
 msgid "Create a fine-grained token on GitHub (Read-only, no scopes needed) →"
 msgstr "Fine-grained Token auf GitHub erstellen (Read-only, keine Scopes nötig) →"
 
-#: includes/Frontend/MemberPortal.php:4390
+#: includes/Frontend/MemberPortal.php:4373
 msgid "Default conditions (for newly shared items)"
 msgstr "Standard-Konditionen (für neu geteilte Artikel)"
 
-#: includes/Frontend/MemberPortal.php:4412
+#: includes/Frontend/MemberPortal.php:4395
 msgid "Revoke all"
 msgstr "Alle zurücknehmen"
