@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.98.10
+Stable tag: 0.98.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.98.11 =
+* Fix: buttons that open a pop-up ("Share inventory", "New poll", "Borrow", feedback) did nothing — a click guard meant to ignore interactive child elements also caught the trigger button itself. Clicking these buttons now opens their dialog again; clicks on links and buttons inside list rows are still passed through as before.
 
 = 0.98.10 =
 * Inventory import: unknown categories from a CSV/XLSX file are now created automatically as new categories (with a three-letter prefix) instead of landing in the default category — matching the Excel import of the main app.

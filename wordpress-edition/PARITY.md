@@ -3,6 +3,20 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release 2026-07-17 (Plugin v0.98.11, Schema 0.27.0 — Fix: Button-Trigger öffneten ihr Modal nicht)
+> Reiner JS-Patch (nur `assets/js/portal.js`), KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration, keine neuen i18n-Strings.
+> 1. Der Klick-Handler für `[data-pp-modal]`-Trigger hatte einen Guard, der Klicks auf interaktive
+>    Kind-Elemente (`a, button, input, label, summary`) ignorieren sollte — er matchte aber auch den
+>    Trigger-Button SELBST. Folge: alle Button-Trigger-Modals öffneten nicht mehr („Inventar freigeben"
+>    /share_all, „Neue Umfrage", „Leihen", Feedback). Fix: Guard greift nur noch, wenn das interaktive
+>    Element ≠ Trigger ist (`interactive !== trigger`); Zeilen-Trigger mit Buttons darin bleiben intakt.
+> 2. `.gitignore`: `wordpress-edition/00_NO_UPLOAD_SECRET/` ergänzt (lokale Zugangsdaten, Repo public).
+> End-to-end in wp-env verifiziert: Gesamt-Freigabe-Modal öffnet, „Alle teilen" teilt 81/81 Artikel,
+> Feedback-Modal öffnet, Item-Zeilen-Modal funktioniert weiter. Plugin-Check: KEINE neuen ERROR-Findings
+> ggü. v0.98.10 (nur die bekannten Altfehler Legal/Costs/MemberPortal + hidden_files +
+> plugin_updater_detected). `update.json` auf 0.98.11 mitgepflegt. Build `dist/project-prepper-0.98.11.zip`
+> (1,1 MB, 112 Dateien).
+>
 > ## 🧩 Release 2026-07-16 (Plugin v0.98.10, Schema 0.27.0 — Inventar-Import: Kategorien-Auto-Anlage + Zustands-Mapping)
 > Patch-Release, KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration, keine neuen i18n-Strings.
 > 1. Portal-Import (Mein Inventar, `MemberPortal::import_inventory_csv`): unbekannte Kategorien aus

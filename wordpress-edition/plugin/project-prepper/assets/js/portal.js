@@ -55,8 +55,10 @@
 		}
 		var trigger = e.target.closest( '[data-pp-modal]' );
 		if ( ! trigger ) { return; }
-		// Interaktive Kindelemente in der Zeile nicht abfangen.
-		if ( e.target.closest( 'a, button, input, label, summary' ) ) { return; }
+		// Interaktive Kindelemente in der Zeile nicht abfangen — der Trigger
+		// selbst darf aber ein Button sein (z.B. „Inventar freigeben").
+		var interactive = e.target.closest( 'a, button, input, label, summary' );
+		if ( interactive && interactive !== trigger ) { return; }
 		e.preventDefault();
 		openModal( trigger.getAttribute( 'data-pp-modal' ) );
 	} );

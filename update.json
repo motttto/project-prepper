@@ -1,9 +1,9 @@
 {
-  "version": "0.98.10",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.10/project-prepper-0.98.10.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.10",
-  "published": "2026-07-16",
+  "version": "0.98.11",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.11/project-prepper-0.98.11.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.11",
+  "published": "2026-07-17",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Inventar-Import: unbekannte Kategorien werden beim CSV-/Excel-Import automatisch als eigene Kategorien angelegt (mit 3-Buchstaben-Praefix) statt in der Standard-Kategorie zu landen. Zustand 'Befriedigend' aus App-Exporten wird jetzt als 'Mittel' importiert statt still auf 'Gut' zu fallen."
+  "changelog": "Fix: Buttons, die ein Pop-up oeffnen ('Inventar freigeben', 'Neue Umfrage', 'Leihen', Feedback), reagierten nicht mehr - ein Klick-Guard fuer interaktive Kind-Elemente hat den Trigger-Button selbst abgefangen. Die Buttons oeffnen ihr Fenster jetzt wieder; Klicks auf Links/Buttons innerhalb von Listenzeilen werden weiterhin durchgereicht."
 }
