@@ -218,6 +218,8 @@
 .pp-front input[type="tel"],
 .pp-front input[type="search"],
 .pp-front input[type="date"],
+.pp-front input[type="time"],
+.pp-front input[type="number"],
 .pp-front select,
 .pp-front textarea {
 	background: var(--pp-surface);
@@ -1753,6 +1755,16 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-dl dd { margin: 0; }
 
 .pp-rows { display: flex; flex-direction: column; gap: 8px; }
+.pp-rows + .pp-sched-day { margin-top: 14px; }
+.pp-sched-day { font-weight: 600; font-size: .82rem; margin: 0 0 6px; color: var(--pp-muted-foreground); text-transform: uppercase; letter-spacing: .03em; }
+
+/* Budget-Balken (Kosten-Karte): Geplant-Netto gegen Projektbudget. */
+.pp-budget-bar { height: 8px; background: var(--pp-muted); border-radius: 999px; overflow: hidden; margin: 2px 0 4px; }
+.pp-budget-bar__fill { height: 100%; background: var(--pp-primary); border-radius: 999px; }
+.pp-budget-bar__fill--over { background: var(--pp-destructive); }
+.pp-budget-meta { display: flex; justify-content: space-between; font-size: .78rem; color: var(--pp-muted-foreground); margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+
+.pp-row form { margin: 0; }
 .pp-row {
 	display: flex;
 	align-items: baseline;
@@ -1791,8 +1803,17 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-cal__feed a:hover { text-decoration: underline; }
 
 .pp-checklist + .pp-checklist { margin-top: 12px; }
-.pp-checklist__name { font-weight: 600; font-size: .9rem; margin: 0 0 6px; }
+.pp-checklist__name { font-weight: 600; font-size: .9rem; margin: 0 0 6px; display: flex; align-items: center; gap: 8px; }
+.pp-checklist__name form { margin: 0; }
 .pp-checkitem { display: flex; align-items: center; gap: 8px; font-size: .9rem; padding: 3px 0; }
+.pp-checkitem form { margin: 0; display: inline-flex; }
+.pp-checkitem__actions { margin-left: auto; }
+.pp-checkitem__actions form { margin: 0; }
+button.pp-checkitem__box { padding: 0; cursor: pointer; background: transparent; font: inherit; font-size: .7rem; line-height: 1; }
+button.pp-checkitem__box--on { background: var(--pp-success); }
+.pp-checkitem-add { display: flex; gap: 6px; margin-top: 6px; max-width: 420px; }
+.pp-checkitem-add input[type="text"] { flex: 1; padding: 6px 10px; font-size: .85rem; }
+.pp-checkitem-add .pp-portal__chip { flex: none; }
 .pp-checkitem__box {
 	width: 16px;
 	height: 16px;

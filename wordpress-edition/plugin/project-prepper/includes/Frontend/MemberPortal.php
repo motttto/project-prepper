@@ -17,6 +17,13 @@ use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\Availability;
 use ProjectPrepper\Services\Costs;
 use ProjectPrepper\Services\Schedule;
+use ProjectPrepper\Services\Tasks;
+use ProjectPrepper\Services\Checklists;
+use ProjectPrepper\Services\Consumables;
+use ProjectPrepper\Services\Team;
+use ProjectPrepper\Services\Contacts;
+use ProjectPrepper\Services\ProfitShares;
+use ProjectPrepper\Services\Files;
 use ProjectPrepper\Services\Decisions;
 use ProjectPrepper\Services\Polls;
 use ProjectPrepper\Services\FederatedBorrow;
@@ -70,6 +77,7 @@ class MemberPortal {
 		add_action( 'admin_post_pp_member_import', [ self::class, 'handle_inventory_import' ] );
 		add_action( 'admin_post_pp_member_photo', [ self::class, 'handle_inventory_photo' ] );
 		add_action( 'admin_post_pp_member_doc', [ self::class, 'handle_inventory_doc' ] );
+		add_action( 'admin_post_pp_project_file', [ self::class, 'handle_project_file' ] );
 		add_action( 'admin_post_pp_member_data', [ self::class, 'handle_member_data_export' ] );
 		add_action( 'admin_post_pp_member_avatar', [ self::class, 'handle_member_avatar' ] );
 		add_action( 'admin_post_pp_accept_terms', [ self::class, 'handle_accept_terms' ] );
@@ -325,6 +333,14 @@ class MemberPortal {
 			exit;
 		}
 
+		// Projekt-Unterlisten (Zeitplan/Aufgaben/Checklisten/Material/Team/
+		// Kontakte/Kosten/Gewinn/Finanzen): nur auf Projekten des AKTIVEN
+		// Gruppen-Workspaces — dasselbe Gate wie die Equipment-Buchung.
+		if ( in_array( $do, self::project_sub_actions(), true ) && ! self::member_owned_project( $proj_id ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+			exit;
+		}
+
 		// Föderierte Leih-Entscheidungen kehren zur Verleih-Ansicht zurück.
 		if ( in_array( $do, [ 'fedborrow_approve', 'fedborrow_decline', 'fedborrow_return' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'lending', self::portal_url() );
@@ -529,6 +545,183 @@ class MemberPortal {
 				$result = self::member_remove_booking( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ) );
 				$ok_msg = 'booking_removed';
 				break;
+			// --- Projekt-Unterlisten (Gate: project_sub_actions oben) ---
+			case 'sched_add':
+				$result = Schedule::create( $proj_id, self::schedule_input() );
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'sched_update':
+				$sid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Schedule::get( $sid ), $proj_id )
+					? Schedule::update( $sid, self::schedule_input() )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'sched_delete':
+				$sid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Schedule::get( $sid ), $proj_id )
+					? Schedule::delete( $sid )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_deleted';
+				break;
+			case 'task_add':
+				$result = self::member_task_save( $proj_id, 0 );
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'task_update':
+				$result = self::member_task_save( $proj_id, (int) ( $_POST['pp_entry'] ?? 0 ) );
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'task_delete':
+				$tid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Tasks::get( $tid ), $proj_id )
+					? Tasks::delete( $tid )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_deleted';
+				break;
+			case 'checklist_add':
+				$result = Checklists::create( $proj_id, sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ) );
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'checklist_delete':
+				$lid    = (int) ( $_POST['pp_list'] ?? 0 );
+				$result = self::sub_belongs( Checklists::get( $lid ), $proj_id )
+					? Checklists::delete( $lid )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_deleted';
+				break;
+			case 'checkitem_add':
+				$lid    = (int) ( $_POST['pp_list'] ?? 0 );
+				$result = self::sub_belongs( Checklists::get( $lid ), $proj_id )
+					? Checklists::add_item( $lid, sanitize_text_field( wp_unslash( (string) ( $_POST['pp_label'] ?? '' ) ) ) )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'checkitem_toggle':
+				// Abhaken/Enthaken — bewusst ohne Erfolgsmeldung (ok_msg 'ok').
+				$ci     = Checklists::get_item( (int) ( $_POST['pp_citem'] ?? 0 ) );
+				$in_prj = $ci && self::sub_belongs( Checklists::get( (int) $ci->checklist_id ), $proj_id );
+				$result = $in_prj
+					? Checklists::update_item( (int) $ci->id, [ 'is_checked' => empty( $ci->is_checked ) ? 1 : 0 ] )
+					: self::forbidden_error();
+				break;
+			case 'checkitem_delete':
+				$ci     = Checklists::get_item( (int) ( $_POST['pp_citem'] ?? 0 ) );
+				$in_prj = $ci && self::sub_belongs( Checklists::get( (int) $ci->checklist_id ), $proj_id );
+				$result = $in_prj
+					? Checklists::delete_item( (int) $ci->id )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_deleted';
+				break;
+			case 'material_add':
+				$result = Consumables::create( $proj_id, self::consumable_input() );
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'material_update':
+				$mid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Consumables::get( $mid ), $proj_id )
+					? Consumables::update( $mid, self::consumable_input() )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'material_delete':
+				$mid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Consumables::get( $mid ), $proj_id )
+					? Consumables::delete( $mid )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_deleted';
+				break;
+			case 'crew_add':
+				$result = Team::create( $proj_id, self::crew_input() );
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'crew_update':
+				$cid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Team::get( $cid ), $proj_id )
+					? Team::update( $cid, self::crew_input() )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'crew_delete':
+				$cid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Team::get( $cid ), $proj_id )
+					? Team::delete( $cid )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_deleted';
+				break;
+			case 'contact_add':
+				$result = Contacts::create( $proj_id, self::contact_input() );
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'contact_update':
+				$cid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Contacts::get( $cid ), $proj_id )
+					? Contacts::update( $cid, self::contact_input() )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'contact_delete':
+				$cid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Contacts::get( $cid ), $proj_id )
+					? Contacts::delete( $cid )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_deleted';
+				break;
+			case 'cost_add':
+				$result = Costs::create( $proj_id, self::cost_input() );
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'cost_update':
+				$cid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Costs::get( $cid ), $proj_id )
+					? Costs::update( $cid, self::cost_input() )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'cost_delete':
+				$cid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Costs::get( $cid ), $proj_id )
+					? Costs::delete( $cid )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_deleted';
+				break;
+			case 'profit_add':
+				$result = ProfitShares::add( $proj_id, (int) ( $_POST['pp_user'] ?? 0 ), self::profit_input() );
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'profit_update':
+				$pid2   = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( ProfitShares::get( $pid2 ), $proj_id )
+					? ProfitShares::update( $pid2, self::profit_input() )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_saved';
+				break;
+			case 'profit_remove':
+				$pid2   = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( ProfitShares::get( $pid2 ), $proj_id )
+					? ProfitShares::remove( $pid2 )
+					: self::forbidden_error();
+				$ok_msg = 'proj_entry_deleted';
+				break;
+			case 'project_finance':
+				// Budget/Umsatz getrennt von den Stammdaten (Kosten- bzw. Gewinn-Karte).
+				$fin = [];
+				if ( isset( $_POST['pp_budget'] ) ) {
+					$fin['budget_planned'] = self::money_field( 'pp_budget' );
+				}
+				if ( isset( $_POST['pp_revenue'] ) ) {
+					$fin['revenue_actual'] = self::money_field( 'pp_revenue' );
+				}
+				$result = $fin ? Projects::update( $proj_id, $fin ) : true;
+				$ok_msg = 'project_saved';
+				break;
+			case 'file_detach':
+				$fid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Files::get( $fid ), $proj_id )
+					? Files::detach( $fid )
+					: self::forbidden_error();
+				$ok_msg = 'pfile_removed';
+				break;
 			case 'borrow_request':
 				$result = Borrowing::request(
 					get_current_user_id(),
@@ -665,6 +858,12 @@ class MemberPortal {
 				$msg = 'leave_last_founder';
 			} elseif ( 'pp_not_available' === $code ) {
 				$msg = 'rental_unavailable';
+			} elseif ( 'pp_invalid_amount' === $code ) {
+				$msg = 'invalid_amount';
+			} elseif ( 'pp_not_group_member' === $code ) {
+				$msg = 'not_group_member';
+			} elseif ( in_array( $code, [ 'pp_missing_title', 'pp_missing_name', 'pp_missing_label' ], true ) ) {
+				$msg = 'missing_required';
 			} else {
 				$msg = 'error';
 			}
@@ -712,6 +911,14 @@ class MemberPortal {
 			'rental_unavailable' => [ 'err', __( 'One of the items is not available in that period. Please adjust the dates or quantity.', 'project-prepper' ) ],
 			'project_saved'    => [ 'ok', __( 'Project saved.', 'project-prepper' ) ],
 			'project_deleted'  => [ 'ok', __( 'Project deleted.', 'project-prepper' ) ],
+			'proj_entry_saved'   => [ 'ok', __( 'Entry saved.', 'project-prepper' ) ],
+			'proj_entry_deleted' => [ 'ok', __( 'Entry removed.', 'project-prepper' ) ],
+			'pfile_saved'        => [ 'ok', __( 'File uploaded.', 'project-prepper' ) ],
+			'pfile_removed'      => [ 'ok', __( 'File removed.', 'project-prepper' ) ],
+			'pfile_failed'       => [ 'err', __( 'The file could not be uploaded. Please use a PDF or image file.', 'project-prepper' ) ],
+			'invalid_amount'     => [ 'err', __( 'Invalid amount. Please enter a non-negative number.', 'project-prepper' ) ],
+			'missing_required'   => [ 'err', __( 'Please fill in the required field.', 'project-prepper' ) ],
+			'not_group_member'   => [ 'err', __( 'This user is not a member of the project group.', 'project-prepper' ) ],
 			'booking_saved'    => [ 'ok', __( 'Booking saved.', 'project-prepper' ) ],
 			'booking_removed'  => [ 'ok', __( 'Booking removed.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
@@ -2390,6 +2597,162 @@ class MemberPortal {
 		return Projects::remove_item( $pid, $line_id );
 	}
 
+	/* ---------- Projekt-Unterlisten (Zeitplan/Aufgaben/…) ---------- */
+
+	/**
+	 * Alle pp_do-Aktionen der Projekt-Unterlisten. Der Dispatcher erzwingt für
+	 * sie member_owned_project($proj_id) — Projekt im aktiven Gruppen-Workspace.
+	 *
+	 * @return array<string>
+	 */
+	private static function project_sub_actions(): array {
+		return [
+			'sched_add', 'sched_update', 'sched_delete',
+			'task_add', 'task_update', 'task_delete',
+			'checklist_add', 'checklist_delete',
+			'checkitem_add', 'checkitem_toggle', 'checkitem_delete',
+			'material_add', 'material_update', 'material_delete',
+			'crew_add', 'crew_update', 'crew_delete',
+			'contact_add', 'contact_update', 'contact_delete',
+			'cost_add', 'cost_update', 'cost_delete',
+			'profit_add', 'profit_update', 'profit_remove',
+			'project_finance', 'file_detach',
+		];
+	}
+
+	/** IDOR-Schutz: gehört die Unterlisten-Zeile wirklich zu diesem Projekt? */
+	private static function sub_belongs( ?object $row, int $pid ): bool {
+		return $row && (int) ( $row->project_id ?? 0 ) === $pid && $pid > 0;
+	}
+
+	private static function forbidden_error(): \WP_Error {
+		return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+	}
+
+	/** Geldbetrag aus POST: Komma→Punkt, leer bleibt leer (→ NULL im Service). */
+	private static function money_field( string $key ): string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		$raw = trim( sanitize_text_field( wp_unslash( (string) ( $_POST[ $key ] ?? '' ) ) ) );
+		return str_replace( ',', '.', $raw );
+	}
+
+	/** Eingaben des Zeitplan-Formulars (Nonce im Dispatcher geprüft). */
+	private static function schedule_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'title'         => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_title'] ?? '' ) ) ),
+			'schedule_date' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_date'] ?? '' ) ) ),
+			'time_start'    => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_time_from'] ?? '' ) ) ),
+			'time_end'      => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_time_to'] ?? '' ) ) ),
+			'location'      => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_location'] ?? '' ) ) ),
+			'notes'         => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_notes'] ?? '' ) ) ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
+	 * Aufgabe anlegen/ändern. Nur tatsächlich gePOSTete Felder gehen ins
+	 * partielle Update — so kann der Schnell-Status-Chip NUR pp_status senden.
+	 * Zuweisung wird gegen die Mitglieder der besitzenden Gruppe validiert.
+	 *
+	 * @return int|true|\WP_Error
+	 */
+	private static function member_task_save( int $pid, int $task_id ) {
+		$p = self::member_owned_project( $pid );
+		if ( ! $p ) {
+			return self::forbidden_error();
+		}
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		$data = [];
+		if ( isset( $_POST['pp_title'] ) ) {
+			$data['title'] = sanitize_text_field( wp_unslash( (string) $_POST['pp_title'] ) );
+		}
+		if ( isset( $_POST['pp_status'] ) ) {
+			$data['task_status'] = sanitize_key( wp_unslash( (string) $_POST['pp_status'] ) );
+		}
+		if ( isset( $_POST['pp_priority'] ) ) {
+			$data['priority'] = sanitize_key( wp_unslash( (string) $_POST['pp_priority'] ) );
+		}
+		if ( isset( $_POST['pp_due'] ) ) {
+			$data['due_date'] = sanitize_text_field( wp_unslash( (string) $_POST['pp_due'] ) );
+		}
+		if ( isset( $_POST['pp_assignee'] ) ) {
+			$assignee = (int) $_POST['pp_assignee'];
+			if ( $assignee && ! Groups::is_member( (int) $p->owner_group_id, $assignee ) ) {
+				return new \WP_Error( 'pp_not_group_member', __( 'This user is not a member of the project group.', 'project-prepper' ), [ 'status' => 400 ] );
+			}
+			$data['assigned_user'] = $assignee;
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		if ( $task_id ) {
+			if ( ! self::sub_belongs( Tasks::get( $task_id ), $pid ) ) {
+				return self::forbidden_error();
+			}
+			return Tasks::update( $task_id, $data );
+		}
+		return Tasks::create( $pid, $data );
+	}
+
+	/** Eingaben des Material-Formulars (Nonce im Dispatcher geprüft). */
+	private static function consumable_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'name'     => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+			'quantity' => str_replace( ',', '.', sanitize_text_field( wp_unslash( (string) ( $_POST['pp_quantity'] ?? '' ) ) ) ),
+			'unit'     => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_unit'] ?? '' ) ) ),
+			'cost'     => self::money_field( 'pp_cost' ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/** Eingaben des Crew-Formulars (Nonce im Dispatcher geprüft). */
+	private static function crew_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'name'       => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+			'role'       => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_role'] ?? '' ) ) ),
+			'department' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_department'] ?? '' ) ) ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/** Eingaben des Kontakt-Formulars (Nonce im Dispatcher geprüft). */
+	private static function contact_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'name'    => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+			'role'    => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_role'] ?? '' ) ) ),
+			'company' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_company'] ?? '' ) ) ),
+			'email'   => sanitize_email( wp_unslash( (string) ( $_POST['pp_email'] ?? '' ) ) ),
+			'phone'   => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_phone'] ?? '' ) ) ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/** Eingaben des Kostenposten-Formulars (Nonce im Dispatcher geprüft). */
+	private static function cost_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'category'       => sanitize_key( wp_unslash( (string) ( $_POST['pp_category'] ?? 'other' ) ) ),
+			'description'    => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
+			'amount_planned' => self::money_field( 'pp_planned' ),
+			'amount_actual'  => self::money_field( 'pp_actual' ),
+			'vat_rate'       => self::money_field( 'pp_vat' ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/** Eingaben des Gewinnanteil-Formulars (Nonce im Dispatcher geprüft). */
+	private static function profit_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'share_type'  => sanitize_key( wp_unslash( (string) ( $_POST['pp_share_type'] ?? 'percentage' ) ) ),
+			'share_value' => self::money_field( 'pp_share_value' ),
+			'note'        => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_note'] ?? '' ) ) ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
 	/** Projekt-Formular (Kernfelder) für Anlegen/Bearbeiten. */
 	private static function project_form( string $do, ?object $p ): void {
 		$val = static fn( string $f, $d = '' ) => $p && isset( $p->$f ) && null !== $p->$f ? $p->$f : $d;
@@ -2566,9 +2929,13 @@ class MemberPortal {
 			<?php
 		endif;
 
+		// Bearbeiten-Gate aller interaktiven Sektionen: das Projekt gehört zum
+		// AKTIVEN Gruppen-Workspace (sonst read-only, Muster Equipment-Buchung).
+		$can_edit = (int) $p->owner_group_id === self::active_workspace_group();
+
 		// 2) Gebuchtes Equipment — im aktiven Workspace kann direkt gebucht,
 		// geändert und entfernt werden (Pendant zum Equipment-Tab der App).
-		$can_book = (int) $p->owner_group_id === self::active_workspace_group();
+		$can_book = $can_edit;
 		$pool     = $can_book ? self::bookable_pool( $p ) : [];
 		if ( ! empty( $p->items ) || $can_book ) :
 			$has_period = '' !== (string) $p->date_start && '' !== (string) $p->date_end;
@@ -2711,153 +3078,28 @@ class MemberPortal {
 			</section>
 		<?php endif;
 
-		// 3) Zeitplan.
-		if ( ! empty( $p->schedule ) ) : ?>
-			<section class="pp-card">
-				<h3 class="pp-card__title"><?php esc_html_e( 'Schedule', 'project-prepper' ); ?></h3>
-				<div class="pp-rows">
-					<?php foreach ( $p->schedule as $s ) :
-						$time = trim( (string) $s->time_start . ( ! empty( $s->time_end ) ? '–' . $s->time_end : '' ) );
-						$meta = trim( self::fmt_date( $s->schedule_date ) . ( '' !== $time ? ' ' . $time : '' ) ); ?>
-						<div class="pp-row">
-							<span class="pp-row__main"><?php echo esc_html( $s->title ); ?></span>
-							<?php if ( ! empty( $s->location ) ) : ?>
-								<span class="pp-muted-inline"><?php echo esc_html( $s->location ); ?></span>
-							<?php endif; ?>
-							<?php if ( '' !== $meta ) : ?>
-								<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
-							<?php endif; ?>
-						</div>
-					<?php endforeach; ?>
-				</div>
-			</section>
-		<?php endif;
-
-		// 4) Aufgaben.
-		if ( ! empty( $p->tasks ) ) : ?>
-			<section class="pp-card">
-				<h3 class="pp-card__title"><?php esc_html_e( 'Tasks', 'project-prepper' ); ?></h3>
-				<div class="pp-rows">
-					<?php foreach ( $p->tasks as $t ) :
-						$assignee = $t->assigned_user ? get_userdata( (int) $t->assigned_user ) : null;
-						$meta     = self::task_priority_label( (string) $t->priority );
-						if ( ! empty( $t->due_date ) ) {
-							$meta .= ' · ' . self::fmt_date( $t->due_date );
-						}
-						if ( $assignee ) {
-							$meta .= ' · ' . $assignee->display_name;
-						} ?>
-						<div class="pp-row">
-							<span class="pp-status pp-status--<?php echo esc_attr( $t->task_status ); ?>"><?php echo esc_html( self::task_status_label( (string) $t->task_status ) ); ?></span>
-							<span class="pp-row__main"><?php echo esc_html( $t->title ); ?></span>
-							<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
-						</div>
-					<?php endforeach; ?>
-				</div>
-			</section>
-		<?php endif;
-
-		// 5) Checklisten.
-		if ( ! empty( $p->checklists ) ) : ?>
-			<section class="pp-card">
-				<h3 class="pp-card__title"><?php esc_html_e( 'Checklists', 'project-prepper' ); ?></h3>
-				<?php foreach ( $p->checklists as $list ) : ?>
-					<div class="pp-checklist">
-						<p class="pp-checklist__name"><?php echo esc_html( $list->name ); ?></p>
-						<?php foreach ( (array) $list->items as $ci ) :
-							$done = ! empty( $ci->is_checked ); ?>
-							<div class="pp-checkitem<?php echo $done ? ' pp-checkitem--done' : ''; ?>">
-								<span class="pp-checkitem__box<?php echo $done ? ' pp-checkitem__box--on' : ''; ?>"><?php echo $done ? '✓' : ''; ?></span>
-								<span class="pp-checkitem__label"><?php echo esc_html( $ci->label ); ?></span>
-							</div>
-						<?php endforeach; ?>
-					</div>
-				<?php endforeach; ?>
-			</section>
-		<?php endif;
-
-		// 6) Material.
-		if ( ! empty( $p->consumables ) ) : ?>
-			<section class="pp-card">
-				<h3 class="pp-card__title"><?php esc_html_e( 'Materials', 'project-prepper' ); ?></h3>
-				<div class="pp-rows">
-					<?php foreach ( $p->consumables as $c ) : ?>
-						<div class="pp-row">
-							<span class="pp-row__main"><?php echo esc_html( $c->name ); ?></span>
-							<span class="pp-row__meta"><?php echo esc_html( trim( (string) $c->quantity . ' ' . (string) $c->unit ) ); ?></span>
-						</div>
-					<?php endforeach; ?>
-				</div>
-			</section>
-		<?php endif;
-
-		// 7) Team.
-		if ( ! empty( $p->team ) ) : ?>
-			<section class="pp-card">
-				<h3 class="pp-card__title"><?php esc_html_e( 'Team', 'project-prepper' ); ?></h3>
-				<div class="pp-rows">
-					<?php foreach ( $p->team as $m ) :
-						$meta = trim( (string) $m->role . ( '' !== (string) $m->department ? ' · ' . $m->department : '' ) ); ?>
-						<div class="pp-row">
-							<span class="pp-row__main"><?php echo esc_html( $m->name ); ?></span>
-							<?php if ( '' !== $meta ) : ?>
-								<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
-							<?php endif; ?>
-						</div>
-					<?php endforeach; ?>
-				</div>
-			</section>
-		<?php endif;
-
-		// 8) Kontakte.
-		if ( ! empty( $p->contacts ) ) : ?>
-			<section class="pp-card">
-				<h3 class="pp-card__title"><?php esc_html_e( 'Contacts', 'project-prepper' ); ?></h3>
-				<div class="pp-rows">
-					<?php foreach ( $p->contacts as $c ) :
-						$meta = implode( ' · ', array_filter( [ $c->role, $c->company, $c->email, $c->phone ] ) ); ?>
-						<div class="pp-row">
-							<span class="pp-row__main"><?php echo esc_html( $c->name ); ?></span>
-							<?php if ( '' !== $meta ) : ?>
-								<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
-							<?php endif; ?>
-						</div>
-					<?php endforeach; ?>
-				</div>
-			</section>
-		<?php endif;
-
-		// 9) Dateien.
-		if ( ! empty( $p->files ) ) : ?>
-			<section class="pp-card">
-				<h3 class="pp-card__title"><?php esc_html_e( 'Files', 'project-prepper' ); ?></h3>
-				<div class="pp-rows">
-					<?php foreach ( $p->files as $f ) :
-						$label = '' !== (string) $f->title ? $f->title : ( $f->filename ?: __( 'File', 'project-prepper' ) ); ?>
-						<div class="pp-row">
-							<?php if ( ! empty( $f->url ) ) : ?>
-								<a class="pp-row__main" href="<?php echo esc_url( $f->url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $label ); ?></a>
-							<?php else : ?>
-								<span class="pp-row__main"><?php echo esc_html( $label ); ?></span>
-								<span class="pp-row__meta"><?php esc_html_e( 'missing', 'project-prepper' ); ?></span>
-							<?php endif; ?>
-						</div>
-					<?php endforeach; ?>
-				</div>
-			</section>
-		<?php endif;
+		// 3)–9) Unterlisten — im aktiven Workspace voll bearbeitbar (Pendant zu
+		// den App-Tabs Zeitplan/Aufgaben/Checklisten/Material/Team/Kontakte/Dateien).
+		$g_members = $can_edit ? Groups::members( (int) $p->owner_group_id ) : [];
+		self::render_project_schedule( $p, $can_edit );
+		self::render_project_tasks( $p, $can_edit, $g_members );
+		self::render_project_checklists( $p, $can_edit );
+		self::render_project_materials( $p, $can_edit );
+		self::render_project_team( $p, $can_edit );
+		self::render_project_contacts( $p, $can_edit );
+		self::render_project_files_section( $p, $can_edit );
 
 		// 10) Beteiligte (read-only Roster aus der besitzenden Gruppe).
 		self::render_project_members( $p );
 
-		// 11) Kosten + Budget/Gewinn (read-only). Alle Betrachter dieses Details
-		// sind aktive Mitglieder der besitzenden Gruppe (oben erzwungen) — das ist
-		// das WP-Pendant zu canViewCosts=isMember der App. Kein Finanz-Leak gegen
+		// 11) Kosten + Budget/Gewinn. Alle Betrachter dieses Details sind aktive
+		// Mitglieder der besitzenden Gruppe (oben erzwungen) — das ist das
+		// WP-Pendant zu canViewCosts=isMember der App. Kein Finanz-Leak gegen
 		// Nicht-Mitglieder, weil die das Detail gar nicht erreichen.
-		self::render_project_costs( $p );
+		self::render_project_costs( $p, $can_edit );
 
-		// 12) Gewinnverteilung (read-only, gleiche Mitglieder-Sicht wie Kosten).
-		self::render_project_profit( $p );
+		// 12) Gewinnverteilung (gleiche Mitglieder-Sicht wie Kosten).
+		self::render_project_profit( $p, $can_edit, $g_members );
 
 		// 13) Kooperationsvereinbarung (read-only Status + Signatur-Roster).
 		self::render_project_agreement_summary( $p );
@@ -2896,14 +3138,554 @@ class MemberPortal {
 		<?php
 	}
 
-	/** Kosten + Budget/Gewinn (read-only). Mitglieder-Sicht = canViewCosts der App. */
-	private static function render_project_costs( object $p ): void {
+	/* ---------- Projekt-Unterlisten (interaktiv im aktiven Workspace) ---------- */
+
+	/** Kleines Chip-Formular für eine Zeilen-Aktion (Löschen/Status). */
+	private static function sub_chip_form( string $do, int $pid, array $hidden, string $label, string $confirm = '' ): void {
+		?>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" <?php if ( '' !== $confirm ) : ?>onsubmit="return confirm('<?php echo esc_js( $confirm ); ?>');"<?php endif; ?>>
+			<?php self::action_fields( $do ); ?>
+			<input type="hidden" name="pp_project" value="<?php echo (int) $pid; ?>">
+			<?php foreach ( $hidden as $name => $value ) : ?>
+				<input type="hidden" name="<?php echo esc_attr( $name ); ?>" value="<?php echo esc_attr( (string) $value ); ?>">
+			<?php endforeach; ?>
+			<button type="submit" class="pp-portal__chip"><?php echo esc_html( $label ); ?></button>
+		</form>
+		<?php
+	}
+
+	/** Zeitplan — nach Tag gruppiert (wie der Zeitplan-Tab der App). */
+	private static function render_project_schedule( object $p, bool $can_edit ): void {
+		$entries = (array) ( $p->schedule ?? [] );
+		if ( ! $entries && ! $can_edit ) {
+			return;
+		}
+		$days = [];
+		foreach ( $entries as $s ) {
+			$days[ (string) ( $s->schedule_date ?? '' ) ][] = $s;
+		}
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Schedule', 'project-prepper' ); ?></h3>
+			<?php if ( ! $entries ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No schedule entries yet.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+			<?php foreach ( $days as $day => $list ) : ?>
+				<p class="pp-sched-day"><?php echo esc_html( '' !== $day ? self::fmt_date( $day ) : __( 'No date', 'project-prepper' ) ); ?></p>
+				<div class="pp-rows">
+					<?php foreach ( $list as $s ) :
+						$time = trim( substr( (string) $s->time_start, 0, 5 ) . ( ! empty( $s->time_end ) ? '–' . substr( (string) $s->time_end, 0, 5 ) : '' ), '–' ); ?>
+						<div class="pp-row">
+							<span class="pp-row__main"><?php echo esc_html( $s->title ); ?></span>
+							<?php if ( ! empty( $s->location ) ) : ?>
+								<span class="pp-muted-inline"><?php echo esc_html( $s->location ); ?></span>
+							<?php endif; ?>
+							<span class="pp-row__meta">
+								<?php
+								echo esc_html( $time );
+								if ( '' !== trim( (string) $s->notes ) ) {
+									echo ( '' !== $time ? ' · ' : '' ) . esc_html( $s->notes );
+								}
+								?>
+							</span>
+							<?php if ( $can_edit ) : ?>
+								<details class="pp-portal__edit">
+									<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+									<?php self::schedule_form( $p, $s ); ?>
+								</details>
+								<?php self::sub_chip_form( 'sched_delete', (int) $p->id, [ 'pp_entry' => (int) $s->id ], __( 'Remove', 'project-prepper' ), __( 'Remove this schedule entry?', 'project-prepper' ) ); ?>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endforeach; ?>
+			<?php if ( $can_edit ) : ?>
+				<details class="pp-portal__add">
+					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Add schedule entry', 'project-prepper' ); ?></summary>
+					<?php self::schedule_form( $p, null ); ?>
+				</details>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
+	private static function schedule_form( object $p, ?object $s ): void {
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( $s ? 'sched_update' : 'sched_add' ); ?>
+			<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+			<?php if ( $s ) : ?>
+				<input type="hidden" name="pp_entry" value="<?php echo (int) $s->id; ?>">
+			<?php endif; ?>
+			<label><?php esc_html_e( 'Title', 'project-prepper' ); ?>
+				<input type="text" name="pp_title" value="<?php echo esc_attr( $s ? (string) $s->title : '' ); ?>" required>
+			</label>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Date', 'project-prepper' ); ?>
+					<input type="date" name="pp_date" value="<?php echo esc_attr( $s ? (string) $s->schedule_date : (string) $p->date_start ); ?>">
+				</label>
+				<label><?php esc_html_e( 'Start time', 'project-prepper' ); ?>
+					<input type="time" name="pp_time_from" value="<?php echo esc_attr( $s ? substr( (string) $s->time_start, 0, 5 ) : '' ); ?>">
+				</label>
+				<label><?php esc_html_e( 'End time', 'project-prepper' ); ?>
+					<input type="time" name="pp_time_to" value="<?php echo esc_attr( $s ? substr( (string) $s->time_end, 0, 5 ) : '' ); ?>">
+				</label>
+			</div>
+			<label><?php esc_html_e( 'Location', 'project-prepper' ); ?>
+				<input type="text" name="pp_location" value="<?php echo esc_attr( $s ? (string) $s->location : '' ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
+				<input type="text" name="pp_notes" value="<?php echo esc_attr( $s ? (string) $s->notes : '' ); ?>">
+			</label>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+		</form>
+		<?php
+	}
+
+	/** Aufgaben — Status-Schnellwechsel + volle Bearbeitung + Zuweisung. */
+	private static function render_project_tasks( object $p, bool $can_edit, array $members ): void {
+		$tasks = (array) ( $p->tasks ?? [] );
+		if ( ! $tasks && ! $can_edit ) {
+			return;
+		}
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Tasks', 'project-prepper' ); ?></h3>
+			<?php if ( ! $tasks ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No tasks yet.', 'project-prepper' ); ?></p>
+			<?php else : ?>
+				<div class="pp-rows">
+					<?php foreach ( $tasks as $t ) :
+						$assignee = $t->assigned_user ? get_userdata( (int) $t->assigned_user ) : null;
+						$meta     = self::task_priority_label( (string) $t->priority );
+						if ( ! empty( $t->due_date ) ) {
+							$meta .= ' · ' . self::fmt_date( $t->due_date );
+						}
+						if ( $assignee ) {
+							$meta .= ' · ' . $assignee->display_name;
+						} ?>
+						<div class="pp-row">
+							<span class="pp-status pp-status--<?php echo esc_attr( $t->task_status ); ?>"><?php echo esc_html( self::task_status_label( (string) $t->task_status ) ); ?></span>
+							<span class="pp-row__main"><?php echo esc_html( $t->title ); ?></span>
+							<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
+							<?php if ( $can_edit ) : ?>
+								<?php
+								// Schnell-Status: offen→Start, in Arbeit→Erledigt, erledigt→Wieder öffnen.
+								$next = [
+									'open'  => [ 'doing', __( 'Start', 'project-prepper' ) ],
+									'doing' => [ 'done', __( 'Mark done', 'project-prepper' ) ],
+									'done'  => [ 'open', __( 'Reopen', 'project-prepper' ) ],
+								];
+								if ( isset( $next[ (string) $t->task_status ] ) ) {
+									[ $to, $label ] = $next[ (string) $t->task_status ];
+									self::sub_chip_form( 'task_update', (int) $p->id, [ 'pp_entry' => (int) $t->id, 'pp_status' => $to ], $label );
+								}
+								?>
+								<details class="pp-portal__edit">
+									<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+									<?php self::task_form( $p, $members, $t ); ?>
+								</details>
+								<?php self::sub_chip_form( 'task_delete', (int) $p->id, [ 'pp_entry' => (int) $t->id ], __( 'Remove', 'project-prepper' ), __( 'Remove this task?', 'project-prepper' ) ); ?>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+			<?php if ( $can_edit ) : ?>
+				<details class="pp-portal__add">
+					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Add task', 'project-prepper' ); ?></summary>
+					<?php self::task_form( $p, $members, null ); ?>
+				</details>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
+	private static function task_form( object $p, array $members, ?object $t ): void {
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( $t ? 'task_update' : 'task_add' ); ?>
+			<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+			<?php if ( $t ) : ?>
+				<input type="hidden" name="pp_entry" value="<?php echo (int) $t->id; ?>">
+			<?php endif; ?>
+			<label><?php esc_html_e( 'Title', 'project-prepper' ); ?>
+				<input type="text" name="pp_title" value="<?php echo esc_attr( $t ? (string) $t->title : '' ); ?>" required>
+			</label>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Status', 'project-prepper' ); ?>
+					<select name="pp_status">
+						<?php foreach ( Tasks::STATUSES as $st ) : ?>
+							<option value="<?php echo esc_attr( $st ); ?>" <?php selected( $t ? (string) $t->task_status : 'open', $st ); ?>><?php echo esc_html( self::task_status_label( $st ) ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</label>
+				<label><?php esc_html_e( 'Priority', 'project-prepper' ); ?>
+					<select name="pp_priority">
+						<?php foreach ( Tasks::PRIORITIES as $prio ) : ?>
+							<option value="<?php echo esc_attr( $prio ); ?>" <?php selected( $t ? (string) $t->priority : 'normal', $prio ); ?>><?php echo esc_html( self::task_priority_label( $prio ) ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</label>
+				<label><?php esc_html_e( 'Due date', 'project-prepper' ); ?>
+					<input type="date" name="pp_due" value="<?php echo esc_attr( $t ? (string) $t->due_date : '' ); ?>">
+				</label>
+			</div>
+			<label><?php esc_html_e( 'Assigned to', 'project-prepper' ); ?>
+				<select name="pp_assignee">
+					<option value="0"><?php esc_html_e( 'Nobody', 'project-prepper' ); ?></option>
+					<?php foreach ( $members as $m ) : ?>
+						<option value="<?php echo (int) $m->user_id; ?>" <?php selected( $t ? (int) $t->assigned_user : 0, (int) $m->user_id ); ?>><?php echo esc_html( (string) $m->display_name ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</label>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+		</form>
+		<?php
+	}
+
+	/** Checklisten — Abhaken per Klick auf die Box, Punkte + Listen verwalten. */
+	private static function render_project_checklists( object $p, bool $can_edit ): void {
+		$lists = (array) ( $p->checklists ?? [] );
+		if ( ! $lists && ! $can_edit ) {
+			return;
+		}
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Checklists', 'project-prepper' ); ?></h3>
+			<?php if ( ! $lists && $can_edit ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No checklists yet.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+			<?php foreach ( $lists as $list ) : ?>
+				<div class="pp-checklist">
+					<div class="pp-checklist__name">
+						<?php echo esc_html( $list->name ); ?>
+						<?php if ( $can_edit ) : ?>
+							<?php self::sub_chip_form( 'checklist_delete', (int) $p->id, [ 'pp_list' => (int) $list->id ], __( 'Remove', 'project-prepper' ), __( 'Remove this checklist including all items?', 'project-prepper' ) ); ?>
+						<?php endif; ?>
+					</div>
+					<?php foreach ( (array) $list->items as $ci ) :
+						$done = ! empty( $ci->is_checked ); ?>
+						<div class="pp-checkitem<?php echo $done ? ' pp-checkitem--done' : ''; ?>">
+							<?php if ( $can_edit ) : ?>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<?php self::action_fields( 'checkitem_toggle' ); ?>
+									<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+									<input type="hidden" name="pp_citem" value="<?php echo (int) $ci->id; ?>">
+									<button type="submit" class="pp-checkitem__box<?php echo $done ? ' pp-checkitem__box--on' : ''; ?>" aria-label="<?php echo esc_attr( $done ? __( 'Mark as not done', 'project-prepper' ) : __( 'Mark as done', 'project-prepper' ) ); ?>"><?php echo $done ? '✓' : ''; ?></button>
+								</form>
+							<?php else : ?>
+								<span class="pp-checkitem__box<?php echo $done ? ' pp-checkitem__box--on' : ''; ?>"><?php echo $done ? '✓' : ''; ?></span>
+							<?php endif; ?>
+							<span class="pp-checkitem__label"><?php echo esc_html( $ci->label ); ?></span>
+							<?php if ( $can_edit ) : ?>
+								<span class="pp-checkitem__actions">
+									<?php self::sub_chip_form( 'checkitem_delete', (int) $p->id, [ 'pp_citem' => (int) $ci->id ], __( 'Remove', 'project-prepper' ) ); ?>
+								</span>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+					<?php if ( $can_edit ) : ?>
+						<form class="pp-checkitem-add" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<?php self::action_fields( 'checkitem_add' ); ?>
+							<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+							<input type="hidden" name="pp_list" value="<?php echo (int) $list->id; ?>">
+							<input type="text" name="pp_label" placeholder="<?php esc_attr_e( 'New checklist item…', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'New checklist item…', 'project-prepper' ); ?>" required>
+							<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Add checklist item', 'project-prepper' ); ?></button>
+						</form>
+					<?php endif; ?>
+				</div>
+			<?php endforeach; ?>
+			<?php if ( $can_edit ) : ?>
+				<details class="pp-portal__add">
+					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'New checklist', 'project-prepper' ); ?></summary>
+					<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<?php self::action_fields( 'checklist_add' ); ?>
+						<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+						<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+							<input type="text" name="pp_name" required>
+						</label>
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+					</form>
+				</details>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
+	/** Material & Transport — Positionen mit Menge/Einheit/Kosten. */
+	private static function render_project_materials( object $p, bool $can_edit ): void {
+		$rows = (array) ( $p->consumables ?? [] );
+		if ( ! $rows && ! $can_edit ) {
+			return;
+		}
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Materials', 'project-prepper' ); ?></h3>
+			<?php if ( ! $rows ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No materials yet.', 'project-prepper' ); ?></p>
+			<?php else : ?>
+				<div class="pp-rows">
+					<?php foreach ( $rows as $c ) :
+						$qty  = (float) $c->quantity;
+						$meta = trim( number_format_i18n( $qty, $qty == (int) $qty ? 0 : 2 ) . ' ' . (string) $c->unit );
+						if ( null !== $c->cost && '' !== (string) $c->cost ) {
+							$meta .= ' · ' . number_format_i18n( (float) $c->cost, 2 ) . ' €';
+						} ?>
+						<div class="pp-row">
+							<span class="pp-row__main"><?php echo esc_html( $c->name ); ?></span>
+							<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
+							<?php if ( $can_edit ) : ?>
+								<details class="pp-portal__edit">
+									<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+									<?php self::material_form( $p, $c ); ?>
+								</details>
+								<?php self::sub_chip_form( 'material_delete', (int) $p->id, [ 'pp_entry' => (int) $c->id ], __( 'Remove', 'project-prepper' ), __( 'Remove this material?', 'project-prepper' ) ); ?>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+			<?php if ( $can_edit ) : ?>
+				<details class="pp-portal__add">
+					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Add material', 'project-prepper' ); ?></summary>
+					<?php self::material_form( $p, null ); ?>
+				</details>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
+	private static function material_form( object $p, ?object $c ): void {
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( $c ? 'material_update' : 'material_add' ); ?>
+			<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+			<?php if ( $c ) : ?>
+				<input type="hidden" name="pp_entry" value="<?php echo (int) $c->id; ?>">
+			<?php endif; ?>
+			<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+				<input type="text" name="pp_name" value="<?php echo esc_attr( $c ? (string) $c->name : '' ); ?>" required>
+			</label>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Qty', 'project-prepper' ); ?>
+					<input type="number" name="pp_quantity" min="0" step="0.01" value="<?php echo esc_attr( $c ? (string) ( 0 + (float) $c->quantity ) : '1' ); ?>">
+				</label>
+				<label><?php esc_html_e( 'Unit', 'project-prepper' ); ?>
+					<input type="text" name="pp_unit" value="<?php echo esc_attr( $c ? (string) $c->unit : '' ); ?>" placeholder="<?php esc_attr_e( 'e.g. pcs, m, kg', 'project-prepper' ); ?>">
+				</label>
+				<label><?php esc_html_e( 'Cost (€)', 'project-prepper' ); ?>
+					<input type="text" inputmode="decimal" name="pp_cost" value="<?php echo esc_attr( $c && null !== $c->cost ? (string) ( 0 + (float) $c->cost ) : '' ); ?>">
+				</label>
+			</div>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+		</form>
+		<?php
+	}
+
+	/** Team (Crew) — Freitext-Einträge Name/Rolle/Gewerk. */
+	private static function render_project_team( object $p, bool $can_edit ): void {
+		$rows = (array) ( $p->team ?? [] );
+		if ( ! $rows && ! $can_edit ) {
+			return;
+		}
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Team', 'project-prepper' ); ?></h3>
+			<?php if ( ! $rows ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No team members yet.', 'project-prepper' ); ?></p>
+			<?php else : ?>
+				<div class="pp-rows">
+					<?php foreach ( $rows as $m ) :
+						$meta = trim( (string) $m->role . ( '' !== (string) $m->department ? ' · ' . $m->department : '' ), ' ·' ); ?>
+						<div class="pp-row">
+							<span class="pp-row__main"><?php echo esc_html( $m->name ); ?></span>
+							<?php if ( '' !== $meta ) : ?>
+								<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
+							<?php endif; ?>
+							<?php if ( $can_edit ) : ?>
+								<details class="pp-portal__edit">
+									<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+									<?php self::crew_form( $p, $m ); ?>
+								</details>
+								<?php self::sub_chip_form( 'crew_delete', (int) $p->id, [ 'pp_entry' => (int) $m->id ], __( 'Remove', 'project-prepper' ), __( 'Remove this team member?', 'project-prepper' ) ); ?>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+			<?php if ( $can_edit ) : ?>
+				<details class="pp-portal__add">
+					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Add team member', 'project-prepper' ); ?></summary>
+					<?php self::crew_form( $p, null ); ?>
+				</details>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
+	private static function crew_form( object $p, ?object $m ): void {
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( $m ? 'crew_update' : 'crew_add' ); ?>
+			<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+			<?php if ( $m ) : ?>
+				<input type="hidden" name="pp_entry" value="<?php echo (int) $m->id; ?>">
+			<?php endif; ?>
+			<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+				<input type="text" name="pp_name" value="<?php echo esc_attr( $m ? (string) $m->name : '' ); ?>" required>
+			</label>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Role', 'project-prepper' ); ?>
+					<input type="text" name="pp_role" value="<?php echo esc_attr( $m ? (string) $m->role : '' ); ?>">
+				</label>
+				<label><?php esc_html_e( 'Department', 'project-prepper' ); ?>
+					<input type="text" name="pp_department" value="<?php echo esc_attr( $m ? (string) $m->department : '' ); ?>">
+				</label>
+			</div>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+		</form>
+		<?php
+	}
+
+	/** Externe Kontakte — Name/Rolle/Firma/Email/Telefon. */
+	private static function render_project_contacts( object $p, bool $can_edit ): void {
+		$rows = (array) ( $p->contacts ?? [] );
+		if ( ! $rows && ! $can_edit ) {
+			return;
+		}
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Contacts', 'project-prepper' ); ?></h3>
+			<?php if ( ! $rows ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No contacts yet.', 'project-prepper' ); ?></p>
+			<?php else : ?>
+				<div class="pp-rows">
+					<?php foreach ( $rows as $c ) :
+						$meta = implode( ' · ', array_filter( [ $c->role, $c->company, $c->email, $c->phone ] ) ); ?>
+						<div class="pp-row">
+							<span class="pp-row__main"><?php echo esc_html( $c->name ); ?></span>
+							<?php if ( '' !== $meta ) : ?>
+								<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
+							<?php endif; ?>
+							<?php if ( $can_edit ) : ?>
+								<details class="pp-portal__edit">
+									<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+									<?php self::contact_form( $p, $c ); ?>
+								</details>
+								<?php self::sub_chip_form( 'contact_delete', (int) $p->id, [ 'pp_entry' => (int) $c->id ], __( 'Remove', 'project-prepper' ), __( 'Remove this contact?', 'project-prepper' ) ); ?>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+			<?php if ( $can_edit ) : ?>
+				<details class="pp-portal__add">
+					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Add contact', 'project-prepper' ); ?></summary>
+					<?php self::contact_form( $p, null ); ?>
+				</details>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
+	private static function contact_form( object $p, ?object $c ): void {
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( $c ? 'contact_update' : 'contact_add' ); ?>
+			<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+			<?php if ( $c ) : ?>
+				<input type="hidden" name="pp_entry" value="<?php echo (int) $c->id; ?>">
+			<?php endif; ?>
+			<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+				<input type="text" name="pp_name" value="<?php echo esc_attr( $c ? (string) $c->name : '' ); ?>" required>
+			</label>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Role', 'project-prepper' ); ?>
+					<input type="text" name="pp_role" value="<?php echo esc_attr( $c ? (string) $c->role : '' ); ?>">
+				</label>
+				<label><?php esc_html_e( 'Company', 'project-prepper' ); ?>
+					<input type="text" name="pp_company" value="<?php echo esc_attr( $c ? (string) $c->company : '' ); ?>">
+				</label>
+			</div>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Email', 'project-prepper' ); ?>
+					<input type="email" name="pp_email" value="<?php echo esc_attr( $c ? (string) $c->email : '' ); ?>">
+				</label>
+				<label><?php esc_html_e( 'Phone', 'project-prepper' ); ?>
+					<input type="text" name="pp_phone" value="<?php echo esc_attr( $c ? (string) $c->phone : '' ); ?>">
+				</label>
+			</div>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+		</form>
+		<?php
+	}
+
+	/** Dateien — Upload (PDF/Bilder) + Entfernen der Verknüpfung. */
+	private static function render_project_files_section( object $p, bool $can_edit ): void {
+		$rows = (array) ( $p->files ?? [] );
+		if ( ! $rows && ! $can_edit ) {
+			return;
+		}
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Files', 'project-prepper' ); ?></h3>
+			<?php if ( ! $rows ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No files yet.', 'project-prepper' ); ?></p>
+			<?php else : ?>
+				<div class="pp-rows">
+					<?php foreach ( $rows as $f ) :
+						$label = '' !== (string) $f->title ? $f->title : ( $f->filename ?: __( 'File', 'project-prepper' ) );
+						$meta  = [];
+						if ( ! empty( $f->filesize ) ) {
+							$meta[] = size_format( (int) $f->filesize );
+						} ?>
+						<div class="pp-row">
+							<?php if ( ! empty( $f->url ) ) : ?>
+								<a class="pp-row__main" href="<?php echo esc_url( $f->url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $label ); ?></a>
+							<?php else : ?>
+								<span class="pp-row__main"><?php echo esc_html( $label ); ?></span>
+								<span class="pp-row__meta"><?php esc_html_e( 'missing', 'project-prepper' ); ?></span>
+							<?php endif; ?>
+							<?php if ( $meta ) : ?>
+								<span class="pp-row__meta"><?php echo esc_html( implode( ' · ', $meta ) ); ?></span>
+							<?php endif; ?>
+							<?php if ( $can_edit ) : ?>
+								<?php self::sub_chip_form( 'file_detach', (int) $p->id, [ 'pp_entry' => (int) $f->id ], __( 'Remove', 'project-prepper' ), __( 'Remove this file from the project? The media file itself is kept.', 'project-prepper' ) ); ?>
+							<?php endif; ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+			<?php if ( $can_edit ) : ?>
+				<details class="pp-portal__add">
+					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Upload file', 'project-prepper' ); ?></summary>
+					<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<input type="hidden" name="action" value="pp_project_file">
+						<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+						<?php wp_nonce_field( 'pp_project_file', 'pp_nonce' ); ?>
+						<label><?php esc_html_e( 'Title (optional)', 'project-prepper' ); ?>
+							<input type="text" name="pp_title">
+						</label>
+						<label><?php esc_html_e( 'File (PDF or image)', 'project-prepper' ); ?>
+							<input type="file" name="pp_file" accept="application/pdf,image/*" required>
+						</label>
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Upload file', 'project-prepper' ); ?></button>
+					</form>
+				</details>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
+	/** Kosten + Budget/Gewinn. Mitglieder-Sicht = canViewCosts der App. */
+	private static function render_project_costs( object $p, bool $can_edit = false ): void {
 		$items   = (array) ( $p->cost_items ?? [] );
 		$summary = (array) ( $p->cost_summary ?? [] );
 		$has_money = $items
 			|| null !== ( $summary['budget_planned'] ?? null )
 			|| null !== ( $summary['revenue_actual'] ?? null );
-		if ( ! $has_money ) {
+		if ( ! $has_money && ! $can_edit ) {
 			return;
 		}
 		$eur = static fn( $v ) => number_format_i18n( (float) $v, 2 ) . ' €';
@@ -2911,6 +3693,26 @@ class MemberPortal {
 		<section class="pp-card">
 			<h3 class="pp-card__title"><?php esc_html_e( 'Costs & budget', 'project-prepper' ); ?></h3>
 
+			<?php
+			// Budget-Balken (wie die App): Geplant-Netto gegen das Projektbudget.
+			$budget  = $summary['budget_planned'] ?? null;
+			$planned = (float) ( $summary['planned_net'] ?? 0 );
+			if ( null !== $budget && (float) $budget > 0 ) :
+				$pct  = min( $planned / (float) $budget * 100, 100 );
+				$over = $planned > (float) $budget;
+				?>
+				<div class="pp-budget-bar" role="img" aria-label="<?php echo esc_attr( sprintf( /* translators: 1: planned costs, 2: budget. */ __( '%1$s of %2$s budget planned', 'project-prepper' ), $eur( $planned ), $eur( $budget ) ) ); ?>">
+					<div class="pp-budget-bar__fill<?php echo $over ? ' pp-budget-bar__fill--over' : ''; ?>" style="width:<?php echo esc_attr( number_format( $pct, 1, '.', '' ) ); ?>%"></div>
+				</div>
+				<div class="pp-budget-meta">
+					<span><?php echo esc_html( $eur( $planned ) ); ?></span>
+					<span><?php echo esc_html( $eur( $budget ) ); ?></span>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( ! $items && $can_edit ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No cost items yet.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
 			<?php if ( $items ) : ?>
 				<div class="pp-rows">
 					<?php foreach ( $items as $c ) :
@@ -2935,8 +3737,36 @@ class MemberPortal {
 								}
 								?>
 							</span>
+							<?php if ( $can_edit ) : ?>
+								<details class="pp-portal__edit">
+									<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+									<?php self::cost_form( $p, $c ); ?>
+								</details>
+								<?php self::sub_chip_form( 'cost_delete', (int) $p->id, [ 'pp_entry' => (int) $c->id ], __( 'Remove', 'project-prepper' ), __( 'Remove this cost item?', 'project-prepper' ) ); ?>
+							<?php endif; ?>
 						</div>
 					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( $can_edit ) : ?>
+				<div class="pp-portal__actions" style="margin-top:.6rem">
+					<details class="pp-portal__add" style="margin-top:0">
+						<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Add cost item', 'project-prepper' ); ?></summary>
+						<?php self::cost_form( $p, null ); ?>
+					</details>
+					<details class="pp-portal__add" style="margin-top:0">
+						<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Set budget', 'project-prepper' ); ?></summary>
+						<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<?php self::action_fields( 'project_finance' ); ?>
+							<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+							<label><?php esc_html_e( 'Budget (net, €)', 'project-prepper' ); ?>
+								<input type="text" inputmode="decimal" name="pp_budget" value="<?php echo esc_attr( null !== $budget ? (string) ( 0 + (float) $budget ) : '' ); ?>">
+							</label>
+							<p class="pp-portal__hint"><?php esc_html_e( 'Leave empty to remove the budget.', 'project-prepper' ); ?></p>
+							<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+						</form>
+					</details>
 				</div>
 			<?php endif; ?>
 
@@ -2963,17 +3793,58 @@ class MemberPortal {
 		<?php
 	}
 
-	/** Gewinnverteilung (read-only) — Anteile je Mitglied + berechneter Betrag. */
-	private static function render_project_profit( object $p ): void {
+	private static function cost_form( object $p, ?object $c ): void {
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( $c ? 'cost_update' : 'cost_add' ); ?>
+			<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+			<?php if ( $c ) : ?>
+				<input type="hidden" name="pp_entry" value="<?php echo (int) $c->id; ?>">
+			<?php endif; ?>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Category', 'project-prepper' ); ?>
+					<select name="pp_category">
+						<?php foreach ( Costs::CATEGORIES as $cat ) : ?>
+							<option value="<?php echo esc_attr( $cat ); ?>" <?php selected( $c ? (string) $c->category : 'other', $cat ); ?>><?php echo esc_html( self::cost_category_label( $cat ) ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</label>
+				<label><?php esc_html_e( 'Description', 'project-prepper' ); ?>
+					<input type="text" name="pp_description" value="<?php echo esc_attr( $c ? (string) $c->description : '' ); ?>">
+				</label>
+			</div>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Planned (net, €)', 'project-prepper' ); ?>
+					<input type="text" inputmode="decimal" name="pp_planned" value="<?php echo esc_attr( $c ? (string) ( 0 + (float) $c->amount_planned ) : '' ); ?>">
+				</label>
+				<label><?php esc_html_e( 'Actual (net, €)', 'project-prepper' ); ?>
+					<input type="text" inputmode="decimal" name="pp_actual" value="<?php echo esc_attr( $c && null !== $c->amount_actual ? (string) ( 0 + (float) $c->amount_actual ) : '' ); ?>">
+				</label>
+				<label><?php esc_html_e( 'VAT %', 'project-prepper' ); ?>
+					<input type="text" inputmode="decimal" name="pp_vat" value="<?php echo esc_attr( $c ? (string) ( 0 + (float) $c->vat_rate ) : '19' ); ?>">
+				</label>
+			</div>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+		</form>
+		<?php
+	}
+
+	/** Gewinnverteilung — Umsatz erfassen + Anteile je Mitglied verwalten. */
+	private static function render_project_profit( object $p, bool $can_edit = false, array $members = [] ): void {
 		$shares  = (array) ( $p->profit_shares ?? [] );
-		if ( ! $shares ) {
+		if ( ! $shares && ! $can_edit ) {
 			return;
 		}
 		$summary = (array) ( $p->profit_summary ?? [] );
 		$eur     = static fn( $v ) => number_format_i18n( (float) $v, 2 ) . ' €';
+		$revenue = $p->revenue_actual ?? null;
 		?>
 		<section class="pp-card">
 			<h3 class="pp-card__title"><?php esc_html_e( 'Profit distribution', 'project-prepper' ); ?></h3>
+			<?php if ( ! $shares && $can_edit ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No profit shares yet.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+			<?php if ( $shares ) : ?>
 			<div class="pp-rows">
 				<?php foreach ( $shares as $s ) :
 					$is_pct = ( 'percentage' === ( $s->share_type ?? '' ) );
@@ -2990,9 +3861,38 @@ class MemberPortal {
 						</span>
 						<span class="pp-row__meta"><?php echo esc_html( $basis ); ?></span>
 						<span class="pp-row__meta pp-row__meta--strong"><?php echo esc_html( $calc ); ?></span>
+						<?php if ( $can_edit ) : ?>
+							<details class="pp-portal__edit">
+								<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+								<?php self::profit_form( $p, $members, $s ); ?>
+							</details>
+							<?php self::sub_chip_form( 'profit_remove', (int) $p->id, [ 'pp_entry' => (int) $s->id ], __( 'Remove', 'project-prepper' ), __( 'Remove this profit share?', 'project-prepper' ) ); ?>
+						<?php endif; ?>
 					</div>
 				<?php endforeach; ?>
 			</div>
+			<?php endif; ?>
+
+			<?php if ( $can_edit ) : ?>
+				<div class="pp-portal__actions" style="margin-top:.6rem">
+					<details class="pp-portal__add" style="margin-top:0">
+						<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Add profit share', 'project-prepper' ); ?></summary>
+						<?php self::profit_form( $p, $members, null ); ?>
+					</details>
+					<details class="pp-portal__add" style="margin-top:0">
+						<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Set revenue', 'project-prepper' ); ?></summary>
+						<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<?php self::action_fields( 'project_finance' ); ?>
+							<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+							<label><?php esc_html_e( 'Revenue (actual, €)', 'project-prepper' ); ?>
+								<input type="text" inputmode="decimal" name="pp_revenue" value="<?php echo esc_attr( null !== $revenue ? (string) ( 0 + (float) $revenue ) : '' ); ?>">
+							</label>
+							<p class="pp-portal__hint"><?php esc_html_e( 'Profit pool = revenue minus actual net costs.', 'project-prepper' ); ?></p>
+							<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+						</form>
+					</details>
+				</div>
+			<?php endif; ?>
 			<?php if ( $summary ) : ?>
 				<dl class="pp-dl pp-dl--money">
 					<?php
@@ -3009,6 +3909,41 @@ class MemberPortal {
 				</dl>
 			<?php endif; ?>
 		</section>
+		<?php
+	}
+
+	private static function profit_form( object $p, array $members, ?object $s ): void {
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( $s ? 'profit_update' : 'profit_add' ); ?>
+			<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+			<?php if ( $s ) : ?>
+				<input type="hidden" name="pp_entry" value="<?php echo (int) $s->id; ?>">
+			<?php else : ?>
+				<label><?php esc_html_e( 'Member', 'project-prepper' ); ?>
+					<select name="pp_user" required>
+						<?php foreach ( $members as $m ) : ?>
+							<option value="<?php echo (int) $m->user_id; ?>"><?php echo esc_html( (string) $m->display_name ); ?></option>
+						<?php endforeach; ?>
+					</select>
+				</label>
+			<?php endif; ?>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Share type', 'project-prepper' ); ?>
+					<select name="pp_share_type">
+						<option value="percentage" <?php selected( $s ? (string) $s->share_type : 'percentage', 'percentage' ); ?>><?php esc_html_e( 'Percentage of pool', 'project-prepper' ); ?></option>
+						<option value="fixed" <?php selected( $s ? (string) $s->share_type : 'percentage', 'fixed' ); ?>><?php esc_html_e( 'Fixed amount (€)', 'project-prepper' ); ?></option>
+					</select>
+				</label>
+				<label><?php esc_html_e( 'Value', 'project-prepper' ); ?>
+					<input type="text" inputmode="decimal" name="pp_share_value" value="<?php echo esc_attr( $s ? (string) ( 0 + (float) $s->share_value ) : '' ); ?>">
+				</label>
+			</div>
+			<label><?php esc_html_e( 'Note', 'project-prepper' ); ?>
+				<input type="text" name="pp_note" value="<?php echo esc_attr( $s ? (string) ( $s->note ?? '' ) : '' ); ?>">
+			</label>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+		</form>
 		<?php
 	}
 
@@ -5108,6 +6043,66 @@ class MemberPortal {
 		MemberInventory::add_document( $user_id, $item_id, (int) $attach_id );
 
 		wp_safe_redirect( add_query_arg( 'pp_msg', 'doc_saved', $back ) );
+		exit;
+	}
+
+	/**
+	 * Projekt-Datei hochladen (PDF/Bilder, wie handle_inventory_doc) — eigener
+	 * Handler, weil der Kollektiv-Dispatcher kein multipart verarbeitet.
+	 * Gate: Projekt im aktiven Gruppen-Workspace (member_owned_project).
+	 */
+	public static function handle_project_file(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nur Redirect-Ziel; Nonce folgt direkt.
+		$pid  = (int) ( $_POST['pp_project'] ?? 0 );
+		$back = add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => $pid ], self::portal_url() );
+		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_project_file' ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+			exit;
+		}
+		if ( ! self::member_owned_project( $pid ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+			exit;
+		}
+
+		if ( empty( $_FILES['pp_file']['tmp_name'] ) || ! is_uploaded_file( $_FILES['pp_file']['tmp_name'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'import_nofile', $back ) );
+			exit;
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		// PDF + gängige Bildformate zulassen (wie Inventar-Dokumente).
+		$overrides = [
+			'test_form' => false,
+			'mimes'     => [
+				'pdf'          => 'application/pdf',
+				'jpg|jpeg|jpe' => 'image/jpeg',
+				'png'          => 'image/png',
+				'gif'          => 'image/gif',
+				'webp'         => 'image/webp',
+			],
+		];
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- $_FILES wird von wp_handle_upload validiert (mimes-Whitelist).
+		$moved = wp_handle_upload( $_FILES['pp_file'], $overrides );
+		if ( ! is_array( $moved ) || isset( $moved['error'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'pfile_failed', $back ) );
+			exit;
+		}
+
+		$attach_id = wp_insert_attachment( [
+			'post_mime_type' => $moved['type'],
+			'post_title'     => sanitize_file_name( wp_basename( $moved['file'] ) ),
+			'post_status'    => 'inherit',
+		], $moved['file'] );
+		if ( ! $attach_id || is_wp_error( $attach_id ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'pfile_failed', $back ) );
+			exit;
+		}
+		wp_update_attachment_metadata( $attach_id, wp_generate_attachment_metadata( (int) $attach_id, $moved['file'] ) );
+		Files::attach( $pid, (int) $attach_id, sanitize_text_field( wp_unslash( (string) ( $_POST['pp_title'] ?? '' ) ) ) );
+
+		wp_safe_redirect( add_query_arg( 'pp_msg', 'pfile_saved', $back ) );
 		exit;
 	}
 

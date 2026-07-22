@@ -3,6 +3,44 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release 2026-07-22 (Plugin v0.100.0, Schema 0.27.0 — Portal-Projektdetail voll interaktiv)
+> KEIN Schema-Change (alle Services/Tabellen existierten bereits — reine Portal-Verdrahtung);
+> `MemberPortal.php`, `frontend.css`, `de_DE.po` (66 neue Strings, .pot/.mo macht der Release-Agent).
+> Alle bisher read-only Sektionen des Portal-Projektdetails sind jetzt im AKTIVEN Gruppen-Workspace
+> voll bearbeitbar (Pendant zu den App-Tabs, Muster = Equipment-Buchung: `member_owned_project`-Gate,
+> ohne aktiven Workspace bleibt alles read-only):
+> 1. **Zeitplan** — anlegen/bearbeiten/löschen (Titel, Datum, Zeit von/bis, Ort, Notiz), nach Tag
+>    gruppiert wie die App (`.pp-sched-day`-Header). Aktionen `sched_add/update/delete`.
+> 2. **Aufgaben** — CRUD + Status-Schnellwechsel-Chips (Offen→Starten, In Arbeit→Erledigt,
+>    Erledigt→Wieder öffnen), Priorität, Fälligkeit, **Zuweisung an Gruppen-Mitglieder** (Select aus
+>    `Groups::members`, serverseitig gegen die Owner-Gruppe validiert). `task_add/update/delete`.
+> 3. **Checklisten** — Abhaken per Klick auf die Box (Submit-Button im App-Look, kein JS nötig),
+>    Punkte hinzufügen (Inline-Formular)/löschen, Listen anlegen/löschen.
+>    `checklist_add/delete`, `checkitem_add/toggle/delete` (Toggle bewusst ohne Erfolgsmeldung).
+> 4. **Material** — CRUD (Name, Menge, Einheit, Kosten €; Komma-Dezimalwerte ok). `material_*`.
+> 5. **Team & Kontakte** — CRUD (Crew: Name/Rolle/Gewerk; Kontakte: +Firma/Email/Telefon).
+>    `crew_*`, `contact_*`.
+> 6. **Kosten & Budget** — Kostenposten-CRUD (Kategorie, Beschreibung, Soll/Ist netto, USt-Satz),
+>    **Budget-Balken wie die App** (Geplant-Netto vs. budget_planned, rot bei Überschreitung),
+>    Budget editierbar („Set budget"). `cost_add/update/delete`, `project_finance`.
+> 7. **Gewinnverteilung** — Umsatz erfassen („Set revenue" → revenue_actual), Anteile
+>    anlegen/bearbeiten/entfernen (Prozent vom Pool / Festbetrag, Mitglieder-Select).
+>    `profit_add/update/remove`.
+> 8. **Dateien** — Upload (PDF/Bilder via `wp_handle_upload`, eigener Handler
+>    `admin_post_pp_project_file` mit eigener Nonce, weil der Dispatcher kein multipart kann) +
+>    Entfernen der Verknüpfung (`file_detach`; Attachment bleibt in der Mediathek).
+> Sicherheit: gemeinsames Gate `project_sub_actions()` im Dispatcher (Projekt muss zum aktiven
+> Gruppen-Workspace gehören) + `sub_belongs()`-IDOR-Check je Zeile (entry.project_id == pp_project;
+> Checklist-Punkte über die Listen-Kette). Forged-POST im Solo-Modus → pp_msg=error (getestet).
+> Neue Fehlermeldungs-Mappings: pp_invalid_amount→invalid_amount, pp_missing_title/name/label→
+> missing_required, pp_not_group_member→not_group_member.
+> Getestet in wp-env (portaltest, Projekt 47): jede Aktion einmal echt durchgespielt (anlegen,
+> bearbeiten, löschen, abhaken beidseitig, Status-Chips, Budget-Balken 66,7 %→100 %+rot bei
+> Budget-Senkung, Pool-Neuberechnung 10 % von 3.250 = 325 €, Datei-Upload+Entfernen), Read-only-
+> Gegenprobe (Solo-Workspace: 0 Formulare/Chips, Daten sichtbar), Testdaten zurückgesetzt.
+> Bewusst offen: kein Inline-Umsortieren (sort_order-Drag der App), Dateien ohne Lightbox,
+> Aufgaben ohne Annahme-Flow (Intern/Crew/Extern der App ist v1.x).
+
 > ## 🧩 Release 2026-07-22 (Plugin v0.99.1, Schema 0.27.0 — Technik-Buchung mit Live-Suche-Modal)
 > UX-Patch-Release, KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration; `MemberPortal.php`,
 > `MemberInventory.php`, `frontend.css`, `portal.js`.
