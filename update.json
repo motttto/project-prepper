@@ -1,9 +1,9 @@
 {
-  "version": "0.98.12",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.98.12/project-prepper-0.98.12.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.98.12",
-  "published": "2026-07-17",
+  "version": "0.99.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.99.0/project-prepper-0.99.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.99.0",
+  "published": "2026-07-22",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Mein Inventar zeigt jetzt alle Artikel auf einer Seite - die 12er-Seitenaufteilung (Pagination) wurde entfernt. Suche und Kategorie-Filter funktionieren unveraendert."
+  "changelog": "Projekte: Technik direkt im Portal buchen - Equipment aus dem Kollektiv-Pool buchen, aendern und entfernen, mit Verfuegbarkeits-Anzeige und Ueberbuchungsschutz."
 }

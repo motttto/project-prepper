@@ -14,6 +14,7 @@ use ProjectPrepper\Services\Rentals;
 use ProjectPrepper\Services\Inquiries;
 use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\Projects;
+use ProjectPrepper\Services\Availability;
 use ProjectPrepper\Services\Costs;
 use ProjectPrepper\Services\Schedule;
 use ProjectPrepper\Services\Decisions;
@@ -516,6 +517,18 @@ class MemberPortal {
 				$result = self::member_delete_project( (int) ( $_POST['pp_project'] ?? 0 ) );
 				$ok_msg = 'project_deleted';
 				break;
+			case 'project_item_add':
+				$result = self::member_book_equipment( $proj_id );
+				$ok_msg = 'booking_saved';
+				break;
+			case 'project_item_update':
+				$result = self::member_update_booking( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ) );
+				$ok_msg = 'booking_saved';
+				break;
+			case 'project_item_remove':
+				$result = self::member_remove_booking( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ) );
+				$ok_msg = 'booking_removed';
+				break;
 			case 'borrow_request':
 				$result = Borrowing::request(
 					get_current_user_id(),
@@ -699,6 +712,8 @@ class MemberPortal {
 			'rental_unavailable' => [ 'err', __( 'One of the items is not available in that period. Please adjust the dates or quantity.', 'project-prepper' ) ],
 			'project_saved'    => [ 'ok', __( 'Project saved.', 'project-prepper' ) ],
 			'project_deleted'  => [ 'ok', __( 'Project deleted.', 'project-prepper' ) ],
+			'booking_saved'    => [ 'ok', __( 'Booking saved.', 'project-prepper' ) ],
+			'booking_removed'  => [ 'ok', __( 'Booking removed.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
 			'borrow_decided'   => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'borrow_cancelled' => [ 'ok', __( 'Request cancelled.', 'project-prepper' ) ],
@@ -2318,6 +2333,63 @@ class MemberPortal {
 		return Projects::delete( $pid ) ? true : new \WP_Error( 'pp_delete_failed', __( 'The project could not be deleted.', 'project-prepper' ) );
 	}
 
+	/**
+	 * Buchbarer Pool eines Gruppen-Projekts = die mit dem Kollektiv geteilten
+	 * Artikel (item_id → Item). Zugleich Sicherheits-Whitelist: nur diese IDs
+	 * dürfen über das Portal gebucht werden.
+	 *
+	 * @return array<int,object>
+	 */
+	private static function bookable_pool( object $p ): array {
+		$pool = [];
+		foreach ( MemberInventory::items_shared_with_group( (int) $p->owner_group_id ) as $item ) {
+			$pool[ (int) $item->id ] = $item;
+		}
+		return $pool;
+	}
+
+	/** Gemeinsame Zeilen-Eingaben der Buchungs-Formulare (Nonce im Dispatcher geprüft). */
+	private static function booking_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'quantity'  => max( 1, (int) ( $_POST['pp_quantity'] ?? 1 ) ),
+			'date_from' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
+			'date_to'   => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
+			'notes'     => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_notes'] ?? '' ) ) ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/** Technik für ein Projekt buchen — nur Artikel aus dem Gruppen-Pool. */
+	private static function member_book_equipment( int $pid ) {
+		$p = self::member_owned_project( $pid );
+		if ( ! $p ) {
+			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		$item_id = (int) ( $_POST['pp_item'] ?? 0 );
+		if ( ! isset( self::bookable_pool( $p )[ $item_id ] ) ) {
+			return new \WP_Error( 'pp_forbidden', __( 'Only equipment shared with this collective can be booked.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		return Projects::add_item( $pid, [ 'item_id' => $item_id ] + self::booking_input() );
+	}
+
+	/** Buchungszeile ändern (Menge/Zeitraum/Notiz — der Artikel bleibt). */
+	private static function member_update_booking( int $pid, int $line_id ) {
+		if ( ! self::member_owned_project( $pid ) ) {
+			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		return Projects::update_item( $pid, $line_id, self::booking_input() );
+	}
+
+	/** Buchungszeile entfernen. */
+	private static function member_remove_booking( int $pid, int $line_id ) {
+		if ( ! self::member_owned_project( $pid ) ) {
+			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		return Projects::remove_item( $pid, $line_id );
+	}
+
 	/** Projekt-Formular (Kernfelder) für Anlegen/Bearbeiten. */
 	private static function project_form( string $do, ?object $p ): void {
 		$val = static fn( string $f, $d = '' ) => $p && isset( $p->$f ) && null !== $p->$f ? $p->$f : $d;
@@ -2494,30 +2566,132 @@ class MemberPortal {
 			<?php
 		endif;
 
-		// 2) Gebuchtes Equipment.
-		if ( ! empty( $p->items ) ) : ?>
+		// 2) Gebuchtes Equipment — im aktiven Workspace kann direkt gebucht,
+		// geändert und entfernt werden (Pendant zum Equipment-Tab der App).
+		$can_book = (int) $p->owner_group_id === self::active_workspace_group();
+		$pool     = $can_book ? self::bookable_pool( $p ) : [];
+		if ( ! empty( $p->items ) || $can_book ) :
+			$has_period = '' !== (string) $p->date_start && '' !== (string) $p->date_end;
+			// Im Projekt bereits gebuchte Stückzahl je Artikel — für „noch frei".
+			$booked_qty = [];
+			foreach ( (array) $p->items as $line ) {
+				$booked_qty[ (int) $line->item_id ] = ( $booked_qty[ (int) $line->item_id ] ?? 0 ) + (int) $line->quantity;
+			}
+			?>
 			<section class="pp-card">
 				<h3 class="pp-card__title"><?php esc_html_e( 'Booked equipment', 'project-prepper' ); ?></h3>
-				<div class="pp-rows">
-					<?php foreach ( $p->items as $line ) :
-						$lrange = self::fmt_range( $line->date_from, $line->date_to ); ?>
-						<div class="pp-row">
-							<span class="pp-row__main"><?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?></span>
-							<?php if ( ! empty( $line->inventory_number ) ) : ?>
-								<span class="pp-portal__item-num"><?php echo esc_html( $line->inventory_number ); ?></span>
-							<?php endif; ?>
-							<span class="pp-row__meta">
-								<?php
-								/* translators: %d: quantity. */
-								printf( esc_html__( 'Qty %d', 'project-prepper' ), (int) $line->quantity );
-								if ( '' !== $lrange ) {
-									echo ' · ' . esc_html( $lrange );
-								}
-								?>
-							</span>
-						</div>
-					<?php endforeach; ?>
-				</div>
+				<?php if ( empty( $p->items ) ) : ?>
+					<p class="pp-portal__empty"><?php esc_html_e( 'No equipment booked yet.', 'project-prepper' ); ?></p>
+				<?php else : ?>
+					<div class="pp-rows">
+						<?php foreach ( $p->items as $line ) :
+							$lrange = self::fmt_range( $line->date_from, $line->date_to ); ?>
+							<div class="pp-row">
+								<span class="pp-row__main"><?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?></span>
+								<?php if ( ! empty( $line->inventory_number ) ) : ?>
+									<span class="pp-portal__item-num"><?php echo esc_html( $line->inventory_number ); ?></span>
+								<?php endif; ?>
+								<span class="pp-row__meta">
+									<?php
+									/* translators: %d: quantity. */
+									printf( esc_html__( 'Qty %d', 'project-prepper' ), (int) $line->quantity );
+									if ( '' !== $lrange ) {
+										echo ' · ' . esc_html( $lrange );
+									}
+									if ( '' !== trim( (string) $line->notes ) ) {
+										echo ' · ' . esc_html( $line->notes );
+									}
+									?>
+								</span>
+								<?php if ( $can_book ) : ?>
+									<details class="pp-portal__edit">
+										<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+										<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+											<?php self::action_fields( 'project_item_update' ); ?>
+											<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+											<input type="hidden" name="pp_line" value="<?php echo (int) $line->id; ?>">
+											<div class="pp-portal__form-row">
+												<label><?php esc_html_e( 'Qty', 'project-prepper' ); ?>
+													<input type="number" name="pp_quantity" min="1" value="<?php echo (int) $line->quantity; ?>">
+												</label>
+												<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+													<input type="date" name="pp_from" value="<?php echo esc_attr( (string) $line->date_from ); ?>">
+												</label>
+												<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+													<input type="date" name="pp_to" value="<?php echo esc_attr( (string) $line->date_to ); ?>">
+												</label>
+											</div>
+											<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
+												<input type="text" name="pp_notes" value="<?php echo esc_attr( (string) $line->notes ); ?>">
+											</label>
+											<p class="pp-portal__hint"><?php esc_html_e( 'Leave both dates empty to book for the whole project period.', 'project-prepper' ); ?></p>
+											<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+										</form>
+									</details>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Remove this booking?', 'project-prepper' ) ); ?>');">
+										<?php self::action_fields( 'project_item_remove' ); ?>
+										<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+										<input type="hidden" name="pp_line" value="<?php echo (int) $line->id; ?>">
+										<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Remove', 'project-prepper' ); ?></button>
+									</form>
+								<?php endif; ?>
+							</div>
+						<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
+
+				<?php if ( $can_book && $pool ) : ?>
+					<details class="pp-portal__add">
+						<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></summary>
+						<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<?php self::action_fields( 'project_item_add' ); ?>
+							<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+							<label><?php esc_html_e( 'Item', 'project-prepper' ); ?>
+								<select name="pp_item" required>
+									<option value=""><?php esc_html_e( '— pick an item —', 'project-prepper' ); ?></option>
+									<?php foreach ( $pool as $item ) :
+										$bits = [];
+										if ( '' !== (string) ( $item->inventory_number ?? '' ) ) {
+											$bits[] = $item->inventory_number;
+										}
+										if ( '' !== (string) ( $item->owner_name ?? '' ) ) {
+											$bits[] = $item->owner_name;
+										}
+										if ( $has_period ) {
+											$free = Availability::available_quantity( (int) $item->id, (string) $p->date_start, (string) $p->date_end, 0, (int) $p->id );
+											$free = max( 0, $free - ( $booked_qty[ (int) $item->id ] ?? 0 ) );
+											/* translators: %d: available quantity in the project period. */
+											$bits[] = sprintf( __( '%d free', 'project-prepper' ), $free );
+										} else {
+											/* translators: %d: total quantity. */
+											$bits[] = sprintf( __( '%d× total', 'project-prepper' ), (int) $item->quantity );
+										}
+										?>
+										<option value="<?php echo (int) $item->id; ?>"><?php echo esc_html( $item->name . ( $bits ? ' · ' . implode( ' · ', $bits ) : '' ) ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</label>
+							<div class="pp-portal__form-row">
+								<label><?php esc_html_e( 'Qty', 'project-prepper' ); ?>
+									<input type="number" name="pp_quantity" min="1" value="1">
+								</label>
+								<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+									<input type="date" name="pp_from">
+								</label>
+								<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+									<input type="date" name="pp_to">
+								</label>
+							</div>
+							<p class="pp-portal__hint"><?php esc_html_e( 'Leave both dates empty to book for the whole project period.', 'project-prepper' ); ?></p>
+							<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
+								<input type="text" name="pp_notes">
+							</label>
+							<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></button>
+						</form>
+					</details>
+				<?php elseif ( $can_book ) : ?>
+					<p class="pp-portal__hint"><?php esc_html_e( 'No equipment is shared with this collective yet. Members share items from “My inventory” in their solo workspace.', 'project-prepper' ); ?></p>
+				<?php endif; ?>
 			</section>
 		<?php endif;
 

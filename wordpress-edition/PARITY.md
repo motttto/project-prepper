@@ -3,6 +3,27 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release 2026-07-22 (Plugin v0.99.0, Schema 0.27.0 — Technik-Buchung in Portal-Projekten)
+> Feature-Release, KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration; nur `includes/Frontend/MemberPortal.php`.
+> 1. Die Sektion „Gebuchtes Equipment" im Portal-Projektdetail ist jetzt interaktiv (Pendant zum
+>    Equipment-Tab der App): im AKTIVEN Gruppen-Workspace kann Equipment aus dem geteilten Pool des
+>    Kollektivs gebucht werden — Formular „Technik buchen" mit Artikel-Auswahl inkl. Verfügbarkeits-
+>    Anzeige („N frei" via `Availability::available_quantity` für den Projektzeitraum, abzüglich im
+>    Projekt bereits gebuchter Stückzahlen; ohne Projektzeitraum „N× gesamt"), Menge, optionalem
+>    eigenem Zeitraum (beide Daten leer = ganzer Projektzeitraum) und Notizen.
+> 2. Bestehende Buchungszeilen sind editierbar (Menge/Zeitraum/Notiz via `<details>`-Inline-Formular)
+>    und entfernbar (mit confirm-Abfrage). Verfügbarkeits-Guard über `Projects::add_item/update_item`
+>    greift — Überbuchung → Fehlermeldung `rental_unavailable`.
+> 3. Sicherheits-Whitelist `bookable_pool()`: nur mit dem Kollektiv geteilte Artikel
+>    (`MemberInventory::items_shared_with_group`) sind buchbar; fremde item_ids → 403. Ohne aktiven
+>    Gruppen-Workspace bleibt die Sektion read-only. Neue Dispatcher-Aktionen
+>    `project_item_add/update/remove`, neue Meldungen `booking_saved`/`booking_removed`.
+> i18n: 11 neue Strings übersetzt (nur PHP, keine JS-Strings), .pot/.po regeneriert, .mo per WP-POMO
+> gebaut und verifiziert (alle 11 lösen auf). Plugin-Check: KEINE neuen ERROR-Findings ggü. v0.98.12
+> (nur die bekannten Altfehler Legal/Costs/MemberPortal-Translators + hidden_files +
+> plugin_updater_detected). `update.json` auf 0.99.0 mitgepflegt. Build `dist/project-prepper-0.99.0.zip`
+> (1,1 MB, 112 Dateien).
+>
 > ## 🧩 Release 2026-07-17 (Plugin v0.98.12, Schema 0.27.0 — Mein Inventar ohne Pagination)
 > Patch-Release, KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration; ein i18n-String entfallen
 > („Page %1$d of %2$d" → .pot/.po/.mo/JSON regeneriert, keine neuen Strings).
