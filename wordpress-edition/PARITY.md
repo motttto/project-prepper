@@ -3,6 +3,24 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release 2026-07-22 (Plugin v0.101.0, Schema 0.27.0 — Projekt-Detail mit App-Reitern)
+> UI-Release, KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration; `MemberPortal.php`,
+> `frontend.css`, `de_DE.po` (2 neue Strings: „Team & contacts", „Project sections").
+> Das Portal-Projektdetail stellt die bisher untereinander gestapelten Sektionen auf eine
+> **Reiter-Leiste im App-Look** um — 12 Reiter in App-Reihenfolge: Übersicht · Zeitplan ·
+> Equipment · Team & Kontakte · Material · Kosten · Checklisten · Aufgaben · Umfragen ·
+> Vereinbarung · Dateien · Gewinn. Serverseitig über `?pp_tab=…` (funktioniert ohne JS),
+> aktiver Reiter = Surface + Schatten (`.pp-proj-tabs`, auf schmalen Screens horizontal
+> scrollbar mit dünner Scrollbar). Der Kollektiv-Dispatcher reicht den aktiven Reiter über
+> Redirects weiter (pp_tab aus dem same-origin Referer) — nach jeder Aktion (z. B. Checkliste
+> abhaken, Buchung ändern) landet man wieder im selben Reiter; der Datei-Upload-Handler
+> redirectet fest auf pp_tab=files. Zuordnung: Team & Kontakte = Team + Kontakte + Beteiligte;
+> Vereinbarung = Kooperationsvereinbarung + Beschlüsse; Gewinn = Gewinnverteilung/Umsatz;
+> Übersicht = Projektdaten + Bearbeiten/Löschen. Im wp-env-Browser durchgetestet.
+> Plugin-Check: KEINE neuen ERROR-Findings ggü. v0.100.0 (nur bekannte Altfehler + hidden_files/
+> plugin_updater_detected). `update.json` auf 0.101.0 mitgepflegt.
+> Build `dist/project-prepper-0.101.0.zip` (1,1 MB, 112 Dateien).
+
 > ## 🧩 Release 2026-07-22 (Plugin v0.100.0, Schema 0.27.0 — Portal-Projektdetail voll interaktiv)
 > KEIN Schema-Change (alle Services/Tabellen existierten bereits — reine Portal-Verdrahtung);
 > `MemberPortal.php`, `frontend.css`, `de_DE.po` (66 neue Strings, .pot/.mo macht der Release-Agent).

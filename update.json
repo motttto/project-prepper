@@ -1,9 +1,9 @@
 {
-  "version": "0.100.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.100.0/project-prepper-0.100.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.100.0",
+  "version": "0.101.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.101.0/project-prepper-0.101.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.101.0",
   "published": "2026-07-22",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Projekt-Detail im Portal jetzt voll bearbeitbar - Zeitplan, Aufgaben, Checklisten, Material, Kosten & Budget, Team & Kontakte, Dateien, Umsatz und Gewinnverteilung (vorher nur Anzeige)."
+  "changelog": "Projekt-Detail im Portal jetzt mit Reitern wie in der App - 12 Bereiche als Tab-Leiste statt einer langen Seite; nach jeder Aktion bleibt der aktive Reiter erhalten."
 }

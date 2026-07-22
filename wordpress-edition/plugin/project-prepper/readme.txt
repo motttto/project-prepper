@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.100.0
+Stable tag: 0.101.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.101.0 =
+* Projects: the project detail now uses an app-style tab bar (overview, schedule, equipment, team & contacts, materials, costs, checklists, tasks, polls, agreement, files, profit) instead of one long page — the active tab is kept across actions.
 
 = 0.100.0 =
 * Projects: the full project detail is now editable in the member portal — schedule, tasks, checklists, materials, costs & budget, team & contacts, files, revenue and profit shares (previously read-only).

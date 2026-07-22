@@ -311,6 +311,17 @@ class MemberPortal {
 			? add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => $proj_id ], self::portal_url() )
 			: self::portal_url();
 
+		// Aktiven Projekt-Reiter über den Redirect erhalten: die Formulare posten
+		// kein pp_tab, aber der (same-origin) Referer kennt ihn.
+		if ( $proj_id > 0 ) {
+			$ref_query = (string) wp_parse_url( (string) wp_get_referer(), PHP_URL_QUERY );
+			wp_parse_str( $ref_query, $ref_args );
+			$ref_tab = sanitize_key( (string) ( $ref_args['pp_tab'] ?? '' ) );
+			if ( '' !== $ref_tab ) {
+				$back = add_query_arg( 'pp_tab', $ref_tab, $back );
+			}
+		}
+
 		if ( ! is_user_logged_in() ||
 			! isset( $_POST['pp_nonce'] ) ||
 			! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_collective' ) ) {
@@ -2889,7 +2900,38 @@ class MemberPortal {
 			<p class="pp-app__page-sub"><?php echo esc_html( $p->project_number . ( '' !== $range ? ' · ' . $range : '' ) ); ?></p>
 		</header>
 
-		<?php if ( (int) $p->owner_group_id === self::active_workspace_group() ) : ?>
+		<?php
+		// Reiter wie die App (gleiche Aufteilung + Reihenfolge). Auswahl über
+		// ?pp_tab=…, serverseitig gerendert — funktioniert ohne JS; der
+		// Dispatcher reicht den aktiven Reiter über Redirects weiter (Referer).
+		$tabs = [
+			'overview'   => __( 'Overview', 'project-prepper' ),
+			'schedule'   => __( 'Schedule', 'project-prepper' ),
+			'equipment'  => __( 'Equipment', 'project-prepper' ),
+			'team'       => __( 'Team & contacts', 'project-prepper' ),
+			'materials'  => __( 'Materials', 'project-prepper' ),
+			'costs'      => __( 'Costs', 'project-prepper' ),
+			'checklists' => __( 'Checklists', 'project-prepper' ),
+			'tasks'      => __( 'Tasks', 'project-prepper' ),
+			'polls'      => __( 'Polls', 'project-prepper' ),
+			'agreement'  => __( 'Agreement', 'project-prepper' ),
+			'files'      => __( 'Files', 'project-prepper' ),
+			'profit'     => __( 'Profit', 'project-prepper' ),
+		];
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Anzeige-Auswahl.
+		$tab = sanitize_key( wp_unslash( (string) ( $_GET['pp_tab'] ?? 'overview' ) ) );
+		if ( ! isset( $tabs[ $tab ] ) ) {
+			$tab = 'overview';
+		}
+		$tab_base = add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $p->id ], self::portal_url() );
+		?>
+		<nav class="pp-proj-tabs" aria-label="<?php esc_attr_e( 'Project sections', 'project-prepper' ); ?>">
+			<?php foreach ( $tabs as $key => $label ) : ?>
+				<a class="pp-proj-tabs__tab<?php echo $key === $tab ? ' pp-proj-tabs__tab--on' : ''; ?>"<?php echo $key === $tab ? ' aria-current="page"' : ''; ?> href="<?php echo esc_url( 'overview' === $key ? $tab_base : add_query_arg( 'pp_tab', $key, $tab_base ) ); ?>"><?php echo esc_html( $label ); ?></a>
+			<?php endforeach; ?>
+		</nav>
+
+		<?php if ( 'overview' === $tab && (int) $p->owner_group_id === self::active_workspace_group() ) : ?>
 			<div class="pp-portal__actions" style="margin-bottom:1rem">
 				<details class="pp-portal__edit">
 					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit project', 'project-prepper' ); ?></summary>
@@ -2907,7 +2949,7 @@ class MemberPortal {
 		// 1) Übersicht (Veranstaltungsort / Kunde / Notizen) — nur wenn etwas da ist.
 		$has_overview = '' !== (string) $p->venue_name || '' !== (string) $p->venue_address
 			|| '' !== (string) $p->client_name || '' !== (string) $p->notes;
-		if ( $has_overview ) :
+		if ( 'overview' === $tab && $has_overview ) :
 			?>
 			<section class="pp-card">
 				<h3 class="pp-card__title"><?php esc_html_e( 'Overview', 'project-prepper' ); ?></h3>
@@ -2936,8 +2978,8 @@ class MemberPortal {
 		// 2) Gebuchtes Equipment — im aktiven Workspace kann direkt gebucht,
 		// geändert und entfernt werden (Pendant zum Equipment-Tab der App).
 		$can_book = $can_edit;
-		$pool     = $can_book ? self::bookable_pool( $p ) : [];
-		if ( ! empty( $p->items ) || $can_book ) :
+		$pool     = 'equipment' === $tab && $can_book ? self::bookable_pool( $p ) : [];
+		if ( 'equipment' === $tab && ( ! empty( $p->items ) || $can_book ) ) :
 			$has_period = '' !== (string) $p->date_start && '' !== (string) $p->date_end;
 			// Im Projekt bereits gebuchte Stückzahl je Artikel — für „noch frei".
 			$booked_qty = [];
@@ -3078,35 +3120,46 @@ class MemberPortal {
 			</section>
 		<?php endif;
 
-		// 3)–9) Unterlisten — im aktiven Workspace voll bearbeitbar (Pendant zu
-		// den App-Tabs Zeitplan/Aufgaben/Checklisten/Material/Team/Kontakte/Dateien).
+		// Übrige Reiter — Zuordnung wie die App-Tabs. Kosten/Gewinn: alle
+		// Betrachter dieses Details sind aktive Mitglieder der besitzenden
+		// Gruppe (oben erzwungen) — WP-Pendant zu canViewCosts=isMember der
+		// App, kein Finanz-Leak gegen Nicht-Mitglieder.
 		$g_members = $can_edit ? Groups::members( (int) $p->owner_group_id ) : [];
-		self::render_project_schedule( $p, $can_edit );
-		self::render_project_tasks( $p, $can_edit, $g_members );
-		self::render_project_checklists( $p, $can_edit );
-		self::render_project_materials( $p, $can_edit );
-		self::render_project_team( $p, $can_edit );
-		self::render_project_contacts( $p, $can_edit );
-		self::render_project_files_section( $p, $can_edit );
-
-		// 10) Beteiligte (read-only Roster aus der besitzenden Gruppe).
-		self::render_project_members( $p );
-
-		// 11) Kosten + Budget/Gewinn. Alle Betrachter dieses Details sind aktive
-		// Mitglieder der besitzenden Gruppe (oben erzwungen) — das ist das
-		// WP-Pendant zu canViewCosts=isMember der App. Kein Finanz-Leak gegen
-		// Nicht-Mitglieder, weil die das Detail gar nicht erreichen.
-		self::render_project_costs( $p, $can_edit );
-
-		// 12) Gewinnverteilung (gleiche Mitglieder-Sicht wie Kosten).
-		self::render_project_profit( $p, $can_edit, $g_members );
-
-		// 13) Kooperationsvereinbarung (read-only Status + Signatur-Roster).
-		self::render_project_agreement_summary( $p );
-
-		// 14) Beschlüsse + 15) Umfragen — interaktiv (Voting), nur Gruppenmitglieder.
-		self::render_decisions( $p );
-		self::render_polls( $p );
+		switch ( $tab ) {
+			case 'schedule':
+				self::render_project_schedule( $p, $can_edit );
+				break;
+			case 'tasks':
+				self::render_project_tasks( $p, $can_edit, $g_members );
+				break;
+			case 'checklists':
+				self::render_project_checklists( $p, $can_edit );
+				break;
+			case 'materials':
+				self::render_project_materials( $p, $can_edit );
+				break;
+			case 'team':
+				self::render_project_team( $p, $can_edit );
+				self::render_project_contacts( $p, $can_edit );
+				self::render_project_members( $p );
+				break;
+			case 'files':
+				self::render_project_files_section( $p, $can_edit );
+				break;
+			case 'costs':
+				self::render_project_costs( $p, $can_edit );
+				break;
+			case 'profit':
+				self::render_project_profit( $p, $can_edit, $g_members );
+				break;
+			case 'agreement':
+				self::render_project_agreement_summary( $p );
+				self::render_decisions( $p );
+				break;
+			case 'polls':
+				self::render_polls( $p );
+				break;
+		}
 	}
 
 	/** Beteiligten-Roster (read-only) — Name + Rolle/Notiz, verwaiste markiert. */
@@ -6054,7 +6107,7 @@ class MemberPortal {
 	public static function handle_project_file(): void {
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nur Redirect-Ziel; Nonce folgt direkt.
 		$pid  = (int) ( $_POST['pp_project'] ?? 0 );
-		$back = add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => $pid ], self::portal_url() );
+		$back = add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => $pid, 'pp_tab' => 'files' ], self::portal_url() );
 		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_project_file' ) ) {
 			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
 			exit;

@@ -1216,6 +1216,38 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-share__conds .pp-portal__chip { cursor: pointer; }
 .pp-share__conds label:has( input:checked ) { background: var(--pp-primary, var(--pp-primary)); color: #fff; border-color: var(--pp-primary, var(--pp-primary)); }
 
+/* Projekt-Detail: Reiter-Leiste wie die App-TabBar (muted Container,
+ * aktiver Reiter = Surface + Schatten). Auf schmalen Screens scrollbar. */
+.pp-proj-tabs {
+	display: flex;
+	gap: 2px;
+	background: var(--pp-muted);
+	border-radius: 10px;
+	padding: 4px;
+	margin-bottom: 1rem;
+	overflow-x: auto;
+	-webkit-overflow-scrolling: touch;
+	scrollbar-width: thin;
+}
+.pp-proj-tabs::-webkit-scrollbar { height: 4px; }
+.pp-proj-tabs::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 2px; }
+.pp-proj-tabs__tab {
+	flex: none;
+	padding: .45rem .8rem;
+	border-radius: 8px;
+	font-size: .85rem;
+	color: var(--pp-muted-foreground);
+	text-decoration: none;
+	white-space: nowrap;
+}
+.pp-proj-tabs__tab:hover { color: var(--pp-foreground); }
+.pp-proj-tabs__tab--on {
+	background: var(--pp-surface);
+	color: var(--pp-foreground);
+	font-weight: 600;
+	box-shadow: var(--pp-shadow);
+}
+
 /* Technik buchen (Projekt-Detail): Modal mit Live-Suche + Artikel-Liste
  * statt Dropdown (Pendant zum Item-Picker der App). */
 .pp-modal-body > .pp-portal__form > .pp-book-search,
