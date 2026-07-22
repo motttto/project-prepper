@@ -1213,6 +1213,44 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-share__conds { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .55rem; }
 .pp-share__conds .pp-portal__chip { cursor: pointer; }
 .pp-share__conds label:has( input:checked ) { background: var(--pp-primary, var(--pp-primary)); color: #fff; border-color: var(--pp-primary, var(--pp-primary)); }
+
+/* Technik buchen (Projekt-Detail): Modal mit Live-Suche + Artikel-Liste
+ * statt Dropdown (Pendant zum Item-Picker der App). */
+.pp-modal-body > .pp-portal__form > .pp-book-search,
+.pp-modal-body > .pp-portal__form > .pp-book-list,
+.pp-modal-body > .pp-portal__form > .pp-book-none,
+.pp-modal-body > .pp-portal__form > .pp-portal__form-row,
+.pp-modal-body > .pp-portal__form > .pp-portal__hint,
+.pp-modal-body > .pp-portal__form > label:has( input[name="pp_notes"] ) { grid-column: 1 / -1; }
+.pp-book-search {
+	width: 100%;
+	padding: .5rem .65rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 8px;
+	font: inherit;
+	background: var(--pp-surface);
+	color: var(--pp-foreground);
+	box-sizing: border-box;
+}
+.pp-book-list { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: .3rem; }
+/* Höhere Spezifität als `.pp-portal__form label` (flex-column) nötig. */
+.pp-portal__form label.pp-book-item {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: .6rem;
+	padding: .5rem .65rem;
+	border-radius: 8px;
+	background: var(--pp-muted);
+	cursor: pointer;
+	font-weight: 400;
+}
+.pp-portal__form label.pp-book-item:has( input:checked ) { background: var(--pp-primary-light); }
+/* `hidden` (Live-Suche) muss das eigene display:flex schlagen. */
+.pp-portal__form label.pp-book-item[hidden] { display: none; }
+.pp-book-item__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pp-book-item__name { font-weight: 500; font-size: .9rem; color: var(--pp-foreground); }
+.pp-book-item__meta { color: var(--pp-muted-foreground); font-size: .78rem; }
 .pp-share__notes { display: flex; flex-direction: column; gap: .2rem; font-size: .82rem; }
 .pp-share__notes textarea { width: 100%; }
 

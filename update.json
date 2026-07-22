@@ -1,9 +1,9 @@
 {
-  "version": "0.99.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.99.0/project-prepper-0.99.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.99.0",
+  "version": "0.99.1",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.99.1/project-prepper-0.99.1.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.99.1",
   "published": "2026-07-22",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Projekte: Technik direkt im Portal buchen - Equipment aus dem Kollektiv-Pool buchen, aendern und entfernen, mit Verfuegbarkeits-Anzeige und Ueberbuchungsschutz."
+  "changelog": "Projekte: Technik buchen jetzt im App-Look-Modal mit Live-Suche statt Dropdown - Artikel-Liste mit Verfuegbarkeit und Tagessatz."
 }

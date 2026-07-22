@@ -3,6 +3,27 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release 2026-07-22 (Plugin v0.99.1, Schema 0.27.0 — Technik-Buchung mit Live-Suche-Modal)
+> UX-Patch-Release, KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration; `MemberPortal.php`,
+> `MemberInventory.php`, `frontend.css`, `portal.js`.
+> 1. Das „Technik buchen"-Formular im Portal-Projektdetail ist vom Inline-`<details>` mit
+>    `<select>`-Dropdown auf ein App-Look-Modal umgestellt (natives `<dialog>`, `data-pp-modal`-
+>    Trigger „pp-book-equipment") — Nachbau des Item-Picker-Modals der App (tab-equipment.tsx):
+>    Suchfeld oben filtert die Artikel-Liste live (portal.js, progressive enhancement — ohne JS
+>    bleibt die volle Liste buchbar), darunter scrollbare Radio-Liste mit Name + Meta-Zeile
+>    (Inventarnummer · Owner · „N frei" im Projektzeitraum · Tagessatz), Auswahl-Highlight per
+>    CSS `:has()`.
+> 2. `MemberInventory::items_shared_with_group()` liefert zusätzlich `s.daily_rate AS
+>    share_daily_rate` für die Tagessatz-Anzeige im Picker.
+> 3. Gefixte Fallstricke: CSS-Spezifität gegen `.pp-portal__form label` (flex-column) und `[hidden]`
+>    gegen eigenes `display:flex`; ausgefilterte required-Radios werden disabled (sonst Browser-
+>    Validierung „not focusable").
+> i18n: 2 neue Strings übersetzt („Search equipment…" → „Technik suchen…", „%s €/day" → „%s €/Tag";
+> nur PHP, keine JS-Strings), „— pick an item —" entfallen; .pot/.po regeneriert, .mo per WP-POMO
+> gebaut. Plugin-Check: KEINE neuen ERROR-Findings ggü. v0.99.0 (nur bekannte Altfehler
+> Legal/Costs/MemberPortal-Translators + hidden_files + plugin_updater_detected). `update.json` auf
+> 0.99.1 mitgepflegt. Build `dist/project-prepper-0.99.1.zip` (1,1 MB, 112 Dateien).
+>
 > ## 🧩 Release 2026-07-22 (Plugin v0.99.0, Schema 0.27.0 — Technik-Buchung in Portal-Projekten)
 > Feature-Release, KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration; nur `includes/Frontend/MemberPortal.php`.
 > 1. Die Sektion „Gebuchtes Equipment" im Portal-Projektdetail ist jetzt interaktiv (Pendant zum

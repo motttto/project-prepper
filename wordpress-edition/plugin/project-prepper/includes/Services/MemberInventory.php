@@ -598,7 +598,7 @@ class MemberInventory {
 	public static function items_shared_with_group( int $group_id ): array {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			'SELECT i.*, s.shared_by, c.name AS category_name, c.icon AS category_icon
+			'SELECT i.*, s.shared_by, s.daily_rate AS share_daily_rate, c.name AS category_name, c.icon AS category_icon
 			 FROM %i s
 			 JOIN %i i ON i.id = s.item_id
 			 LEFT JOIN %i c ON c.id = i.category_id

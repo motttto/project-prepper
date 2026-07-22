@@ -71,4 +71,25 @@
 		e.preventDefault();
 		openModal( trigger.getAttribute( 'data-pp-modal' ) );
 	} );
+
+	/* Technik buchen: Live-Suche filtert die Artikel-Liste im Modal.
+	 * Ohne JS bleibt die volle Liste sichtbar und buchbar. */
+	document.addEventListener( 'input', function ( e ) {
+		if ( ! e.target.classList || ! e.target.classList.contains( 'pp-book-search' ) ) { return; }
+		var form = e.target.closest( 'form' );
+		if ( ! form ) { return; }
+		var q = e.target.value.toLowerCase().trim();
+		var any = false;
+		form.querySelectorAll( '.pp-book-item' ).forEach( function ( row ) {
+			var hit = '' === q || -1 !== row.textContent.toLowerCase().indexOf( q );
+			row.hidden = ! hit;
+			if ( hit ) { any = true; }
+			// Versteckte required-Radios würden die Browser-Validierung blockieren
+			// („not focusable") — daher mit ausknipsen, die gewählte aber behalten.
+			var radio = row.querySelector( 'input[type="radio"]' );
+			if ( radio ) { radio.disabled = ! hit && ! radio.checked; }
+		} );
+		var none = form.querySelector( '.pp-book-none' );
+		if ( none ) { none.hidden = any; }
+	} );
 } )();

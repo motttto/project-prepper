@@ -2641,14 +2641,18 @@ class MemberPortal {
 				<?php endif; ?>
 
 				<?php if ( $can_book && $pool ) : ?>
-					<details class="pp-portal__add">
-						<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></summary>
-						<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-							<?php self::action_fields( 'project_item_add' ); ?>
-							<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
-							<label><?php esc_html_e( 'Item', 'project-prepper' ); ?>
-								<select name="pp_item" required>
-									<option value=""><?php esc_html_e( '— pick an item —', 'project-prepper' ); ?></option>
+					<button type="button" class="pp-portal__btn pp-portal__btn--sm" data-pp-modal="pp-book-equipment"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></button>
+					<dialog class="pp-modal pp-modal--portal" id="pp-book-equipment">
+						<div class="pp-modal-header">
+							<h2 class="pp-modal__title"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></h2>
+							<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+						</div>
+						<div class="pp-modal-body">
+							<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+								<?php self::action_fields( 'project_item_add' ); ?>
+								<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+								<input type="search" class="pp-book-search" placeholder="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>">
+								<div class="pp-book-list">
 									<?php foreach ( $pool as $item ) :
 										$bits = [];
 										if ( '' !== (string) ( $item->inventory_number ?? '' ) ) {
@@ -2666,29 +2670,41 @@ class MemberPortal {
 											/* translators: %d: total quantity. */
 											$bits[] = sprintf( __( '%d× total', 'project-prepper' ), (int) $item->quantity );
 										}
+										$rate = '' !== (string) ( $item->share_daily_rate ?? '' ) ? $item->share_daily_rate : ( $item->cost_per_day ?? '' );
+										if ( '' !== (string) $rate ) {
+											/* translators: %s: daily rate in euros. */
+											$bits[] = sprintf( __( '%s €/day', 'project-prepper' ), number_format_i18n( (float) $rate, 2 ) );
+										}
 										?>
-										<option value="<?php echo (int) $item->id; ?>"><?php echo esc_html( $item->name . ( $bits ? ' · ' . implode( ' · ', $bits ) : '' ) ); ?></option>
+										<label class="pp-book-item">
+											<input type="radio" name="pp_item" value="<?php echo (int) $item->id; ?>" required>
+											<span class="pp-book-item__text">
+												<span class="pp-book-item__name"><?php echo esc_html( $item->name ); ?></span>
+												<span class="pp-book-item__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></span>
+											</span>
+										</label>
 									<?php endforeach; ?>
-								</select>
-							</label>
-							<div class="pp-portal__form-row">
-								<label><?php esc_html_e( 'Qty', 'project-prepper' ); ?>
-									<input type="number" name="pp_quantity" min="1" value="1">
+								</div>
+								<p class="pp-book-none pp-portal__hint" hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
+								<div class="pp-portal__form-row">
+									<label><?php esc_html_e( 'Qty', 'project-prepper' ); ?>
+										<input type="number" name="pp_quantity" min="1" value="1">
+									</label>
+									<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+										<input type="date" name="pp_from">
+									</label>
+									<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+										<input type="date" name="pp_to">
+									</label>
+								</div>
+								<p class="pp-portal__hint"><?php esc_html_e( 'Leave both dates empty to book for the whole project period.', 'project-prepper' ); ?></p>
+								<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
+									<input type="text" name="pp_notes">
 								</label>
-								<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
-									<input type="date" name="pp_from">
-								</label>
-								<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
-									<input type="date" name="pp_to">
-								</label>
-							</div>
-							<p class="pp-portal__hint"><?php esc_html_e( 'Leave both dates empty to book for the whole project period.', 'project-prepper' ); ?></p>
-							<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
-								<input type="text" name="pp_notes">
-							</label>
-							<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></button>
-						</form>
-					</details>
+								<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></button>
+							</form>
+						</div>
+					</dialog>
 				<?php elseif ( $can_book ) : ?>
 					<p class="pp-portal__hint"><?php esc_html_e( 'No equipment is shared with this collective yet. Members share items from “My inventory” in their solo workspace.', 'project-prepper' ); ?></p>
 				<?php endif; ?>
