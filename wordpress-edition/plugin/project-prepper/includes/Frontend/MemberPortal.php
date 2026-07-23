@@ -30,6 +30,7 @@ use ProjectPrepper\Services\Polls;
 use ProjectPrepper\Services\CalendarEvents;
 use ProjectPrepper\Services\FederatedBorrow;
 use ProjectPrepper\Services\Telegram;
+use ProjectPrepper\Services\Presence;
 use ProjectPrepper\Rest\CalendarController;
 use ProjectPrepper\Federation;
 use WP_User;
@@ -184,6 +185,15 @@ class MemberPortal {
 		if ( self::is_portal_page() ) {
 			wp_enqueue_style( 'pp-frontend' );
 			wp_enqueue_script( 'pp-portal' );
+			// Presence-Heartbeat: das Portal-JS pingt regelmäßig diese Route, damit
+			// der eigene „zuletzt gesehen"-Stempel frisch bleibt (nur eingeloggt).
+			if ( is_user_logged_in() ) {
+				wp_localize_script( 'pp-portal', 'ppPortal', [
+					'heartbeatUrl' => esc_url_raw( rest_url( 'project-prepper/v1/heartbeat' ) ),
+					'nonce'        => wp_create_nonce( 'wp_rest' ),
+					'heartbeatMs'  => 45000,
+				] );
+			}
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine View-Erkennung fürs Enqueue.
 			$view = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : '';
 			if ( 'inventory' === $view ) {
@@ -2051,6 +2061,15 @@ class MemberPortal {
 		$open_reqs  = count( array_filter( $incoming, static fn( $r ) => 'requested' === $r->status ) );
 		$rent_kpis  = MemberRentals::kpis( (int) $user->ID );
 		$rent_out   = (int) $rent_kpis['reserved'] + (int) $rent_kpis['active'];
+		// Presence: verschiedene gerade online befindliche Mitglieder über alle
+		// eigenen Kollektive (ein Batch-Query über die Vereinigungsmenge).
+		$grp_member_ids = [];
+		foreach ( $groups as $g ) {
+			foreach ( Groups::members( (int) $g->id ) as $gm ) {
+				$grp_member_ids[ (int) $gm->user_id ] = true;
+			}
+		}
+		$members_online = count( Presence::online_user_ids( array_keys( $grp_member_ids ) ) );
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title">
@@ -2121,7 +2140,18 @@ class MemberPortal {
 
 		<section class="pp-app__section">
 			<div class="pp-app__section-head">
-				<h2 class="pp-portal__subtitle"><?php esc_html_e( 'Your collectives', 'project-prepper' ); ?></h2>
+				<h2 class="pp-portal__subtitle">
+					<?php esc_html_e( 'Your collectives', 'project-prepper' ); ?>
+					<?php if ( $members_online > 0 ) : ?>
+						<span class="pp-portal__online-count">
+							<span class="pp-portal__online-dot" aria-hidden="true"></span>
+							<?php
+							/* translators: %d: number of collective members currently online. */
+							echo esc_html( sprintf( _n( '%d member online', '%d members online', $members_online, 'project-prepper' ), $members_online ) );
+							?>
+						</span>
+					<?php endif; ?>
+				</h2>
 				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::view_url( 'collectives' ) ); ?>"><?php esc_html_e( 'Manage', 'project-prepper' ); ?></a>
 			</div>
 			<?php if ( $groups ) : ?>
@@ -6600,6 +6630,12 @@ class MemberPortal {
 		$members     = Groups::members( $group_id );
 		$invitations = Governance::invitations_for_group( $group_id, [ 'pending', 'voting' ] );
 		$logo_url    = self::group_logo_url( $logo_id );
+		// Presence-Momentaufnahme: welche Mitglieder sind gerade online? Nur
+		// innerhalb des eigenen Kollektivs sichtbar (Batch-Meta-Query über genau
+		// diese Mitglieder). Kein Live-Update — Stand beim Seitenaufbau.
+		$online_ids   = Presence::online_user_ids( array_map( static fn( $m ) => (int) $m->user_id, $members ) );
+		$online_set   = array_fill_keys( $online_ids, true );
+		$online_count = count( $online_ids );
 		// Austreten erlaubt für Mitglieder; ein Gründer nur, wenn ein weiterer Gründer bleibt.
 		$founder_count = 0;
 		foreach ( $members as $m ) {
@@ -6682,16 +6718,34 @@ class MemberPortal {
 			<?php endif; ?>
 
 			<div class="pp-portal__memberlist">
+				<h4 class="pp-portal__memberhead">
+					<?php
+					/* translators: %d: number of members. */
+					echo esc_html( sprintf( _n( '%d member', '%d members', count( $members ), 'project-prepper' ), count( $members ) ) );
+					if ( $online_count > 0 ) :
+						?>
+						<span class="pp-portal__online-count">
+							<span class="pp-portal__online-dot" aria-hidden="true"></span>
+							<?php
+							/* translators: %d: number of members currently online. */
+							echo esc_html( sprintf( _n( '%d online', '%d online', $online_count, 'project-prepper' ), $online_count ) );
+							?>
+						</span>
+					<?php endif; ?>
+				</h4>
 				<?php
-				/* translators: %d: number of members. */
-				echo '<h4 class="pp-portal__memberhead">' . esc_html( sprintf( _n( '%d member', '%d members', count( $members ), 'project-prepper' ), count( $members ) ) ) . '</h4>';
 				foreach ( $members as $m ) :
 					$is_founder = ( 'founder' === $m->member_role );
 					$is_self    = ( (int) $m->user_id === $user_id );
+					$is_online  = isset( $online_set[ (int) $m->user_id ] );
 					$joined     = self::fmt_date( $m->joined_at );
 					?>
 					<div class="pp-portal__member">
 						<span class="pp-portal__member-name">
+							<?php if ( $is_online ) : ?>
+								<span class="pp-portal__online-dot" title="<?php esc_attr_e( 'Online', 'project-prepper' ); ?>"></span>
+								<span class="screen-reader-text"><?php esc_html_e( 'Online', 'project-prepper' ); ?></span>
+							<?php endif; ?>
 							<?php echo esc_html( $m->display_name ); ?>
 							<?php if ( $is_self ) : ?>
 								<span class="pp-portal__member-you"><?php esc_html_e( '(you)', 'project-prepper' ); ?></span>

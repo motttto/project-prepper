@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.108.0
+Stable tag: 0.109.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.109.0 =
+* Portal: presence indicators — a lightweight heartbeat shows which members of your collectives are currently online (green dot and an “N online” count on the collective card and dashboard).
 
 = 0.108.0 =
 * Collectives: Telegram notifications — the site operator sets a bot token, founders add their group's chat ID, and the portal posts a short message to the group's Telegram chat for new inquiries, equipment bookings and RSVP confirmations.

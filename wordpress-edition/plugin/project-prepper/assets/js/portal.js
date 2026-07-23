@@ -115,4 +115,39 @@
 			done();
 		}
 	} );
+
+	/* Presence-Heartbeat: hält den eigenen „zuletzt gesehen"-Stempel frisch,
+	 * damit Mitglieder desselben Kollektivs sich beim nächsten Seitenaufbau als
+	 * online sehen. Bewusst leichtgewichtig: nur ein Ping beim Laden + im
+	 * Intervall, und NUR wenn der Tab sichtbar ist (kein Ping im Hintergrund).
+	 * Es gibt kein Live-DOM-Update — die Anzeige ist eine Momentaufnahme. */
+	( function () {
+		var cfg = window.ppPortal;
+		if ( ! cfg || ! cfg.heartbeatUrl ) {
+			return;
+		}
+		var intervalMs = parseInt( cfg.heartbeatMs, 10 ) || 45000;
+
+		function beat() {
+			// Im Hintergrund-Tab nicht pingen — spart Last.
+			if ( document.hidden ) {
+				return;
+			}
+			fetch( cfg.heartbeatUrl, {
+				method: 'POST',
+				credentials: 'same-origin',
+				headers: { 'X-WP-Nonce': cfg.nonce }
+			} ).catch( function () { /* still — Presence ist rein optional */ } );
+		}
+
+		beat();
+		window.setInterval( beat, intervalMs );
+		// Ein zusätzlicher Ping, sobald der Tab wieder sichtbar wird — so ist man
+		// nach der Rückkehr direkt wieder als online sichtbar.
+		document.addEventListener( 'visibilitychange', function () {
+			if ( ! document.hidden ) {
+				beat();
+			}
+		} );
+	} )();
 } )();

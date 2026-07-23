@@ -3,6 +3,47 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.109.0 2026-07-23 (Presence / „Wer ist online" — Polling-Heartbeat, Schema UNVERÄNDERT 0.32.0)
+> **Kein Schema-Change** (user_meta `pp_last_seen`, keine Migration).
+> Pendant zu den Supabase-Realtime-Presence-Kanälen der App (`use-presence.ts`/`presence-avatars.tsx`),
+> aber **Polling-Heartbeat statt Realtime** (WP hat kein Realtime-Backend) — bewusst leichtgewichtig.
+> **Speicherung schlank als user_meta `pp_last_seen`** (Unix-Timestamp), keine neue Tabelle.
+> **Neuer Service `Services/Presence.php`:** `touch($uid)` (setzt eigenen Stempel), `is_online($uid)`
+> (Stempel innerhalb **3 Min** = `WINDOW 180`), `online_user_ids(array $ids)` (Batch, EIN Meta-Query
+> mit `IN($placeholders)` + `CAST(meta_value AS UNSIGNED) >= cutoff`), `online_count_for_group($gid)`.
+> **Neuer REST-Controller `Rest/PresenceController.php`:** `POST /project-prepper/v1/heartbeat`,
+> `permission_callback = is_user_logged_in()` (eingeloggt genügt — jeder darf sich SELBST als online
+> melden; gelesen wird über die Route nichts über andere), Nonce `wp_rest` (X-WP-Nonce); ruft
+> `Presence::touch(get_current_user_id())`, antwortet `{ok, ts}`. In `Plugin.php` registriert.
+> **Portal-JS (`assets/js/portal.js`):** pingt `heartbeatUrl` beim Laden **einmal** + alle **45 s**,
+> **pausiert bei `document.hidden`** (kein Ping im Hintergrund-Tab), zusätzlicher Ping bei
+> `visibilitychange`→sichtbar. Config via `wp_localize_script('pp-portal','ppPortal',{heartbeatUrl,
+> nonce,heartbeatMs})` in `MemberPortal::register_assets` (nur eingeloggt). **Anzeige (server-gerendert,
+> Momentaufnahme):** in `render_collective` grüner Punkt (`.pp-portal__online-dot`, Farbe `--pp-success`,
+> hell #10b981 / dunkel #34d399) an Online-Mitglieder + „N online" (`.pp-portal__online-count`) neben der
+> Mitglieder-Überschrift; im Dashboard „N Mitglieder online" über die eigenen Kollektive. **Datenschutz-
+> Grenze:** `touch()` setzt NUR den eigenen Stempel; Präsenz wird ausschließlich für eine vom Aufrufer
+> übergebene Nutzerliste gelesen — in der Praxis die Mitglieder der EIGENEN Kollektive → kein instanzweites
+> Leaken, wer wann online war (nur Gruppen-Mitglieder sehen sich gegenseitig). **Bewusst offen (leicht-
+> gewichtig):** KEIN Live-DOM-Update — die Anzeige aktualisiert sich beim nächsten Seitenaufruf; das Polling
+> hält nur `pp_last_seen` frisch. Polling-Intervall 45 s, Online-Fenster 3 Min. **Tests (wp-env):** Service
+> via `wp eval` (memberB frisch → online_ids=[42]/count=1/is_online true; 10 Min alt → alles offline);
+> REST `curl` **ohne Auth → 401** `rest_forbidden`, **mit App-Password → 200 `{ok,ts}` + `pp_last_seen`
+> geschrieben**; Browser (portaltest, Gruppe 23): Heartbeat feuert beim Laden (DB-Stempel gesetzt), Kollektiv-
+> Karte zeigt memberB-Punkt + „N online", memberB 10 Min alt → Punkt weg („3 Mitglieder · 1 online"),
+> Dashboard „2 Mitglieder online"; **`document.hidden`-Guard deterministisch** (Page-World-Bridge:
+> hidden→visibilitychange = 0 Pings, sichtbar→visibilitychange = 1 Ping); Dark-Mode-Punkt sichtbar
+> (`rgb(52,211,153)`). i18n: 3 neue Quellstrings (`Online`, `%d online`, `%d member online`/`%d members online`)
+> in de_DE.po (0 fuzzy), Deutsch verifiziert („2 Mitglieder online"). `php -l`/`node --check` grün. Testdaten
+> (user_meta) aufgeräumt.
+> **Release-Lauf v0.109.0 (2026-07-23):** Version gebumpt (Header/`PP_VERSION`/`Stable tag`), readme.txt-
+> Changelog-Block, .pot regeneriert + de_DE.po via `update-po` (0 fuzzy), **.mo neu via WP-POMO (PO/MO aus
+> `wp-includes/pomo/`, `wp eval-file`, 1375 Einträge)** statt make-mo (Konvention), Stichproben gegen frische
+> .mo grün. Plugin Check = nur erwartete `hidden_files` + `plugin_updater_detected`. `build.sh` →
+> `dist/project-prepper-0.109.0.zip` (1.2M, 117 Dateien, Presence-Dateien enthalten). Root-`update.json` auf
+> 0.109.0 + Asset-URL. Commit/Push `wordpress-edition` + GitHub-Release `v0.109.0` mit ZIP-Asset; Updater sieht
+> das Release (`is_asset=true`, package = ZIP).
+
 > ## 🚀 Release v0.108.0 2026-07-23 (Telegram-Benachrichtigungen outbound — Schema 0.32.0)
 > **Outbound-only** (Pendant zur App-Edge-Function `telegram-bot`, aber ohne eingehenden Bot). **Schema 0.32.0:**
 > Spalte `telegram_chat_id varchar(64)` additiv auf `pp_groups` (dbDelta, in wp-env verifiziert). **Neuer Service
@@ -651,7 +692,9 @@
 >
 > **In v0.85.0 behobene QA-Befunde:** B1 DSGVO-Leak bei leerer E-Mail (`Privacy::export_/erase_rentals` Guard) · B2 Anfrage-Datumsvalidierung (ungültig→NULL) · B3 Aktivitätslog-Labels vervollständigt (73 Actions) · B4 PHP-Warning `Platform::save_from` (interval) · B5 Template-Renderer entfernt übrige `{{platzhalter}}`.
 >
-> **Bewusst NICHT portiert (keine Mängel):** CalDAV→iCal, In-App-SMTP→WP-Plugins, Multi-Owner-Sharing/Realtime.
+> **Bewusst NICHT portiert (keine Mängel):** CalDAV→iCal, In-App-SMTP→WP-Plugins, Multi-Owner-Sharing.
+> (Realtime-**Presence** ist jetzt als leichtgewichtiger Heartbeat portiert — siehe „⏳ In Arbeit" oben; echte
+> Realtime-Kanäle/Live-DOM bleiben bewusst weg.)
 > **Echte Lücke:** Verleih-Freigabe pro Position + „Mein Equipment unterwegs" (Multi-Owner-blockiert, ~85 %).
 
 > **🎯 MVP-Parität erreicht (Lauf 3), C-Lücken geschlossen (Lauf 4):** Im MVP-Scope (Inventar,

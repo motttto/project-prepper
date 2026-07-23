@@ -65,5 +65,6 @@ class Plugin {
 		( new Rest\UsersController() )->register_routes();
 		( new Rest\EmailTemplatesController() )->register_routes();
 		( new Rest\InstanceController() )->register_routes();
+		( new Rest\PresenceController() )->register_routes();
 	}
 }

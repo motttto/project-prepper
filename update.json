@@ -1,9 +1,9 @@
 {
-  "version": "0.108.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.108.0/project-prepper-0.108.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.108.0",
+  "version": "0.109.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.109.0/project-prepper-0.109.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.109.0",
   "published": "2026-07-23",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Telegram-Benachrichtigungen: Betreiber hinterlegt einen Bot-Token, Gründer tragen die Chat-ID ihrer Gruppe ein — das Portal schickt bei neuen Anfragen, Technik-Buchungen und RSVP-Zusagen eine kurze Nachricht in die Telegram-Gruppe. (Eingehender Bot folgt später.)"
+  "changelog": "Presence-Anzeige: ein leichtgewichtiger Heartbeat zeigt, welche Mitglieder deiner Kollektive gerade online sind (grüner Punkt + „N online“ auf der Kollektiv-Karte und im Dashboard). Kein Live-Update — Momentaufnahme beim Seitenaufruf."
 }
