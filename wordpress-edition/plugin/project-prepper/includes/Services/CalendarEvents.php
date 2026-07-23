@@ -18,7 +18,9 @@ defined( 'ABSPATH' ) || exit;
  * zusätzlich zum Dispatcher-Gate).
  *
  * Zeiten: date_from/date_to (Y-m-d) + optionale time_start/time_end (HH:MM).
- * Leere Zeiten = ganztägig (App: all_day). KEIN CalDAV (bewusst v2.x).
+ * Leere Zeiten = ganztägig (App: all_day). Die uid-Spalte (v0.33.0) trägt die
+ * iCal-UID für den CalDAV-Zweiweg-Server (CalDav\Server); im Portal angelegte
+ * Termine haben sie leer und bekommen beim Export eine abgeleitete UID.
  */
 class CalendarEvents {
 
@@ -163,6 +165,70 @@ class CalendarEvents {
 			$r->calendar_group_id = (int) $r->calendar_group_id;
 		}
 		return $rows;
+	}
+
+	/**
+	 * Termine eines Arbeitsbereichs, die genau EINEM Kalender zugeordnet sind
+	 * (calendar_group_id) — für den CalDAV-Server, der jede Kalender-Sammlung
+	 * als eigene Collection ausliefert. Owner-gefiltert (Defense-in-Depth).
+	 *
+	 * @return array<object>
+	 */
+	public static function events_in_calendar( int $user_id, int $group_id, int $calendar_group_id ): array {
+		global $wpdb;
+		$owner = self::owner_pair( $user_id, $group_id );
+		$rows  = $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM %i WHERE owner_user_id = %d AND owner_group_id = %d AND calendar_group_id = %d
+			 ORDER BY date_from ASC, time_start ASC, id ASC',
+			Schema::table( 'calendar_events' ),
+			$owner['user'],
+			$owner['group'],
+			$calendar_group_id
+		) ) ?: [];
+		foreach ( $rows as $r ) {
+			$r->id                = (int) $r->id;
+			$r->calendar_group_id = (int) $r->calendar_group_id;
+		}
+		return $rows;
+	}
+
+	/**
+	 * Einen Termin per iCal-UID innerhalb eines Kalenders auflösen (CalDAV:
+	 * UID ist der Ressourcen-Schlüssel). Owner-gefiltert; NULL wenn keiner.
+	 */
+	public static function find_in_calendar_by_uid( int $user_id, int $group_id, int $calendar_group_id, string $uid ): ?object {
+		global $wpdb;
+		if ( '' === $uid ) {
+			return null;
+		}
+		$owner = self::owner_pair( $user_id, $group_id );
+		$row   = $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM %i WHERE owner_user_id = %d AND owner_group_id = %d AND calendar_group_id = %d AND uid = %s LIMIT 1',
+			Schema::table( 'calendar_events' ),
+			$owner['user'],
+			$owner['group'],
+			$calendar_group_id,
+			$uid
+		) );
+		if ( $row ) {
+			$row->id                = (int) $row->id;
+			$row->calendar_group_id = (int) $row->calendar_group_id;
+		}
+		return $row ?: null;
+	}
+
+	/**
+	 * Owner-geprüfter Einzeltermin nach ID (für CalDAV-GET/DELETE der aus der
+	 * ID abgeleiteten UID pp-event-<id>). NULL wenn nicht im Arbeitsbereich.
+	 */
+	public static function get_owned_event( int $id, int $user_id, int $group_id ): ?object {
+		$row = self::owned_event( $id, $user_id, $group_id );
+		if ( is_wp_error( $row ) ) {
+			return null;
+		}
+		$row->id                = (int) $row->id;
+		$row->calendar_group_id = (int) $row->calendar_group_id;
+		return $row;
 	}
 
 	/**
@@ -334,7 +400,7 @@ class CalendarEvents {
 			}
 		}
 
-		return [
+		$fields = [
 			'calendar_group_id' => $cal_id,
 			'title'             => $title,
 			'description'       => isset( $data['description'] ) ? (string) $data['description'] : '',
@@ -344,6 +410,19 @@ class CalendarEvents {
 			'time_start'        => self::sanitize_time( $data['time_start'] ?? '' ),
 			'time_end'          => self::sanitize_time( $data['time_end'] ?? '' ),
 		];
+
+		// iCal-UID nur setzen, wenn explizit übergeben (CalDAV-PUT) — Portal-
+		// Bearbeitungen übergeben keinen Schlüssel und lassen die UID unangetastet.
+		if ( array_key_exists( 'uid', $data ) ) {
+			$fields['uid'] = self::sanitize_uid( $data['uid'] );
+		}
+		return $fields;
+	}
+
+	/** iCal-UID säubern: druckbares ASCII, max. 255 Zeichen. */
+	private static function sanitize_uid( $uid ): string {
+		$uid = preg_replace( '/[^\x20-\x7E]/', '', (string) $uid );
+		return substr( trim( (string) $uid ), 0, 255 );
 	}
 
 	/** Farbe auf die feste Palette einschränken (Fallback: erste Farbe). */

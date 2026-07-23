@@ -2219,6 +2219,7 @@ a.pp-cal__tg-ev:hover { filter: brightness(1.05); }
 	padding: 7px 10px;
 }
 .pp-cal__sub form { margin: 0; }
+.pp-cal__sub-title { margin: 18px 0 4px; font-size: .9rem; font-weight: 600; color: var(--pp-foreground); }
 
 /* Gruppen-Logo: klein + rund auf Kollektiv-Karte und im Workspace-Switcher */
 .pp-portal__collective-logo {

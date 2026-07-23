@@ -39,6 +39,7 @@ class Plugin {
 		Frontend\ItemDetail::init();
 		Frontend\MemberPortal::init();
 		Frontend\MemberAuth::init();
+		CalDav\Server::init();
 
 		if ( is_admin() ) {
 			Admin\Menu::init();

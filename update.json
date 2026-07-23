@@ -1,9 +1,9 @@
 {
-  "version": "0.109.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.109.0/project-prepper-0.109.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.109.0",
-  "published": "2026-07-23",
+  "version": "0.110.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.110.0/project-prepper-0.110.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.110.0",
+  "published": "2026-07-24",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Presence-Anzeige: ein leichtgewichtiger Heartbeat zeigt, welche Mitglieder deiner Kollektive gerade online sind (grüner Punkt + „N online“ auf der Kollektiv-Karte und im Dashboard). Kein Live-Update — Momentaufnahme beim Seitenaufruf."
+  "changelog": "CalDAV Zwei-Wege: externe Kalender-Apps (Apple Kalender, Thunderbird, DAVx5) können die Portal-Kalender jetzt abonnieren UND Termine anlegen/ändern/löschen, die zurücksynchronisieren. Anmeldung mit Benutzername + Kalender-Token; die CalDAV-URL steht in der Abo-Sektion neben dem read-only iCal-Feed. (Zeitzonen/Wiederholungen folgen später.)"
 }

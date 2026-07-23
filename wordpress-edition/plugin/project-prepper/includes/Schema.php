@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.32.0';
+	const VERSION    = '0.33.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -758,6 +758,9 @@ class Schema {
 
 			// Termine: Datum + optionale Uhrzeiten (leer = ganztägig, App: all_day).
 			// calendar_group_id 0 = keinem Kalender zugeordnet (App: group_id NULL).
+			// uid (v0.33.0): iCal-UID für den CalDAV-Zweiweg-Server. Additiv, leer bei
+			// im Portal angelegten Terminen (dann wird beim Export eine stabile UID
+			// pp-event-<id>@<host> abgeleitet); von CalDAV-Clients per PUT gesetzt.
 			dbDelta( "CREATE TABLE {$cal_events} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				calendar_group_id bigint(20) unsigned NOT NULL DEFAULT 0,
@@ -770,6 +773,7 @@ class Schema {
 				date_to date DEFAULT NULL,
 				time_start varchar(5) NOT NULL DEFAULT '',
 				time_end varchar(5) NOT NULL DEFAULT '',
+				uid varchar(255) NOT NULL DEFAULT '',
 				created_by bigint(20) unsigned DEFAULT NULL,
 				created_at datetime NOT NULL,
 				updated_at datetime NOT NULL,
@@ -777,7 +781,8 @@ class Schema {
 				KEY calendar_group_id (calendar_group_id),
 				KEY owner_user_id (owner_user_id),
 				KEY owner_group_id (owner_group_id),
-				KEY date_from (date_from)
+				KEY date_from (date_from),
+				KEY uid (uid)
 			) {$charset};" );
 
 			// Team-Verfügbarkeit pro Anfrage (v0.31.0) — Pendant zu

@@ -32,6 +32,7 @@ use ProjectPrepper\Services\FederatedBorrow;
 use ProjectPrepper\Services\Telegram;
 use ProjectPrepper\Services\Presence;
 use ProjectPrepper\Rest\CalendarController;
+use ProjectPrepper\CalDav\Server as CalDavServer;
 use ProjectPrepper\Federation;
 use WP_User;
 
@@ -6195,6 +6196,27 @@ class MemberPortal {
 					<?php self::action_fields( 'ical_rotate' ); ?>
 					<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Renew URL', 'project-prepper' ); ?></button>
 				</form>
+			</div>
+
+			<h4 class="pp-cal__sub-title"><?php esc_html_e( 'CalDAV (two-way sync)', 'project-prepper' ); ?></h4>
+			<p class="pp-portal__hint">
+				<?php esc_html_e( 'For clients that can write back changes (Apple Calendar, Thunderbird, DAVx5): add a CalDAV account with the address below. Unlike the read-only feed, events created or edited there sync back into your calendars.', 'project-prepper' ); ?>
+				<br>
+				<?php
+				printf(
+					/* translators: %s: WordPress login name. */
+					esc_html__( 'Username: %s — Password: your calendar token (the same secret as in the feed URL above, the part after “token=”).', 'project-prepper' ),
+					'<strong>' . esc_html( $user->user_login ) . '</strong>'
+				);
+				?>
+			</p>
+			<div class="pp-cal__sub">
+				<input type="text" class="pp-cal__sub-url" id="pp-caldav-url" readonly
+					value="<?php echo esc_attr( CalDavServer::base_url() ); ?>"
+					onclick="this.select()">
+				<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"
+					data-pp-copy="pp-caldav-url"
+					data-copied-label="<?php esc_attr_e( 'Copied!', 'project-prepper' ); ?>"><?php esc_html_e( 'Copy', 'project-prepper' ); ?></button>
 			</div>
 		</section>
 		<?php
