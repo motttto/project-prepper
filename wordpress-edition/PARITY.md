@@ -3,6 +3,20 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.105.0 2026-07-23 (UX: Technik-Buchung mit Mehrfachauswahl)
+> Kleines UX-Feature, Schema **unverändert** (0.31.0), keine DB-Migration. Das „Technik buchen"-
+> Modal im Projekt-Detail (Equipment-Reiter) bucht jetzt **mehrere Geräte in einem Rutsch**:
+> Checkboxen (`pp_items[]`) statt Radio, **Menge pro Gerät** (`pp_qty[ID]`), gemeinsamer
+> Zeitraum + Notiz. Live-Suche behält angehakte Artikel über mehrere Suchen hinweg (Checkbox
+> submittet auch verborgen). Server bucht jeden Artikel einzeln über den bestehenden
+> Verfügbarkeits-Guard: alle → „Technik gebucht.", teils verfügbar → „Es wurde gebucht, was
+> verfügbar war …" (grün), nichts angehakt → Fehler. IDOR-Guard: ein Artikel außerhalb des
+> Gruppen-Pools bricht den ganzen Batch ab. Plugin Check: nur bekannte Altfehler
+> (Legal.php-Escaping, Costs.php-PreparedSQL, MemberPortal.php-Translators) + erlaubte
+> hidden_files/plugin_updater. i18n: .pot regeneriert, de_DE.po abgeglichen (0 fuzzy), .mo per
+> WP-POMO gebaut, 3 Stichproben gegen die frische .mo bestätigt. update.json auf 0.105.0.
+> GitHub-Release mit angehängtem ZIP (Updater zieht das Asset).
+
 > ## 🚀 Release v0.104.0 2026-07-23 (Backlog-Lauf A + B gemeinsam veröffentlicht)
 > Beide Backlog-Läufe (unten) sind mit **Plugin v0.104.0** released (Schema 0.31.0). Enthalten:
 > Wochen-Zeitraster im Kalender + persönlicher iCal-Abo-Feed (user-Token, Rotation) ·

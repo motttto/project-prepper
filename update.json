@@ -1,9 +1,9 @@
 {
-  "version": "0.104.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.104.0/project-prepper-0.104.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.104.0",
+  "version": "0.105.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.105.0/project-prepper-0.105.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.105.0",
   "published": "2026-07-23",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Kalender-Wochenansicht als Zeitraster + persönlicher iCal-Abo-Feed - Gruppen-Logo-Upload - Team-RSVP bei Gruppen-Anfragen - Umfrage-Stimme entfernbar - Bild-Lightbox für Projektdateien - Aufgaben annehmen/ablehnen - Hoch/Runter-Sortierung für Zeitplan, Checklisten und Punkte."
+  "changelog": "Technik-Buchung: mehrere Geräte gleichzeitig anhaken und in einem Rutsch buchen - mit Menge pro Gerät statt Einzelauswahl."
 }

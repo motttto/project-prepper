@@ -610,7 +610,13 @@ class MemberPortal {
 				break;
 			case 'project_item_add':
 				$result = self::member_book_equipment( $proj_id );
-				$ok_msg = 'booking_saved';
+				// String-Rückgabe = eigener Erfolgs-Meldungscode (z.B. Teilerfolg).
+				if ( is_string( $result ) ) {
+					$ok_msg = $result;
+					$result = true;
+				} else {
+					$ok_msg = 'booking_saved';
+				}
 				break;
 			case 'project_item_update':
 				$result = self::member_update_booking( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ) );
@@ -1018,6 +1024,8 @@ class MemberPortal {
 				$msg = 'invalid_date';
 			} elseif ( in_array( $code, [ 'pp_missing_title', 'pp_missing_name', 'pp_missing_label' ], true ) ) {
 				$msg = 'missing_required';
+			} elseif ( 'pp_no_selection' === $code ) {
+				$msg = 'booking_none_selected';
 			} else {
 				$msg = 'error';
 			}
@@ -1085,7 +1093,9 @@ class MemberPortal {
 			'invalid_amount'     => [ 'err', __( 'Invalid amount. Please enter a non-negative number.', 'project-prepper' ) ],
 			'missing_required'   => [ 'err', __( 'Please fill in the required field.', 'project-prepper' ) ],
 			'not_group_member'   => [ 'err', __( 'This user is not a member of the project group.', 'project-prepper' ) ],
-			'booking_saved'    => [ 'ok', __( 'Booking saved.', 'project-prepper' ) ],
+			'booking_saved'    => [ 'ok', __( 'Equipment booked.', 'project-prepper' ) ],
+			'booking_partial'  => [ 'ok', __( 'Booked what was available — some items were already taken in this period.', 'project-prepper' ) ],
+			'booking_none_selected' => [ 'err', __( 'Please tick at least one item to book.', 'project-prepper' ) ],
 			'booking_removed'  => [ 'ok', __( 'Booking removed.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
 			'borrow_decided'   => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
@@ -3343,18 +3353,55 @@ class MemberPortal {
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
-	/** Technik für ein Projekt buchen — nur Artikel aus dem Gruppen-Pool. */
+	/**
+	 * Technik für ein Projekt buchen — Mehrfachauswahl: alle angehakten Artikel
+	 * aus dem Gruppen-Pool, je mit eigener Menge, gemeinsamer Zeitraum/Notiz.
+	 *
+	 * @return true|string|\WP_Error true = alle gebucht; 'booking_partial' =
+	 *         teils gebucht (Rest nicht verfügbar); WP_Error = nichts gebucht.
+	 */
 	private static function member_book_equipment( int $pid ) {
 		$p = self::member_owned_project( $pid );
 		if ( ! $p ) {
 			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
 		}
-		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
-		$item_id = (int) ( $_POST['pp_item'] ?? 0 );
-		if ( ! isset( self::bookable_pool( $p )[ $item_id ] ) ) {
-			return new \WP_Error( 'pp_forbidden', __( 'Only equipment shared with this collective can be booked.', 'project-prepper' ), [ 'status' => 403 ] );
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		$item_ids = array_values( array_unique( array_filter( array_map( 'intval', (array) ( $_POST['pp_items'] ?? [] ) ) ) ) );
+		$qty_raw  = is_array( $_POST['pp_qty'] ?? null ) ? wp_unslash( $_POST['pp_qty'] ) : [];
+		$shared   = [
+			'date_from' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
+			'date_to'   => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
+			'notes'     => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_notes'] ?? '' ) ) ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+
+		if ( ! $item_ids ) {
+			return new \WP_Error( 'pp_no_selection', __( 'Please tick at least one item to book.', 'project-prepper' ) );
 		}
-		return Projects::add_item( $pid, [ 'item_id' => $item_id ] + self::booking_input() );
+
+		$pool     = self::bookable_pool( $p );
+		$booked   = 0;
+		$failed   = 0;
+		$last_err = null;
+		foreach ( $item_ids as $item_id ) {
+			if ( ! isset( $pool[ $item_id ] ) ) {
+				// Nicht aus dem Pool — harte Grenze (IDOR), sofort abbrechen.
+				return new \WP_Error( 'pp_forbidden', __( 'Only equipment shared with this collective can be booked.', 'project-prepper' ), [ 'status' => 403 ] );
+			}
+			$qty = max( 1, (int) ( $qty_raw[ $item_id ] ?? 1 ) );
+			$res = Projects::add_item( $pid, [ 'item_id' => $item_id, 'quantity' => $qty ] + $shared );
+			if ( is_wp_error( $res ) ) {
+				$failed++;
+				$last_err = $res;
+			} else {
+				$booked++;
+			}
+		}
+
+		if ( 0 === $booked ) {
+			return $last_err ?: new \WP_Error( 'pp_not_available', __( 'One of the items is not available in that period. Please adjust the dates or quantity.', 'project-prepper' ) );
+		}
+		return $failed > 0 ? 'booking_partial' : true;
 	}
 
 	/** Buchungszeile ändern (Menge/Zeitraum/Notiz — der Artikel bleibt). */
@@ -3840,6 +3887,7 @@ class MemberPortal {
 								<?php self::action_fields( 'project_item_add' ); ?>
 								<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
 								<input type="search" class="pp-book-search" placeholder="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>">
+								<p class="pp-portal__hint"><?php esc_html_e( 'Tick every item you want and set its quantity — you can book several at once.', 'project-prepper' ); ?></p>
 								<div class="pp-book-list">
 									<?php foreach ( $pool as $item ) :
 										$bits = [];
@@ -3864,20 +3912,20 @@ class MemberPortal {
 											$bits[] = sprintf( __( '%s €/day', 'project-prepper' ), number_format_i18n( (float) $rate, 2 ) );
 										}
 										?>
-										<label class="pp-book-item">
-											<input type="radio" name="pp_item" value="<?php echo (int) $item->id; ?>" required>
-											<span class="pp-book-item__text">
-												<span class="pp-book-item__name"><?php echo esc_html( $item->name ); ?></span>
-												<span class="pp-book-item__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></span>
-											</span>
-										</label>
+										<div class="pp-book-item">
+											<label class="pp-book-item__pick">
+												<input type="checkbox" name="pp_items[]" value="<?php echo (int) $item->id; ?>">
+												<span class="pp-book-item__text">
+													<span class="pp-book-item__name"><?php echo esc_html( $item->name ); ?></span>
+													<span class="pp-book-item__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></span>
+												</span>
+											</label>
+											<input type="number" class="pp-book-item__qty" name="pp_qty[<?php echo (int) $item->id; ?>]" min="1" value="1" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>">
+										</div>
 									<?php endforeach; ?>
 								</div>
 								<p class="pp-book-none pp-portal__hint" hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
 								<div class="pp-portal__form-row">
-									<label><?php esc_html_e( 'Qty', 'project-prepper' ); ?>
-										<input type="number" name="pp_quantity" min="1" value="1">
-									</label>
 									<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
 										<input type="date" name="pp_from">
 									</label>
@@ -3889,7 +3937,7 @@ class MemberPortal {
 								<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
 									<input type="text" name="pp_notes">
 								</label>
-								<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></button>
+								<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Book selected equipment', 'project-prepper' ); ?></button>
 							</form>
 						</div>
 					</dialog>

@@ -1276,8 +1276,8 @@ a.pp-front-card-media { text-decoration: none; }
 	box-sizing: border-box;
 }
 .pp-book-list { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: .3rem; }
-/* Höhere Spezifität als `.pp-portal__form label` (flex-column) nötig. */
-.pp-portal__form label.pp-book-item {
+/* Mehrfachauswahl: Zeile = anklickbares Auswahl-Label + eigenes Mengenfeld. */
+.pp-book-item {
 	display: flex;
 	flex-direction: row;
 	align-items: center;
@@ -1285,12 +1285,33 @@ a.pp-front-card-media { text-decoration: none; }
 	padding: .5rem .65rem;
 	border-radius: 8px;
 	background: var(--pp-muted);
+}
+.pp-book-item:has( input[type="checkbox"]:checked ) { background: var(--pp-primary-light); }
+/* `hidden` (Live-Suche) muss das eigene display:flex schlagen. */
+.pp-book-item[hidden] { display: none; }
+/* Höhere Spezifität als `.pp-portal__form label` (flex-column) nötig. */
+.pp-portal__form label.pp-book-item__pick {
+	flex: 1 1 auto;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: .6rem;
+	min-width: 0;
 	cursor: pointer;
 	font-weight: 400;
 }
-.pp-portal__form label.pp-book-item:has( input:checked ) { background: var(--pp-primary-light); }
-/* `hidden` (Live-Suche) muss das eigene display:flex schlagen. */
-.pp-portal__form label.pp-book-item[hidden] { display: none; }
+.pp-book-item__qty {
+	flex: 0 0 4rem;
+	width: 4rem;
+	text-align: center;
+	padding: .4rem .3rem;
+	border: 1px solid var(--pp-border);
+	border-radius: 8px;
+	font: inherit;
+	background: var(--pp-surface);
+	color: var(--pp-foreground);
+	box-sizing: border-box;
+}
 .pp-book-item__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pp-book-item__name { font-weight: 500; font-size: .9rem; color: var(--pp-foreground); }
 .pp-book-item__meta { color: var(--pp-muted-foreground); font-size: .78rem; }

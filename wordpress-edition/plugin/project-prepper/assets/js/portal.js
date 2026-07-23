@@ -84,10 +84,8 @@
 			var hit = '' === q || -1 !== row.textContent.toLowerCase().indexOf( q );
 			row.hidden = ! hit;
 			if ( hit ) { any = true; }
-			// Versteckte required-Radios würden die Browser-Validierung blockieren
-			// („not focusable") — daher mit ausknipsen, die gewählte aber behalten.
-			var radio = row.querySelector( 'input[type="radio"]' );
-			if ( radio ) { radio.disabled = ! hit && ! radio.checked; }
+			// Ausgefilterte, aber angehakte Artikel bleiben ausgewählt (Checkbox
+			// submittet auch verborgen) — Mehrfachauswahl über mehrere Suchen hinweg.
 		} );
 		var none = form.querySelector( '.pp-book-none' );
 		if ( none ) { none.hidden = any; }
