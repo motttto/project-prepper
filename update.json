@@ -1,9 +1,9 @@
 {
-  "version": "0.105.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.105.0/project-prepper-0.105.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.105.0",
+  "version": "0.106.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.106.0/project-prepper-0.106.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.106.0",
   "published": "2026-07-23",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Technik-Buchung: mehrere Geräte gleichzeitig anhaken und in einem Rutsch buchen - mit Menge pro Gerät statt Einzelauswahl."
+  "changelog": "Technik-Buchung jetzt direkt im Equipment-Reiter statt als Popup (wie die Inventarliste) - mit Vorschaubild je Gerät."
 }

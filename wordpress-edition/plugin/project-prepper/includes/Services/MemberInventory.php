@@ -612,6 +612,8 @@ class MemberInventory {
 		foreach ( $rows as $row ) {
 			$owner          = get_userdata( (int) $row->shared_by );
 			$row->owner_name = $owner ? $owner->display_name : '';
+			// Vorschaubild wie in der Inventar-Liste (Attachment → medium).
+			$row->image_url  = ! empty( $row->image_id ) ? ( wp_get_attachment_image_url( (int) $row->image_id, 'medium' ) ?: null ) : null;
 		}
 		return $rows;
 	}

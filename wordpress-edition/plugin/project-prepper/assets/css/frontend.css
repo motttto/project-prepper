@@ -1257,14 +1257,18 @@ a.pp-front-card-media { text-decoration: none; }
 	box-shadow: var(--pp-shadow);
 }
 
-/* Technik buchen (Projekt-Detail): Modal mit Live-Suche + Artikel-Liste
- * statt Dropdown (Pendant zum Item-Picker der App). */
-.pp-modal-body > .pp-portal__form > .pp-book-search,
-.pp-modal-body > .pp-portal__form > .pp-book-list,
-.pp-modal-body > .pp-portal__form > .pp-book-none,
-.pp-modal-body > .pp-portal__form > .pp-portal__form-row,
-.pp-modal-body > .pp-portal__form > .pp-portal__hint,
-.pp-modal-body > .pp-portal__form > label:has( input[name="pp_notes"] ) { grid-column: 1 / -1; }
+/* Technik buchen (Projekt-Detail, Equipment-Reiter): inline Live-Suche +
+ * Artikel-Liste direkt in einer Karte (wie die Inventar-Liste), kein Modal.
+ * Die Form erbt Label/Input-Styles von `.pp-portal__form`, wirft aber die
+ * Standalone-Chrome (Rahmen/Polster/max-width) ab, weil sie schon in `.pp-card`
+ * sitzt. */
+.pp-portal__form.pp-book-form {
+	max-width: none;
+	border: 0;
+	padding: 0;
+	background: transparent;
+	gap: .7rem;
+}
 .pp-book-search {
 	width: 100%;
 	padding: .5rem .65rem;

@@ -3,6 +3,23 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.106.0 2026-07-23 (UX: Technik-Buchung inline im Equipment-Reiter + Vorschaubilder)
+> Kleines UX-Feature, Schema **unverändert** (0.31.0), keine DB-Migration. Die Geräte-Auswahl
+> („Technik buchen") im Projekt-Detail war ein Modal (`<dialog id=pp-book-equipment>`); jetzt
+> rendert sie als eigene Karte (`pp-card`, `<h3>Technik buchen</h3>`) direkt im Equipment-Reiter
+> unter „Gebuchtes Equipment" — kein Popup, wie die Inventar-Liste. Form nutzt weiter dieselbe
+> Live-Suche + Checkbox-Liste + Menge-pro-Gerät (unverändert funktional), Klasse `pp-book-form`
+> wirft den Standalone-Rahmen ab. Jede Zeile zeigt jetzt ein **Vorschaubild**
+> (`pp-portal__item-thumb`, 40×40) bzw. Platzhalter — `MemberInventory::items_shared_with_group()`
+> berechnet dafür `image_url` aus `image_id` (mirror zur Inventar-Liste), Ausgabe via `esc_url()`.
+> Das alte `<dialog>` ist entfernt, portal.js-Modal-Handler bleibt für andere Modals. **i18n:**
+> keine neuen Quellstrings (alle Texte existierten schon); .pot regeneriert (msgid-Set identisch,
+> nur Zeilen-Referenzen), de_DE.po abgeglichen (0 fuzzy), .mo per WP-POMO gebaut (byte-identisch,
+> da keine Übersetzung geändert), 4 Stichproben gegen die .mo bestätigt. Plugin Check: nur
+> bekannte Altfehler (Legal.php-Escaping, Costs.php-PreparedSQL, MemberPortal.php-Translators) +
+> erlaubte hidden_files/plugin_updater, keine neuen. update.json auf 0.106.0. GitHub-Release mit
+> angehängtem ZIP (Updater zieht das Asset).
+
 > ## 🚀 Release v0.105.0 2026-07-23 (UX: Technik-Buchung mit Mehrfachauswahl)
 > Kleines UX-Feature, Schema **unverändert** (0.31.0), keine DB-Migration. Das „Technik buchen"-
 > Modal im Projekt-Detail (Equipment-Reiter) bucht jetzt **mehrere Geräte in einem Rutsch**:

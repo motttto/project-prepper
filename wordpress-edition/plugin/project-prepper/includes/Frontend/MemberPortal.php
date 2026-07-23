@@ -3875,77 +3875,79 @@ class MemberPortal {
 					</div>
 				<?php endif; ?>
 
-				<?php if ( $can_book && $pool ) : ?>
-					<button type="button" class="pp-portal__btn pp-portal__btn--sm" data-pp-modal="pp-book-equipment"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></button>
-					<dialog class="pp-modal pp-modal--portal" id="pp-book-equipment">
-						<div class="pp-modal-header">
-							<h2 class="pp-modal__title"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></h2>
-							<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
-						</div>
-						<div class="pp-modal-body">
-							<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-								<?php self::action_fields( 'project_item_add' ); ?>
-								<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
-								<input type="search" class="pp-book-search" placeholder="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>">
-								<p class="pp-portal__hint"><?php esc_html_e( 'Tick every item you want and set its quantity — you can book several at once.', 'project-prepper' ); ?></p>
-								<div class="pp-book-list">
-									<?php foreach ( $pool as $item ) :
-										$bits = [];
-										if ( '' !== (string) ( $item->inventory_number ?? '' ) ) {
-											$bits[] = $item->inventory_number;
-										}
-										if ( '' !== (string) ( $item->owner_name ?? '' ) ) {
-											$bits[] = $item->owner_name;
-										}
-										if ( $has_period ) {
-											$free = Availability::available_quantity( (int) $item->id, (string) $p->date_start, (string) $p->date_end, 0, (int) $p->id );
-											$free = max( 0, $free - ( $booked_qty[ (int) $item->id ] ?? 0 ) );
-											/* translators: %d: available quantity in the project period. */
-											$bits[] = sprintf( __( '%d free', 'project-prepper' ), $free );
-										} else {
-											/* translators: %d: total quantity. */
-											$bits[] = sprintf( __( '%d× total', 'project-prepper' ), (int) $item->quantity );
-										}
-										$rate = '' !== (string) ( $item->share_daily_rate ?? '' ) ? $item->share_daily_rate : ( $item->cost_per_day ?? '' );
-										if ( '' !== (string) $rate ) {
-											/* translators: %s: daily rate in euros. */
-											$bits[] = sprintf( __( '%s €/day', 'project-prepper' ), number_format_i18n( (float) $rate, 2 ) );
-										}
-										?>
-										<div class="pp-book-item">
-											<label class="pp-book-item__pick">
-												<input type="checkbox" name="pp_items[]" value="<?php echo (int) $item->id; ?>">
-												<span class="pp-book-item__text">
-													<span class="pp-book-item__name"><?php echo esc_html( $item->name ); ?></span>
-													<span class="pp-book-item__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></span>
-												</span>
-											</label>
-											<input type="number" class="pp-book-item__qty" name="pp_qty[<?php echo (int) $item->id; ?>]" min="1" value="1" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>">
-										</div>
-									<?php endforeach; ?>
-								</div>
-								<p class="pp-book-none pp-portal__hint" hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
-								<div class="pp-portal__form-row">
-									<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
-										<input type="date" name="pp_from">
-									</label>
-									<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
-										<input type="date" name="pp_to">
-									</label>
-								</div>
-								<p class="pp-portal__hint"><?php esc_html_e( 'Leave both dates empty to book for the whole project period.', 'project-prepper' ); ?></p>
-								<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
-									<input type="text" name="pp_notes">
-								</label>
-								<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Book selected equipment', 'project-prepper' ); ?></button>
-							</form>
-						</div>
-					</dialog>
-				<?php elseif ( $can_book ) : ?>
-					<p class="pp-portal__hint"><?php esc_html_e( 'No equipment is shared with this collective yet. Members share items from “My inventory” in their solo workspace.', 'project-prepper' ); ?></p>
-				<?php endif; ?>
 			</section>
-		<?php endif;
+
+			<?php if ( $can_book && $pool ) : ?>
+				<section class="pp-card">
+					<h3 class="pp-card__title"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></h3>
+					<p class="pp-portal__hint"><?php esc_html_e( 'Tick every item you want and set its quantity — you can book several at once.', 'project-prepper' ); ?></p>
+					<form class="pp-portal__form pp-book-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<?php self::action_fields( 'project_item_add' ); ?>
+						<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+						<input type="search" class="pp-book-search" placeholder="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>">
+						<div class="pp-book-list">
+							<?php foreach ( $pool as $item ) :
+								$bits = [];
+								if ( '' !== (string) ( $item->inventory_number ?? '' ) ) {
+									$bits[] = $item->inventory_number;
+								}
+								if ( '' !== (string) ( $item->owner_name ?? '' ) ) {
+									$bits[] = $item->owner_name;
+								}
+								if ( $has_period ) {
+									$free = Availability::available_quantity( (int) $item->id, (string) $p->date_start, (string) $p->date_end, 0, (int) $p->id );
+									$free = max( 0, $free - ( $booked_qty[ (int) $item->id ] ?? 0 ) );
+									/* translators: %d: available quantity in the project period. */
+									$bits[] = sprintf( __( '%d free', 'project-prepper' ), $free );
+								} else {
+									/* translators: %d: total quantity. */
+									$bits[] = sprintf( __( '%d× total', 'project-prepper' ), (int) $item->quantity );
+								}
+								$rate = '' !== (string) ( $item->share_daily_rate ?? '' ) ? $item->share_daily_rate : ( $item->cost_per_day ?? '' );
+								if ( '' !== (string) $rate ) {
+									/* translators: %s: daily rate in euros. */
+									$bits[] = sprintf( __( '%s €/day', 'project-prepper' ), number_format_i18n( (float) $rate, 2 ) );
+								}
+								?>
+								<div class="pp-book-item">
+									<label class="pp-book-item__pick">
+										<input type="checkbox" name="pp_items[]" value="<?php echo (int) $item->id; ?>">
+										<?php if ( ! empty( $item->image_url ) ) : ?>
+											<img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy">
+										<?php else : ?>
+											<span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span>
+										<?php endif; ?>
+										<span class="pp-book-item__text">
+											<span class="pp-book-item__name"><?php echo esc_html( $item->name ); ?></span>
+											<span class="pp-book-item__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></span>
+										</span>
+									</label>
+									<input type="number" class="pp-book-item__qty" name="pp_qty[<?php echo (int) $item->id; ?>]" min="1" value="1" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>">
+								</div>
+							<?php endforeach; ?>
+						</div>
+						<p class="pp-book-none pp-portal__hint" hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
+						<div class="pp-portal__form-row">
+							<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+								<input type="date" name="pp_from">
+							</label>
+							<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+								<input type="date" name="pp_to">
+							</label>
+						</div>
+						<p class="pp-portal__hint"><?php esc_html_e( 'Leave both dates empty to book for the whole project period.', 'project-prepper' ); ?></p>
+						<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
+							<input type="text" name="pp_notes">
+						</label>
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Book selected equipment', 'project-prepper' ); ?></button>
+					</form>
+				</section>
+			<?php elseif ( $can_book ) : ?>
+				<section class="pp-card">
+					<p class="pp-portal__hint"><?php esc_html_e( 'No equipment is shared with this collective yet. Members share items from “My inventory” in their solo workspace.', 'project-prepper' ); ?></p>
+				</section>
+			<?php endif;
+		endif;
 
 		// Übrige Reiter — Zuordnung wie die App-Tabs. Kosten/Gewinn: alle
 		// Betrachter dieses Details sind aktive Mitglieder der besitzenden
