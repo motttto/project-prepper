@@ -53,7 +53,11 @@ class Costs {
 		$placeholders = implode( ',', array_fill( 0, count( $project_ids ), '%d' ) );
 		$costs        = Schema::table( 'cost_items' );
 		$projects     = Schema::table( 'projects' );
-		// phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Tabellennamen via %i, IDs via Placeholder.
+		// $placeholders ist ausschließlich aus '%d' zusammengesetzt (array_fill),
+		// Tabellennamen laufen über %i, IDs als Platzhalter → voll prepared. Der
+		// interpolierte Platzhalter-String triggert dennoch mehrere PreparedSQL-
+		// Sniffs, daher die ganze Kategorie hier unterdrücken.
+		// phpcs:disable WordPress.DB.PreparedSQL
 		$sql = $wpdb->prepare(
 			"SELECT c.*, p.name AS project_name
 			 FROM %i c
@@ -62,8 +66,8 @@ class Costs {
 			 ORDER BY c.created_at DESC, c.id DESC",
 			array_merge( [ $costs, $projects ], $project_ids )
 		);
-		// phpcs:enable
 		return $wpdb->get_results( $sql ) ?: [];
+		// phpcs:enable WordPress.DB.PreparedSQL
 	}
 
 	public static function get( int $id ): ?object {

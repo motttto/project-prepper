@@ -3,6 +3,25 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.107.0 2026-07-23 (Kollektiv-Verwaltung: Mitglied entfernen + Kollektiv auflösen; Plugin-Check-Altfehler bereinigt)
+> Schema **unverändert** (0.31.0), keine DB-Migration. **Gruppen-Verwaltung im Portal:** Gründer
+> sehen jetzt pro anderem Mitglied (nicht bei sich selbst) einen „Entfernen"-Chip → neue pp_do-Aktion
+> `member_remove` (Gründer-Gate `is_group_founder` + target≠self, wrappt `Groups::remove_member`,
+> das den letzten Gründer schützt). Zusätzlich ein „Kollektiv auflösen"-Danger-Button im Fuß → neue
+> pp_do-Aktion `group_delete` (Gründer-Gate, wrappt `Groups::delete` — **Projekte fallen auf
+> Site-Ebene zurück statt gelöscht zu werden**); schließt die alte Sackgasse (letzter Gründer konnte
+> nicht austreten, aber es gab keinen Auflösen-Button). Aktiver Workspace des Betroffenen fällt auf
+> Solo zurück; beide Aktionen kehren zur Kollektive-Ansicht zurück. IDOR getestet (Nicht-Gründer:
+> keine UI-Buttons + gecrafteter POST mit gültiger Nonce → `pp_msg=error`, Gruppe unverändert).
+> **Code-Hygiene (kein Verhalten geändert):** Legal.php EscapeOutput via `wp_kses_post()` +
+> `esc_html()` an der Ausgabestelle (kein Doppel-Escape); Costs.php phpcs-Disable auf die ganze
+> `WordPress.DB.PreparedSQL`-Kategorie (IN($placeholders) ist voll prepared); MemberPortal.php
+> Translators-Kommentar direkt vors printf + 3. Platzhalter. **Plugin Check: KEINE Code-ERRORs mehr**
+> — nur noch die zwei by-design-Meldungen (hidden_files=.wp-env.json nicht im ZIP, plugin_updater).
+> **i18n:** 6 neue Quellstrings, .pot regeneriert, de_DE.po abgeglichen (0 fuzzy, alter „nur Gründer"-
+> String durch die längere Variante ersetzt), .mo per WP-POMO gebaut (1347 Einträge), 3 Stichproben
+> bestätigt. update.json auf 0.107.0. GitHub-Release mit angehängtem ZIP (Updater zieht das Asset).
+
 > ## 🚀 Release v0.106.0 2026-07-23 (UX: Technik-Buchung inline im Equipment-Reiter + Vorschaubilder)
 > Kleines UX-Feature, Schema **unverändert** (0.31.0), keine DB-Migration. Die Geräte-Auswahl
 > („Technik buchen") im Projekt-Detail war ein Modal (`<dialog id=pp-book-equipment>`); jetzt

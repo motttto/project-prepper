@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.106.0
+Stable tag: 0.107.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.107.0 =
+* Collectives: founders can now remove members and dissolve a collective directly in the portal (dissolving keeps the projects and moves them to the site level). Plus internal code-quality fixes (output escaping and prepared-SQL annotations).
 
 = 0.106.0 =
 * Projects: the equipment picker now appears inline in the Equipment tab (like the inventory list) instead of a modal, and shows a thumbnail image for each item.

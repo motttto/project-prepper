@@ -95,7 +95,7 @@ class Legal {
 		?>
 		<div class="pp-legal pp-legal--imprint">
 			<h2>Angaben gemäß § 5 DDG</h2>
-			<p><?php echo self::address_block(); // bereits escaped ?></p>
+			<p><?php echo wp_kses_post( self::address_block() ); // Teile intern via esc_html, nur <br>/<strong> ?></p>
 			<?php if ( '' !== $i['legal_form'] ) : ?>
 				<p><?php echo nl2br( esc_html( $i['legal_form'] ) ); ?></p>
 			<?php endif; ?>
@@ -130,16 +130,18 @@ class Legal {
 			return self::not_configured();
 		}
 		$i       = Platform::imprint();
-		$email   = '' !== $i['email'] ? esc_html( $i['email'] ) : '—';
-		$hosting = '' !== $i['hosting'] ? esc_html( $i['hosting'] ) : 'unserem Hosting-Anbieter';
+		// Rohwerte — Escaping erfolgt an der Ausgabestelle (esc_html), damit der
+		// EscapeOutput-Sniff greift und keine Doppel-Escapes entstehen.
+		$email   = '' !== $i['email'] ? $i['email'] : '—';
+		$hosting = '' !== $i['hosting'] ? $i['hosting'] : 'unserem Hosting-Anbieter';
 		ob_start();
 		?>
 		<div class="pp-legal pp-legal--privacy">
 			<h2>1. Verantwortlicher</h2>
-			<p>Verantwortlich im Sinne der DSGVO ist:<br><strong><?php echo esc_html( $i['operator'] ); ?></strong>, <?php echo self::inline_address(); ?>, E-Mail: <?php echo $email; ?>.</p>
+			<p>Verantwortlich im Sinne der DSGVO ist:<br><strong><?php echo esc_html( $i['operator'] ); ?></strong>, <?php echo wp_kses_post( self::inline_address() ); ?>, E-Mail: <?php echo esc_html( $email ); ?>.</p>
 
 			<h2>2. Hosting</h2>
-			<p>Die Plattform wird bei <?php echo $hosting; ?> gehostet. Der Anbieter verarbeitet in unserem Auftrag Daten, die beim Betrieb der Website anfallen (insbesondere Server-Logfiles), auf Grundlage eines Vertrags zur Auftragsverarbeitung (Art. 28 DSGVO). Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren Betrieb (Art. 6 Abs. 1 lit. f DSGVO).</p>
+			<p>Die Plattform wird bei <?php echo esc_html( $hosting ); ?> gehostet. Der Anbieter verarbeitet in unserem Auftrag Daten, die beim Betrieb der Website anfallen (insbesondere Server-Logfiles), auf Grundlage eines Vertrags zur Auftragsverarbeitung (Art. 28 DSGVO). Rechtsgrundlage ist unser berechtigtes Interesse an einem sicheren Betrieb (Art. 6 Abs. 1 lit. f DSGVO).</p>
 
 			<h2>3. Server-Logfiles</h2>
 			<p>Beim Aufruf der Seiten werden automatisch Informationen in Server-Logfiles gespeichert (IP-Adresse, Datum/Uhrzeit, abgerufene URL, Referrer, Browser/Betriebssystem). Diese Daten dienen der Sicherheit und Stabilität und werden nach kurzer Frist gelöscht. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.</p>
@@ -175,7 +177,7 @@ class Legal {
 			<p>Sie haben das Recht auf Auskunft (Art. 15), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung (Art. 18), Datenübertragbarkeit (Art. 20) und Widerspruch (Art. 21). Die Plattform bietet hierfür teils Selbstbedienungs-Funktionen (Datenexport, Konto-Löschung) im Mitgliederbereich. Zudem besteht ein Beschwerderecht bei einer Aufsichtsbehörde (Art. 77 DSGVO).</p>
 
 			<h2>14. Kontakt in Datenschutzfragen</h2>
-			<p>Bei Fragen oder zur Ausübung Ihrer Rechte: <?php echo $email; ?>.</p>
+			<p>Bei Fragen oder zur Ausübung Ihrer Rechte: <?php echo esc_html( $email ); ?>.</p>
 		</div>
 		<?php
 		return (string) ob_get_clean();

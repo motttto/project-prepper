@@ -374,7 +374,7 @@ class MemberPortal {
 			$back = add_query_arg( 'pp_view', 'polls', self::portal_url() );
 		}
 		// Aus einer Gruppe austreten / Gruppe bearbeiten kehrt zur Kollektive-Ansicht zurück.
-		if ( in_array( $do, [ 'group_leave', 'group_update' ], true ) ) {
+		if ( in_array( $do, [ 'group_leave', 'group_update', 'member_remove', 'group_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
 		}
 		// Kalender-Aktionen kehren in die Kalender-Ansicht zurück — inklusive
@@ -475,6 +475,34 @@ class MemberPortal {
 					] );
 				}
 				$ok_msg = 'group_saved';
+				break;
+			case 'member_remove':
+				// Nur Gründer dürfen andere Mitglieder entfernen; Selbst-Entfernen
+				// läuft über group_leave. remove_member schützt den letzten Gründer.
+				$target = (int) ( $_POST['pp_member'] ?? 0 );
+				if ( ! self::is_group_founder( $grp_id, get_current_user_id() ) || $target === get_current_user_id() ) {
+					$result = new \WP_Error( 'pp_forbidden', 'forbidden' );
+				} else {
+					$result = Groups::remove_member( $grp_id, $target );
+					// Aktiven Workspace des Entfernten zurücksetzen, falls nötig.
+					if ( ! is_wp_error( $result ) && (string) get_user_meta( $target, 'pp_active_group', true ) === (string) $grp_id ) {
+						update_user_meta( $target, 'pp_active_group', 'solo' );
+					}
+				}
+				$ok_msg = 'member_removed';
+				break;
+			case 'group_delete':
+				// Nur Gründer dürfen die Gruppe auflösen (Projekte fallen auf
+				// Site-Ebene zurück, sie werden NICHT gelöscht — s. Groups::delete).
+				if ( ! self::is_group_founder( $grp_id, get_current_user_id() ) ) {
+					$result = new \WP_Error( 'pp_forbidden', 'forbidden' );
+				} else {
+					$result = Groups::delete( $grp_id );
+					if ( ! is_wp_error( $result ) && (string) get_user_meta( get_current_user_id(), 'pp_active_group', true ) === (string) $grp_id ) {
+						update_user_meta( get_current_user_id(), 'pp_active_group', 'solo' );
+					}
+				}
+				$ok_msg = 'group_deleted';
 				break;
 			case 'profile_save':
 				$new_name = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) );
@@ -1115,6 +1143,8 @@ class MemberPortal {
 			'calendar_deleted' => [ 'ok', __( 'Calendar deleted. Its events were kept.', 'project-prepper' ) ],
 			'feed_rotated'     => [ 'ok', __( 'New feed URL created. Please update your calendar subscriptions.', 'project-prepper' ) ],
 			'group_saved'      => [ 'ok', __( 'Collective updated.', 'project-prepper' ) ],
+			'member_removed'   => [ 'ok', __( 'Member removed from the collective.', 'project-prepper' ) ],
+			'group_deleted'    => [ 'ok', __( 'Collective dissolved. Its projects were kept and moved to the site level.', 'project-prepper' ) ],
 			'fed_decided'      => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'fed_requested'    => [ 'ok', __( 'Borrow request sent to the partner instance.', 'project-prepper' ) ],
 			'import_nofile'    => [ 'err', __( 'Please choose a CSV file to import.', 'project-prepper' ) ],
@@ -6536,6 +6566,16 @@ class MemberPortal {
 									?>
 								</span>
 							<?php endif; ?>
+							<?php // Gründer können andere Mitglieder entfernen (nicht sich selbst → Austreten). ?>
+							<?php if ( 'founder' === $role && ! $is_self ) : ?>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+									onsubmit="return confirm('<?php echo esc_js( sprintf( /* translators: %s: member name. */ __( 'Remove %s from the collective?', 'project-prepper' ), $m->display_name ) ); ?>');">
+									<?php self::action_fields( 'member_remove' ); ?>
+									<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+									<input type="hidden" name="pp_member" value="<?php echo (int) $m->user_id; ?>">
+									<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Remove', 'project-prepper' ); ?></button>
+								</form>
+							<?php endif; ?>
 						</span>
 					</div>
 				<?php endforeach; ?>
@@ -6589,18 +6629,28 @@ class MemberPortal {
 				<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Invite', 'project-prepper' ); ?></button>
 			</form>
 
-			<?php if ( $can_leave ) : ?>
-				<div class="pp-portal__collective-foot">
+			<div class="pp-portal__collective-foot">
+				<?php if ( $can_leave ) : ?>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
 						onsubmit="return confirm('<?php echo esc_js( __( 'Leave this group? You will lose access to its shared inventory and projects.', 'project-prepper' ) ); ?>');">
 						<?php self::action_fields( 'group_leave' ); ?>
 						<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
 						<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-portal__btn--danger"><?php esc_html_e( 'Leave group', 'project-prepper' ); ?></button>
 					</form>
-				</div>
-			<?php elseif ( 'founder' === $role ) : ?>
-				<p class="pp-portal__hint"><?php esc_html_e( 'You are the only founder. Appoint another founder before you can leave.', 'project-prepper' ); ?></p>
-			<?php endif; ?>
+				<?php elseif ( 'founder' === $role ) : ?>
+					<p class="pp-portal__hint"><?php esc_html_e( 'You are the only founder. Appoint another founder before you can leave — or dissolve the collective below.', 'project-prepper' ); ?></p>
+				<?php endif; ?>
+
+				<?php /* Gründer können die Gruppe auflösen; Projekte bleiben (fallen auf Site-Ebene). */ ?>
+				<?php if ( 'founder' === $role ) : ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+						onsubmit="return confirm('<?php echo esc_js( __( 'Dissolve this collective for everyone? Members lose access to the shared inventory. Projects are kept and move to the site level. This cannot be undone.', 'project-prepper' ) ); ?>');">
+						<?php self::action_fields( 'group_delete' ); ?>
+						<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+						<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-portal__btn--danger"><?php esc_html_e( 'Dissolve collective', 'project-prepper' ); ?></button>
+					</form>
+				<?php endif; ?>
+			</div>
 		</div>
 		<?php
 	}
@@ -6665,8 +6715,8 @@ class MemberPortal {
 			<?php if ( $all_items ) : ?>
 				<p class="pp-inv-kpi">
 					<?php
-					/* translators: 1: item count, 2: total pieces. */
 					$pp_dv = ( (float) $total_value === floor( (float) $total_value ) ) ? number_format_i18n( $total_value, 0 ) : number_format_i18n( $total_value, 2 );
+					/* translators: 1: item count, 2: total pieces, 3: total daily value in euros. */
 					printf( esc_html__( '%1$d items · %2$d pieces · daily value %3$s €', 'project-prepper' ), count( $all_items ), (int) $total_pieces, esc_html( $pp_dv ) );
 					?>
 				</p>
