@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.29.0';
+	const VERSION    = '0.31.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -66,6 +66,7 @@ class Schema {
 		$feedback   = self::table( 'app_feedback' );
 		$cal_groups = self::table( 'calendar_groups' );
 		$cal_events = self::table( 'calendar_events' );
+		$inq_team   = self::table( 'inquiry_team' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -278,6 +279,11 @@ class Schema {
 			KEY checklist_id (checklist_id)
 		) {$charset};" );
 
+		// assignment_status (v0.31.0) — Pendant zu project_tasks.assignment_status
+		// der App: pending (Zuweisung angefragt) | accepted | declined. Bestehende
+		// Zeilen erhalten den Default 'accepted' (Alt-Zuweisungen gelten als
+		// angenommen). Ablehnen behält assigned_user (wie die App: Badge
+		// „Abgelehnt" beim Namen); eine NEUE Zuweisung setzt wieder 'pending'.
 		dbDelta( "CREATE TABLE {$p_tasks} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			project_id bigint(20) unsigned NOT NULL,
@@ -286,6 +292,7 @@ class Schema {
 			priority varchar(20) NOT NULL DEFAULT 'normal',
 			due_date date DEFAULT NULL,
 			assigned_user bigint(20) unsigned DEFAULT NULL,
+			assignment_status varchar(20) NOT NULL DEFAULT 'accepted',
 			sort_order int(11) NOT NULL DEFAULT 0,
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
@@ -400,6 +407,7 @@ class Schema {
 				name varchar(190) NOT NULL,
 				slug varchar(190) NOT NULL,
 				description text,
+				logo_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				created_by bigint(20) unsigned DEFAULT NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
@@ -769,6 +777,26 @@ class Schema {
 				KEY owner_user_id (owner_user_id),
 				KEY owner_group_id (owner_group_id),
 				KEY date_from (date_from)
+			) {$charset};" );
+
+			// Team-Verfügbarkeit pro Anfrage (v0.31.0) — Pendant zu
+			// `inquiry_invitations` der App: Mitglieder der Eigentümer-Gruppe einer
+			// Anfrage werden gefragt „Bist du dabei?" und antworten mit Zusage/
+			// Vielleicht/Absage. Eine Zeile pro (Anfrage, User) — UNIQUE, Upsert.
+			// status: invited (angefragt) | accepted | maybe | declined. Self-RSVP
+			// ohne vorherige Einladung ist erlaubt (App-Migration 094). Nur für
+			// Gruppen-Anfragen (owner_group_id) — Solo-Anfragen haben kein Team.
+			dbDelta( "CREATE TABLE {$inq_team} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				inquiry_id bigint(20) unsigned NOT NULL,
+				user_id bigint(20) unsigned NOT NULL,
+				status varchar(20) NOT NULL DEFAULT 'invited',
+				invited_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				responded_at datetime DEFAULT NULL,
+				PRIMARY KEY  (id),
+				UNIQUE KEY inquiry_user (inquiry_id,user_id),
+				KEY user_id (user_id)
 			) {$charset};" );
 
 		self::upgrade_data();

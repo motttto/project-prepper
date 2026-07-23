@@ -9,6 +9,7 @@ use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Services\Feedback;
 use ProjectPrepper\Services\MemberInventory;
 use ProjectPrepper\Services\MemberInquiries;
+use ProjectPrepper\Services\InquiryTeam;
 use ProjectPrepper\Services\MemberRentals;
 use ProjectPrepper\Services\Rentals;
 use ProjectPrepper\Services\Inquiries;
@@ -81,6 +82,7 @@ class MemberPortal {
 		add_action( 'admin_post_pp_project_file', [ self::class, 'handle_project_file' ] );
 		add_action( 'admin_post_pp_member_data', [ self::class, 'handle_member_data_export' ] );
 		add_action( 'admin_post_pp_member_avatar', [ self::class, 'handle_member_avatar' ] );
+		add_action( 'admin_post_pp_group_logo', [ self::class, 'handle_group_logo' ] );
 		add_action( 'admin_post_pp_accept_terms', [ self::class, 'handle_accept_terms' ] );
 		add_action( 'admin_post_pp_member_feedback', [ self::class, 'handle_feedback' ] );
 
@@ -378,7 +380,7 @@ class MemberPortal {
 		// Kalender-Aktionen kehren in die Kalender-Ansicht zurück — inklusive
 		// Monat/Woche/Modus der Ausgangsseite (aus dem Referer), damit man nach
 		// dem Speichern im selben Zeitfenster bleibt.
-		if ( in_array( $do, [ 'calgroup_create', 'calgroup_update', 'calgroup_delete', 'event_create', 'event_update', 'event_delete' ], true ) ) {
+		if ( in_array( $do, [ 'calgroup_create', 'calgroup_update', 'calgroup_delete', 'event_create', 'event_update', 'event_delete', 'ical_rotate' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'calendar', self::portal_url() );
 			foreach ( [ 'pp_cal', 'pp_month', 'pp_week' ] as $nav ) {
 				$val = sanitize_text_field( (string) ( $ref_args[ $nav ] ?? '' ) );
@@ -397,6 +399,13 @@ class MemberPortal {
 		if ( in_array( $do, [ 'inquiry_create', 'inquiry_update', 'inquiry_status', 'inquiry_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inquiries', self::portal_url() );
 			if ( $ref_inquiry > 0 && in_array( $do, [ 'inquiry_update', 'inquiry_status' ], true ) ) {
+				$back = add_query_arg( 'pp_inquiry', $ref_inquiry, $back );
+			}
+		}
+		// Team-RSVP-Aktionen bleiben im Anfrage-Detail (Referer kennt pp_inquiry).
+		if ( in_array( $do, [ 'inqteam_invite', 'inqteam_revoke', 'inqteam_rsvp' ], true ) ) {
+			$back = add_query_arg( 'pp_view', 'inquiries', self::portal_url() );
+			if ( $ref_inquiry > 0 ) {
 				$back = add_query_arg( 'pp_inquiry', $ref_inquiry, $back );
 			}
 		}
@@ -556,6 +565,19 @@ class MemberPortal {
 				$result = MemberInquiries::to_project( (int) ( $_POST['pp_inquiry'] ?? 0 ), get_current_user_id(), self::active_workspace_group() );
 				$ok_msg = 'inquiry_converted';
 				break;
+			// --- Team-RSVP bei Gruppen-Anfragen (Guards im Service) ---
+			case 'inqteam_invite':
+				$result = InquiryTeam::invite( (int) ( $_POST['pp_inquiry'] ?? 0 ), (int) ( $_POST['pp_user'] ?? 0 ), get_current_user_id() );
+				$ok_msg = 'team_invited';
+				break;
+			case 'inqteam_revoke':
+				$result = InquiryTeam::revoke( (int) ( $_POST['pp_inquiry'] ?? 0 ), (int) ( $_POST['pp_user'] ?? 0 ), get_current_user_id() );
+				$ok_msg = 'team_revoked';
+				break;
+			case 'inqteam_rsvp':
+				$result = InquiryTeam::respond( (int) ( $_POST['pp_inquiry'] ?? 0 ), get_current_user_id(), sanitize_key( wp_unslash( (string) ( $_POST['pp_rsvp'] ?? '' ) ) ) );
+				$ok_msg = 'rsvp_saved';
+				break;
 			case 'rental_create':
 				$in     = self::rental_input();
 				$result = MemberRentals::create( get_current_user_id(), $in['data'], $in['items'] );
@@ -631,6 +653,38 @@ class MemberPortal {
 					? Tasks::delete( $tid )
 					: self::forbidden_error();
 				$ok_msg = 'proj_entry_deleted';
+				break;
+			case 'task_accept':
+			case 'task_decline':
+				// Nur die ZUGEWIESENE Person darf annehmen/ablehnen.
+				$tid  = (int) ( $_POST['pp_entry'] ?? 0 );
+				$task = Tasks::get( $tid );
+				if ( ! self::sub_belongs( $task, $proj_id ) || (int) $task->assigned_user !== get_current_user_id() ) {
+					$result = self::forbidden_error();
+				} else {
+					$result = Tasks::update( $tid, [ 'assignment_status' => 'task_accept' === $do ? 'accepted' : 'declined' ] );
+				}
+				$ok_msg = 'task_accept' === $do ? 'task_accepted' : 'task_declined';
+				break;
+			case 'sched_move':
+				// Hoch/Runter innerhalb des Tages — bewusst ohne Erfolgsmeldung.
+				$sid    = (int) ( $_POST['pp_entry'] ?? 0 );
+				$result = self::sub_belongs( Schedule::get( $sid ), $proj_id )
+					? Schedule::move( $sid, sanitize_key( wp_unslash( (string) ( $_POST['pp_dir'] ?? '' ) ) ) )
+					: self::forbidden_error();
+				break;
+			case 'checklist_move':
+				$lid    = (int) ( $_POST['pp_list'] ?? 0 );
+				$result = self::sub_belongs( Checklists::get( $lid ), $proj_id )
+					? Checklists::move( $lid, sanitize_key( wp_unslash( (string) ( $_POST['pp_dir'] ?? '' ) ) ) )
+					: self::forbidden_error();
+				break;
+			case 'checkitem_move':
+				$ci     = Checklists::get_item( (int) ( $_POST['pp_citem'] ?? 0 ) );
+				$in_prj = $ci && self::sub_belongs( Checklists::get( (int) $ci->checklist_id ), $proj_id );
+				$result = $in_prj
+					? Checklists::move_item( (int) $ci->id, sanitize_key( wp_unslash( (string) ( $_POST['pp_dir'] ?? '' ) ) ) )
+					: self::forbidden_error();
 				break;
 			case 'checklist_add':
 				$result = Checklists::create( $proj_id, sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ) );
@@ -823,12 +877,12 @@ class MemberPortal {
 				$ok_msg = 'decision_closed';
 				break;
 			case 'poll_vote':
-				$result = Polls::cast_vote(
-					(int) ( $_POST['pp_option'] ?? 0 ),
-					get_current_user_id(),
-					sanitize_key( wp_unslash( (string) ( $_POST['pp_vote'] ?? '' ) ) )
-				);
-				$ok_msg = 'voted';
+				// 'none' = Stimme entfernen (Klick-Zyklus endet leer, wie die App).
+				$vote   = sanitize_key( wp_unslash( (string) ( $_POST['pp_vote'] ?? '' ) ) );
+				$result = 'none' === $vote
+					? Polls::remove_vote( (int) ( $_POST['pp_option'] ?? 0 ), get_current_user_id() )
+					: Polls::cast_vote( (int) ( $_POST['pp_option'] ?? 0 ), get_current_user_id(), $vote );
+				$ok_msg = 'none' === $vote ? 'vote_removed' : 'voted';
 				break;
 			case 'poll_create':
 				$result = Polls::create( $proj_id, self::poll_input() );
@@ -847,12 +901,12 @@ class MemberPortal {
 				$ok_msg = 'poll_deleted';
 				break;
 			case 'gpoll_vote':
-				$result = Polls::cast_vote(
-					(int) ( $_POST['pp_option'] ?? 0 ),
-					get_current_user_id(),
-					sanitize_key( wp_unslash( (string) ( $_POST['pp_vote'] ?? '' ) ) )
-				);
-				$ok_msg = 'voted';
+				// 'none' = Stimme entfernen (Klick-Zyklus endet leer, wie die App).
+				$vote   = sanitize_key( wp_unslash( (string) ( $_POST['pp_vote'] ?? '' ) ) );
+				$result = 'none' === $vote
+					? Polls::remove_vote( (int) ( $_POST['pp_option'] ?? 0 ), get_current_user_id() )
+					: Polls::cast_vote( (int) ( $_POST['pp_option'] ?? 0 ), get_current_user_id(), $vote );
+				$ok_msg = 'none' === $vote ? 'vote_removed' : 'voted';
 				break;
 			case 'gpoll_create':
 				$result = Polls::create_group( (int) ( $_POST['pp_group'] ?? 0 ), self::poll_input() );
@@ -899,6 +953,11 @@ class MemberPortal {
 			case 'event_delete':
 				$result = CalendarEvents::delete_event( (int) ( $_POST['pp_event'] ?? 0 ), get_current_user_id(), self::active_workspace_group() );
 				$ok_msg = 'event_deleted';
+				break;
+			case 'ical_rotate':
+				CalendarController::regenerate_user_token( get_current_user_id() );
+				$result = true;
+				$ok_msg = 'feed_rotated';
 				break;
 			case 'fedborrow_approve':
 				$result = FederatedBorrow::decide( get_current_user_id(), (int) ( $_POST['pp_fedreq'] ?? 0 ), 'approve' );
@@ -1005,6 +1064,12 @@ class MemberPortal {
 			'inquiry_status'   => [ 'ok', __( 'Inquiry status updated.', 'project-prepper' ) ],
 			'inquiry_deleted'  => [ 'ok', __( 'Inquiry deleted.', 'project-prepper' ) ],
 			'inquiry_converted' => [ 'ok', __( 'Inquiry turned into a project.', 'project-prepper' ) ],
+			'team_invited'     => [ 'ok', __( 'Availability request sent.', 'project-prepper' ) ],
+			'team_revoked'     => [ 'ok', __( 'Availability request withdrawn.', 'project-prepper' ) ],
+			'rsvp_saved'       => [ 'ok', __( 'Thanks — your answer has been saved.', 'project-prepper' ) ],
+			'vote_removed'     => [ 'ok', __( 'Your vote was removed.', 'project-prepper' ) ],
+			'task_accepted'    => [ 'ok', __( 'Task accepted.', 'project-prepper' ) ],
+			'task_declined'    => [ 'ok', __( 'Task declined.', 'project-prepper' ) ],
 			'rental_saved'     => [ 'ok', __( 'Rental created.', 'project-prepper' ) ],
 			'rental_updated'   => [ 'ok', __( 'Rental updated.', 'project-prepper' ) ],
 			'rental_status'    => [ 'ok', __( 'Rental status updated.', 'project-prepper' ) ],
@@ -1038,6 +1103,7 @@ class MemberPortal {
 			'event_deleted'    => [ 'ok', __( 'Event deleted.', 'project-prepper' ) ],
 			'calendar_saved'   => [ 'ok', __( 'Calendar saved.', 'project-prepper' ) ],
 			'calendar_deleted' => [ 'ok', __( 'Calendar deleted. Its events were kept.', 'project-prepper' ) ],
+			'feed_rotated'     => [ 'ok', __( 'New feed URL created. Please update your calendar subscriptions.', 'project-prepper' ) ],
 			'group_saved'      => [ 'ok', __( 'Collective updated.', 'project-prepper' ) ],
 			'fed_decided'      => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'fed_requested'    => [ 'ok', __( 'Borrow request sent to the partner instance.', 'project-prepper' ) ],
@@ -1049,6 +1115,9 @@ class MemberPortal {
 			'avatar_saved'     => [ 'ok', __( 'Profile photo saved.', 'project-prepper' ) ],
 			'avatar_removed'   => [ 'ok', __( 'Profile photo removed.', 'project-prepper' ) ],
 			'avatar_failed'    => [ 'err', __( 'The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file.', 'project-prepper' ) ],
+			'logo_saved'       => [ 'ok', __( 'Collective logo saved.', 'project-prepper' ) ],
+			'logo_removed'     => [ 'ok', __( 'Collective logo removed.', 'project-prepper' ) ],
+			'logo_failed'      => [ 'err', __( 'The logo could not be uploaded. Please choose a JPG, PNG, GIF or WebP file.', 'project-prepper' ) ],
 			'doc_saved'        => [ 'ok', __( 'Document uploaded.', 'project-prepper' ) ],
 			'doc_removed'      => [ 'ok', __( 'Document removed.', 'project-prepper' ) ],
 			'doc_failed'       => [ 'err', __( 'The document could not be uploaded. Please use a PDF or image file.', 'project-prepper' ) ],
@@ -1517,15 +1586,20 @@ class MemberPortal {
 			<?php
 			$active       = self::active_group_id( $groups );
 			$active_label = __( 'Solo', 'project-prepper' );
+			$active_logo  = null;
 			foreach ( $groups as $g ) {
 				if ( (int) $g->id === $active ) {
 					$active_label = $g->name;
+					$active_logo  = self::group_logo_url( (int) ( $g->logo_id ?? 0 ) );
 					break;
 				}
 			}
 			?>
 			<details class="pp-app__ws">
 				<summary class="pp-app__workspace">
+					<?php if ( $active_logo ) : ?>
+						<img class="pp-app__ws-logo" src="<?php echo esc_url( $active_logo ); ?>" alt="">
+					<?php endif; ?>
 					<span class="pp-app__ws-text">
 						<span class="pp-app__workspace-label"><?php esc_html_e( 'Workspace', 'project-prepper' ); ?></span>
 						<span class="pp-app__workspace-name"><?php echo esc_html( $active_label ); ?></span>
@@ -1534,9 +1608,14 @@ class MemberPortal {
 				</summary>
 				<div class="pp-app__ws-menu">
 					<?php
-					$ws_options = [ [ 'ws' => 'solo', 'label' => __( 'Solo', 'project-prepper' ), 'is' => ( 0 === $active ) ] ];
+					$ws_options = [ [ 'ws' => 'solo', 'label' => __( 'Solo', 'project-prepper' ), 'is' => ( 0 === $active ), 'logo' => null ] ];
 					foreach ( $groups as $g ) {
-						$ws_options[] = [ 'ws' => (string) (int) $g->id, 'label' => $g->name, 'is' => ( (int) $g->id === $active ) ];
+						$ws_options[] = [
+							'ws'    => (string) (int) $g->id,
+							'label' => $g->name,
+							'is'    => ( (int) $g->id === $active ),
+							'logo'  => self::group_logo_url( (int) ( $g->logo_id ?? 0 ) ),
+						];
 					}
 					foreach ( $ws_options as $opt ) :
 						?>
@@ -1544,7 +1623,12 @@ class MemberPortal {
 							<?php self::action_fields( 'set_workspace' ); ?>
 							<input type="hidden" name="pp_ws" value="<?php echo esc_attr( $opt['ws'] ); ?>">
 							<input type="hidden" name="pp_view" value="<?php echo esc_attr( $view ); ?>">
-							<button type="submit" class="pp-app__ws-opt<?php echo $opt['is'] ? ' is-active' : ''; ?>"><?php echo esc_html( $opt['label'] ); ?></button>
+							<button type="submit" class="pp-app__ws-opt<?php echo $opt['is'] ? ' is-active' : ''; ?>">
+								<?php if ( $opt['logo'] ) : ?>
+									<img class="pp-app__ws-logo" src="<?php echo esc_url( $opt['logo'] ); ?>" alt="">
+								<?php endif; ?>
+								<?php echo esc_html( $opt['label'] ); ?>
+							</button>
 						</form>
 					<?php endforeach; ?>
 				</div>
@@ -1703,6 +1787,26 @@ class MemberPortal {
 			];
 		}
 
+		// Offene Aufgaben-Zuweisungen an mich (Annehmen/Ablehnen steht aus).
+		$ptasks = count( Tasks::pending_for_user( $uid ) );
+		if ( $ptasks > 0 ) {
+			$items[] = [
+				/* translators: %d: number of pending task assignments. */
+				'label' => sprintf( _n( '%d task assignment awaiting your response', '%d task assignments awaiting your response', $ptasks, 'project-prepper' ), $ptasks ),
+				'url'   => self::view_url( 'projects' ),
+			];
+		}
+
+		// Offene „Bist du dabei?"-Anfragen (Team-RSVP bei Anfragen).
+		$rsvps = count( InquiryTeam::pending_for_user( $uid ) );
+		if ( $rsvps > 0 ) {
+			$items[] = [
+				/* translators: %d: number of open availability requests. */
+				'label' => sprintf( _n( '%d inquiry asks: are you in?', '%d inquiries ask: are you in?', $rsvps, 'project-prepper' ), $rsvps ),
+				'url'   => self::view_url( 'inquiries' ),
+			];
+		}
+
 		// Eingehende föderierte Leih-Anfragen.
 		$fed = count( array_filter(
 			FederatedBorrow::inbound_for_owner( $uid ),
@@ -1830,6 +1934,29 @@ class MemberPortal {
 		</div>
 
 		<?php self::render_my_invitations( $user ); ?>
+
+		<?php
+		// Kleiner Hinweis auf offene Aufgaben-Zuweisungen (Annehmen/Ablehnen
+		// steht aus) — App: task_notifications.
+		$pending_tasks = Tasks::pending_for_user( (int) $user->ID );
+		if ( $pending_tasks ) :
+			?>
+			<section class="pp-card pp-taskhint">
+				<h3 class="pp-card__title">
+					<?php esc_html_e( 'Task assignments', 'project-prepper' ); ?>
+					<span class="pp-team-chip pp-team-chip--invited"><?php echo (int) count( $pending_tasks ); ?></span>
+				</h3>
+				<div class="pp-rows">
+					<?php foreach ( $pending_tasks as $pt ) : ?>
+						<a class="pp-row pp-row--link" href="<?php echo esc_url( add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $pt->project_id, 'pp_tab' => 'tasks' ], self::portal_url() ) ); ?>">
+							<span class="pp-row__main"><?php echo esc_html( (string) $pt->title ); ?></span>
+							<span class="pp-row__meta"><?php echo esc_html( (string) $pt->project_name ); ?></span>
+							<span class="pp-portal__chip"><?php esc_html_e( 'Accept or decline', 'project-prepper' ); ?></span>
+						</a>
+					<?php endforeach; ?>
+				</div>
+			</section>
+		<?php endif; ?>
 
 		<section class="pp-app__section">
 			<div class="pp-app__section-head">
@@ -2529,7 +2656,7 @@ class MemberPortal {
 			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Your collectives', 'project-prepper' ); ?></h3>
 			<?php if ( $groups ) : ?>
 				<?php foreach ( $groups as $group ) {
-					self::render_collective( (int) $group->id, $group->name, $group->member_role, (int) $user->ID, (string) ( $group->description ?? '' ) );
+					self::render_collective( (int) $group->id, $group->name, $group->member_role, (int) $user->ID, (string) ( $group->description ?? '' ), (int) ( $group->logo_id ?? 0 ) );
 				} ?>
 			<?php else : ?>
 				<p class="pp-portal__empty"><?php esc_html_e( 'You are not part of any collective yet. Found one below or accept an invitation to start sharing inventory.', 'project-prepper' ); ?></p>
@@ -2626,6 +2753,9 @@ class MemberPortal {
 		$inquiries = MemberInquiries::for_owner( (int) $user->ID, $group_id );
 		$labels    = self::inquiry_status_labels();
 
+		// Offene „Bist du dabei?"-Anfragen an MICH → Hinweis-Chip in der Zeile.
+		$pending_rsvp = $group_id > 0 ? InquiryTeam::pending_for_user( (int) $user->ID, $group_id ) : [];
+
 		// Status-Zähler + Angebotswert (Summe offer_amount, verlorene/geschlossene raus — wie die App).
 		$counts    = array_fill_keys( Inquiries::STATUSES, 0 );
 		$open      = 0;
@@ -2709,6 +2839,9 @@ class MemberPortal {
 						<a class="pp-row pp-row--link" href="<?php echo esc_url( $url ); ?>">
 							<span class="pp-row__main"><?php echo esc_html( $title ); ?></span>
 							<span class="pp-status pp-status--<?php echo esc_attr( $inq->status ); ?>"><?php echo esc_html( $labels[ $inq->status ] ?? $inq->status ); ?></span>
+							<?php if ( in_array( (int) $inq->id, $pending_rsvp, true ) ) : ?>
+								<span class="pp-team-chip pp-team-chip--invited"><?php esc_html_e( 'Are you in?', 'project-prepper' ); ?></span>
+							<?php endif; ?>
 							<span class="pp-row__meta">
 								<?php
 								echo esc_html( implode( ' · ', $bits ) );
@@ -2807,6 +2940,8 @@ class MemberPortal {
 				?>
 			</div>
 		</section>
+
+		<?php self::render_inquiry_team( $inq, $user ); ?>
 
 		<section class="pp-card">
 			<h3 class="pp-card__title"><?php esc_html_e( 'Client', 'project-prepper' ); ?></h3>
@@ -2918,6 +3053,137 @@ class MemberPortal {
 					<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
 					<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
 				</form>
+			</div>
+		</section>
+		<?php
+	}
+
+	/**
+	 * Team-Verfügbarkeit + Selbst-RSVP einer GRUPPEN-Anfrage (App:
+	 * inquiry-rsvp-banner.tsx + inquiry-team-section.tsx). Solo-Anfragen haben
+	 * kein Team — die Sektion entfällt komplett. Jedes Gruppenmitglied kann
+	 * Mitglieder anfragen (flaches Gruppenmodell — die App beschränkt auf
+	 * Ersteller/Admin, WP-Anfragen haben keinen Ersteller-Begriff).
+	 */
+	private static function render_inquiry_team( object $inq, WP_User $user ): void {
+		$group_id = (int) ( $inq->owner_group_id ?? 0 );
+		if ( $group_id <= 0 ) {
+			return;
+		}
+		$uid     = (int) $user->ID;
+		$team    = InquiryTeam::for_inquiry( (int) $inq->id );
+		$members = Groups::members( $group_id );
+		$mine    = isset( $team[ $uid ] ) ? (string) $team[ $uid ]->status : '';
+
+		// Eigener RSVP-Banner (App: „Kannst du bei diesem Projekt mitwirken?").
+		$states = [
+			'accepted' => [ 'accepted', __( 'You are in', 'project-prepper' ) ],
+			'maybe'    => [ 'maybe', __( 'Maybe', 'project-prepper' ) ],
+			'declined' => [ 'declined', _x( 'Declined', 'inquiry team RSVP', 'project-prepper' ) ],
+			'invited'  => [ 'invited', __( 'No answer yet', 'project-prepper' ) ],
+			''         => [ 'none', __( 'No answer yet', 'project-prepper' ) ],
+		];
+		[ $state_class, $state_label ] = $states[ $mine ] ?? $states[''];
+		?>
+		<section class="pp-card pp-rsvp pp-rsvp--<?php echo esc_attr( $state_class ); ?>">
+			<div class="pp-rsvp__head">
+				<div>
+					<h3 class="pp-card__title"><?php esc_html_e( 'Can you take part in this project?', 'project-prepper' ); ?></h3>
+					<p class="pp-rsvp__hint"><?php esc_html_e( 'Your answer is immediately visible to the whole group.', 'project-prepper' ); ?></p>
+				</div>
+				<span class="pp-rsvp__state pp-rsvp__state--<?php echo esc_attr( $state_class ); ?>"><?php echo esc_html( $state_label ); ?></span>
+			</div>
+			<div class="pp-rsvp__actions">
+				<?php
+				$buttons = [
+					'accepted' => [ __( 'Yes, I am in', 'project-prepper' ), 'yes' ],
+					'maybe'    => [ __( 'Maybe', 'project-prepper' ), 'maybe' ],
+					'declined' => [ __( 'Cannot make it', 'project-prepper' ), 'no' ],
+				];
+				foreach ( $buttons as $status => [ $label, $tone ] ) :
+					?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<?php self::action_fields( 'inqteam_rsvp' ); ?>
+						<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
+						<input type="hidden" name="pp_rsvp" value="<?php echo esc_attr( $status ); ?>">
+						<button type="submit" class="pp-rsvp__btn pp-rsvp__btn--<?php echo esc_attr( $tone ); ?><?php echo $mine === $status ? ' pp-rsvp__btn--on' : ''; ?>"><?php echo esc_html( $label ); ?></button>
+					</form>
+				<?php endforeach; ?>
+			</div>
+		</section>
+
+		<?php
+		// Team-Liste: alle Gruppenmitglieder, sortiert Zusagen → Vielleicht →
+		// Angefragt → ohne Antwort → Absagen (App: statusOrder).
+		$order = [ 'accepted' => 0, 'maybe' => 1, 'invited' => 2, '' => 3, 'declined' => 4 ];
+		usort( $members, static function ( $a, $b ) use ( $team, $order ) {
+			$sa = isset( $team[ (int) $a->user_id ] ) ? (string) $team[ (int) $a->user_id ]->status : '';
+			$sb = isset( $team[ (int) $b->user_id ] ) ? (string) $team[ (int) $b->user_id ]->status : '';
+			return ( $order[ $sa ] ?? 9 ) <=> ( $order[ $sb ] ?? 9 );
+		} );
+		$accepted = 0;
+		foreach ( $team as $row ) {
+			if ( 'accepted' === (string) $row->status ) {
+				++$accepted;
+			}
+		}
+		$chip = [
+			// _x: „Zugesagt/Abgesagt" (RSVP) statt „Bestätigt/Abgelehnt" der
+			// gleichnamigen Status-Labels anderswo.
+			'accepted' => [ 'accepted', _x( 'Confirmed', 'inquiry team RSVP', 'project-prepper' ) ],
+			'maybe'    => [ 'maybe', __( 'Maybe', 'project-prepper' ) ],
+			'invited'  => [ 'invited', __( 'Requested', 'project-prepper' ) ],
+			'declined' => [ 'declined', _x( 'Declined', 'inquiry team RSVP', 'project-prepper' ) ],
+		];
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Team availability', 'project-prepper' ); ?>
+				<span class="pp-team-count"><?php echo esc_html( $accepted . '/' . count( $members ) ); ?></span>
+			</h3>
+			<div class="pp-team">
+				<?php foreach ( $members as $m ) :
+					$mid    = (int) $m->user_id;
+					$status = isset( $team[ $mid ] ) ? (string) $team[ $mid ]->status : '';
+					?>
+					<div class="pp-team-row pp-team-row--<?php echo esc_attr( '' === $status ? 'none' : $status ); ?>">
+						<span class="pp-team-row__dot" aria-hidden="true"></span>
+						<span class="pp-team-row__name">
+							<?php echo esc_html( (string) $m->display_name ); ?>
+							<?php if ( $mid === $uid ) : ?>
+								<span class="pp-muted-inline"><?php esc_html_e( '(you)', 'project-prepper' ); ?></span>
+							<?php endif; ?>
+						</span>
+						<span class="pp-team-row__aside">
+							<?php if ( '' !== $status ) : ?>
+								<span class="pp-team-chip pp-team-chip--<?php echo esc_attr( $chip[ $status ][0] ); ?>"><?php echo esc_html( $chip[ $status ][1] ); ?></span>
+							<?php endif; ?>
+							<?php if ( $mid !== $uid ) : ?>
+								<?php if ( '' === $status ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+										<?php self::action_fields( 'inqteam_invite' ); ?>
+										<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
+										<input type="hidden" name="pp_user" value="<?php echo (int) $mid; ?>">
+										<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Ask', 'project-prepper' ); ?></button>
+									</form>
+								<?php elseif ( 'invited' === $status ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+										<?php self::action_fields( 'inqteam_revoke' ); ?>
+										<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
+										<input type="hidden" name="pp_user" value="<?php echo (int) $mid; ?>">
+										<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Withdraw', 'project-prepper' ); ?></button>
+									</form>
+								<?php elseif ( 'declined' === $status ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+										<?php self::action_fields( 'inqteam_invite' ); ?>
+										<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
+										<input type="hidden" name="pp_user" value="<?php echo (int) $mid; ?>">
+										<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Ask again', 'project-prepper' ); ?></button>
+									</form>
+								<?php endif; ?>
+							<?php endif; ?>
+						</span>
+					</div>
+				<?php endforeach; ?>
 			</div>
 		</section>
 		<?php
@@ -3117,10 +3383,10 @@ class MemberPortal {
 	 */
 	private static function project_sub_actions(): array {
 		return [
-			'sched_add', 'sched_update', 'sched_delete',
-			'task_add', 'task_update', 'task_delete',
-			'checklist_add', 'checklist_delete',
-			'checkitem_add', 'checkitem_toggle', 'checkitem_delete',
+			'sched_add', 'sched_update', 'sched_delete', 'sched_move',
+			'task_add', 'task_update', 'task_delete', 'task_accept', 'task_decline',
+			'checklist_add', 'checklist_delete', 'checklist_move',
+			'checkitem_add', 'checkitem_toggle', 'checkitem_delete', 'checkitem_move',
 			'material_add', 'material_update', 'material_delete',
 			'crew_add', 'crew_update', 'crew_delete',
 			'contact_add', 'contact_update', 'contact_delete',
@@ -3194,10 +3460,24 @@ class MemberPortal {
 			$data['assigned_user'] = $assignee;
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
-		if ( $task_id ) {
-			if ( ! self::sub_belongs( Tasks::get( $task_id ), $pid ) ) {
-				return self::forbidden_error();
+		$old = $task_id ? Tasks::get( $task_id ) : null;
+		if ( $task_id && ! self::sub_belongs( $old, $pid ) ) {
+			return self::forbidden_error();
+		}
+		// Annahme-Flow (App tab-tasks): Zuweisung an eine ANDERE Person startet
+		// als 'pending' (Annehmen/Ablehnen), an sich selbst oder niemanden als
+		// 'accepted'. Unveränderte Zuweisung behält ihren Status.
+		if ( array_key_exists( 'assigned_user', $data ) ) {
+			$uid  = get_current_user_id();
+			$new  = (int) $data['assigned_user'];
+			$prev = $old ? (int) $old->assigned_user : 0;
+			if ( ! $new || $new === $uid ) {
+				$data['assignment_status'] = 'accepted';
+			} elseif ( $new !== $prev ) {
+				$data['assignment_status'] = 'pending';
 			}
+		}
+		if ( $task_id ) {
 			return Tasks::update( $task_id, $data );
 		}
 		return Tasks::create( $pid, $data );
@@ -3706,6 +3986,31 @@ class MemberPortal {
 		<?php
 	}
 
+	/**
+	 * Hoch/Runter-Chips für manuelle Reihenfolge (App: Drag-Sortierung über
+	 * sort_order — hier bewusst ohne Drag&Drop-Bibliothek). Die Pfeile sind
+	 * die Funktion selbst, keine Dekoration.
+	 */
+	private static function move_chips( string $do, int $pid, array $hidden ): void {
+		$dirs = [
+			'up'   => [ '↑', __( 'Move up', 'project-prepper' ) ],
+			'down' => [ '↓', __( 'Move down', 'project-prepper' ) ],
+		];
+		foreach ( $dirs as $dir => [ $glyph, $label ] ) :
+			?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pp-move">
+				<?php self::action_fields( $do ); ?>
+				<input type="hidden" name="pp_project" value="<?php echo (int) $pid; ?>">
+				<?php foreach ( $hidden as $name => $value ) : ?>
+					<input type="hidden" name="<?php echo esc_attr( $name ); ?>" value="<?php echo esc_attr( (string) $value ); ?>">
+				<?php endforeach; ?>
+				<input type="hidden" name="pp_dir" value="<?php echo esc_attr( $dir ); ?>">
+				<button type="submit" class="pp-portal__chip pp-move__btn" title="<?php echo esc_attr( $label ); ?>" aria-label="<?php echo esc_attr( $label ); ?>"><?php echo esc_html( $glyph ); ?></button>
+			</form>
+			<?php
+		endforeach;
+	}
+
 	/** Zeitplan — nach Tag gruppiert (wie der Zeitplan-Tab der App). */
 	private static function render_project_schedule( object $p, bool $can_edit ): void {
 		$entries = (array) ( $p->schedule ?? [] );
@@ -3741,6 +4046,7 @@ class MemberPortal {
 								?>
 							</span>
 							<?php if ( $can_edit ) : ?>
+								<?php self::move_chips( 'sched_move', (int) $p->id, [ 'pp_entry' => (int) $s->id ] ); ?>
 								<details class="pp-portal__edit">
 									<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
 									<?php self::schedule_form( $p, $s ); ?>
@@ -3807,8 +4113,11 @@ class MemberPortal {
 				<p class="pp-portal__empty"><?php esc_html_e( 'No tasks yet.', 'project-prepper' ); ?></p>
 			<?php else : ?>
 				<div class="pp-rows">
-					<?php foreach ( $tasks as $t ) :
+					<?php
+					$uid = get_current_user_id();
+					foreach ( $tasks as $t ) :
 						$assignee = $t->assigned_user ? get_userdata( (int) $t->assigned_user ) : null;
+						$assign   = (string) ( $t->assignment_status ?? 'accepted' );
 						$meta     = self::task_priority_label( (string) $t->priority );
 						if ( ! empty( $t->due_date ) ) {
 							$meta .= ' · ' . self::fmt_date( $t->due_date );
@@ -3820,6 +4129,18 @@ class MemberPortal {
 							<span class="pp-status pp-status--<?php echo esc_attr( $t->task_status ); ?>"><?php echo esc_html( self::task_status_label( (string) $t->task_status ) ); ?></span>
 							<span class="pp-row__main"><?php echo esc_html( $t->title ); ?></span>
 							<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
+							<?php
+							// Zuweisungs-Status (App: Badges „Ausstehend"/„Abgelehnt";
+							// angenommene Zuweisungen tragen kein Badge).
+							if ( $assignee && 'pending' === $assign ) : ?>
+								<span class="pp-team-chip pp-team-chip--invited"><?php esc_html_e( 'Awaiting response', 'project-prepper' ); ?></span>
+							<?php elseif ( $assignee && 'declined' === $assign ) : ?>
+								<span class="pp-team-chip pp-team-chip--declined"><?php esc_html_e( 'Declined', 'project-prepper' ); ?></span>
+							<?php endif; ?>
+							<?php if ( $can_edit && $assignee && 'pending' === $assign && (int) $t->assigned_user === $uid ) : ?>
+								<?php self::sub_chip_form( 'task_accept', (int) $p->id, [ 'pp_entry' => (int) $t->id ], __( 'Accept', 'project-prepper' ) ); ?>
+								<?php self::sub_chip_form( 'task_decline', (int) $p->id, [ 'pp_entry' => (int) $t->id ], __( 'Decline', 'project-prepper' ) ); ?>
+							<?php endif; ?>
 							<?php if ( $can_edit ) : ?>
 								<?php
 								// Schnell-Status: offen→Start, in Arbeit→Erledigt, erledigt→Wieder öffnen.
@@ -3913,6 +4234,7 @@ class MemberPortal {
 					<div class="pp-checklist__name">
 						<?php echo esc_html( $list->name ); ?>
 						<?php if ( $can_edit ) : ?>
+							<?php self::move_chips( 'checklist_move', (int) $p->id, [ 'pp_list' => (int) $list->id ] ); ?>
 							<?php self::sub_chip_form( 'checklist_delete', (int) $p->id, [ 'pp_list' => (int) $list->id ], __( 'Remove', 'project-prepper' ), __( 'Remove this checklist including all items?', 'project-prepper' ) ); ?>
 						<?php endif; ?>
 					</div>
@@ -3932,6 +4254,7 @@ class MemberPortal {
 							<span class="pp-checkitem__label"><?php echo esc_html( $ci->label ); ?></span>
 							<?php if ( $can_edit ) : ?>
 								<span class="pp-checkitem__actions">
+									<?php self::move_chips( 'checkitem_move', (int) $p->id, [ 'pp_citem' => (int) $ci->id ] ); ?>
 									<?php self::sub_chip_form( 'checkitem_delete', (int) $p->id, [ 'pp_citem' => (int) $ci->id ], __( 'Remove', 'project-prepper' ) ); ?>
 								</span>
 							<?php endif; ?>
@@ -4182,11 +4505,58 @@ class MemberPortal {
 		?>
 		<section class="pp-card">
 			<h3 class="pp-card__title"><?php esc_html_e( 'Files', 'project-prepper' ); ?></h3>
-			<?php if ( ! $rows ) : ?>
+			<?php
+			// Bilder als Vorschau-Grid mit Lightbox (App: tab-files), der Rest
+			// (PDFs etc.) als Zeilen mit Link.
+			$images = [];
+			$others = [];
+			foreach ( $rows as $f ) {
+				if ( ! empty( $f->url ) && wp_attachment_is_image( (int) $f->attachment_id ) ) {
+					$images[] = $f;
+				} else {
+					$others[] = $f;
+				}
+			}
+			if ( ! $rows ) : ?>
 				<p class="pp-portal__empty"><?php esc_html_e( 'No files yet.', 'project-prepper' ); ?></p>
-			<?php else : ?>
+			<?php endif; ?>
+			<?php if ( $images ) : ?>
+				<div class="pp-file-grid">
+					<?php foreach ( $images as $f ) :
+						$label = '' !== (string) $f->title ? $f->title : ( $f->filename ?: __( 'File', 'project-prepper' ) );
+						$thumb = wp_get_attachment_image_url( (int) $f->attachment_id, 'medium' );
+						?>
+						<button type="button" class="pp-file-thumb" data-pp-modal="pp-lightbox-<?php echo (int) $f->id; ?>">
+							<img src="<?php echo esc_url( $thumb ?: $f->url ); ?>" alt="<?php echo esc_attr( $label ); ?>" loading="lazy">
+							<span class="pp-file-thumb__label"><?php echo esc_html( $label ); ?></span>
+						</button>
+					<?php endforeach; ?>
+				</div>
+				<?php foreach ( $images as $f ) :
+					$label = '' !== (string) $f->title ? $f->title : ( $f->filename ?: __( 'File', 'project-prepper' ) );
+					$large = wp_get_attachment_image_url( (int) $f->attachment_id, 'large' );
+					?>
+					<dialog class="pp-modal pp-modal--portal pp-modal--lightbox" id="pp-lightbox-<?php echo (int) $f->id; ?>">
+						<div class="pp-modal-header">
+							<h2 class="pp-modal__title"><?php echo esc_html( $label ); ?></h2>
+							<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+						</div>
+						<div class="pp-modal-body pp-lightbox__body">
+							<img src="<?php echo esc_url( $large ?: $f->url ); ?>" alt="<?php echo esc_attr( $label ); ?>" loading="lazy">
+							<?php // div statt p: ein <form> in <p> wäre invalid — der Parser würde das p vorzeitig schließen. ?>
+							<div class="pp-lightbox__actions">
+								<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $f->url ); ?>" download><?php esc_html_e( 'Download', 'project-prepper' ); ?></a>
+								<?php if ( $can_edit ) : ?>
+									<?php self::sub_chip_form( 'file_detach', (int) $p->id, [ 'pp_entry' => (int) $f->id ], __( 'Remove', 'project-prepper' ), __( 'Remove this file from the project? The media file itself is kept.', 'project-prepper' ) ); ?>
+								<?php endif; ?>
+							</div>
+						</div>
+					</dialog>
+				<?php endforeach; ?>
+			<?php endif; ?>
+			<?php if ( $others ) : ?>
 				<div class="pp-rows">
-					<?php foreach ( $rows as $f ) :
+					<?php foreach ( $others as $f ) :
 						$label = '' !== (string) $f->title ? $f->title : ( $f->filename ?: __( 'File', 'project-prepper' ) );
 						$meta  = [];
 						if ( ! empty( $f->filesize ) ) {
@@ -4738,9 +5108,10 @@ class MemberPortal {
 										<?php foreach ( $options as $opt ) :
 											$mine = (string) ( $poll->my_votes->{(string) $opt->id} ?? '' );
 											if ( $votable ) :
-												// Zyklus wie die App: leer→Ja→Vielleicht→Nein→Ja …
-												$next = [ '' => 'yes', 'yes' => 'maybe', 'maybe' => 'no', 'no' => 'yes' ][ $mine ] ?? 'yes';
-												$hint = [ 'yes' => __( 'Yes', 'project-prepper' ), 'maybe' => __( 'Maybe', 'project-prepper' ), 'no' => __( 'No', 'project-prepper' ) ];
+												// Zyklus wie die App: leer→Ja→Vielleicht→Nein→leer
+												// ('none' entfernt die Stimme wieder).
+												$next = [ '' => 'yes', 'yes' => 'maybe', 'maybe' => 'no', 'no' => 'none' ][ $mine ] ?? 'yes';
+												$hint = [ 'yes' => __( 'Yes', 'project-prepper' ), 'maybe' => __( 'Maybe', 'project-prepper' ), 'no' => __( 'No — click to clear', 'project-prepper' ) ];
 												?>
 												<td>
 													<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -5242,31 +5613,194 @@ class MemberPortal {
 				</span>
 			</div>
 
-			<div class="pp-cal__week">
-				<?php
-				for ( $i = 0; $i < 7; $i++ ) {
-					$day_ts   = strtotime( "+$i day", $monday_ts );
-					$key      = gmdate( 'Y-m-d', $day_ts );
-					$is_today = ( $key === $today );
-					$events   = $by_day[ $key ] ?? [];
-					echo '<div class="pp-cal__weekday' . ( $is_today ? ' pp-cal__cell--today' : '' ) . '">';
-					echo '<div class="pp-cal__weekday-head">' . esc_html( date_i18n( 'D j.', $day_ts ) ) . '</div>';
-					if ( $events ) {
-						foreach ( $events as $ev ) {
-							self::cal_chip( $ev );
-						}
-					} else {
-						echo '<span class="pp-cal__weekday-empty">·</span>';
-					}
-					echo '</div>';
-				}
-				?>
-			</div>
+			<?php self::render_week_time_grid( $monday_ts, $today, $by_day ); ?>
 
 			<?php self::calendar_legend( $cals ); ?>
 		</div>
 		<?php
 		self::render_calendar_manage( $user, $groups, $cals, $week_start, $week_end );
+	}
+
+	/**
+	 * Wochen-Zeitraster (App: WeekTimeGrid in calendar/page.tsx) — Stunden-Achse
+	 * 06–23 Uhr, Termine mit Uhrzeit als positionierte Blöcke in Kalenderfarbe,
+	 * ganztägige/zeitlose Einträge in einer „Ganztags“-Zeile. Rein server-
+	 * gerendert: Position/Höhe aus time_start/time_end, Überlappungen werden
+	 * in Spalten nebeneinander gelegt (Greedy wie layoutEvents der App).
+	 */
+	private static function render_week_time_grid( int $monday_ts, string $today, array $by_day ): void {
+		$hour_h  = 48;  // px pro Stunde
+		$start_h = 6;   // Rasterfenster 06:00 …
+		$end_h   = 23;  // … 23:00
+		$grid_h  = ( $end_h - $start_h ) * $hour_h;
+
+		// Fallback-Farben pro Typ für Blöcke ohne Kalenderfarbe (Hex nötig für
+		// die #RRGGBBAA-Tönung — Werte = --pp-info / --pp-success / --pp-primary).
+		$type_colors = [
+			'event'    => CalendarEvents::COLORS[0],
+			'schedule' => '#3B82F6',
+			'borrow'   => '#10B981',
+			'project'  => '#6366F1',
+		];
+
+		// Pro Tag in zeitgebundene (→ Raster) und ganztägige (→ Ganztags-Zeile)
+		// Einträge trennen.
+		$days = [];
+		$has_allday = false;
+		for ( $i = 0; $i < 7; $i++ ) {
+			$day_ts = strtotime( "+$i day", $monday_ts );
+			$key    = gmdate( 'Y-m-d', $day_ts );
+			$timed  = [];
+			$allday = [];
+			foreach ( $by_day[ $key ] ?? [] as $ev ) {
+				if ( '' !== (string) ( $ev['time_start'] ?? '' ) ) {
+					$timed[] = $ev;
+				} else {
+					$allday[] = $ev;
+				}
+			}
+			$has_allday   = $has_allday || $allday;
+			$days[] = [
+				'ts'     => $day_ts,
+				'key'    => $key,
+				'today'  => ( $key === $today ),
+				'wknd'   => $i >= 5,
+				'timed'  => $timed,
+				'allday' => $allday,
+			];
+		}
+
+		$now_min  = (int) current_time( 'H' ) * 60 + (int) current_time( 'i' );
+		$now_top  = (int) round( ( $now_min - $start_h * 60 ) / 60 * $hour_h );
+		$show_now = $now_min >= $start_h * 60 && $now_min <= $end_h * 60;
+		?>
+		<div class="pp-cal__tg">
+			<div class="pp-cal__tg-head">
+				<div class="pp-cal__tg-gutter"></div>
+				<?php foreach ( $days as $d ) : ?>
+					<div class="pp-cal__tg-dayhead<?php echo $d['today'] ? ' pp-cal__tg-dayhead--today' : ''; ?>">
+						<span class="pp-cal__tg-dow"><?php echo esc_html( date_i18n( 'D', $d['ts'] ) ); ?></span>
+						<span class="pp-cal__tg-daynum"><?php echo (int) gmdate( 'j', $d['ts'] ); ?></span>
+					</div>
+				<?php endforeach; ?>
+			</div>
+
+			<?php if ( $has_allday ) : ?>
+				<div class="pp-cal__tg-allday">
+					<div class="pp-cal__tg-gutter pp-cal__tg-alllabel"><?php esc_html_e( 'All-day', 'project-prepper' ); ?></div>
+					<?php foreach ( $days as $d ) : ?>
+						<div class="pp-cal__tg-allcol">
+							<?php foreach ( $d['allday'] as $ev ) {
+								self::cal_chip( $ev );
+							} ?>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+
+			<div class="pp-cal__tg-body">
+				<div class="pp-cal__tg-hours" style="height:<?php echo (int) $grid_h; ?>px">
+					<?php for ( $h = $start_h + 1; $h < $end_h; $h++ ) : ?>
+						<span class="pp-cal__tg-hour" style="top:<?php echo (int) ( ( $h - $start_h ) * $hour_h ); ?>px"><?php echo esc_html( sprintf( '%02d:00', $h ) ); ?></span>
+					<?php endfor; ?>
+				</div>
+				<?php foreach ( $days as $d ) : ?>
+					<div class="pp-cal__tg-daycol<?php echo $d['today'] ? ' pp-cal__tg-daycol--today' : ( $d['wknd'] ? ' pp-cal__tg-daycol--wknd' : '' ); ?>" style="height:<?php echo (int) $grid_h; ?>px">
+						<?php if ( $d['today'] && $show_now ) : ?>
+							<span class="pp-cal__tg-now" style="top:<?php echo (int) $now_top; ?>px"></span>
+						<?php endif; ?>
+						<?php foreach ( self::tg_layout( $d['timed'], $start_h, $end_h ) as $blk ) :
+							$ev    = $blk['ev'];
+							$color = (string) ( $ev['color'] ?? '' ) ?: ( $type_colors[ $ev['type'] ] ?? $type_colors['event'] );
+							$top   = (int) round( ( $blk['sm'] - $start_h * 60 ) / 60 * $hour_h );
+							$hgt   = max( 22, (int) round( ( $blk['em'] - $blk['sm'] ) / 60 * $hour_h ) );
+							$width = 100 / $blk['cols'];
+							$left  = $blk['col'] * $width;
+							$time  = $ev['time_start'] . ( '' !== (string) ( $ev['time_end'] ?? '' ) ? ' – ' . $ev['time_end'] : '' );
+							$style = sprintf(
+								'top:%dpx;height:%dpx;left:%.4F%%;width:%.4F%%;background:%s26;border-left-color:%s;color:%s',
+								$top,
+								$hgt,
+								$left,
+								$width,
+								$color,
+								$color,
+								$color
+							);
+							$label = (string) ( $ev['title'] ?? $ev['label'] );
+							$tag   = ! empty( $ev['url'] ) ? 'a' : 'span';
+							$href  = ! empty( $ev['url'] ) ? ' href="' . esc_url( $ev['url'] ) . '"' : '';
+							echo '<' . $tag . ' class="pp-cal__tg-ev"' . $href . ' style="' . esc_attr( $style ) . '" title="' . esc_attr( $label . ( $time ? ' · ' . $time : '' ) ) . '">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $href ist esc_url-escaped.
+							echo '<span class="pp-cal__tg-ev-title">' . esc_html( $label ) . '</span>';
+							if ( $hgt > 34 && $time ) {
+								echo '<span class="pp-cal__tg-ev-time">' . esc_html( $time ) . '</span>';
+							}
+							echo '</' . $tag . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- fester Tag-Name.
+						endforeach; ?>
+					</div>
+				<?php endforeach; ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Zeitgebundene Tages-Einträge in Überlappungs-Spalten legen (Greedy wie
+	 * layoutEvents der App): sortiert nach Start, jede Spalte nimmt den nächsten
+	 * passenden Eintrag; Breite = 100 % / Spaltenzahl.
+	 *
+	 * @param array<int,array> $events Einträge mit time_start (HH:MM) gesetzt.
+	 * @return array<int,array{ev:array,sm:int,em:int,col:int,cols:int}>
+	 */
+	private static function tg_layout( array $events, int $start_h, int $end_h ): array {
+		if ( ! $events ) {
+			return [];
+		}
+		$win_start = $start_h * 60;
+		$win_end   = $end_h * 60;
+		$items     = [];
+		foreach ( $events as $ev ) {
+			$sm = self::tg_minutes( (string) $ev['time_start'] );
+			$em = '' !== (string) ( $ev['time_end'] ?? '' ) ? self::tg_minutes( (string) $ev['time_end'] ) : $sm + 60;
+			// Ins Rasterfenster klemmen (Termine vor 06:00 / nach 23:00 bleiben sichtbar).
+			$sm = max( $win_start, min( $sm, $win_end - 15 ) );
+			$em = max( $sm + 15, min( $em, $win_end ) );
+			$items[] = [ 'ev' => $ev, 'sm' => $sm, 'em' => $em ];
+		}
+		usort( $items, static fn( $a, $b ) => ( $a['sm'] <=> $b['sm'] ) ?: ( $a['em'] <=> $b['em'] ) );
+
+		$col_ends = []; // Ende-Minute der letzten Belegung je Spalte.
+		foreach ( $items as &$item ) {
+			$placed = false;
+			foreach ( $col_ends as $ci => $end ) {
+				if ( $end <= $item['sm'] ) {
+					$item['col']     = $ci;
+					$col_ends[ $ci ] = $item['em'];
+					$placed          = true;
+					break;
+				}
+			}
+			if ( ! $placed ) {
+				$item['col'] = count( $col_ends );
+				$col_ends[]  = $item['em'];
+			}
+		}
+		unset( $item );
+
+		$cols = count( $col_ends );
+		foreach ( $items as &$item ) {
+			$item['cols'] = $cols;
+		}
+		unset( $item );
+		return $items;
+	}
+
+	/** "HH:MM" → Minuten seit Mitternacht (ungültig → 0). */
+	private static function tg_minutes( string $time ): int {
+		if ( ! preg_match( '/^(\d{1,2}):(\d{2})/', $time, $m ) ) {
+			return 0;
+		}
+		return (int) $m[1] * 60 + (int) $m[2];
 	}
 
 	/** Ein Kalender-Chip im Monats-/Wochenraster (mit optionaler Kalender-Farbe). */
@@ -5414,6 +5948,24 @@ class MemberPortal {
 				</form>
 			</details>
 		</section>
+
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Subscribe to your calendar', 'project-prepper' ); ?></h3>
+			<p class="pp-portal__hint"><?php esc_html_e( 'Add this address in Apple Calendar (File → New Calendar Subscription) or Google Calendar (Other calendars → From URL) to see your events there. The feed is read-only and personal — it contains your solo events and the events of all your groups.', 'project-prepper' ); ?></p>
+			<div class="pp-cal__sub">
+				<input type="text" class="pp-cal__sub-url" id="pp-cal-sub-url" readonly
+					value="<?php echo esc_attr( CalendarController::user_feed_url( (int) $user->ID ) ); ?>"
+					onclick="this.select()">
+				<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"
+					data-pp-copy="pp-cal-sub-url"
+					data-copied-label="<?php esc_attr_e( 'Copied!', 'project-prepper' ); ?>"><?php esc_html_e( 'Copy', 'project-prepper' ); ?></button>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+					onsubmit="return confirm('<?php echo esc_js( __( 'Create a new feed URL? The old URL stops working and subscriptions must be updated.', 'project-prepper' ) ); ?>');">
+					<?php self::action_fields( 'ical_rotate' ); ?>
+					<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Renew URL', 'project-prepper' ); ?></button>
+				</form>
+			</div>
+		</section>
 		<?php
 	}
 
@@ -5498,10 +6050,13 @@ class MemberPortal {
 		foreach ( CalendarEvents::events_between( (int) $user->ID, $active, $ms, $me ) as $e ) {
 			$label = trim( ( '' !== (string) $e->time_start ? $e->time_start . ' ' : '' ) . $e->title );
 			self::cal_span( $by_day, (string) $e->date_from, (string) ( $e->date_to ?: $e->date_from ), $ms, $me, [
-				'type'  => 'event',
-				'label' => $label,
-				'url'   => '#pp-ev-' . (int) $e->id,
-				'color' => (string) ( $e->calendar_color ?: CalendarEvents::COLORS[0] ),
+				'type'       => 'event',
+				'label'      => $label,
+				'title'      => (string) $e->title,
+				'time_start' => (string) $e->time_start,
+				'time_end'   => (string) $e->time_end,
+				'url'        => '#pp-ev-' . (int) $e->id,
+				'color'      => (string) ( $e->calendar_color ?: CalendarEvents::COLORS[0] ),
 			] );
 		}
 
@@ -5522,9 +6077,12 @@ class MemberPortal {
 				}
 				$label = trim( ( ! empty( $s->time_start ) ? substr( (string) $s->time_start, 0, 5 ) . ' ' : '' ) . $s->title );
 				$by_day[ $date ][] = [
-					'type'  => 'schedule',
-					'label' => $label,
-					'url'   => add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $p->id ], self::portal_url() ),
+					'type'       => 'schedule',
+					'label'      => $label,
+					'title'      => (string) $s->title,
+					'time_start' => ! empty( $s->time_start ) ? substr( (string) $s->time_start, 0, 5 ) : '',
+					'time_end'   => ! empty( $s->time_end ) ? substr( (string) $s->time_end, 0, 5 ) : '',
+					'url'        => add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $p->id ], self::portal_url() ),
 				];
 			}
 		}
@@ -5837,9 +6395,10 @@ class MemberPortal {
 	}
 
 	/** Eine Kollektiv-Karte: Mitglieder + Einladen + offene Beitritts-Abstimmungen. */
-	private static function render_collective( int $group_id, string $name, string $role, int $user_id, string $description = '' ): void {
+	private static function render_collective( int $group_id, string $name, string $role, int $user_id, string $description = '', int $logo_id = 0 ): void {
 		$members     = Groups::members( $group_id );
 		$invitations = Governance::invitations_for_group( $group_id, [ 'pending', 'voting' ] );
+		$logo_url    = self::group_logo_url( $logo_id );
 		// Austreten erlaubt für Mitglieder; ein Gründer nur, wenn ein weiterer Gründer bleibt.
 		$founder_count = 0;
 		foreach ( $members as $m ) {
@@ -5851,6 +6410,9 @@ class MemberPortal {
 		?>
 		<div class="pp-portal__collective">
 			<div class="pp-portal__collective-head">
+				<?php if ( $logo_url ) : ?>
+					<img class="pp-portal__collective-logo" src="<?php echo esc_url( $logo_url ); ?>" alt="">
+				<?php endif; ?>
 				<span class="pp-portal__group-name"><?php echo esc_html( $name ); ?></span>
 				<?php if ( 'founder' === $role ) : ?>
 					<span class="pp-portal__tag"><?php esc_html_e( 'Founder', 'project-prepper' ); ?></span>
@@ -5877,6 +6439,24 @@ class MemberPortal {
 						</label>
 						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
 					</form>
+					<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<input type="hidden" name="action" value="pp_group_logo">
+						<?php wp_nonce_field( 'pp_group_logo', 'pp_nonce' ); ?>
+						<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+						<label><?php echo esc_html( $logo_url ? __( 'Replace logo', 'project-prepper' ) : __( 'Logo (optional)', 'project-prepper' ) ); ?>
+							<input type="file" name="pp_logo" accept="image/*" required>
+						</label>
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Upload logo', 'project-prepper' ); ?></button>
+					</form>
+					<?php if ( $logo_url ) : ?>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<input type="hidden" name="action" value="pp_group_logo">
+							<?php wp_nonce_field( 'pp_group_logo', 'pp_nonce' ); ?>
+							<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+							<input type="hidden" name="pp_remove" value="1">
+							<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Remove logo', 'project-prepper' ); ?></button>
+						</form>
+					<?php endif; ?>
 				</details>
 			<?php endif; ?>
 
@@ -6899,6 +7479,89 @@ class MemberPortal {
 
 		wp_safe_redirect( add_query_arg( 'pp_msg', 'avatar_saved', $back ) );
 		exit;
+	}
+
+	/**
+	 * Gruppen-Logo hochladen/ersetzen/entfernen (App: groups.logo_url) — eigener
+	 * multipart-Handler nach dem Avatar-Muster. Nur Gründer der Gruppe; das
+	 * alte Attachment wird beim Ersetzen/Entfernen mit aufgeräumt.
+	 */
+	public static function handle_group_logo(): void {
+		$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
+		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_group_logo' ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+			exit;
+		}
+
+		// IDOR-Gate: nur Gründer DIESER Gruppe dürfen das Logo ändern.
+		$group_id = (int) ( $_POST['pp_group'] ?? 0 );
+		if ( ! $group_id || ! self::is_group_founder( $group_id, get_current_user_id() ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+			exit;
+		}
+		$group  = Groups::get( $group_id );
+		$old_id = $group ? (int) ( $group->logo_id ?? 0 ) : 0;
+
+		// Entfernen.
+		if ( ! empty( $_POST['pp_remove'] ) ) {
+			Groups::update( $group_id, [ 'logo_id' => 0 ] );
+			if ( $old_id ) {
+				wp_delete_attachment( $old_id, true );
+			}
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'logo_removed', $back ) );
+			exit;
+		}
+
+		if ( empty( $_FILES['pp_logo']['tmp_name'] ) || ! is_uploaded_file( $_FILES['pp_logo']['tmp_name'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'logo_failed', $back ) );
+			exit;
+		}
+
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		$overrides = [
+			'test_form' => false,
+			'mimes'     => [
+				'jpg|jpeg|jpe' => 'image/jpeg',
+				'png'          => 'image/png',
+				'gif'          => 'image/gif',
+				'webp'         => 'image/webp',
+			],
+		];
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- $_FILES wird von wp_handle_upload validiert (mimes-Whitelist).
+		$moved = wp_handle_upload( $_FILES['pp_logo'], $overrides );
+		if ( ! is_array( $moved ) || isset( $moved['error'] ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'logo_failed', $back ) );
+			exit;
+		}
+
+		$attach_id = wp_insert_attachment( [
+			'post_mime_type' => $moved['type'],
+			'post_title'     => sanitize_file_name( wp_basename( $moved['file'] ) ),
+			'post_status'    => 'inherit',
+		], $moved['file'] );
+		if ( ! $attach_id || is_wp_error( $attach_id ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'logo_failed', $back ) );
+			exit;
+		}
+		wp_update_attachment_metadata( $attach_id, wp_generate_attachment_metadata( (int) $attach_id, $moved['file'] ) );
+		Groups::update( $group_id, [ 'logo_id' => (int) $attach_id ] );
+		if ( $old_id ) {
+			wp_delete_attachment( $old_id, true );
+		}
+
+		wp_safe_redirect( add_query_arg( 'pp_msg', 'logo_saved', $back ) );
+		exit;
+	}
+
+	/** URL des Gruppen-Logos oder null (kein Logo gesetzt / Attachment weg). */
+	private static function group_logo_url( int $logo_id, string $size = 'thumbnail' ): ?string {
+		if ( ! $logo_id ) {
+			return null;
+		}
+		$url = wp_get_attachment_image_url( $logo_id, $size );
+		return $url ?: null;
 	}
 
 	/**

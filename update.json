@@ -1,9 +1,9 @@
 {
-  "version": "0.103.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.103.0/project-prepper-0.103.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.103.0",
+  "version": "0.104.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.104.0/project-prepper-0.104.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.104.0",
   "published": "2026-07-23",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Alle Portal-Rubriken auf App-Niveau: Anfragen mit Pipeline-Detailansicht, Angebotsfeldern und KPIs - Verleih mit Reitern und Bearbeiten-Modal - Kalender mit eigenen Kalendern (Farben) und Terminverwaltung - Umfragen mit Teilnehmer-Matrix, Fristen und Filtern - Kosten mit Plan/Ist - Kollektiv bearbeiten - Dashboard arbeitsbereich-bewusst. Reiter bleiben über alle Aktionen erhalten."
+  "changelog": "Kalender-Wochenansicht als Zeitraster + persönlicher iCal-Abo-Feed - Gruppen-Logo-Upload - Team-RSVP bei Gruppen-Anfragen - Umfrage-Stimme entfernbar - Bild-Lightbox für Projektdateien - Aufgaben annehmen/ablehnen - Hoch/Runter-Sortierung für Zeitplan, Checklisten und Punkte."
 }

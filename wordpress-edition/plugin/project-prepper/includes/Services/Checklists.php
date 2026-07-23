@@ -101,6 +101,31 @@ class Checklists {
 		return true;
 	}
 
+	/**
+	 * Checkliste innerhalb ihres Projekts hoch/runter schieben (sort_order-
+	 * Tausch; Reihenfolge = for_project: sort_order ASC, id ASC). Am Rand: No-op.
+	 *
+	 * @param string $dir 'up' | 'down'
+	 * @return true|WP_Error
+	 */
+	public static function move( int $id, string $dir ) {
+		global $wpdb;
+		$list = self::get( $id );
+		if ( ! $list ) {
+			return new WP_Error( 'pp_not_found', __( 'Checklist not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$ids = $wpdb->get_col( $wpdb->prepare(
+			'SELECT id FROM %i WHERE project_id = %d ORDER BY sort_order ASC, id ASC',
+			Schema::table( 'project_checklists' ),
+			(int) $list->project_id
+		) );
+		$moved = self::swap_in_list( Schema::table( 'project_checklists' ), array_map( 'intval', $ids ?: [] ), $id, $dir );
+		if ( true === $moved ) {
+			ActivityLog::log( 'project_checklist_moved', 'project', (int) $list->project_id, [ 'checklist_id' => $id, 'dir' => $dir ] );
+		}
+		return $moved;
+	}
+
 	/* ---------- Items ---------- */
 
 	public static function get_item( int $id ): ?object {
@@ -166,6 +191,59 @@ class Checklists {
 			$wpdb->update( Schema::table( 'project_checklist_items' ), $fields, [ 'id' => $id ], $formats, [ '%d' ] );
 			$list = self::get( (int) $item->checklist_id );
 			ActivityLog::log( 'project_checklist_item_updated', 'project', $list ? (int) $list->project_id : null, [ 'item_id' => $id ] );
+		}
+		return true;
+	}
+
+	/**
+	 * Checklist-Punkt innerhalb seiner Liste hoch/runter schieben (sort_order-
+	 * Tausch; Reihenfolge = for_project: sort_order ASC, id ASC). Am Rand: No-op.
+	 *
+	 * @param string $dir 'up' | 'down'
+	 * @return true|WP_Error
+	 */
+	public static function move_item( int $id, string $dir ) {
+		global $wpdb;
+		$item = self::get_item( $id );
+		if ( ! $item ) {
+			return new WP_Error( 'pp_not_found', __( 'Checklist item not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$ids = $wpdb->get_col( $wpdb->prepare(
+			'SELECT id FROM %i WHERE checklist_id = %d ORDER BY sort_order ASC, id ASC',
+			Schema::table( 'project_checklist_items' ),
+			(int) $item->checklist_id
+		) );
+		$moved = self::swap_in_list( Schema::table( 'project_checklist_items' ), array_map( 'intval', $ids ?: [] ), $id, $dir );
+		if ( true === $moved ) {
+			$list = self::get( (int) $item->checklist_id );
+			ActivityLog::log( 'project_checklist_item_moved', 'project', $list ? (int) $list->project_id : null, [ 'item_id' => $id, 'dir' => $dir ] );
+		}
+		return $moved;
+	}
+
+	/**
+	 * sort_order der Liste auf 0..n-1 normalisieren und $id mit dem Nachbarn
+	 * in Richtung $dir tauschen. Am Rand: No-op (true). $dir wird validiert.
+	 *
+	 * @param array<int> $ordered_ids IDs in aktueller Anzeige-Reihenfolge.
+	 * @return true|WP_Error
+	 */
+	private static function swap_in_list( string $table, array $ordered_ids, int $id, string $dir ) {
+		global $wpdb;
+		if ( ! in_array( $dir, [ 'up', 'down' ], true ) ) {
+			return new WP_Error( 'pp_invalid_dir', __( 'Invalid direction.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$pos = array_search( $id, $ordered_ids, true );
+		if ( false === $pos ) {
+			return new WP_Error( 'pp_not_found', __( 'Checklist item not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$target = 'up' === $dir ? $pos - 1 : $pos + 1;
+		if ( $target < 0 || $target >= count( $ordered_ids ) ) {
+			return true;
+		}
+		[ $ordered_ids[ $pos ], $ordered_ids[ $target ] ] = [ $ordered_ids[ $target ], $ordered_ids[ $pos ] ];
+		foreach ( array_values( $ordered_ids ) as $index => $row_id ) {
+			$wpdb->update( $table, [ 'sort_order' => $index ], [ 'id' => (int) $row_id ], [ '%d' ], [ '%d' ] );
 		}
 		return true;
 	}

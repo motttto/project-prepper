@@ -15,6 +15,12 @@ class Tasks {
 	const STATUSES   = [ 'open', 'doing', 'done' ];
 	const PRIORITIES = [ 'low', 'normal', 'high' ];
 
+	// Annahme-Flow (v0.31.0, App: project_tasks.assignment_status): eine
+	// Zuweisung an eine andere Person startet als 'pending' — die zugewiesene
+	// Person nimmt an oder lehnt ab. Ablehnen behält assigned_user (wie die
+	// App: Badge „Abgelehnt" am Namen); neu zuweisen setzt wieder 'pending'.
+	const ASSIGNMENT_STATUSES = [ 'pending', 'accepted', 'declined' ];
+
 	public static function for_project( int $project_id ): array {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare(
@@ -52,15 +58,21 @@ class Tasks {
 			return new WP_Error( 'pp_invalid_dates', __( 'Invalid date range.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
+		$assignment = $data['assignment_status'] ?? 'accepted';
+		if ( ! in_array( $assignment, self::ASSIGNMENT_STATUSES, true ) ) {
+			return new WP_Error( 'pp_invalid_status', __( 'Invalid status.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
 		$wpdb->insert( Schema::table( 'project_tasks' ), [
-			'project_id'    => $project_id,
-			'title'         => trim( (string) $data['title'] ),
-			'task_status'   => $status,
-			'priority'      => $priority,
-			'due_date'      => '' !== $due ? $due : null,
-			'assigned_user' => ! empty( $data['assigned_user'] ) ? (int) $data['assigned_user'] : null,
-			'sort_order'    => (int) ( $data['sort_order'] ?? 0 ),
-			'created_at'    => current_time( 'mysql' ),
+			'project_id'        => $project_id,
+			'title'             => trim( (string) $data['title'] ),
+			'task_status'       => $status,
+			'priority'          => $priority,
+			'due_date'          => '' !== $due ? $due : null,
+			'assigned_user'     => ! empty( $data['assigned_user'] ) ? (int) $data['assigned_user'] : null,
+			'assignment_status' => $assignment,
+			'sort_order'        => (int) ( $data['sort_order'] ?? 0 ),
+			'created_at'        => current_time( 'mysql' ),
 		] );
 		$id = (int) $wpdb->insert_id;
 
@@ -108,6 +120,12 @@ class Tasks {
 		if ( array_key_exists( 'assigned_user', $data ) ) {
 			$fields['assigned_user'] = ! empty( $data['assigned_user'] ) ? (int) $data['assigned_user'] : null;
 		}
+		if ( array_key_exists( 'assignment_status', $data ) ) {
+			if ( ! in_array( $data['assignment_status'], self::ASSIGNMENT_STATUSES, true ) ) {
+				return new WP_Error( 'pp_invalid_status', __( 'Invalid status.', 'project-prepper' ), [ 'status' => 400 ] );
+			}
+			$fields['assignment_status'] = $data['assignment_status'];
+		}
 		if ( array_key_exists( 'sort_order', $data ) ) {
 			$fields['sort_order'] = (int) $data['sort_order'];
 		}
@@ -119,6 +137,33 @@ class Tasks {
 			] );
 		}
 		return true;
+	}
+
+	/**
+	 * Offene Zuweisungs-Anfragen an einen User („Annehmen/Ablehnen" steht aus)
+	 * über alle Projekte seiner Gruppen — für den Dashboard-Hinweis und die
+	 * Benachrichtigungen. Der group_members-Join stellt sicher, dass nur
+	 * Projekte zählen, auf die der User (noch) Zugriff hat.
+	 *
+	 * @return array<object> Zeilen {id, title, project_id, project_name}.
+	 */
+	public static function pending_for_user( int $user_id ): array {
+		global $wpdb;
+		if ( ! $user_id ) {
+			return [];
+		}
+		return $wpdb->get_results( $wpdb->prepare(
+			"SELECT t.id, t.title, t.project_id, p.name AS project_name
+			 FROM %i t
+			 INNER JOIN %i p ON p.id = t.project_id
+			 INNER JOIN %i gm ON gm.group_id = p.owner_group_id AND gm.user_id = t.assigned_user
+			 WHERE t.assigned_user = %d AND t.assignment_status = 'pending' AND t.task_status <> 'done'
+			 ORDER BY t.id DESC",
+			Schema::table( 'project_tasks' ),
+			Schema::table( 'projects' ),
+			Schema::table( 'group_members' ),
+			$user_id
+		) ) ?: [];
 	}
 
 	/**

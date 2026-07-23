@@ -92,4 +92,29 @@
 		var none = form.querySelector( '.pp-book-none' );
 		if ( none ) { none.hidden = any; }
 	} );
+
+	/* Kopieren-Button (z.B. iCal-Feed-URL): kopiert den Wert des per
+	 * data-pp-copy referenzierten Feldes. Ohne JS bleibt das Feld selektierbar
+	 * (readonly + onclick select). */
+	document.addEventListener( 'click', function ( e ) {
+		var btn = e.target.closest( '[data-pp-copy]' );
+		if ( ! btn ) { return; }
+		var input = document.getElementById( btn.getAttribute( 'data-pp-copy' ) );
+		if ( ! input ) { return; }
+		var done = function () {
+			var orig = btn.textContent;
+			btn.textContent = btn.getAttribute( 'data-copied-label' ) || orig;
+			window.setTimeout( function () { btn.textContent = orig; }, 2000 );
+		};
+		input.select();
+		if ( navigator.clipboard && window.isSecureContext ) {
+			navigator.clipboard.writeText( input.value ).then( done, function () {
+				document.execCommand( 'copy' );
+				done();
+			} );
+		} else {
+			document.execCommand( 'copy' );
+			done();
+		}
+	} );
 } )();

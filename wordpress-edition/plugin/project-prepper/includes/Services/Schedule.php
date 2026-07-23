@@ -16,19 +16,20 @@ defined( 'ABSPATH' ) || exit;
 class Schedule {
 
 	/**
-	 * Chronologisch: zuerst nach Datum, dann Startzeit, dann manuelle
-	 * Reihenfolge, dann id. Einträge ohne Datum/Zeit (NULL) landen jeweils
-	 * ANS ENDE ihrer Stufe (`field IS NULL` ASC = gefüllte zuerst), damit
-	 * terminierte Punkte oben stehen — andernfalls würde MySQL NULLs bei
-	 * ASC nach vorne sortieren.
+	 * Zuerst nach Datum, INNERHALB eines Tages nach manueller Reihenfolge
+	 * (sort_order — Hoch/Runter-Chips im Portal, App: Drag-Sortierung), die
+	 * Startzeit nur noch als Gleichstand-Brecher. Einträge ohne Datum/Zeit
+	 * (NULL) landen ANS ENDE ihrer Stufe (`field IS NULL` ASC = gefüllte
+	 * zuerst), damit terminierte Punkte oben stehen — andernfalls würde MySQL
+	 * NULLs bei ASC nach vorne sortieren.
 	 */
 	public static function for_project( int $project_id ): array {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare(
 			'SELECT * FROM %i WHERE project_id = %d
 			 ORDER BY (schedule_date IS NULL) ASC, schedule_date ASC,
-			          (time_start IS NULL) ASC, time_start ASC,
-			          sort_order ASC, id ASC',
+			          sort_order ASC,
+			          (time_start IS NULL) ASC, time_start ASC, id ASC',
 			Schema::table( 'project_schedule' ),
 			$project_id
 		) ) ?: [];
@@ -150,6 +151,77 @@ class Schedule {
 		}
 		$wpdb->delete( Schema::table( 'project_schedule' ), [ 'id' => $id ], [ '%d' ] );
 		ActivityLog::log( 'schedule_deleted', 'project', (int) $entry->project_id, [ 'title' => $entry->title ] );
+		return true;
+	}
+
+	/**
+	 * Eintrag INNERHALB seines Tages hoch/runter schieben (sort_order-Tausch).
+	 * Die Nachbarschaft ist die Tagesgruppe (gleicher schedule_date bzw. beide
+	 * NULL) — genau die Gruppierung der Portal-Anzeige. Vor dem Tausch wird
+	 * sort_order auf die aktuelle Anzeige-Reihenfolge normalisiert (Altdaten
+	 * stehen alle auf 0 und waren bisher zeit-sortiert). Am Rand: No-op.
+	 *
+	 * @param string $dir 'up' | 'down'
+	 * @return true|WP_Error
+	 */
+	public static function move( int $id, string $dir ) {
+		global $wpdb;
+
+		if ( ! in_array( $dir, [ 'up', 'down' ], true ) ) {
+			return new WP_Error( 'pp_invalid_dir', __( 'Invalid direction.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$entry = self::get( $id );
+		if ( ! $entry ) {
+			return new WP_Error( 'pp_not_found', __( 'Schedule entry not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+
+		// Tagesgruppe in Anzeige-Reihenfolge (identisch zu for_project innerhalb
+		// eines Tages: sort_order, dann Zeit als Gleichstand-Brecher).
+		if ( null === $entry->schedule_date ) {
+			$ids = $wpdb->get_col( $wpdb->prepare(
+				'SELECT id FROM %i WHERE project_id = %d AND schedule_date IS NULL
+				 ORDER BY sort_order ASC, (time_start IS NULL) ASC, time_start ASC, id ASC',
+				Schema::table( 'project_schedule' ),
+				(int) $entry->project_id
+			) );
+		} else {
+			$ids = $wpdb->get_col( $wpdb->prepare(
+				'SELECT id FROM %i WHERE project_id = %d AND schedule_date = %s
+				 ORDER BY sort_order ASC, (time_start IS NULL) ASC, time_start ASC, id ASC',
+				Schema::table( 'project_schedule' ),
+				(int) $entry->project_id,
+				(string) $entry->schedule_date
+			) );
+		}
+
+		$moved = self::swap_in_list( Schema::table( 'project_schedule' ), array_map( 'intval', $ids ?: [] ), $id, $dir );
+		if ( true === $moved ) {
+			ActivityLog::log( 'schedule_moved', 'project', (int) $entry->project_id, [ 'entry_id' => $id, 'dir' => $dir ] );
+		}
+		return $moved;
+	}
+
+	/**
+	 * sort_order der Liste auf 0..n-1 normalisieren und $id mit dem Nachbarn
+	 * in Richtung $dir tauschen. Am Rand: No-op (true).
+	 *
+	 * @param array<int> $ordered_ids IDs in aktueller Anzeige-Reihenfolge.
+	 * @return true|WP_Error
+	 */
+	private static function swap_in_list( string $table, array $ordered_ids, int $id, string $dir ) {
+		global $wpdb;
+		$pos = array_search( $id, $ordered_ids, true );
+		if ( false === $pos ) {
+			return new WP_Error( 'pp_not_found', __( 'Schedule entry not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$target = 'up' === $dir ? $pos - 1 : $pos + 1;
+		if ( $target < 0 || $target >= count( $ordered_ids ) ) {
+			return true;
+		}
+		[ $ordered_ids[ $pos ], $ordered_ids[ $target ] ] = [ $ordered_ids[ $target ], $ordered_ids[ $pos ] ];
+		foreach ( array_values( $ordered_ids ) as $index => $row_id ) {
+			$wpdb->update( $table, [ 'sort_order' => $index ], [ 'id' => (int) $row_id ], [ '%d' ], [ '%d' ] );
+		}
 		return true;
 	}
 

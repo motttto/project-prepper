@@ -372,6 +372,57 @@ class Polls {
 	}
 
 	/**
+	 * Eigene Stimme zu EINER Option entfernen (App: der Klick-Zyklus endet
+	 * leer — leer→Ja→Vielleicht→Nein→leer). Gleiche Guards wie cast_vote
+	 * (offene Umfrage, Frist, Gruppen-Mitglied); eine nicht vorhandene Stimme
+	 * zu entfernen ist ein No-op (idempotent).
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function remove_vote( int $option_id, int $user_id ) {
+		global $wpdb;
+
+		$option = $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM %i WHERE id = %d',
+			Schema::table( 'project_poll_options' ),
+			$option_id
+		) );
+		if ( ! $option ) {
+			return new WP_Error( 'pp_not_found', __( 'Poll option not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$poll = self::get( (int) $option->poll_id );
+		if ( ! $poll ) {
+			return new WP_Error( 'pp_not_found', __( 'Poll not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		if ( 'open' !== $poll->status ) {
+			return new WP_Error( 'pp_poll_closed', __( 'This poll is already closed.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
+		if ( self::deadline_passed( $poll ) ) {
+			return new WP_Error( 'pp_poll_deadline', __( 'The deadline for this poll has passed.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
+		$group_id = self::owning_group( $poll );
+		if ( ! $group_id || ! Groups::is_member( $group_id, $user_id ) ) {
+			return new WP_Error(
+				'pp_not_group_member',
+				__( 'Only members of the project group may vote.', 'project-prepper' ),
+				[ 'status' => 403 ]
+			);
+		}
+
+		$wpdb->delete(
+			Schema::table( 'project_poll_votes' ),
+			[ 'option_id' => $option_id, 'user_id' => $user_id ],
+			[ '%d', '%d' ]
+		);
+		ActivityLog::log( 'poll_vote_removed', 'project', $poll->project_id, [
+			'poll_id'   => $poll->id,
+			'option_id' => $option_id,
+			'user_id'   => $user_id,
+		] );
+		return true;
+	}
+
+	/**
 	 * Titel/Beschreibung ändern — nur solange die Umfrage 'open' ist. Optionen
 	 * werden bewusst NICHT nachträglich geändert (würde bereits abgegebene
 	 * Stimmen invalidieren) — eine neue Umfrage ist der vorgesehene Weg.

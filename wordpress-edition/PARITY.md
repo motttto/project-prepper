@@ -3,6 +3,110 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.104.0 2026-07-23 (Backlog-Lauf A + B gemeinsam veröffentlicht)
+> Beide Backlog-Läufe (unten) sind mit **Plugin v0.104.0** released (Schema 0.31.0). Enthalten:
+> Wochen-Zeitraster im Kalender + persönlicher iCal-Abo-Feed (user-Token, Rotation) ·
+> Gruppen-Logo-Upload · Team-RSVP bei Gruppen-Anfragen · Umfrage-Stimme entfernbar ·
+> Bild-Lightbox für Projektdateien · Aufgaben annehmen/ablehnen · Hoch/Runter-Sortierung
+> (Zeitplan/Checklisten/Punkte). Plugin Check: nur bekannte Altfehler (Legal.php-Escaping,
+> Costs.php-PreparedSQL, MemberPortal.php-Translators) + erlaubte hidden_files/plugin_updater.
+> i18n: .pot regeneriert, de_DE.po abgeglichen (0 fuzzy), .mo per WP-POMO gebaut, 5 Stichproben
+> + 2 _x-Kontexte gegen die frische .mo bestätigt. update.json auf 0.104.0. GitHub-Release mit
+> angehängtem ZIP (Updater zieht das Asset).
+
+> ## 🧩 Backlog-Lauf B 2026-07-23 (Schema 0.31.0 — Team-RSVP + Vote-Löschen + Datei-Lightbox + Task-Annahme + Sortier-Chips; RELEASED in v0.104.0, baut auf Lauf A auf)
+> Fünf dokumentierte offene Punkte der Reihe nach geschlossen. **KEIN Commit/Release** (macht der
+> Betreiber); Plugin-Version noch 0.103.0, Schema **0.31.0** (additiv, in wp-env migriert).
+> (1) **Team-RSVP bei Anfragen** ✅ (App: inquiry-team-section.tsx + inquiry-rsvp-banner.tsx):
+> neue Tabelle `pp_inquiry_team` (inquiry_id, user_id, status invited|accepted|maybe|declined,
+> invited_by, Timestamps, UNIQUE inquiry_user); Service `Services/InquiryTeam.php` mit
+> Gruppen-Guards (nur Mitglieder der Owner-Gruppe einladbar/antwortberechtigt, IDOR-sicher —
+> `guard()` prüft Anfrage→owner_group_id + Mitgliedschaft). Nur GRUPPEN-Anfragen bekommen im
+> Detail (`?pp_inquiry=`) einen RSVP-Banner „Kannst du mitwirken?" (Ja/Vielleicht/Kann nicht,
+> Self-RSVP wie App-Migration 094) + Team-Liste (alle Mitglieder, Status-Chips, Ask/Withdraw/
+> Ask-again). Solo-Anfragen: keine Sektion. Listen-Hinweis-Chip „Bist du dabei?" + Dashboard-
+> Glocke + Zuweisungs-Hinweis. Dispatcher: `inqteam_invite/revoke/rsvp` (pp_inquiry-Erhalt aus
+> Referer). (2) **Vote-Löschen in Umfragen** ✅: `Polls::remove_vote` (gleiche Guards wie
+> cast_vote, idempotent); Matrix-Zyklus jetzt leer→Ja→Vielleicht→Nein→**leer** (`pp_vote=none`
+> → remove); Tallies/Best-Option folgen. (3) **Datei-Lightbox** ✅ (App: tab-files): Bild-Dateien
+> als Thumbnail-Grid (`wp_get_attachment_image_url` medium), Klick öffnet natives
+> `<dialog class="pp-modal pp-modal--portal pp-modal--lightbox">` (großes Bild large + Titel +
+> Download + Entfernen); PDFs/sonstige weiter als Zeilen. `wp_attachment_is_image()` trennt.
+> (4) **Task-Annahme-Flow** ✅ (App: project_tasks.assignment_status): additive Spalte
+> `assignment_status` auf pp_project_tasks (Default 'accepted' für Altdaten). Zuweisung an
+> ANDERE Person → 'pending'; Zugewiesene:r sieht im Aufgaben-Reiter „Annehmen/Ablehnen"
+> (`task_accept/task_decline`, Gate: nur assigned_user) + Status-Chip „Antwort ausstehend/
+> Abgelehnt"; Dashboard-Karte „Aufgaben-Zuweisungen" + Glocke. **Ablehnen behält assigned_user**
+> (Badge „Abgelehnt" am Namen) — gespiegelt aus der ECHTEN App (`handleDeclineTask` setzt nur
+> assignment_status='declined', NICHT assigned_to=NULL wie der Auftragstext vermutete).
+> (5) **Hoch/Runter-Sortier-Chips** ✅ (App: sort_order-Drag): `↑`/`↓`-Text-Buttons (die
+> Funktion, keine Deko) bei Zeitplan (innerhalb des Tages), Checklisten, Checklist-Punkten;
+> `Schedule::move`/`Checklists::move`/`move_item` tauschen sort_order serverseitig (normalisieren
+> die Anzeige-Reihenfolge, dann Nachbar-Swap; Rand = No-op). **Schedule::for_project sortiert
+> jetzt innerhalb des Tages nach sort_order, Zeit nur noch als Gleichstand-Brecher** (damit die
+> manuelle Reihenfolge greift). Aufgaben bewusst OHNE Sortier-Chips (App sortiert nach Status/
+> Prio). Tests: `php -l` (7 Dateien) + `msgfmt --check-format` grün; 40 Service-Tests via
+> eval-file (RSVP-Guards/Self-RSVP/re-invite, Vote-Remove+idempotent, Task-pending/accept/
+> decline-keeps-user, Sortier-Swaps+Ränder — PASS=40 FAIL=0); Browser-E2E mit ZWEI Usern
+> (portaltest lädt memberB ein → memberB Glocke „1 inquiry asks: are you in?" + Listen-Chip →
+> RSVP „Ja" → Confirmed-Chip; Vote-Zyklus bis leer; Task zuweisen → memberB Dashboard-Karte →
+> Annehmen/Ablehnen → Badge; Sortier-Chips Zeitplan+Checkliste+Punkt, Reihenfolge nach Reload
+> geprüft; Lightbox öffnen/schließen visuell); IDOR-Proben als tester1 (fremde Gruppe, gültige
+> Nonce) → alle `not_group_member`/`error`, DB unverändert; Dark-Mode-Stichprobe (RSVP-Banner +
+> Lightbox, computed `--pp-surface` #1a1833 bestätigt). Neue de_DE-Strings (nur .po) inkl. 2
+> Plurale + 2 `_x`-Kontexte (RSVP „Zugesagt/Abgesagt" vs. Status-Labels). Testdaten aufgeräumt,
+> Workspace-Meta zurückgesetzt. Verbliebene bewusste Reste: Team-RSVP-Telegram-Teilen
+> (v1.x-Modul), Task-Notification-Persistenz als eigene Tabelle (App task_notifications — hier
+> live berechnet, reicht fürs Portal).
+
+> ## 🧩 Backlog-Lauf A 2026-07-23 (Schema 0.30.0 — Wochen-Zeitraster + Kalender-Abo + Gruppen-Logo; RELEASED in v0.104.0 zusammen mit Lauf B)
+> Die drei „bewusst offen"-Punkte aus Parity-Lauf 2 der Reihe nach geschlossen. **KEIN Commit/
+> Release in diesem Lauf** (macht der Betreiber nach Lauf B); Plugin-Version noch 0.103.0,
+> Schema aber **0.30.0** (additiv: `logo_id` auf `pp_groups`, dbDelta, in wp-env migriert).
+> (1) **Wochen-Zeitraster** (App: WeekTimeGrid in calendar/page.tsx): `render_calendar_week`
+> rendert statt Tages-Chips jetzt `render_week_time_grid()` — Stunden-Achse 06–23 (48px/h),
+> Tages-Header mit Heute-Kreis, „Ganztags"-Zeile (zeitlose Termine + Projekte/Leihen als
+> `cal_chip`), Termine mit Uhrzeit als absolut positionierte Blöcke (top/height aus
+> time_start/time_end, Tönung `#RRGGBB26` + 3px-Border + Farbschrift wie die App,
+> Überlappungen per Greedy-Spalten `tg_layout()` = layoutEvents-Nachbau, Klemmung ins
+> 06–23-Fenster), rote Jetzt-Linie, Wochenende getönt, Stunden-/Halbstundenlinien als
+> CSS-repeating-gradient (keine DOM-Knoten), Body scrollbar (`max-height` + dünne Scrollbar),
+> horizontal scrollfähig <600px. Komplett server-gerendert, kein JS. `calendar_events()`
+> liefert dafür zusätzlich title/time_start/time_end je Eintrag (event+schedule); Monatsansicht
+> unangetastet (Regression im Browser geprüft). Altes `.pp-cal__week*`-CSS ersetzt durch
+> `.pp-cal__tg*`. (2) **Kalender-Abo (iCal) vervollständigt:** `CalendarController` kann jetzt
+> ZWEI Token-Arten an derselben Route `/calendar.ics` — Instanz-Token (Option, Verleih-Feed,
+> unverändert) + **persönliches Token** (`user_meta pp_ical_token`, `user_token()/
+> regenerate_user_token()/user_feed_url()`, Lookup via get_users+hash_equals). Persönlicher
+> Feed = alle Portal-Termine des Mitglieds (Solo + jede Gruppe): zeitlos → `VALUE=DATE` mit
+> exklusivem DTEND, Uhrzeiten → floating local time, SUMMARY/LOCATION/DESCRIPTION (Escaping
+> inkl. \n), **Kalendername + Gruppenname als CATEGORIES**, Farbe als `X-PP-CALENDAR-COLOR`,
+> X-WR-CALNAME „Site — Anzeigename". Portal-Kalender hat neue Karte „Deinen Kalender
+> abonnieren": readonly-URL-Feld (Copy-Button via `[data-pp-copy]` in portal.js, Fallback
+> onclick-select) + „URL erneuern" (confirm → `pp_do=ical_rotate` → `feed_rotated`-Meldung,
+> Redirect behält pp_cal/pp_month/pp_week). Betreiber-Feed-Link in der Legende bleibt.
+> **CalDAV-Zweiweg bewusst NICHT gebaut (v2.x)** — Feed bleibt read-only. (3) **Gruppen-Logo**
+> (App: groups.logo_url): Spalte `pp_groups.logo_id` (Schema 0.30.0), `Groups::update` nimmt
+> logo_id, `user_groups` liefert es mit; eigener multipart-Handler `admin_post_pp_group_logo`
+> (Nonce + **Founder-IDOR-Gate**, Bild-Mimes-Whitelist, Attachment; altes Attachment wird bei
+> Ersetzen/Entfernen hart gelöscht); Upload/Ersetzen/Entfernen im „Kollektiv bearbeiten"-
+> details der Karte (nur Gründer); Anzeige klein+rund auf der Kollektiv-Karte (40px) und im
+> Workspace-Switcher (20px, Summary + Optionen). **Tests (PASS):** php -l ×5, node --check,
+> msgfmt; Service-Ebene wp eval (logo_id-Spalte, Token stabil/rotiert, update/user_groups-
+> Roundtrip); curl-Feed: ohne/falscher Token → 401, User-Token → valide VEVENTs (5 Termine
+> Solo+Gruppe, ganztägig exklusiv, CATEGORIES, \n-Escaping), Instanz-Token-Verleih-Feed
+> unverändert, alter Token nach Rotation → 401; Browser als portaltest (echte Klicks +
+> Screenshots Light & Dark): Wochenraster mit 2 überlappenden Terminen (10–12/11–13:30
+> nebeneinander), Abend-Termin, Ganztags-Chip, Jetzt-Linie; Copy-Button → „Copied!" +
+> Selektion; „Renew URL" → feed_rotated + neues Token im Feld; Logo-PNG-Upload → Karte+
+> Switcher zeigen es (Gruppe 28), Workspace-Wechsel → Summary-Logo, Entfernen → weg +
+> Attachment gelöscht; Nicht-Gründer (tester1, „Mitglied" bei Stagehands) sieht KEINE
+> Edit-/Logo-UI; HTTP-IDOR mit gültiger Nonce (fremde Gruppe 5 / ID 999999) → pp_msg=error.
+> Testdaten (Kalender+5 Termine, Logo, Attachments) vollständig aufgeräumt. **i18n:** 16 neue
+> Strings nur in .po (msgfmt PASS; .mo/.pot + Versionsbump + update.json = Release nach
+> Lauf B). ⚠️ Dev-Gotcha: Browser cachte portal.js/frontend.css unter `?ver=0.103.0` —
+> beim Release löst der Versionsbump das; im wp-env-Test `fetch(url, {cache:'reload'})`.
+
 > ## 🧩 Release 2026-07-23 (Plugin v0.103.0, Schema 0.29.0 — beide Parity-Läufe in EINEM Release)
 > v0.103.0 bündelt die zwei Parity-Läufe unten (Dashboard/Anfragen/Verleih + Kalender/
 > Kosten/Umfragen/Gruppen). Die dort genannte v0.102.0 war nur ein interner Arbeitsstand
@@ -374,18 +478,18 @@
 > | Verleih intern (Borrowing) | `pp_view=lending` | **deckungsgleich** — Anfrage/Freigabe/Rückgabe + Föderation |
 > | `/inquiries` (+Detail) | `pp_view=inquiries` | **deckungsgleich** für Solo/Gruppe; Team-Zuweisung/RSVP = bewusst weggelassen (Multi-Owner-Governance, v2.x) |
 > | `/projects` (+Detail 12 Tabs) | `pp_view=projects` | **deckungsgleich (read+edit)** — Übersicht/Zeitplan/Beteiligte/Kosten/Gewinn/Vereinbarung/Beschlüsse/Umfragen/Aufgaben/Checklisten/Material/Dateien |
-> | `/calendar` | `pp_view=calendar` | **kleine Lücke (bewusst)** — Monats-/Wochenraster + iCal-Feed read-only; CalDAV-Zwei-Wege bewusst weggelassen (WP-Plugins-Sache) |
+> | `/calendar` | `pp_view=calendar` | **deckungsgleich** — Monatsraster + Wochen-Zeitraster (WeekTimeGrid-Nachbau, Backlog-Lauf A) + eigene Termine/Kalender + persönlicher iCal-Feed mit Token-Rotation; CalDAV-Zwei-Wege bewusst weggelassen (v2.x, WP-Plugins-Sache) |
 > | `/polls` (standalone) | `pp_view=polls` | **deckungsgleich** — date/choice anlegen, Ja/Vielleicht/Nein, schließen/wiedereröffnen (nur Gruppen-Modus wie App) |
 > | `/costs` (global) | `pp_view=costs` | **deckungsgleich** — neu in v0.97.0 |
-> | `/groups/[id]` | `pp_view=collectives` + `render_collective` | **kleine Lücke (bewusst)** — Mitglieder/Einladung/Voting/Austritt ✓; reine **Gruppen-Beschlüsse ohne Projekt** = definierter Rest (Schema `pp_decisions` ist projektgebunden; Projekt-Beschlüsse decken den Hauptfall); Gruppen-Settings (Name/Logo/Suffix/Telegram-Bearbeitung) = Backend/v1.x; `exit_settlements` = v2.x |
+> | `/groups/[id]` | `pp_view=collectives` + `render_collective` | **kleine Lücke (bewusst)** — Mitglieder/Einladung/Voting/Austritt ✓; Name/Beschreibung (v0.103.0) + **Logo-Upload (Backlog-Lauf A)** ✓ im Portal (Gründer); reine **Gruppen-Beschlüsse ohne Projekt** = definierter Rest (Schema `pp_decisions` ist projektgebunden; Projekt-Beschlüsse decken den Hauptfall); Suffix/Telegram-Bearbeitung = Backend/v1.x; `exit_settlements` = v2.x |
 > | `/groups/new` | `collectives` (Gründen-Formular) | **deckungsgleich** |
 > | Netzwerk/Föderation | `pp_view=network` | **deckungsgleich+** (über App hinaus: Cross-Instance-Leihe) |
 >
 > **Definierte Reste (kein Blocker für „funktionsfähiger Klon"):**
 > 1. Reine **Gruppen-Beschlüsse** (App `org_decisions` ohne `related_project_id`) — bräuchte Schema-
 >    Erweiterung `pp_decisions.project_id` nullable + `group_id`. Projekt-Beschlüsse sind voll da.
-> 2. **Gruppen-Settings-Bearbeitung** im Portal (Name/Beschreibung/Logo/Inventar-Suffix/Telegram) —
->    aktuell Backend-Masken; Portal zeigt Gruppe read-only + Mitglieder/Einladung/Austritt.
+> 2. **Gruppen-Settings-Bearbeitung** im Portal: Name/Beschreibung (v0.103.0) + Logo
+>    (Backlog-Lauf A) ✓ erledigt; Rest (Inventar-Suffix/Telegram) = Backend-Masken.
 > 3. CalDAV-Zwei-Wege, In-App-SMTP, `inventory_full_shares` (User↔User), `exit_settlements` — bewusst.
 
 > ## 🔄 Aktualisierung 2026-06-27 (Plugin v0.96.0 — Portal-Projektdetail: Kosten/Gewinn/Beteiligte/Vereinbarung + Kalender-Ausbau)

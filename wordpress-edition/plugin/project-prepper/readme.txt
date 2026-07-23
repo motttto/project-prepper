@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.103.0
+Stable tag: 0.104.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.104.0 =
+* Member portal: week time-grid calendar view with a subscribable personal iCal feed; group logo upload; team RSVP on group inquiries; poll votes can be cleared; image lightbox for project files; task accept/decline flow; and up/down reordering for schedule, checklists and checklist items.
 
 = 0.103.0 =
 * Member portal: app-style tab bars and full functionality across all sections — inquiries with pipeline detail view, offer fields and KPIs; rentals with tabs and edit modal; calendar with own calendars (colors) and event management; polls with participant matrix, deadlines and filters; costs with plan/actual per line; group editing; workspace-aware dashboard. The active tab is kept across all actions.

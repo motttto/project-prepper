@@ -2022,36 +2022,159 @@ button.pp-checkitem__box--on { background: var(--pp-success); }
 	grid-template-columns: repeat(7, 1fr);
 	gap: 6px;
 }
-.pp-cal__week {
-	display: grid;
-	grid-template-columns: repeat(7, 1fr);
-	gap: 6px;
-}
-.pp-cal__weekday {
-	min-height: 160px;
+/* Wochen-Zeitraster (App: WeekTimeGrid) — Stundenachse + positionierte Blöcke */
+.pp-cal__tg {
 	background: var(--pp-surface);
 	border: 1px solid var(--pp-border);
-	border-radius: 10px;
-	padding: 5px 6px 6px;
+	border-radius: 12px;
+	overflow-x: auto;
+}
+.pp-cal__tg-head,
+.pp-cal__tg-allday,
+.pp-cal__tg-body { display: flex; min-width: 600px; }
+.pp-cal__tg-head { border-bottom: 2px solid var(--pp-border); }
+.pp-cal__tg-gutter { flex: 0 0 52px; }
+.pp-cal__tg-dayhead {
+	flex: 1 1 0;
+	min-width: 0;
+	text-align: center;
+	padding: 8px 2px 6px;
+	border-left: 1px solid var(--pp-border);
+}
+.pp-cal__tg-dayhead--today { background: var(--pp-primary-light); }
+.pp-cal__tg-dow {
+	display: block;
+	font-size: .62rem;
+	font-weight: 700;
+	text-transform: uppercase;
+	letter-spacing: .06em;
+	color: var(--pp-muted-foreground);
+}
+.pp-cal__tg-dayhead--today .pp-cal__tg-dow { color: var(--pp-primary); }
+.pp-cal__tg-daynum {
+	display: inline-flex;
+	width: 30px;
+	height: 30px;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+	font-weight: 700;
+	font-size: .95rem;
+}
+.pp-cal__tg-dayhead--today .pp-cal__tg-daynum { background: var(--pp-primary); color: #fff; }
+.pp-cal__tg-allday { border-bottom: 1px solid var(--pp-border); }
+.pp-cal__tg-alllabel {
+	font-size: .62rem;
+	font-weight: 600;
+	color: var(--pp-muted-foreground);
+	text-align: right;
+	padding: 6px 8px 0 0;
+}
+.pp-cal__tg-allcol {
+	flex: 1 1 0;
+	min-width: 0;
+	padding: 3px;
+	border-left: 1px solid var(--pp-border);
 	display: flex;
 	flex-direction: column;
-	gap: 3px;
+	gap: 2px;
 }
-.pp-cal__weekday-head {
-	font-size: .72rem;
-	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: .03em;
+.pp-cal__tg-body { max-height: 560px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--pp-border) transparent; }
+.pp-cal__tg-hours { flex: 0 0 52px; position: relative; }
+.pp-cal__tg-hour {
+	position: absolute;
+	right: 8px;
+	transform: translateY(-50%);
+	font-size: .66rem;
+	font-weight: 500;
 	color: var(--pp-muted-foreground);
-	padding-bottom: 3px;
-	border-bottom: 1px solid var(--pp-muted);
-	margin-bottom: 2px;
 }
-.pp-cal__weekday-empty { color: #cbd5e1; text-align: center; }
-@media (max-width: 640px) {
-	.pp-cal__week { grid-template-columns: 1fr; }
-	.pp-cal__weekday { min-height: 0; }
+.pp-cal__tg-daycol {
+	flex: 1 1 0;
+	min-width: 0;
+	position: relative;
+	border-left: 1px solid var(--pp-border);
+	/* Stunden- (48px) + Halbstunden-Linien (24px) als Gradient statt DOM-Knoten */
+	background-image:
+		repeating-linear-gradient(to bottom, var(--pp-border) 0, var(--pp-border) 1px, transparent 1px, transparent 48px),
+		repeating-linear-gradient(to bottom, transparent 0, transparent 24px, var(--pp-muted) 24px, var(--pp-muted) 25px, transparent 25px, transparent 48px);
 }
+.pp-cal__tg-daycol--today { background-color: var(--pp-primary-light); }
+.pp-cal__tg-daycol--wknd { background-color: var(--pp-muted); }
+.pp-cal__tg-now {
+	position: absolute;
+	left: 0;
+	right: 0;
+	height: 2px;
+	background: var(--pp-destructive);
+	z-index: 3;
+	pointer-events: none;
+}
+.pp-cal__tg-now::before {
+	content: "";
+	position: absolute;
+	left: -4px;
+	top: -4px;
+	width: 10px;
+	height: 10px;
+	border-radius: 999px;
+	background: var(--pp-destructive);
+}
+.pp-cal__tg-ev {
+	position: absolute;
+	display: block;
+	box-sizing: border-box;
+	border-radius: 6px;
+	border-left: 3px solid transparent;
+	padding: 2px 6px;
+	overflow: hidden;
+	text-decoration: none;
+	z-index: 2;
+}
+a.pp-cal__tg-ev:hover { filter: brightness(1.05); }
+.pp-cal__tg-ev-title {
+	display: block;
+	font-size: .7rem;
+	font-weight: 600;
+	line-height: 1.25;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+.pp-cal__tg-ev-time { display: block; font-size: .64rem; opacity: .75; }
+
+/* Kalender-Abo: Feed-URL + Kopieren + Erneuern in einer Zeile */
+.pp-cal__sub { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pp-cal__sub-url {
+	flex: 1 1 260px;
+	min-width: 0;
+	font-size: .78rem;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	color: var(--pp-muted-foreground);
+	background: var(--pp-muted);
+	border: 1px solid var(--pp-border);
+	border-radius: 8px;
+	padding: 7px 10px;
+}
+.pp-cal__sub form { margin: 0; }
+
+/* Gruppen-Logo: klein + rund auf Kollektiv-Karte und im Workspace-Switcher */
+.pp-portal__collective-logo {
+	width: 40px;
+	height: 40px;
+	border-radius: 999px;
+	object-fit: cover;
+	flex: none;
+}
+.pp-app__ws-logo {
+	width: 20px;
+	height: 20px;
+	border-radius: 999px;
+	object-fit: cover;
+	flex: none;
+}
+.pp-app__ws > summary .pp-app__ws-text { flex: 1 1 auto; }
+.pp-app__ws-opt { display: flex; align-items: center; gap: 8px; }
 .pp-cal__dow {
 	font-size: .72rem;
 	font-weight: 600;
@@ -2271,3 +2394,64 @@ label.pp-swatch,
 
 /* Kollektiv-Beschreibung auf der Karte */
 .pp-portal__collective-desc { margin: 4px 0 8px; font-size: .85rem; color: var(--pp-muted-foreground); }
+
+/* ===== Team-RSVP bei Anfragen (v0.104.0) ===== */
+/* Selbst-RSVP-Banner (App: inquiry-rsvp-banner) */
+.pp-rsvp { border-left: 3px solid var(--pp-border); }
+.pp-rsvp--accepted { border-left-color: var(--pp-success); }
+.pp-rsvp--maybe { border-left-color: var(--pp-warning); }
+.pp-rsvp--declined { border-left-color: var(--pp-destructive); }
+.pp-rsvp__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.pp-rsvp__hint { margin: 2px 0 0; font-size: .78rem; color: var(--pp-muted-foreground); }
+.pp-rsvp__state { flex: none; padding: 2px 10px; border-radius: 999px; font-size: .72rem; font-weight: 600; background: var(--pp-muted); color: var(--pp-muted-foreground); }
+.pp-rsvp__state--accepted { background: var(--pp-success); color: #fff; }
+.pp-rsvp__state--maybe { background: var(--pp-warning); color: #fff; }
+.pp-rsvp__state--declined { background: var(--pp-destructive); color: #fff; }
+.pp-rsvp__actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.pp-rsvp__actions form { margin: 0; }
+.pp-rsvp__btn { padding: 7px 14px; border-radius: 8px; font-size: .82rem; font-weight: 500; border: 1px solid var(--pp-border); background: var(--pp-surface); color: var(--pp-foreground); cursor: pointer; }
+.pp-rsvp__btn--yes { border-color: var(--pp-success); color: var(--pp-success); }
+.pp-rsvp__btn--no { border-color: var(--pp-destructive); color: var(--pp-destructive); }
+.pp-rsvp__btn--yes.pp-rsvp__btn--on { background: var(--pp-success); color: #fff; }
+.pp-rsvp__btn--maybe.pp-rsvp__btn--on { background: var(--pp-warning); border-color: var(--pp-warning); color: #fff; }
+.pp-rsvp__btn--no.pp-rsvp__btn--on { background: var(--pp-destructive); color: #fff; }
+
+/* Team-Liste mit Status pro Mitglied (App: inquiry-team-section) */
+.pp-team { display: flex; flex-direction: column; gap: 4px; }
+.pp-team-count { margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: .72rem; font-weight: 600; background: var(--pp-success-light); color: var(--pp-success); vertical-align: 1px; }
+.pp-team-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 8px; }
+.pp-team-row--accepted { background: color-mix(in srgb, var(--pp-success) 8%, transparent); }
+.pp-team-row--maybe,
+.pp-team-row--invited { background: color-mix(in srgb, var(--pp-warning) 8%, transparent); }
+.pp-team-row--declined { background: var(--pp-muted); }
+.pp-team-row--declined .pp-team-row__name { color: var(--pp-muted-foreground); }
+.pp-team-row__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--pp-border); }
+.pp-team-row--accepted .pp-team-row__dot { background: var(--pp-success); }
+.pp-team-row--maybe .pp-team-row__dot,
+.pp-team-row--invited .pp-team-row__dot { background: var(--pp-warning); }
+.pp-team-row--declined .pp-team-row__dot { background: var(--pp-muted-foreground); }
+.pp-team-row__name { flex: 1; min-width: 0; font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-team-row__aside { display: flex; align-items: center; gap: 6px; flex: none; }
+.pp-team-row__aside form { margin: 0; }
+.pp-team-chip { padding: 1px 8px; border-radius: 999px; font-size: .72rem; font-weight: 600; white-space: nowrap; }
+.pp-team-chip--accepted { background: var(--pp-success-light); color: var(--pp-success); }
+.pp-team-chip--maybe,
+.pp-team-chip--invited { background: var(--pp-warning-light); color: var(--pp-warning); }
+.pp-team-chip--declined { background: var(--pp-muted); color: var(--pp-muted-foreground); border: 1px solid var(--pp-border); }
+
+/* ===== Datei-Vorschau-Grid + Lightbox (App: tab-files) ===== */
+.pp-file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.pp-file-thumb { display: flex; flex-direction: column; gap: 0; padding: 0; border: 1px solid var(--pp-border); border-radius: 10px; overflow: hidden; background: var(--pp-surface); cursor: zoom-in; text-align: left; }
+.pp-file-thumb img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+.pp-file-thumb__label { padding: 6px 8px; font-size: .75rem; color: var(--pp-muted-foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pp-modal--lightbox { width: min(90vw, 860px); }
+.pp-lightbox__body img { max-width: 100%; height: auto; border-radius: 8px; display: block; margin: 0 auto; }
+.pp-lightbox__actions { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 12px 0 0; }
+.pp-lightbox__actions form { margin: 0; display: inline; }
+
+/* ===== Hoch/Runter-Sortier-Chips (Zeitplan/Checklisten) ===== */
+.pp-move { display: inline; margin: 0; }
+.pp-move__btn { min-width: 26px; padding: 2px 6px; line-height: 1.2; }
+
+/* Dashboard-Hinweis: offene Aufgaben-Zuweisungen */
+.pp-taskhint { margin-bottom: 1rem; }
