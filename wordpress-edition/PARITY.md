@@ -3,6 +3,64 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release 2026-07-23 (Plugin v0.103.0, Schema 0.29.0 — beide Parity-Läufe in EINEM Release)
+> v0.103.0 bündelt die zwei Parity-Läufe unten (Dashboard/Anfragen/Verleih + Kalender/
+> Kosten/Umfragen/Gruppen). Die dort genannte v0.102.0 war nur ein interner Arbeitsstand
+> und wurde nie veröffentlicht — es gibt ein einziges Release v0.103.0 mit Schema 0.29.0
+> (0.28.0 + 0.29.0 laufen bei Instanzen in einem Update durch, beides additiv via dbDelta).
+> ~87 neue de_DE-Strings übersetzt (.pot/.po/.mo aktuell), Plugin Check nur Altfehler.
+
+> ## 🧩 Parity-Lauf 2 2026-07-23 (Plugin v0.103.0, Schema 0.29.0 — Kalender-Termine + Umfrage-Matrix + Kosten/Gruppen-Politur)
+> Fokus Kalender/Kosten/Umfragen/Gruppen/Netzwerk im Mitglieder-Portal. **Schema 0.29.0:**
+> neue Tabellen `pp_calendar_groups` (Name + Farbe aus der festen 8er-App-Palette, Owner
+> Solo XOR Gruppe) und `pp_calendar_events` (Datum + optionale HH:MM-Zeiten statt
+> datetime/all_day — leere Zeiten = ganztägig) + Spalte `deadline` auf `pp_project_polls`
+> (alles additiv via dbDelta). **Kalender** (A-Lücke geschlossen): eigene Termine CRUD im
+> Portal — neuer Service `CalendarEvents` (Owner-Paar-Guards, Fremd-Kalender wird beim
+> Zuordnen verworfen), Termin-Chips im Monats-/Wochenraster in der Kalenderfarbe (inline,
+> weiße Schrift, Anker in die Termin-Liste), Sektionen „Deine Termine" (Inline-Edit +
+> Löschen + „Neuer Termin"-Modal im App-Look) und „Kalender" (Anlegen/Umbenennen/Umfärben
+> per Radio-Farb-Swatches, Löschen behält Termine ohne Kalender), Legende zeigt eigene
+> Kalender; Redirects erhalten pp_month/pp_week/pp_cal aus dem Referer. **Umfragen**
+> (App-PollCard/PollDateGrid): Teilnehmer-Matrix (wer stimmte wie — eigene Zeile mit
+> Zyklus-Button leer→Ja→Vielleicht→Nein→Ja, fremde Zeilen statisch, Zusagen-Zeile mit
+> grüner Best-Option), Meta-Zeile „von X · n Teilnehmer · bis Frist", Deadline
+> (datetime-local, Server-Guard `pp_poll_deadline` in cast_vote), Filter-Reiter
+> Aktiv/Alle/Geschlossen/Meine (`.pp-proj-tabs` + pp_tab, eigene Empty-States), Löschen
+> (`poll_delete`/`gpoll_delete`, Service existierte). Gilt auch für Projekt-Umfragen
+> (geteilter Renderer). **Kosten:** Zeilen zeigen Plan- UND Ist-Betrag getrennt (wie
+> App-Tabelle), Projekt-Link springt in den Kosten-Reiter (`pp_tab=costs`).
+> **Gruppen:** Beschreibung auf der Kollektiv-Karte + „Kollektiv bearbeiten"
+> (Name/Beschreibung) für Gründer (`group_update` mit Founder-Gate). **Netzwerk:** geprüft,
+> konsistent — keine Änderung. 9 neue pp_do-Aktionen, 47 neue de_DE-Strings (.po,
+> msgfmt-valide). Getestet: 27/27 Service-Tests (CRUD, Validierung, IDOR Solo↔Gruppe,
+> Deadline-Guard, Voter-Matrix), Browser-Durchklick aller Rubriken inkl. Reiter-/Monats-
+> Erhalt nach jeder Aktion, HTTP-IDOR-Proben (fremdes Event/fremder Kalender/fremde Gruppe
+> → pp_msg=error), Dark Mode Kalender+Matrix. Bewusst offen: Wochen-Zeitraster
+> (WeekTimeGrid) und Kalender-Sichtbarkeits-Toggles der App (JS-lastig, C), Logo-Upload
+> für Gruppen (multipart, v1.x), Vote-Löschen am Zyklus-Ende (Service kennt nur
+> yes/no/maybe — Zyklus springt auf Ja zurück).
+
+> ## 🧩 Parity-Lauf 2026-07-23 (Plugin v0.102.0, Schema 0.28.0 — Anfragen-Pipeline + Verleih-Reiter + Portal-Detail)
+> Fokus Dashboard/Anfragen/Verleih im Mitglieder-Portal. **Schema 0.28.0:** `pp_inquiries`
+> + 8 App-Paritäts-Spalten (title, contact_person, venue_name, estimated_budget,
+> offer_amount, probability, follow_up, project_id — additiv via dbDelta).
+> **Anfragen** = App-Nachbau: Liste mit KPI-Ministats (Neu/Kontaktiert/Angebot/Angebotswert)
+> + Reitern Pipeline/Archiv, klickbare Zeilen → **Detail-Ansicht `?pp_inquiry=`**
+> (Pipeline-Chips mit serverseitigen Transitions, Sektionen Kunde/Event/Angebot & Bewertung/
+> Notizen/Aktionen, „Zum Projekt" nach Konvertierung); `to_project` mappt Budget wie die App
+> (estimated→budget_planned Fallback offer, offer→revenue_actual, name=title) + verlinkt
+> `project_id`. **Verleih** = 4 Reiter statt Langseite (Externe Verleihe · Stöbern ·
+> Leih-Anfragen · Meine Leihen, mit Zähler-Badges + Empty-States) + **Verleih-Bearbeiten-Modal**
+> (Header + Positionen mit Zeilen-ID-Diff, `MemberRentals::update` mit Owner-/Item-Guards).
+> **Dispatcher:** Referer-`pp_tab` wird jetzt für ALLE View-Redirects übernommen (nicht mehr
+> nur pp_project); `borrow_*` kehrt nach Verleih statt aufs Dashboard zurück; Anfrage-Aktionen
+> aus dem Detail bleiben im Detail. **Dashboard:** Inventar-KPI arbeitsbereich-bewusst
+> (Gruppe → geteilter Pool). 40 neue de_DE-Strings (.po; .mo/.pot macht der Release-Agent).
+> Getestet: 31/31 Service-Tests (Felder, Clamps, Budget-Mapping, Diff, IDOR, Überbuchung),
+> Browser-Durchklick beider Rubriken inkl. Reiter-Erhalt nach jeder Aktion, HTTP-IDOR-Proben
+> (fremder Verleih/fremde Anfrage → error), Dark Mode.
+
 > ## 🧩 Release 2026-07-22 (Plugin v0.101.0, Schema 0.27.0 — Projekt-Detail mit App-Reitern)
 > UI-Release, KEIN Schema-Change (bleibt 0.27.0), keine DB-Migration; `MemberPortal.php`,
 > `frontend.css`, `de_DE.po` (2 neue Strings: „Team & contacts", „Project sections").
@@ -448,7 +506,7 @@
 | Kategorien-Merge (Migration 097) | ✅ v0.7.0 | — (POST /categories/{id}/merge; Button "Zusammenführen…" + Modal mit Ziel-Select und Item-Anzahl; Activity-Log category_merged) | — |
 | Excel **XLSX** Import/Export (§8.6) | ✅ v0.6.0 | — (SheetJS CE 0.20.3 lokal gebündelt, Export mit aktuellen Filtern als inventar-JJJJ-MM-TT.xlsx, Import .xlsx/.xls über denselben Mapping-Editor, Datums-Zellen → JJJJ-MM-TT; CSV bleibt als Fallback) | — |
 
-## Verleih (Parität: ~92 %)
+## Verleih (Parität: ~96 %)
 
 | App-Feature (Quelle) | WP-Status | Lücke | Prio |
 |---|---|---|---|
@@ -461,8 +519,11 @@
 | "Mein Equipment unterwegs" (§9.3) | ✅ v0.94.0 | — (Portal-Inventar-Ansicht: `Borrowing::equipment_out()`, Kollektiv-Leihen + externe Verleihe eigener Items) | — |
 | Inventar freigeben (Gesamt-Share, Migration 092) | ✅ v0.94.0 | — (Portal: `share_all`/`unshare_all` bündelt item_group_shares; Ziel = Gruppe, kein User↔User) | — |
 | Auswertung (Ertrag/Tagessatz, App: Earnings-Overview) | ✅ v0.94.0 | — (Portal: `evaluation()` — Tageswert + Auslastung + belegte Verleih-Erträge; keine erfundenen Projekt-Erträge) | — |
+| **Verleih bearbeiten im Portal** (App: rentals/[id] — Header + Positionen) | ✅ v0.102.0 | — (`MemberRentals::update` mit Owner-/Item-Guards; App-Look-Modal je Verleih [reserved/active]: Person/Zeitraum/Kaution/Gebühr + Positions-Checkboxen mit Menge/Tagessatz, Zeilen-IDs → Diff in `Rentals::update`) | — |
+| **Reiter-Struktur** (statt Langseite) | ✅ v0.102.0 | — (4 Reiter Externe Verleihe/Stöbern/Leih-Anfragen/Meine Leihen mit Zähler-Badges + Empty-States; `.pp-proj-tabs`; Reiter überlebt jede Aktion via Referer-`pp_tab` im Dispatcher) | — |
+| Tagessatz-Verhandlung pro Position (Migration 101: proposed/agreed_rate) | ❌ bewusst | WP-Verleih ist single-owner (eigene Items an Externe) — Verhandlung zwischen Item-Ownern entfällt; Kollektiv-Fall läuft über den Borrow-Workflow | — |
 
-## Anfragen (Parität: ~90 %)
+## Anfragen (Parität: ~96 %)
 
 | App-Feature (Quelle) | WP-Status | Lücke | Prio |
 |---|---|---|---|
@@ -470,6 +531,11 @@
 | Status-Pipeline der App (new→contacted→offer→won/lost) | ✅ v0.7.0 | — (Transitions serverseitig erzwungen, won/lost/closed = Endstati; 'closed' bleibt als Legacy-Wert lesbar; Konvertieren setzt 'won') | — |
 | Anfrage-**Detail** (App: inquiries/[id]) | ✅ v0.5.0 | — (Zeile klickbar, Modal mit allen Feldern, mailto-Link, voller Nachricht, Equipment-Liste, Status-/Konvertieren-/Löschen-Aktionen) | — |
 | **Anfrage → Verleih konvertieren** (§11 Konvertierung) | ✅ v0.4.0 | — (Button im Admin, beide Edit-Caps nötig, ohne Zeitraum deaktiviert; Anfrage → closed, Verlinkung im Activity-Log) | — |
+| **Feld-Parität zur App** (title, contact_person, venue, estimated_budget, offer_amount, probability, follow_up) | ✅ v0.102.0 | — (Schema 0.28.0, 8 neue Spalten; Formular vollständig; probability serverseitig 0–100 geklemmt, Geldwerte leer→NULL) | — |
+| **Portal-Detail-Ansicht** (App: inquiries/[id] — Pipeline + Sektionen) | ✅ v0.102.0 | — (`?pp_inquiry=`, Muster Projekt-Detail: Pipeline-Chips [nur erlaubte Übergänge klickbar, Rest gedimmt], Kunde/Event/Angebot & Bewertung/Notizen/Aktionen, mailto, Follow-up-fällig-Warnung, „Zum Projekt") | — |
+| **Listen-KPIs + Reiter** (App: Ministats + Statusfilter) | ✅ v0.102.0 | — (Neu/Kontaktiert/Angebot/Angebotswert; Reiter Pipeline/Archiv mit Zählern; Zeile = Link mit Status-Pill, Angebotssumme, Wahrscheinlichkeits-Badge) | — |
+| **Anfrage → Projekt mit Budget-Mapping** (App: handleCreateProject) | ✅ v0.102.0 | — (estimated_budget→budget_planned [Fallback offer_amount], offer_amount→revenue_actual, name=title, venue übernommen; `project_id` auf der Anfrage verlinkt; Erfolg springt ins Projekt) | — |
+| Team-Zuweisung + RSVP (inquiry_invitations, App-Komponenten) | ❌ bewusst | Multi-Owner-Governance — im WP-Modell sehen alle Gruppen-Mitglieder die Gruppen-Anfrage ohnehin; kein Einladungs-/RSVP-Flow nötig (Entscheidung v0.95.0 bestätigt) | — |
 
 ## Öffentliches Frontend (WP-only, kein App-Pendant — App ist komplett auth-geschützt)
 
@@ -491,7 +557,7 @@
 | DSGVO Export/Löschung (§17) | ✅ v0.2.0 | — | — |
 | SMTP-Konfiguration pro Betreiber (§16) | ⚠️ entschieden | wp_mail nutzt Server-Mail; SMTP via Standard-Plugins (z. B. WP Mail SMTP) — bewusst nicht selbst gebaut (WordPress-üblich) | — |
 
-## Dashboard (v1.x — Parität: ~85 %)
+## Dashboard (v1.x — Parität: ~90 %)
 
 > Die App-Startseite (src/app/(dashboard)/dashboard) ist KPI-Counts + Gruppen-Einladungs-/Voting-Widgets. Die WP-Edition baut die KPI-/Übersichts-Seite als Plugin-Startseite; die Einladungs-/Voting-Widgets entfallen (WP-Gruppen haben keinen Voting-Beitritt — bewusste Vereinfachung, docs/03-GRUPPEN-ARCHITEKTUR.md).
 
@@ -501,6 +567,7 @@
 | Anstehend (nächste 14 Tage) | ✅ v0.19.0 | — (Verleihe reserved/active + Projekte (nicht cancelled/done) mit date_from/date_start in den nächsten 14 Tagen; Projekt-Zeilen verlinken aufs Projekt-Detail `#pp-project-{id}`) | — |
 | Letzte Aktivität | ✅ v0.19.0 | — (ActivityLog::recent(8), menschenlesbare action/entity-Label-Map im JS mit Fallback auf den rohen Key, Akteur via get_userdata bzw. „System"/„—") | — |
 | Gruppen-Zugriff bei Projekt-Counts | ✅ v0.19.0 | — (Projekte über Projects::all() → Nicht-Admins zählen nur sichtbare (eigene Gruppen + Site) Projekte; getestet: Gruppenmitglied vs. Outsider) | — |
+| **Portal-KPIs arbeitsbereich-bewusst** (App: ownerFilter je Workspace) | ✅ v0.102.0 | — (Gruppen-Modus: Inventar-Kachel zählt den geteilten Gruppen-Pool statt des persönlichen Inventars; Anfragen/Projekte waren bereits workspace-gescopt) | — |
 | Einladungs-/Voting-Widgets der App | ❌ bewusst entfallen | WP-Gruppen ohne Voting-Beitritt (Architektur-Entscheidung) | — |
 
 ## Projekte (v1.x — alle 12 App-Tabs abgebildet, Parität ~92 %, 12/12 Tabs)
@@ -575,8 +642,10 @@ Verbleibender Backlog (Mittel/Niedrig, Produktentscheidung):
 - **Reine Gruppen-Beschlüsse (ohne Projekt)** — definierter Rest: `pp_decisions` ist projektgebunden;
   App-`org_decisions` ohne `related_project_id` bräuchte `project_id` nullable + `group_id`-Spalte.
   Projekt-Beschlüsse decken den Hauptfall. v1.x-Kandidat, niedrige Prio.
-- **Gruppen-Settings-Bearbeitung im Portal** (Name/Beschreibung/Logo/Suffix/Telegram) — aktuell
-  Backend-Masken; Portal zeigt Gruppe read-only + Mitglieder/Einladung/Voting/Austritt. v1.x.
+- **Gruppen-Settings-Bearbeitung im Portal** — ✅ teilweise erledigt (2026-07-23, v0.103.0):
+  Name + Beschreibung sind für Gründer direkt auf der Kollektiv-Karte editierbar (`group_update`,
+  Founder-Gate). Offen bleiben Logo-Upload (multipart-Handler + Medienrechte für Mitglieder,
+  bewusst v1.x) sowie Suffix/Telegram (Backend-Masken; Telegram = v1.x-Modul).
 - **Gruppen / Austrittsabrechnung** — App `exit_settlements`/Austritts-Wizard nicht portiert.
   Bewertung: WP-Gruppen haben **keinen** Voting-Beitritt und kein Kapitalkonto-/Anteils-Modell wie die
   App; eine Austrittsabrechnung hätte kein sinnvolles Daten-Fundament. **Blockiert: braucht
@@ -635,6 +704,10 @@ Vereinbarung — 4 Multi-User/Gruppen-Tabs, Architektur-Entscheidung nötig).
 - Architektur-Entscheidung „echtes Gruppen-Overlay" ist **getroffen** (2026-06-13, docs/03-GRUPPEN-ARCHITEKTUR.md) — die 4 ehemals blockierten Projekt-Tabs sind jetzt als Gruppen-Phasen 2–5 verplant.
 
 ## Log
+
+- Parity-Lauf 2 Kalender/Kosten/Umfragen/Gruppen/Netzwerk (2026-07-23, v0.103.0, Schema 0.29.0): **Kalender-Termine + Kalender mit Farben, Umfrage-Teilnehmer-Matrix + Deadline + Filter-Reiter, Kosten-Plan/Ist, Gruppen-Edit.** (1) **Schema 0.29.0:** `pp_calendar_groups` (owner_user_id XOR owner_group_id, name, color #RRGGBB aus fester 8er-Palette = CALENDAR_COLORS der App, sort_order) + `pp_calendar_events` (calendar_group_id 0=keiner, Owner-Paar, title/description/location, date_from/date_to + time_start/time_end HH:MM — leer=ganztägig statt App-datetime/all_day) + `deadline datetime NULL` auf `pp_project_polls`; Migration in wp-env verifiziert. (2) **Neuer Service `CalendarEvents`:** calendars/create_calendar/update_calendar/delete_calendar (Löschen setzt Events auf calendar_group_id=0), events_between (LEFT JOIN Farbe/Name, Überlappungsfenster), create/update/delete_event; Guards: workspace_guard (Gruppen-Mitgliedschaft), owned_calendar/owned_event (Owner-Paar-Match = IDOR-Schutz), Fremd-Kalender-ID beim Zuordnen → 0, Farb-Whitelist, Zeit-Regex, date_to<date_from → `pp_invalid_date`. (3) **Polls-Service:** `deadline` in create/create_group (`sanitize_deadline`: datetime-local → MySQL, nur Datum → 23:59:59), `deadline_passed()`, cast_vote-Guard → `pp_poll_deadline` (409), `voters()` = Teilnehmer-Matrix (JOIN wp_users, user_id → display_name + votes-Map). (4) **Portal Kalender:** `calendar_events()` mischt eigene Termine des aktiven Workspace als type=event mit `color` ein (Sortierung event→project→schedule→borrow); `cal_chip()`-Helper rendert Chips beider Raster, bei Farbe inline background+border-left+weiß; unter dem Raster `render_calendar_manage()` — „Deine Termine" (Farb-Punkt, Meta Datum·Zeit·Ort·Kalender, details-Inline-Edit mit `event_form()`, Löschen mit confirm, Anker `#pp-ev-{id}` + scroll-margin) + „Neuer Termin"-Modal (App-Look, 2-Spalten-Grid) + „Kalender"-Sektion (Zeilen mit Swatch, Inline-Edit Name+`color_swatches()`-Radios, Löschen, Anlegen); Legende + Solo/Gruppen-Hinweis. Dispatcher-Redirects hängen pp_cal/pp_month/pp_week aus dem Referer wieder an. (5) **Portal Umfragen:** `view_polls` mit Reitern Aktiv (n)/Alle/Geschlossen (n)/Meine (n) über pp_tab + eigene Empty-States; `render_polls_list` komplett neu — Kopf (Titel/Status/Typ) + Meta-Zeile (Ersteller via get_userdata, Teilnehmerzahl `_n()`, „bis {deadline}") + Matrix `.pp-pollgrid` (thead: Termin-Optionen als Wochentag/Datum/Zeit via `poll_option_head`, choice als Label; eigene Zeile zuerst+getönt, pro Zelle EIN Zyklus-Button `pp_vote=<next>` mit Glyph ✓/?/✕/·; fremde Zeilen statisch aus `Polls::voters`; Zusagen-Zeile, Best-Option grün) + Manage-Zeile Schließen/Öffnen **+ Löschen** (confirm) + Frist-abgelaufen-Hinweis (Buttons weg); Create-Modal + Feld „Frist (optional)" (datetime-local). Alte `.pp-poll-opt*`-Liste ersetzt; Projekt-Umfragen nutzen denselben Renderer (Kontext `poll`/`gpoll` unverändert). (6) **Portal Kosten:** Zeile = „Plan X € · Ist Y €" (Ist fett, — bei NULL), Projekt-Link mit `pp_tab=costs` (im Browser verifiziert: landet im Kosten-Reiter des Projektdetails). (7) **Portal Gruppen:** `Groups::user_groups` liefert description mit; Kollektiv-Karte zeigt Beschreibung (`.pp-portal__collective-desc`) + Gründer-details „Kollektiv bearbeiten" (Name/Beschreibung → `group_update`, Dispatcher-Gate `is_group_founder`). (8) **Dispatcher:** neue Aktionen calgroup_create/update/delete, event_create/update/delete, poll_delete (in gov_actions), gpoll_delete, group_update; Error-Mappings pp_poll_deadline→poll_deadline, pp_invalid_date→invalid_date; neue Meldungen event_saved/event_deleted/calendar_saved/calendar_deleted/poll_deleted/group_saved. (9) **CSS:** `.pp-pollgrid*` (Matrix, me-Zeile getönt, Zustands-Buttons success/warning/destructive-light, Best grün), `.pp-swatches`/`.pp-swatch` (Radio-Farb-Swatches, :has(:checked)-Ring, label.-Spezifität wg. flex-column-Gotcha), `.pp-ev-dot`, `.pp-cal__chip--event`-Fallback, `.pp-gov__meta`, `.pp-gov__manage` flex, `.pp-portal__collective-desc` — alles über `--pp-*`-Variablen (Dark Mode geprüft). **Tests (PASS):** php -l ×6; wp eval-file 27/27 (Kalender-CRUD Solo+Gruppe, Farb-Fallback, ungültige/verdrehte Daten, IDOR Solo↔Gruppe/Fremd-User/Fremd-Kalender, Kalender-Löschen behält Termine; Deadline speichern/leer→NULL/abgelaufen blockt Vote; voters-Matrix inkl. display_name); Browser als portaltest (echte Klicks): Kalender angelegt (grün) → Legende+Liste, Termin per Modal (24.–25.7., 10:00, Halle 3, Kalender Proben) → grüne Chips in Monat UND Woche (computed: bg #22C55E, weiß, href #pp-ev-4), Inline-Edit Titeländerung, Monat blieb über alle Redirects Juli 2026; Umfragen: Reiter mit Zählern, Matrix zeigt memberB ✓/?/✕ + „(du)"-Zeile, Zyklus ·→✓→? je Klick (Reiter blieb Active), Geschlossen-Reiter statisch + „Wieder öffnen", Löschen → „Poll deleted." im Geschlossen-Reiter mit Empty-State, Neue Umfrage mit Frist → „until Juli 30, 2026 12:00"; Projekt-Umfrage-Vote bleibt in pp_tab=polls; Kosten Plan/Ist-Zeilen + Link → Projekt-Kosten-Reiter; Kollektiv-Beschreibung + Edit-Roundtrip („Collective updated."); Netzwerk konsistent (keine Änderung); HTTP-IDOR mit gültiger Nonce: event_delete fremdes Solo-Event / calgroup_delete fremde ID / group_update fremde Gruppe → alle `pp_msg=error`; Dark Mode Kalender+Matrix sauber. Testdaten vollständig zurückgesetzt. **i18n:** 47 neue Strings nur in .po (msgfmt --check-format PASS; .mo/.pot = Release-Agent). **Bewusst offen:** WeekTimeGrid (Stunden-Raster) + Kalender-Sichtbarkeits-Toggles (JS-lastig, C-Kosmetik), CalDAV-Zweiweg (v2.x laut Vorgabe), Gruppen-Logo-Upload (multipart, v1.x), Vote-Löschen am Zyklus-Ende (bewusste Vereinfachung: no→yes statt no→leer), App-„choice"-Toggle-Semantik (WP stimmt auch bei choice mit Ja/Nein/Vielleicht ab — Datenmodell-Entscheidung aus v0.15.0, Matrix macht sie transparent). Kein Commit/Release in diesem Lauf (macht der Betreiber).
+
+- Parity-Lauf Dashboard/Anfragen/Verleih (2026-07-23, v0.102.0, Schema 0.28.0): **Anfragen auf App-Feldniveau + eigene Detail-Ansicht, Verleih-Reiter + Bearbeiten, Reiter-Erhalt generalisiert.** (1) **Schema 0.28.0:** `pp_inquiries` + title/contact_person/venue_name/estimated_budget/offer_amount/probability/follow_up/project_id (additiv, dbDelta; Migration in wp-env verifiziert). (2) **`MemberInquiries`:** `fields()`-Helper (Geld leer→NULL, probability 0–100-Clamp), create/update mit allen Feldern, `to_project()` mit App-Budget-Mapping (estimated→budget_planned Fallback offer; offer→revenue_actual; name=title Fallback Kundenname; venue) + `project_id`-Verlinkung. (3) **`MemberRentals::update`** (Owner-Guard + `guard_items_owned` + Owner-Felder nicht editierbar → `Rentals::update`-Diff). (4) **Portal Anfragen:** `view_inquiries` neu — Page-Head mit „n Anfragen · n offen", 4 KPI-Ministats, Reiter Pipeline/Archiv (`.pp-proj-tabs`), Zeilen als Links (`.pp-row--link`) mit Status-Pill/Angebotssumme/Prob-Badge (`.pp-prob--hi/mid/lo`)/Follow-up-Warnung; „Neue Anfrage" als App-Look-Modal; **`view_inquiry_detail`** (`?pp_inquiry=`) mit Pipeline-Chips (voller App-Pipeline-Look, nur serverseitig erlaubte Übergänge klickbar, `.pp-portal__chip--off` gedimmt), Sektionen Kunde (mailto)/Event/Angebot & Bewertung/Notizen/Aktionen („Projekt erstellen" bzw. „Zum Projekt", Edit-Details mit vollem Formular, Löschen). (5) **Portal Verleih:** `view_lending` auf 4 Reiter umgestellt (Externe Verleihe [Default, Badge reserved+active] / Stöbern / Leih-Anfragen [Badge offene requested inkl. Föderation] / Meine Leihen [Badge aktive]); Empty-States pro Reiter (Solo-Stöbern-Hinweis, „nichts geteilt", „keine Anfragen", „du leihst nichts"); Stöbern-Periodenfilter behält den Reiter (hidden pp_tab); **Bearbeiten-Modal** je Verleih (reserved/active): `rental_form()` mit optionalem $rental — Prefill Header + vorgewählte Positionen mit Menge/Satz + hidden `pp_item[…][line]` → `rental_input()` gibt `id` mit → Zeilen-Diff statt Neuanlage. (6) **Dispatcher:** Referer-Parse (pp_tab + pp_inquiry) einmal oben; pp_tab wird nach ALLEN View-$back-Umbauten wieder angehängt (unbekannter Reiter → Ziel-View-Default); `borrow_request/approve/decline/cancel/return` redirecten jetzt nach lending (vorher Dashboard!); `inquiry_update/status` aus dem Detail zurück ins Detail, `inquiry_to_project`-Fehler ebenso; neue Aktion `rental_update` (+ Meldung `rental_updated`). (7) **Dashboard:** Inventar-KPI im Gruppen-Modus = `Inventory::items(['shared_with_group'])`-Count. (8) **CSS:** `.pp-row--link`, `.pp-inq-amount`, `.pp-prob--*`, `.pp-inq-overdue`, `.pp-inq-pipeline`, `.pp-portal__chip--off`; Modal-Fixes: form-row-Labels im Modal-App-Look, `.pp-portal__rental-items` volle Modal-Breite, `label.pp-portal__rental-item-pick` wieder row (Label-Spezifitäts-Gotcha). **Tests (PASS):** php -l ×4; wp eval-file 31/31 (Felder/Clamps/NULL, IDOR update/status/delete fremde Anfrage + fremder Verleih → `pp_forbidden`, fremdes Item → `pp_not_your_item`, Überbuchung → `pp_not_available`, to_project-Mapping + project_id, Rental-Zeilen-Diff behält IDs); Browser als portaltest + memberB (echte Klicks): Anfrage per Modal angelegt → KPIs/Reiter/Zeile korrekt, Detail-Statuswechsel bleibt im Detail, Projekt-Konvertierung springt ins Projekt (P-2026-0014, Venue/Kunde gemappt), Archiv-Reiter + „Zum Projekt"; Verleih-Bearbeiten (Menge 2×9 € → Brutto 54 € live), Zustimmen im Leih-Anfragen-Reiter bleibt im Reiter (`pp_tab=requests`), Ausleihen-Modal aus Stöbern bleibt in Stöbern, borrow_cancel bleibt in Meine Leihen, Workspace-Wechsel behält Reiter, Solo-Empty-State; HTTP-IDOR (fetch mit gültiger Nonce): fremder rental_status + fremde inquiry_delete → `pp_msg=error`, DB unverändert; Dark Mode Liste+Detail geprüft; keine Konsolen-Fehler. **i18n:** 40 neue de_DE-Strings nur in .po (msgfmt-valide; .mo/.pot = Release-Agent). **Bewusst offen:** Team/RSVP + Telegram (Anfragen) und Tagessatz-Verhandlung (Verleih) = Multi-Owner/v2.x; Angebots-Datum/Gültig-bis-Felder der App weggelassen (geringe Aussagekraft ohne Angebots-PDF-Flow); kein Release/Commit in diesem Lauf (macht der Betreiber).
 
 - Patch-Release Plugin URI korrigiert (2026-06-28, v0.98.1, KEIN Schema-Change, KEINE i18n-Strings): **Reiner Header-Fix.** `project-prepper.php` `Plugin URI` zeigte auf die Next.js-Web-App (`https://project-prepper.dunkelstrom.net`) statt auf die tatsächliche Plugin-Heimat & Update-Quelle `https://github.com/motttto/project-prepper` → der Link „Plugin-Website aufrufen" auf der WP-Plugins-Seite ging ins Leere/falsch. Korrigiert; Version an allen drei Stellen 0.98.0→0.98.1 (Header `Version:`, `PP_VERSION`, readme `Stable tag`) + Changelog-Bullet. **Plugin Check: keine NEUEN ERRORs ggü. v0.98.0** — die gemeldeten ERRORs (`hidden_files` = `.wp-env.json` by design, `plugin_updater_detected` = GitHub-Selbst-Updater by design; plus vorbestehende `OutputNotEscaped` in Legal.php, `NotPrepared` in Costs.php, `MissingTranslatorsComment` in MemberPortal.php — alle in Dateien, die dieser Patch nicht anfasst, zuletzt geändert ≤ v0.98.0). Build `dist/project-prepper-0.98.1.zip` (1,1 MB, Top-Ordner `project-prepper/`, ohne `.wp-env.json`). Repo ist jetzt PUBLIC → In-Plugin-Updater funktioniert.
 - Endabgleich + Kosten-Übersicht + Gruppen-Mitgliederliste (2026-06-27, v0.97.0, KEIN Schema-Change): **Restliche Portal-Lücken geschlossen + systematischer Seite-für-Seite-Abgleich aller Mitglieder-Seiten → Urteil „funktionsfähiger Klon erreicht".** (1) **Globale Kosten-Übersicht** (`pp_view=costs`, nur Gruppen-Modus wie App `/costs`): neue Service-Methode `Costs::for_projects(array $ids)` (Mehr-Projekt-Aggregation, Projektnamen via LEFT JOIN, IDs als Placeholder = leak-/injection-sicher); Portal-View `view_costs` mit KPI-Karten (Projekte/Plan-Kosten/Ist-Kosten via `rental_kpi`-Helper), Kategorie-Filter-Pills (`pp-portal__chip` + `pp_cat`-Param), Posten-Liste (`pp-row--costs`: Projekt-Link → Projektdetail · Kategorie · Beschreibung · Betrag, „geplant" bei NULL-Ist). Solo → App-identischer Hinweis + Nav-Item ausgeblendet. Nav-Item + Body-Dispatch + **View-Whitelist** (`current_view` `$allowed`) + `use Costs`-Import + neues `costs`-Nav-Icon. **Finanz-Leak-Check (PASS):** Quelle = `member_projects()` (nur Projekte der aktiven Gruppe, in der der User Mitglied ist); `Costs::for_projects([])` → 0; Solo → kein Datenzugriff. (2) **Gruppen-Mitgliederliste** (`render_collective`): Komma-Liste → echte Liste (Kopf „n Mitglieder" via `_n()`, je Mitglied Rolle-Badge Gründer/Mitglied, Beitrittsdatum `seit …`, „(du)"-Markierung). CSS: `pp-portal__memberlist/__member/__member-name/__member-meta/__member-joined`, scoped `pp-row--costs`-Sublayout (kein globaler `pp-row__main`-Override → keine Regression). **Tests (PASS):** `php -l` MemberPortal + Costs grün; wp eval — `Costs::for_projects([47,33])` = 3 Zeilen, Plan 6000 / Ist 4750, NULL-Ist erhalten, `[]`→0. UI via Chrome-MCP als portaltest (id 41): Kosten-View Gruppe 23 → Projekte 1 / Plan 2.000 / Ist 750, Filter Personal → 800/750 + 1 Zeile, Solo → DE-Hinweis + 0 Zeilen + Nav ohne „Kosten"; Mitgliederliste Gruppe mit 3 Mitgliedern → „3 Mitglieder", Gründer zuerst, „portaltest (du)", „seit Juni 13, 2026". i18n: 7 neue DE-Strings (.po), .mo via WP-POMO (1209 Entries); DE-Render verifiziert (Projekte/Plan-Kosten/Ist-Kosten/„3 Mitglieder"/„(du)"/„seit …"). Plugin Check: **keine neuen ERRORs** (2 vorbestehende: hidden_files + plugin_updater by design; 1 I18n-Translator-Warnung an Inventar-KPI-Zeile = HEAD). Build `dist/project-prepper-0.97.0.zip`. **Endabgleich-Tabelle siehe Banner oben.** Definierte Reste: reine Gruppen-Beschlüsse (Schema projektgebunden), Gruppen-Settings-Bearbeitung im Portal, CalDAV/SMTP/exit_settlements — alle v1.x/v2.x/bewusst.

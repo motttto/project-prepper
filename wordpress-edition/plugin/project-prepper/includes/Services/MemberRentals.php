@@ -82,6 +82,28 @@ class MemberRentals {
 		return Rentals::create( $data, $items );
 	}
 
+	/**
+	 * Eigenen Verleih bearbeiten (Header + Positionen) — App-Pendant rentals/[id].
+	 * Positionen müssen weiterhin dem Mitglied gehören; Status-/Verfügbarkeits-
+	 * Regeln (nur reserved/active, exclude_rental_id) macht {@see Rentals::update}.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function update( int $id, int $user_id, array $data, ?array $items = null ) {
+		if ( ! self::get_owned( $id, $user_id ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'This rental is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		if ( null !== $items ) {
+			$guard = self::guard_items_owned( $user_id, $items );
+			if ( is_wp_error( $guard ) ) {
+				return $guard;
+			}
+		}
+		// Owner-Felder sind nicht editierbar.
+		unset( $data['owner_user_id'], $data['owner_group_id'] );
+		return Rentals::update( $id, $data, $items );
+	}
+
 	/** Status setzen — nur am eigenen Verleih. */
 	public static function set_status( int $id, int $user_id, string $status ) {
 		if ( ! self::get_owned( $id, $user_id ) ) {

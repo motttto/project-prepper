@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.27.0';
+	const VERSION    = '0.29.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -64,6 +64,8 @@ class Schema {
 		$fed_in     = self::table( 'fed_borrow_in' );
 		$fed_out    = self::table( 'fed_borrow_out' );
 		$feedback   = self::table( 'app_feedback' );
+		$cal_groups = self::table( 'calendar_groups' );
+		$cal_events = self::table( 'calendar_events' );
 
 		dbDelta( "CREATE TABLE {$categories} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -182,14 +184,25 @@ class Schema {
 			KEY created_at (created_at)
 		) {$charset};" );
 
+		// Anfragen — v0.28.0 zieht die Pipeline-Felder der App nach
+		// (inquiries: title/client_contact_person/venue_name/estimated_budget/
+		// offer_amount/probability/next_follow_up/project_id).
 		dbDelta( "CREATE TABLE {$inquiries} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			name varchar(190) NOT NULL,
+			title varchar(190) NOT NULL DEFAULT '',
+			contact_person varchar(190) NOT NULL DEFAULT '',
 			email varchar(190) NOT NULL DEFAULT '',
 			phone varchar(64) NOT NULL DEFAULT '',
 			message text,
+			venue_name varchar(190) NOT NULL DEFAULT '',
 			date_from date DEFAULT NULL,
 			date_to date DEFAULT NULL,
+			estimated_budget decimal(10,2) DEFAULT NULL,
+			offer_amount decimal(10,2) DEFAULT NULL,
+			probability int(3) DEFAULT NULL,
+			follow_up date DEFAULT NULL,
+			project_id bigint(20) unsigned DEFAULT NULL,
 			items longtext,
 			status varchar(20) NOT NULL DEFAULT 'new',
 			owner_user_id bigint(20) unsigned DEFAULT NULL,
@@ -541,6 +554,7 @@ class Schema {
 					description text,
 					poll_type varchar(10) NOT NULL DEFAULT 'date',
 					status varchar(10) NOT NULL DEFAULT 'open',
+					deadline datetime DEFAULT NULL,
 					created_by bigint(20) unsigned DEFAULT NULL,
 					created_at datetime NOT NULL,
 					closed_at datetime DEFAULT NULL,
@@ -714,6 +728,47 @@ class Schema {
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
 				KEY status (status)
+			) {$charset};" );
+
+			// Kalender (v0.29.0) — Pendant zu `calendar_groups`/`calendar_events`
+			// der App: farbige Kalender + eigene Termine pro Arbeitsbereich
+			// (Solo: owner_user_id, Gruppe: owner_group_id — genau eines gesetzt,
+			// das andere 0). KEIN CalDAV/Zwei-Wege-Sync (bewusst v2.x).
+			dbDelta( "CREATE TABLE {$cal_groups} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				owner_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				owner_group_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				name varchar(190) NOT NULL,
+				color varchar(7) NOT NULL DEFAULT '#0066FF',
+				sort_order int(11) NOT NULL DEFAULT 0,
+				created_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY owner_user_id (owner_user_id),
+				KEY owner_group_id (owner_group_id)
+			) {$charset};" );
+
+			// Termine: Datum + optionale Uhrzeiten (leer = ganztägig, App: all_day).
+			// calendar_group_id 0 = keinem Kalender zugeordnet (App: group_id NULL).
+			dbDelta( "CREATE TABLE {$cal_events} (
+				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+				calendar_group_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				owner_user_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				owner_group_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				title varchar(190) NOT NULL,
+				description text,
+				location varchar(190) NOT NULL DEFAULT '',
+				date_from date NOT NULL,
+				date_to date DEFAULT NULL,
+				time_start varchar(5) NOT NULL DEFAULT '',
+				time_end varchar(5) NOT NULL DEFAULT '',
+				created_by bigint(20) unsigned DEFAULT NULL,
+				created_at datetime NOT NULL,
+				updated_at datetime NOT NULL,
+				PRIMARY KEY  (id),
+				KEY calendar_group_id (calendar_group_id),
+				KEY owner_user_id (owner_user_id),
+				KEY owner_group_id (owner_group_id),
+				KEY date_from (date_from)
 			) {$charset};" );
 
 		self::upgrade_data();

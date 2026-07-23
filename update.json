@@ -1,9 +1,9 @@
 {
-  "version": "0.101.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.101.0/project-prepper-0.101.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.101.0",
-  "published": "2026-07-22",
+  "version": "0.103.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.103.0/project-prepper-0.103.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.103.0",
+  "published": "2026-07-23",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Projekt-Detail im Portal jetzt mit Reitern wie in der App - 12 Bereiche als Tab-Leiste statt einer langen Seite; nach jeder Aktion bleibt der aktive Reiter erhalten."
+  "changelog": "Alle Portal-Rubriken auf App-Niveau: Anfragen mit Pipeline-Detailansicht, Angebotsfeldern und KPIs - Verleih mit Reitern und Bearbeiten-Modal - Kalender mit eigenen Kalendern (Farben) und Terminverwaltung - Umfragen mit Teilnehmer-Matrix, Fristen und Filtern - Kosten mit Plan/Ist - Kollektiv bearbeiten - Dashboard arbeitsbereich-bewusst. Reiter bleiben über alle Aktionen erhalten."
 }

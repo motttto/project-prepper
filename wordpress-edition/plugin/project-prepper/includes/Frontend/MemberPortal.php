@@ -26,6 +26,7 @@ use ProjectPrepper\Services\ProfitShares;
 use ProjectPrepper\Services\Files;
 use ProjectPrepper\Services\Decisions;
 use ProjectPrepper\Services\Polls;
+use ProjectPrepper\Services\CalendarEvents;
 use ProjectPrepper\Services\FederatedBorrow;
 use ProjectPrepper\Rest\CalendarController;
 use ProjectPrepper\Federation;
@@ -311,15 +312,16 @@ class MemberPortal {
 			? add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => $proj_id ], self::portal_url() )
 			: self::portal_url();
 
-		// Aktiven Projekt-Reiter über den Redirect erhalten: die Formulare posten
-		// kein pp_tab, aber der (same-origin) Referer kennt ihn.
-		if ( $proj_id > 0 ) {
-			$ref_query = (string) wp_parse_url( (string) wp_get_referer(), PHP_URL_QUERY );
-			wp_parse_str( $ref_query, $ref_args );
-			$ref_tab = sanitize_key( (string) ( $ref_args['pp_tab'] ?? '' ) );
-			if ( '' !== $ref_tab ) {
-				$back = add_query_arg( 'pp_tab', $ref_tab, $back );
-			}
+		// Aktiven Reiter (und ggf. Anfrage-Detail-Kontext) über den Redirect
+		// erhalten: die Formulare posten kein pp_tab, aber der (same-origin)
+		// Referer kennt beides. Der Reiter wird unten nach den View-spezifischen
+		// $back-Umbauten erneut angehängt, damit er JEDEN Redirect überlebt.
+		$ref_query = (string) wp_parse_url( (string) wp_get_referer(), PHP_URL_QUERY );
+		wp_parse_str( $ref_query, $ref_args );
+		$ref_tab     = sanitize_key( (string) ( $ref_args['pp_tab'] ?? '' ) );
+		$ref_inquiry = (int) ( $ref_args['pp_inquiry'] ?? 0 );
+		if ( '' !== $ref_tab ) {
+			$back = add_query_arg( 'pp_tab', $ref_tab, $back );
 		}
 
 		if ( ! is_user_logged_in() ||
@@ -338,7 +340,7 @@ class MemberPortal {
 		// erzwingen, bevor irgendeine Aktion läuft. Projects::get() gate-keept über
 		// die Gruppen-Mitgliedschaft (Fremd-/Site-Projekt → null). Die einzelnen
 		// Service-Calls prüfen zusätzlich Mitgliedschaft/offenen Status.
-		$gov_actions = [ 'decision_vote', 'decision_create', 'decision_cancel', 'poll_vote', 'poll_create', 'poll_close', 'poll_reopen' ];
+		$gov_actions = [ 'decision_vote', 'decision_create', 'decision_cancel', 'poll_vote', 'poll_create', 'poll_close', 'poll_reopen', 'poll_delete' ];
 		if ( in_array( $do, $gov_actions, true ) && ( ! $proj_id || ! Projects::get( $proj_id ) ) ) {
 			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', self::portal_url() ) );
 			exit;
@@ -352,8 +354,8 @@ class MemberPortal {
 			exit;
 		}
 
-		// Föderierte Leih-Entscheidungen kehren zur Verleih-Ansicht zurück.
-		if ( in_array( $do, [ 'fedborrow_approve', 'fedborrow_decline', 'fedborrow_return' ], true ) ) {
+		// Leih-Entscheidungen (Kollektiv + föderiert) kehren zur Verleih-Ansicht zurück.
+		if ( in_array( $do, [ 'borrow_request', 'borrow_approve', 'borrow_decline', 'borrow_cancel', 'borrow_return', 'fedborrow_approve', 'fedborrow_decline', 'fedborrow_return' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'lending', self::portal_url() );
 		}
 		// Ausgehende Netzwerk-Anfrage kehrt zum Netzwerk-Tab zurück.
@@ -366,28 +368,51 @@ class MemberPortal {
 			$back = 'dashboard' === $v ? self::portal_url() : add_query_arg( 'pp_view', $v, self::portal_url() );
 		}
 		// Gruppen-Umfrage-Aktionen kehren zum Umfragen-Tab zurück.
-		if ( in_array( $do, [ 'gpoll_vote', 'gpoll_create', 'gpoll_close', 'gpoll_reopen' ], true ) ) {
+		if ( in_array( $do, [ 'gpoll_vote', 'gpoll_create', 'gpoll_close', 'gpoll_reopen', 'gpoll_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'polls', self::portal_url() );
 		}
-		// Aus einer Gruppe austreten kehrt zur Kollektive-Ansicht zurück.
-		if ( 'group_leave' === $do ) {
+		// Aus einer Gruppe austreten / Gruppe bearbeiten kehrt zur Kollektive-Ansicht zurück.
+		if ( in_array( $do, [ 'group_leave', 'group_update' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
+		}
+		// Kalender-Aktionen kehren in die Kalender-Ansicht zurück — inklusive
+		// Monat/Woche/Modus der Ausgangsseite (aus dem Referer), damit man nach
+		// dem Speichern im selben Zeitfenster bleibt.
+		if ( in_array( $do, [ 'calgroup_create', 'calgroup_update', 'calgroup_delete', 'event_create', 'event_update', 'event_delete' ], true ) ) {
+			$back = add_query_arg( 'pp_view', 'calendar', self::portal_url() );
+			foreach ( [ 'pp_cal', 'pp_month', 'pp_week' ] as $nav ) {
+				$val = sanitize_text_field( (string) ( $ref_args[ $nav ] ?? '' ) );
+				if ( '' !== $val ) {
+					$back = add_query_arg( $nav, $val, $back );
+				}
+			}
 		}
 		// Kategorie- und Gesamt-Freigabe-Aktionen kehren zur Inventar-Ansicht zurück.
 		if ( in_array( $do, [ 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all', 'item_share', 'item_unshare', 'item_share_set' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		}
-		// Anfragen-Aktionen kehren zur Anfragen-Ansicht zurück.
+		// Anfragen-Aktionen kehren zur Anfragen-Ansicht zurück — Bearbeiten und
+		// Statuswechsel aus der Detail-Ansicht bleiben im Detail (Referer kennt
+		// den pp_inquiry-Kontext).
 		if ( in_array( $do, [ 'inquiry_create', 'inquiry_update', 'inquiry_status', 'inquiry_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inquiries', self::portal_url() );
+			if ( $ref_inquiry > 0 && in_array( $do, [ 'inquiry_update', 'inquiry_status' ], true ) ) {
+				$back = add_query_arg( 'pp_inquiry', $ref_inquiry, $back );
+			}
 		}
 		// Externe-Verleih-Aktionen kehren zur Verleih-Ansicht zurück.
-		if ( in_array( $do, [ 'rental_create', 'rental_status', 'rental_delete' ], true ) ) {
+		if ( in_array( $do, [ 'rental_create', 'rental_update', 'rental_status', 'rental_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'lending', self::portal_url() );
 		}
 		// Projekt anlegen/löschen → zurück zur Projektliste (Bearbeiten bleibt im Detail).
 		if ( in_array( $do, [ 'project_create', 'project_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'projects', self::portal_url() );
+		}
+		// Reiter-Erhalt für ALLE View-Redirects: die Umbauten oben starten von
+		// portal_url() neu — den aktiven Reiter der Ausgangsseite wieder anhängen
+		// (unbekannte Reiter fallen in der Ziel-View auf den Default zurück).
+		if ( '' !== $ref_tab ) {
+			$back = add_query_arg( 'pp_tab', $ref_tab, $back );
 		}
 
 		$result = new \WP_Error( 'pp_unknown', 'unknown' );
@@ -429,6 +454,18 @@ class MemberPortal {
 					update_user_meta( $uid, 'pp_active_group', 'solo' );
 				}
 				$ok_msg = 'group_left';
+				break;
+			case 'group_update':
+				// Nur Gründer der Gruppe dürfen Name/Beschreibung ändern.
+				if ( ! self::is_group_founder( $grp_id, get_current_user_id() ) ) {
+					$result = new \WP_Error( 'pp_forbidden', 'forbidden' );
+				} else {
+					$result = Groups::update( $grp_id, [
+						'name'        => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+						'description' => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
+					] );
+				}
+				$ok_msg = 'group_saved';
 				break;
 			case 'profile_save':
 				$new_name = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) );
@@ -523,6 +560,11 @@ class MemberPortal {
 				$in     = self::rental_input();
 				$result = MemberRentals::create( get_current_user_id(), $in['data'], $in['items'] );
 				$ok_msg = 'rental_saved';
+				break;
+			case 'rental_update':
+				$in     = self::rental_input();
+				$result = MemberRentals::update( (int) ( $_POST['pp_rental'] ?? 0 ), get_current_user_id(), $in['data'], $in['items'] );
+				$ok_msg = 'rental_updated';
 				break;
 			case 'rental_status':
 				$result = MemberRentals::set_status( (int) ( $_POST['pp_rental'] ?? 0 ), get_current_user_id(), sanitize_key( wp_unslash( (string) ( $_POST['pp_status'] ?? '' ) ) ) );
@@ -800,6 +842,10 @@ class MemberPortal {
 				$result = Polls::reopen( (int) ( $_POST['pp_poll'] ?? 0 ), get_current_user_id() );
 				$ok_msg = 'poll_reopened';
 				break;
+			case 'poll_delete':
+				$result = Polls::delete( (int) ( $_POST['pp_poll'] ?? 0 ), get_current_user_id() );
+				$ok_msg = 'poll_deleted';
+				break;
 			case 'gpoll_vote':
 				$result = Polls::cast_vote(
 					(int) ( $_POST['pp_option'] ?? 0 ),
@@ -819,6 +865,40 @@ class MemberPortal {
 			case 'gpoll_reopen':
 				$result = Polls::reopen( (int) ( $_POST['pp_poll'] ?? 0 ), get_current_user_id() );
 				$ok_msg = 'poll_reopened';
+				break;
+			case 'gpoll_delete':
+				$result = Polls::delete( (int) ( $_POST['pp_poll'] ?? 0 ), get_current_user_id() );
+				$ok_msg = 'poll_deleted';
+				break;
+			case 'calgroup_create':
+				$result = CalendarEvents::create_calendar( get_current_user_id(), self::active_workspace_group(), [
+					'name'  => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+					'color' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_color'] ?? '' ) ) ),
+				] );
+				$ok_msg = 'calendar_saved';
+				break;
+			case 'calgroup_update':
+				$result = CalendarEvents::update_calendar( (int) ( $_POST['pp_calendar'] ?? 0 ), get_current_user_id(), self::active_workspace_group(), [
+					'name'  => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+					'color' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_color'] ?? '' ) ) ),
+				] );
+				$ok_msg = 'calendar_saved';
+				break;
+			case 'calgroup_delete':
+				$result = CalendarEvents::delete_calendar( (int) ( $_POST['pp_calendar'] ?? 0 ), get_current_user_id(), self::active_workspace_group() );
+				$ok_msg = 'calendar_deleted';
+				break;
+			case 'event_create':
+				$result = CalendarEvents::create_event( get_current_user_id(), self::active_workspace_group(), self::event_input() );
+				$ok_msg = 'event_saved';
+				break;
+			case 'event_update':
+				$result = CalendarEvents::update_event( (int) ( $_POST['pp_event'] ?? 0 ), get_current_user_id(), self::active_workspace_group(), self::event_input() );
+				$ok_msg = 'event_saved';
+				break;
+			case 'event_delete':
+				$result = CalendarEvents::delete_event( (int) ( $_POST['pp_event'] ?? 0 ), get_current_user_id(), self::active_workspace_group() );
+				$ok_msg = 'event_deleted';
 				break;
 			case 'fedborrow_approve':
 				$result = FederatedBorrow::decide( get_current_user_id(), (int) ( $_POST['pp_fedreq'] ?? 0 ), 'approve' );
@@ -873,6 +953,10 @@ class MemberPortal {
 				$msg = 'invalid_amount';
 			} elseif ( 'pp_not_group_member' === $code ) {
 				$msg = 'not_group_member';
+			} elseif ( 'pp_poll_deadline' === $code ) {
+				$msg = 'poll_deadline';
+			} elseif ( 'pp_invalid_date' === $code ) {
+				$msg = 'invalid_date';
 			} elseif ( in_array( $code, [ 'pp_missing_title', 'pp_missing_name', 'pp_missing_label' ], true ) ) {
 				$msg = 'missing_required';
 			} else {
@@ -882,11 +966,16 @@ class MemberPortal {
 			$msg = $ok_msg;
 		}
 		// Anfrage→Projekt: bei Erfolg direkt zum neuen Projekt springen, sonst
-		// zurück zur Anfragen-Ansicht.
+		// zurück zur Anfragen-Ansicht (bzw. ins Detail, wenn von dort gepostet).
 		if ( 'inquiry_to_project' === $do ) {
-			$back = is_wp_error( $result )
-				? add_query_arg( 'pp_view', 'inquiries', self::portal_url() )
-				: add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $result ], self::portal_url() );
+			if ( is_wp_error( $result ) ) {
+				$back = add_query_arg( 'pp_view', 'inquiries', self::portal_url() );
+				if ( $ref_inquiry > 0 ) {
+					$back = add_query_arg( 'pp_inquiry', $ref_inquiry, $back );
+				}
+			} else {
+				$back = add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $result ], self::portal_url() );
+			}
 		}
 		wp_safe_redirect( add_query_arg( 'pp_msg', $msg, $back ) );
 		exit;
@@ -917,6 +1006,7 @@ class MemberPortal {
 			'inquiry_deleted'  => [ 'ok', __( 'Inquiry deleted.', 'project-prepper' ) ],
 			'inquiry_converted' => [ 'ok', __( 'Inquiry turned into a project.', 'project-prepper' ) ],
 			'rental_saved'     => [ 'ok', __( 'Rental created.', 'project-prepper' ) ],
+			'rental_updated'   => [ 'ok', __( 'Rental updated.', 'project-prepper' ) ],
 			'rental_status'    => [ 'ok', __( 'Rental status updated.', 'project-prepper' ) ],
 			'rental_deleted'   => [ 'ok', __( 'Rental deleted.', 'project-prepper' ) ],
 			'rental_unavailable' => [ 'err', __( 'One of the items is not available in that period. Please adjust the dates or quantity.', 'project-prepper' ) ],
@@ -941,6 +1031,14 @@ class MemberPortal {
 			'poll_created'     => [ 'ok', __( 'Poll created.', 'project-prepper' ) ],
 			'poll_closed'      => [ 'ok', __( 'Poll closed.', 'project-prepper' ) ],
 			'poll_reopened'    => [ 'ok', __( 'Poll reopened.', 'project-prepper' ) ],
+			'poll_deleted'     => [ 'ok', __( 'Poll deleted.', 'project-prepper' ) ],
+			'poll_deadline'    => [ 'err', __( 'The deadline for this poll has passed.', 'project-prepper' ) ],
+			'invalid_date'     => [ 'err', __( 'Please enter a valid date.', 'project-prepper' ) ],
+			'event_saved'      => [ 'ok', __( 'Event saved.', 'project-prepper' ) ],
+			'event_deleted'    => [ 'ok', __( 'Event deleted.', 'project-prepper' ) ],
+			'calendar_saved'   => [ 'ok', __( 'Calendar saved.', 'project-prepper' ) ],
+			'calendar_deleted' => [ 'ok', __( 'Calendar deleted. Its events were kept.', 'project-prepper' ) ],
+			'group_saved'      => [ 'ok', __( 'Collective updated.', 'project-prepper' ) ],
 			'fed_decided'      => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'fed_requested'    => [ 'ok', __( 'Borrow request sent to the partner instance.', 'project-prepper' ) ],
 			'import_nofile'    => [ 'err', __( 'Please choose a CSV file to import.', 'project-prepper' ) ],
@@ -1015,8 +1113,38 @@ class MemberPortal {
 			'description' => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
 			'poll_type'   => $type,
 			'options'     => $options,
+			'deadline'    => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_deadline'] ?? '' ) ) ),
 		];
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/** Termin-Eingaben (Kalender) — Nonce im Dispatcher geprüft. */
+	private static function event_input(): array {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		return [
+			'title'             => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_title'] ?? '' ) ) ),
+			'calendar_group_id' => (int) ( $_POST['pp_calendar'] ?? 0 ),
+			'date_from'         => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
+			'date_to'           => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
+			'time_start'        => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_time_start'] ?? '' ) ) ),
+			'time_end'          => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_time_end'] ?? '' ) ) ),
+			'location'          => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_location'] ?? '' ) ) ),
+			'description'       => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
+		];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/** Ist der User Gründer der Gruppe? (für group_update) */
+	private static function is_group_founder( int $group_id, int $user_id ): bool {
+		if ( ! $group_id || ! $user_id ) {
+			return false;
+		}
+		foreach ( Groups::user_groups( $user_id ) as $g ) {
+			if ( (int) $g->id === $group_id ) {
+				return 'founder' === $g->member_role;
+			}
+		}
+		return false;
 	}
 
 	/* ===================== Rendering ===================== */
@@ -1645,7 +1773,12 @@ class MemberPortal {
 	/* ---------- Views ---------- */
 
 	private static function view_dashboard( WP_User $user, array $groups ): void {
-		$inv_count  = count( MemberInventory::my_items( (int) $user->ID ) );
+		// Arbeitsbereich-bewusst wie die App (ownerFilter): im Gruppen-Modus
+		// zählt die Inventar-Kachel den geteilten Gruppen-Pool, sonst das eigene.
+		$ws_group   = self::active_group_id( $groups );
+		$inv_count  = $ws_group > 0
+			? count( Inventory::items( [ 'shared_with_group' => $ws_group ] ) )
+			: count( MemberInventory::my_items( (int) $user->ID ) );
 		$grp_count  = count( $groups );
 		$proj_count = count( self::member_projects( $groups ) );
 		$inq_count  = MemberInquiries::count_for_owner( (int) $user->ID, self::active_group_id( $groups ) );
@@ -1976,25 +2109,80 @@ class MemberPortal {
 		<?php
 	}
 
+	/**
+	 * Verleih & Leihen — vier Reiter statt einer langen Seite (Muster
+	 * Projekt-Detail): Externe Verleihe (App: /rentals, Default) · Stöbern ·
+	 * Leih-Anfragen (eingehend, inkl. Netzwerk) · Meine Leihen (+ Historie).
+	 */
 	private static function view_lending( WP_User $user, array $groups ): void {
+		$uid          = (int) $user->ID;
+		$fed_incoming = FederatedBorrow::inbound_for_owner( $uid );
+		// Stöbern ist auf den aktiven Workspace begrenzt (Solo → kein Stöbern).
+		$active        = self::active_group_id( $groups );
+		$active_groups = array_values( array_filter( $groups, static fn( $g ) => (int) $g->id === $active ) );
+
+		// Zähler für die Reiter-Badges + Empty-States.
+		$mine      = Borrowing::my_requests( $uid );
+		$incoming  = Borrowing::incoming_requests( $uid );
+		$my_active = array_filter( $mine, static fn( $r ) => in_array( $r->status, self::BORROW_ACTIVE, true ) );
+		$in_active = array_filter( $incoming, static fn( $r ) => in_array( $r->status, self::BORROW_ACTIVE, true ) );
+		$closed_n  = ( count( $mine ) + count( $incoming ) ) - ( count( $my_active ) + count( $in_active ) );
+		$open_reqs = count( array_filter( $incoming, static fn( $r ) => 'requested' === $r->status ) )
+			+ count( array_filter( $fed_incoming, static fn( $r ) => 'requested' === $r->status ) );
+
+		$tabs = [
+			/* translators: %d: number of external rentals that are reserved or handed out. */
+			'rentals'  => sprintf( __( 'External rentals (%d)', 'project-prepper' ), (int) array_sum( array_intersect_key( MemberRentals::kpis( $uid ), [ 'reserved' => 1, 'active' => 1 ] ) ) ),
+			'browse'   => __( 'Browse', 'project-prepper' ),
+			/* translators: %d: number of open borrow requests for the member’s items. */
+			'requests' => sprintf( __( 'Borrow requests (%d)', 'project-prepper' ), (int) $open_reqs ),
+			/* translators: %d: number of the member’s own active borrows. */
+			'borrows'  => sprintf( __( 'My borrows (%d)', 'project-prepper' ), (int) count( $my_active ) ),
+		];
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Anzeige-Auswahl.
+		$tab = sanitize_key( wp_unslash( (string) ( $_GET['pp_tab'] ?? 'rentals' ) ) );
+		if ( ! isset( $tabs[ $tab ] ) ) {
+			$tab = 'rentals';
+		}
+		$tab_base = add_query_arg( 'pp_view', 'lending', self::portal_url() );
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title"><?php esc_html_e( 'Borrowing & lending', 'project-prepper' ); ?></h1>
 			<p class="pp-app__page-sub"><?php esc_html_e( 'Browse what your collectives share, request items, manage requests for your own — and lend out your equipment to externals.', 'project-prepper' ); ?></p>
 		</header>
-		<?php
-		// Externe Verleihe (App: /rentals) — persönlich, daher immer sichtbar.
-		self::render_external_rentals( $user );
 
-		$fed_incoming = FederatedBorrow::inbound_for_owner( (int) $user->ID );
-		// Stöbern ist auf den aktiven Workspace begrenzt (Solo → kein Stöbern).
-		$active        = self::active_group_id( $groups );
-		$active_groups = array_values( array_filter( $groups, static fn( $g ) => (int) $g->id === $active ) );
-		self::render_browse( $user, $active_groups );
-		self::render_my_borrows( $user );
-		self::render_incoming_borrows( $user );
-		self::render_incoming_fed_borrows( $fed_incoming );
-		self::render_borrow_history( $user );
+		<nav class="pp-proj-tabs" aria-label="<?php esc_attr_e( 'Lending sections', 'project-prepper' ); ?>">
+			<?php foreach ( $tabs as $key => $label ) : ?>
+				<a class="pp-proj-tabs__tab<?php echo $key === $tab ? ' pp-proj-tabs__tab--on' : ''; ?>"<?php echo $key === $tab ? ' aria-current="page"' : ''; ?> href="<?php echo esc_url( 'rentals' === $key ? $tab_base : add_query_arg( 'pp_tab', $key, $tab_base ) ); ?>"><?php echo esc_html( $label ); ?></a>
+			<?php endforeach; ?>
+		</nav>
+
+		<?php
+		switch ( $tab ) {
+			case 'browse':
+				self::render_browse( $user, $active_groups );
+				break;
+			case 'requests':
+				self::render_incoming_borrows( $user );
+				self::render_incoming_fed_borrows( $fed_incoming );
+				if ( ! $in_active && ! $fed_incoming ) {
+					?>
+					<p class="pp-portal__empty"><?php esc_html_e( 'No borrow requests for your items right now.', 'project-prepper' ); ?></p>
+					<?php
+				}
+				break;
+			case 'borrows':
+				self::render_my_borrows( $user );
+				self::render_borrow_history( $user );
+				if ( ! $my_active && 0 === $closed_n ) {
+					?>
+					<p class="pp-portal__empty"><?php esc_html_e( 'You are not borrowing anything right now. Find equipment under “Browse”.', 'project-prepper' ); ?></p>
+					<?php
+				}
+				break;
+			default:
+				self::render_external_rentals( $user );
+		}
 	}
 
 	/**
@@ -2016,10 +2204,10 @@ class MemberPortal {
 
 			<div class="pp-kpi-grid pp-kpi-grid--compact">
 				<?php
-				self::rental_kpi( __( 'Reserved', 'project-prepper' ), (string) (int) $kpis['reserved'], 'info' );
-				self::rental_kpi( __( 'Handed out', 'project-prepper' ), (string) (int) $kpis['active'], 'warning' );
-				self::rental_kpi( __( 'Returned', 'project-prepper' ), (string) (int) $kpis['returned'], 'success' );
-				self::rental_kpi(
+				self::mini_kpi( __( 'Reserved', 'project-prepper' ), (string) (int) $kpis['reserved'], 'info' );
+				self::mini_kpi( __( 'Handed out', 'project-prepper' ), (string) (int) $kpis['active'], 'warning' );
+				self::mini_kpi( __( 'Returned', 'project-prepper' ), (string) (int) $kpis['returned'], 'success' );
+				self::mini_kpi(
 					__( 'Deposit held', 'project-prepper' ),
 					number_format_i18n( (float) $kpis['deposit_open'], 2 ) . ' €',
 					'primary'
@@ -2102,6 +2290,18 @@ class MemberPortal {
 						<?php endif; ?>
 
 						<div class="pp-portal__actions">
+							<?php if ( in_array( $full->status, [ 'reserved', 'active' ], true ) && $lendable ) : ?>
+								<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-rental-edit-<?php echo (int) $full->id; ?>"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></button>
+								<dialog class="pp-modal pp-modal--portal" id="pp-rental-edit-<?php echo (int) $full->id; ?>">
+									<div class="pp-modal-header">
+										<h2 class="pp-modal__title"><?php echo esc_html( sprintf( /* translators: %s: rental number. */ __( 'Edit rental %s', 'project-prepper' ), $full->rental_number ) ); ?></h2>
+										<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+									</div>
+									<div class="pp-modal-body">
+										<?php self::rental_form( $lendable, $full ); ?>
+									</div>
+								</dialog>
+							<?php endif; ?>
 							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this rental?', 'project-prepper' ) ); ?>');">
 								<?php self::action_fields( 'rental_delete' ); ?>
 								<input type="hidden" name="pp_rental" value="<?php echo (int) $full->id; ?>">
@@ -2126,7 +2326,7 @@ class MemberPortal {
 		<?php
 	}
 
-	private static function rental_kpi( string $label, string $value, string $tone ): void {
+	private static function mini_kpi( string $label, string $value, string $tone ): void {
 		?>
 		<div class="pp-kpi pp-kpi--<?php echo esc_attr( $tone ); ?> pp-kpi--static">
 			<span class="pp-kpi__value"><?php echo esc_html( $value ); ?></span>
@@ -2147,53 +2347,73 @@ class MemberPortal {
 	}
 
 	/**
-	 * Anlege-Formular für einen externen Verleih. Person + Zeitraum + Geld +
-	 * eine Auswahl der eigenen Artikel (Checkbox + Menge + Tagessatz pro Zeile).
+	 * Anlege-/Bearbeiten-Formular für einen externen Verleih. Person + Zeitraum +
+	 * Geld + eine Auswahl der eigenen Artikel (Checkbox + Menge + Tagessatz pro
+	 * Zeile). Beim Bearbeiten sind vorhandene Positionen vorgewählt; ihre
+	 * Zeilen-ID läuft als pp_item[…][line] mit, damit {@see Rentals::update} per
+	 * Diff aktualisiert statt neu anzulegen.
 	 *
 	 * @param array<int,object> $lendable Eigene Artikel (ID → Objekt).
+	 * @param object|null       $rental   Bestehender Verleih (inkl. items) oder null.
 	 */
-	private static function rental_form( array $lendable ): void {
+	private static function rental_form( array $lendable, ?object $rental = null ): void {
+		$line_by_item = [];
+		foreach ( (array) ( $rental->items ?? [] ) as $line ) {
+			if ( ! isset( $line_by_item[ (int) $line->item_id ] ) ) {
+				$line_by_item[ (int) $line->item_id ] = $line;
+			}
+		}
+		$val = static fn( string $f, $d = '' ) => $rental && isset( $rental->$f ) && null !== $rental->$f ? $rental->$f : $d;
 		?>
 		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-			<?php self::action_fields( 'rental_create' ); ?>
+			<?php self::action_fields( $rental ? 'rental_update' : 'rental_create' ); ?>
+			<?php if ( $rental ) : ?>
+				<input type="hidden" name="pp_rental" value="<?php echo (int) $rental->id; ?>">
+			<?php endif; ?>
 			<label><?php esc_html_e( 'Borrower name', 'project-prepper' ); ?>
-				<input type="text" name="pp_borrower" required>
+				<input type="text" name="pp_borrower" value="<?php echo esc_attr( (string) $val( 'borrower_name' ) ); ?>" required>
 			</label>
 			<label><?php esc_html_e( 'Email', 'project-prepper' ); ?>
-				<input type="email" name="pp_email">
+				<input type="email" name="pp_email" value="<?php echo esc_attr( (string) $val( 'borrower_email' ) ); ?>">
 			</label>
 			<label><?php esc_html_e( 'Phone', 'project-prepper' ); ?>
-				<input type="text" name="pp_phone">
+				<input type="text" name="pp_phone" value="<?php echo esc_attr( (string) $val( 'borrower_phone' ) ); ?>">
 			</label>
 			<div class="pp-portal__form-row">
 				<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
-					<input type="date" name="pp_from" required>
+					<input type="date" name="pp_from" value="<?php echo esc_attr( (string) $val( 'date_from' ) ); ?>" required>
 				</label>
 				<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
-					<input type="date" name="pp_to" required>
+					<input type="date" name="pp_to" value="<?php echo esc_attr( (string) $val( 'date_to' ) ); ?>" required>
 				</label>
 			</div>
 			<div class="pp-portal__form-row">
 				<label><?php esc_html_e( 'Deposit (€)', 'project-prepper' ); ?>
-					<input type="number" name="pp_deposit" min="0" step="0.01" placeholder="0.00">
+					<input type="number" name="pp_deposit" min="0" step="0.01" placeholder="0.00" value="<?php echo esc_attr( null !== ( $rental->deposit_amount ?? null ) ? number_format( (float) $rental->deposit_amount, 2, '.', '' ) : '' ); ?>">
 				</label>
 				<label><?php esc_html_e( 'Rental fee (€, gross — optional)', 'project-prepper' ); ?>
-					<input type="number" name="pp_fee" min="0" step="0.01" placeholder="<?php esc_attr_e( 'auto from daily rates', 'project-prepper' ); ?>">
+					<input type="number" name="pp_fee" min="0" step="0.01" placeholder="<?php esc_attr_e( 'auto from daily rates', 'project-prepper' ); ?>" value="<?php echo esc_attr( null !== ( $rental->rental_fee ?? null ) ? number_format( (float) $rental->rental_fee, 2, '.', '' ) : '' ); ?>">
 				</label>
 			</div>
 
 			<fieldset class="pp-portal__rental-items">
 				<legend><?php esc_html_e( 'Items to lend out', 'project-prepper' ); ?></legend>
 				<?php foreach ( $lendable as $item ) :
-					$rate = isset( $item->cost_per_day ) && '' !== (string) $item->cost_per_day ? (float) $item->cost_per_day : '';
+					$line = $line_by_item[ (int) $item->id ] ?? null;
+					$rate = $line && null !== $line->daily_rate
+						? (float) $line->daily_rate
+						: ( isset( $item->cost_per_day ) && '' !== (string) $item->cost_per_day ? (float) $item->cost_per_day : '' );
 					?>
 					<div class="pp-portal__rental-item-row">
 						<label class="pp-portal__rental-item-pick">
-							<input type="checkbox" name="pp_item[<?php echo (int) $item->id; ?>][on]" value="1">
+							<input type="checkbox" name="pp_item[<?php echo (int) $item->id; ?>][on]" value="1" <?php checked( null !== $line ); ?>>
 							<span><?php echo esc_html( $item->name ); ?> <small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ?? '' ); ?></small></span>
 						</label>
+						<?php if ( $line ) : ?>
+							<input type="hidden" name="pp_item[<?php echo (int) $item->id; ?>][line]" value="<?php echo (int) $line->id; ?>">
+						<?php endif; ?>
 						<label class="pp-portal__rental-item-qty"><?php esc_html_e( 'Qty', 'project-prepper' ); ?>
-							<input type="number" name="pp_item[<?php echo (int) $item->id; ?>][qty]" min="1" value="1">
+							<input type="number" name="pp_item[<?php echo (int) $item->id; ?>][qty]" min="1" value="<?php echo (int) ( $line->quantity ?? 1 ); ?>">
 						</label>
 						<label class="pp-portal__rental-item-rate"><?php esc_html_e( '€/day', 'project-prepper' ); ?>
 							<input type="number" name="pp_item[<?php echo (int) $item->id; ?>][rate]" min="0" step="0.01" value="<?php echo esc_attr( '' === $rate ? '' : number_format( (float) $rate, 2, '.', '' ) ); ?>">
@@ -2203,9 +2423,9 @@ class MemberPortal {
 			</fieldset>
 
 			<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
-				<textarea name="pp_notes" rows="2"></textarea>
+				<textarea name="pp_notes" rows="2"><?php echo esc_textarea( (string) $val( 'notes' ) ); ?></textarea>
 			</label>
-			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create rental', 'project-prepper' ); ?></button>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php echo $rental ? esc_html__( 'Save rental', 'project-prepper' ) : esc_html__( 'Create rental', 'project-prepper' ); ?></button>
 		</form>
 		<?php
 	}
@@ -2229,11 +2449,16 @@ class MemberPortal {
 			if ( empty( $line['on'] ) ) {
 				continue;
 			}
-			$items[] = [
+			$row = [
 				'item_id'    => (int) $item_id,
 				'quantity'   => max( 1, (int) ( $line['qty'] ?? 1 ) ),
 				'daily_rate' => isset( $line['rate'] ) && '' !== $line['rate'] ? (float) $line['rate'] : '',
 			];
+			// Bestehende Positions-ID beim Bearbeiten mitgeben (Diff in Rentals::update).
+			if ( ! empty( $line['line'] ) ) {
+				$row['id'] = (int) $line['line'];
+			}
+			$items[] = $row;
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 		return [ 'data' => $data, 'items' => $items ];
@@ -2304,7 +2529,7 @@ class MemberPortal {
 			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Your collectives', 'project-prepper' ); ?></h3>
 			<?php if ( $groups ) : ?>
 				<?php foreach ( $groups as $group ) {
-					self::render_collective( (int) $group->id, $group->name, $group->member_role, (int) $user->ID );
+					self::render_collective( (int) $group->id, $group->name, $group->member_role, (int) $user->ID, (string) ( $group->description ?? '' ) );
 				} ?>
 			<?php else : ?>
 				<p class="pp-portal__empty"><?php esc_html_e( 'You are not part of any collective yet. Found one below or accept an invitation to start sharing inventory.', 'project-prepper' ); ?></p>
@@ -2363,122 +2588,396 @@ class MemberPortal {
 		];
 	}
 
-	/** Eingaben des Anfrage-Formulars einsammeln. */
+	/** Eingaben des Anfrage-Formulars einsammeln (Feld-Parität zur App-Pipeline). */
 	private static function inquiry_input(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
 		return [
-			'name'      => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
-			'email'     => sanitize_email( wp_unslash( (string) ( $_POST['pp_email'] ?? '' ) ) ),
-			'phone'     => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_phone'] ?? '' ) ) ),
-			'message'   => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_message'] ?? '' ) ) ),
-			'date_from' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
-			'date_to'   => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
+			'name'             => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+			'title'            => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_title'] ?? '' ) ) ),
+			'contact_person'   => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_contact'] ?? '' ) ) ),
+			'email'            => sanitize_email( wp_unslash( (string) ( $_POST['pp_email'] ?? '' ) ) ),
+			'phone'            => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_phone'] ?? '' ) ) ),
+			'message'          => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_message'] ?? '' ) ) ),
+			'venue_name'       => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_venue'] ?? '' ) ) ),
+			'date_from'        => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
+			'date_to'          => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
+			'estimated_budget' => '' !== (string) ( $_POST['pp_budget'] ?? '' ) ? (float) $_POST['pp_budget'] : '',
+			'offer_amount'     => '' !== (string) ( $_POST['pp_offer'] ?? '' ) ? (float) $_POST['pp_offer'] : '',
+			'probability'      => '' !== (string) ( $_POST['pp_probability'] ?? '' ) ? (int) $_POST['pp_probability'] : '',
+			'follow_up'        => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_follow_up'] ?? '' ) ) ),
 		];
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
+	/**
+	 * Anfragen-Liste (App-Pendant src/app/(dashboard)/inquiries): KPI-Ministats,
+	 * Reiter Pipeline/Archiv, klickbare Zeilen zur Detail-Ansicht (?pp_inquiry=…).
+	 */
 	private static function view_inquiries( WP_User $user, array $groups ): void {
+		// Detail-Ansicht (Muster Projekt-Detail).
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
+		$inq_id = isset( $_GET['pp_inquiry'] ) ? (int) $_GET['pp_inquiry'] : 0;
+		if ( $inq_id ) {
+			self::view_inquiry_detail( $inq_id, $user, $groups );
+			return;
+		}
+
 		$group_id  = self::active_group_id( $groups );
 		$inquiries = MemberInquiries::for_owner( (int) $user->ID, $group_id );
 		$labels    = self::inquiry_status_labels();
-		?>
-		<section class="pp-portal__section">
-			<h3 class="pp-portal__subtitle"><?php echo $group_id ? esc_html__( 'Inquiries', 'project-prepper' ) : esc_html__( 'My inquiries', 'project-prepper' ); ?></h3>
-			<p class="pp-portal__hint"><?php esc_html_e( 'Track external requests as bookkeeping and move them through the pipeline. A later step turns a won inquiry into a project.', 'project-prepper' ); ?></p>
 
-			<?php if ( $inquiries ) : ?>
-				<?php foreach ( $inquiries as $inq ) : ?>
+		// Status-Zähler + Angebotswert (Summe offer_amount, verlorene/geschlossene raus — wie die App).
+		$counts    = array_fill_keys( Inquiries::STATUSES, 0 );
+		$open      = 0;
+		$offer_sum = 0.0;
+		foreach ( $inquiries as $inq ) {
+			if ( isset( $counts[ $inq->status ] ) ) {
+				++$counts[ $inq->status ];
+			}
+			if ( ! in_array( $inq->status, [ 'won', 'lost', 'closed' ], true ) ) {
+				++$open;
+			}
+			if ( null !== ( $inq->offer_amount ?? null ) && ! in_array( $inq->status, [ 'lost', 'closed' ], true ) ) {
+				$offer_sum += (float) $inq->offer_amount;
+			}
+		}
+		$archived = count( $inquiries ) - $open;
+
+		// Reiter Pipeline/Archiv (?pp_tab=…) — serverseitig, Muster Projekt-Detail.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Anzeige-Auswahl.
+		$tab = sanitize_key( wp_unslash( (string) ( $_GET['pp_tab'] ?? 'pipeline' ) ) );
+		if ( ! in_array( $tab, [ 'pipeline', 'archive' ], true ) ) {
+			$tab = 'pipeline';
+		}
+		$tab_base = add_query_arg( 'pp_view', 'inquiries', self::portal_url() );
+		$shown    = array_values( array_filter(
+			$inquiries,
+			static fn( $i ) => ( 'archive' === $tab ) === in_array( $i->status, [ 'won', 'lost', 'closed' ], true )
+		) );
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php echo $group_id ? esc_html__( 'Inquiries', 'project-prepper' ) : esc_html__( 'My inquiries', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub">
+				<?php
+				/* translators: 1: total number of inquiries, 2: number of open inquiries. */
+				printf( esc_html__( '%1$d inquiries · %2$d open', 'project-prepper' ), (int) count( $inquiries ), (int) $open );
+				?>
+			</p>
+		</header>
+
+		<div class="pp-kpi-grid pp-kpi-grid--compact">
+			<?php
+			self::mini_kpi( $labels['new'], (string) $counts['new'], 'info' );
+			self::mini_kpi( $labels['contacted'], (string) $counts['contacted'], 'primary' );
+			self::mini_kpi( $labels['offer'], (string) $counts['offer'], 'warning' );
+			self::mini_kpi( __( 'Offer value', 'project-prepper' ), number_format_i18n( $offer_sum, 2 ) . ' €', 'success' );
+			?>
+		</div>
+
+		<nav class="pp-proj-tabs" aria-label="<?php esc_attr_e( 'Inquiry sections', 'project-prepper' ); ?>">
+			<a class="pp-proj-tabs__tab<?php echo 'pipeline' === $tab ? ' pp-proj-tabs__tab--on' : ''; ?>"<?php echo 'pipeline' === $tab ? ' aria-current="page"' : ''; ?> href="<?php echo esc_url( $tab_base ); ?>"><?php /* translators: %d: number of open inquiries. */ printf( esc_html__( 'Pipeline (%d)', 'project-prepper' ), (int) $open ); ?></a>
+			<a class="pp-proj-tabs__tab<?php echo 'archive' === $tab ? ' pp-proj-tabs__tab--on' : ''; ?>"<?php echo 'archive' === $tab ? ' aria-current="page"' : ''; ?> href="<?php echo esc_url( add_query_arg( 'pp_tab', 'archive', $tab_base ) ); ?>"><?php /* translators: %d: number of archived inquiries. */ printf( esc_html__( 'Archive (%d)', 'project-prepper' ), (int) $archived ); ?></a>
+		</nav>
+
+		<section class="pp-portal__section">
+			<?php if ( ! $shown ) : ?>
+				<p class="pp-portal__empty">
 					<?php
-					$next = Inquiries::TRANSITIONS[ $inq->status ] ?? [];
-					$span = '';
-					if ( $inq->date_from ) {
-						$span = $inq->date_from === $inq->date_to || ! $inq->date_to
-							? (string) $inq->date_from
-							: $inq->date_from . ' – ' . $inq->date_to;
+					if ( 'archive' === $tab ) {
+						esc_html_e( 'No archived inquiries yet — won and lost inquiries land here.', 'project-prepper' );
+					} else {
+						esc_html_e( 'No open inquiries. Create your first one below.', 'project-prepper' );
 					}
 					?>
-					<div class="pp-portal__item">
-						<div class="pp-portal__item-head">
-							<span class="pp-portal__group-name"><?php echo esc_html( $inq->name ); ?></span>
-							<span class="pp-status pp-status--<?php echo esc_attr( $inq->status ); ?>"><?php echo esc_html( $labels[ $inq->status ] ?? $inq->status ); ?></span>
-							<?php if ( $span ) : ?><span class="pp-portal__item-meta"><?php echo esc_html( $span ); ?></span><?php endif; ?>
-						</div>
-						<?php if ( $inq->email || $inq->phone ) : ?>
-							<div class="pp-portal__item-meta"><?php echo esc_html( trim( $inq->email . ( $inq->email && $inq->phone ? ' · ' : '' ) . $inq->phone ) ); ?></div>
-						<?php endif; ?>
-						<?php if ( $inq->message ) : ?>
-							<p class="pp-portal__inq-msg"><?php echo esc_html( $inq->message ); ?></p>
-						<?php endif; ?>
-
-						<?php if ( $next ) : ?>
-							<div class="pp-portal__share-row">
-								<span class="pp-portal__share-label"><?php esc_html_e( 'Move to:', 'project-prepper' ); ?></span>
-								<?php foreach ( $next as $st ) : ?>
-									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-										<?php self::action_fields( 'inquiry_status' ); ?>
-										<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
-										<input type="hidden" name="pp_status" value="<?php echo esc_attr( $st ); ?>">
-										<button type="submit" class="pp-portal__chip"><?php echo esc_html( $labels[ $st ] ?? $st ); ?></button>
-									</form>
-								<?php endforeach; ?>
-							</div>
-						<?php endif; ?>
-
-						<div class="pp-portal__actions">
-							<?php if ( $group_id > 0 && ! in_array( $inq->status, [ 'won', 'lost', 'closed' ], true ) ) : ?>
-								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-									<?php self::action_fields( 'inquiry_to_project' ); ?>
-									<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
-									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create project', 'project-prepper' ); ?></button>
-								</form>
-							<?php endif; ?>
-							<details class="pp-portal__edit">
-								<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
-								<?php self::inquiry_form( 'inquiry_update', $inq ); ?>
-							</details>
-							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this inquiry?', 'project-prepper' ) ); ?>');">
-								<?php self::action_fields( 'inquiry_delete' ); ?>
-								<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
-								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
-							</form>
-						</div>
-					</div>
-				<?php endforeach; ?>
+				</p>
 			<?php else : ?>
-				<p class="pp-portal__empty"><?php esc_html_e( 'No inquiries yet. Add your first one below.', 'project-prepper' ); ?></p>
+				<div class="pp-rows">
+					<?php foreach ( $shown as $inq ) :
+						$title = '' !== trim( (string) ( $inq->title ?? '' ) ) ? $inq->title : $inq->name;
+						$bits  = [ $inq->name ];
+						$range = self::fmt_range( $inq->date_from, $inq->date_to );
+						if ( '' !== $range ) {
+							$bits[] = $range;
+						}
+						if ( '' !== (string) ( $inq->venue_name ?? '' ) ) {
+							$bits[] = $inq->venue_name;
+						}
+						$overdue = ! empty( $inq->follow_up ) && $inq->follow_up < current_time( 'Y-m-d' )
+							&& ! in_array( $inq->status, [ 'won', 'lost', 'closed' ], true );
+						$url     = add_query_arg( [ 'pp_view' => 'inquiries', 'pp_inquiry' => (int) $inq->id ], self::portal_url() );
+						?>
+						<a class="pp-row pp-row--link" href="<?php echo esc_url( $url ); ?>">
+							<span class="pp-row__main"><?php echo esc_html( $title ); ?></span>
+							<span class="pp-status pp-status--<?php echo esc_attr( $inq->status ); ?>"><?php echo esc_html( $labels[ $inq->status ] ?? $inq->status ); ?></span>
+							<span class="pp-row__meta">
+								<?php
+								echo esc_html( implode( ' · ', $bits ) );
+								if ( $overdue ) {
+									echo ' · ';
+									?><span class="pp-inq-overdue"><?php esc_html_e( 'Follow-up due!', 'project-prepper' ); ?></span><?php
+								}
+								?>
+							</span>
+							<?php if ( null !== ( $inq->offer_amount ?? null ) ) : ?>
+								<span class="pp-inq-amount"><?php echo esc_html( number_format_i18n( (float) $inq->offer_amount, 2 ) ); ?> €</span>
+							<?php endif; ?>
+							<?php if ( null !== ( $inq->probability ?? null ) ) :
+								$p    = (int) $inq->probability;
+								$tone = $p >= 70 ? 'hi' : ( $p >= 30 ? 'mid' : 'lo' ); ?>
+								<span class="pp-prob pp-prob--<?php echo esc_attr( $tone ); ?>"><?php echo (int) $p; ?>%</span>
+							<?php endif; ?>
+						</a>
+					<?php endforeach; ?>
+				</div>
 			<?php endif; ?>
 
-			<details class="pp-portal__add">
-				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New inquiry', 'project-prepper' ); ?></summary>
-				<?php self::inquiry_form( 'inquiry_create', null ); ?>
-			</details>
+			<div class="pp-portal__actions" style="margin-top:1rem">
+				<button type="button" class="pp-portal__btn pp-portal__btn--sm" data-pp-modal="pp-inquiry-new"><?php esc_html_e( 'New inquiry', 'project-prepper' ); ?></button>
+			</div>
+			<dialog class="pp-modal pp-modal--portal" id="pp-inquiry-new">
+				<div class="pp-modal-header">
+					<h2 class="pp-modal__title"><?php esc_html_e( 'New inquiry', 'project-prepper' ); ?></h2>
+					<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+				</div>
+				<div class="pp-modal-body">
+					<?php self::inquiry_form( 'inquiry_create', null ); ?>
+				</div>
+			</dialog>
+		</section>
+		<?php
+	}
+
+	/**
+	 * Anfrage-Detail (App-Pendant src/app/(dashboard)/inquiries/[id]): Pipeline-
+	 * Leiste, Sektionen Kunde/Event/Angebot/Bewertung/Notizen, Aktionen
+	 * (Projekt erstellen bzw. „Zum Projekt", Bearbeiten, Löschen).
+	 */
+	private static function view_inquiry_detail( int $id, WP_User $user, array $groups ): void {
+		$group_id = self::active_group_id( $groups );
+		$inq      = MemberInquiries::get_owned( $id, (int) $user->ID, $group_id );
+		$back     = add_query_arg( 'pp_view', 'inquiries', self::portal_url() );
+		if ( ! $inq ) {
+			?>
+			<p class="pp-proj-back"><a href="<?php echo esc_url( $back ); ?>"><?php esc_html_e( '← Back to inquiries', 'project-prepper' ); ?></a></p>
+			<p class="pp-portal__empty"><?php esc_html_e( 'This inquiry is not available.', 'project-prepper' ); ?></p>
+			<?php
+			return;
+		}
+		$labels    = self::inquiry_status_labels();
+		$is_closed = in_array( $inq->status, [ 'won', 'lost', 'closed' ], true );
+		if ( $is_closed ) {
+			$back = add_query_arg( 'pp_tab', 'archive', $back );
+		}
+		$title = '' !== trim( (string) ( $inq->title ?? '' ) ) ? $inq->title : $inq->name;
+		?>
+		<p class="pp-proj-back"><a href="<?php echo esc_url( $back ); ?>"><?php esc_html_e( '← Back to inquiries', 'project-prepper' ); ?></a></p>
+		<header class="pp-app__page-head">
+			<div class="pp-proj-detail-head">
+				<h1 class="pp-app__page-title"><?php echo esc_html( $title ); ?></h1>
+				<span class="pp-status pp-status--<?php echo esc_attr( $inq->status ); ?>"><?php echo esc_html( $labels[ $inq->status ] ?? $inq->status ); ?></span>
+			</div>
+			<p class="pp-app__page-sub"><?php echo esc_html( $inq->name . ' · ' . self::fmt_date( $inq->created_at ) ); ?></p>
+		</header>
+
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Pipeline', 'project-prepper' ); ?></h3>
+			<div class="pp-inq-pipeline">
+				<?php
+				// Alle Stufen zeigen (wie die App); nur serverseitig erlaubte
+				// Übergänge sind klickbar, der Rest ist stumm.
+				$steps = [ 'new', 'contacted', 'offer', 'won', 'lost' ];
+				if ( 'closed' === $inq->status ) {
+					$steps[] = 'closed';
+				}
+				$allowed = Inquiries::TRANSITIONS[ $inq->status ] ?? [];
+				foreach ( $steps as $st ) :
+					if ( $st === $inq->status ) : ?>
+						<span class="pp-portal__chip pp-portal__chip--on"><?php echo esc_html( $labels[ $st ] ); ?></span>
+					<?php elseif ( in_array( $st, $allowed, true ) ) : ?>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<?php self::action_fields( 'inquiry_status' ); ?>
+							<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
+							<input type="hidden" name="pp_status" value="<?php echo esc_attr( $st ); ?>">
+							<button type="submit" class="pp-portal__chip"><?php echo esc_html( $labels[ $st ] ); ?></button>
+						</form>
+					<?php else : ?>
+						<span class="pp-portal__chip pp-portal__chip--off"><?php echo esc_html( $labels[ $st ] ); ?></span>
+					<?php endif;
+				endforeach;
+				?>
+			</div>
+		</section>
+
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Client', 'project-prepper' ); ?></h3>
+			<dl class="pp-dl">
+				<?php
+				self::dl_row( __( 'Client name', 'project-prepper' ), (string) $inq->name );
+				if ( '' !== (string) ( $inq->contact_person ?? '' ) ) {
+					self::dl_row( __( 'Contact person', 'project-prepper' ), (string) $inq->contact_person );
+				}
+				if ( '' !== (string) $inq->email ) : ?>
+					<dt><?php esc_html_e( 'Email', 'project-prepper' ); ?></dt>
+					<dd><a href="<?php echo esc_url( 'mailto:' . $inq->email ); ?>"><?php echo esc_html( $inq->email ); ?></a></dd>
+				<?php endif;
+				if ( '' !== (string) $inq->phone ) {
+					self::dl_row( __( 'Phone', 'project-prepper' ), (string) $inq->phone );
+				}
+				?>
+			</dl>
+		</section>
+
+		<?php
+		$range = self::fmt_range( $inq->date_from, $inq->date_to );
+		if ( '' !== (string) ( $inq->venue_name ?? '' ) || '' !== $range ) :
+			?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Event', 'project-prepper' ); ?></h3>
+				<dl class="pp-dl">
+					<?php
+					if ( '' !== (string) ( $inq->venue_name ?? '' ) ) {
+						self::dl_row( __( 'Venue', 'project-prepper' ), (string) $inq->venue_name );
+					}
+					if ( '' !== $range ) {
+						self::dl_row( __( 'Event date', 'project-prepper' ), $range );
+					}
+					?>
+				</dl>
+			</section>
+		<?php endif; ?>
+
+		<?php
+		$has_offer  = null !== ( $inq->estimated_budget ?? null ) || null !== ( $inq->offer_amount ?? null );
+		$has_rating = null !== ( $inq->probability ?? null ) || ! empty( $inq->follow_up );
+		if ( $has_offer || $has_rating ) :
+			?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Offer & rating', 'project-prepper' ); ?></h3>
+				<dl class="pp-dl">
+					<?php
+					if ( null !== ( $inq->estimated_budget ?? null ) ) {
+						self::dl_row( __( 'Estimated budget', 'project-prepper' ), number_format_i18n( (float) $inq->estimated_budget, 2 ) . ' €' );
+					}
+					if ( null !== ( $inq->offer_amount ?? null ) ) {
+						self::dl_row( __( 'Offer amount', 'project-prepper' ), number_format_i18n( (float) $inq->offer_amount, 2 ) . ' €' );
+					}
+					if ( null !== ( $inq->probability ?? null ) ) :
+						$p    = (int) $inq->probability;
+						$tone = $p >= 70 ? 'hi' : ( $p >= 30 ? 'mid' : 'lo' );
+						?>
+						<dt><?php esc_html_e( 'Probability', 'project-prepper' ); ?></dt>
+						<dd><span class="pp-prob pp-prob--<?php echo esc_attr( $tone ); ?>"><?php echo (int) $p; ?>%</span></dd>
+					<?php endif;
+					if ( ! empty( $inq->follow_up ) ) :
+						$overdue = $inq->follow_up < current_time( 'Y-m-d' ) && ! $is_closed;
+						?>
+						<dt><?php esc_html_e( 'Next follow-up', 'project-prepper' ); ?></dt>
+						<dd>
+							<?php
+							echo esc_html( self::fmt_date( $inq->follow_up ) );
+							if ( $overdue ) {
+								echo ' ';
+								?><span class="pp-inq-overdue"><?php esc_html_e( 'Follow-up due!', 'project-prepper' ); ?></span><?php
+							}
+							?>
+						</dd>
+					<?php endif; ?>
+				</dl>
+			</section>
+		<?php endif; ?>
+
+		<?php if ( '' !== trim( (string) $inq->message ) ) : ?>
+			<section class="pp-card">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Notes', 'project-prepper' ); ?></h3>
+				<p class="pp-portal__inq-msg"><?php echo esc_html( $inq->message ); ?></p>
+			</section>
+		<?php endif; ?>
+
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Actions', 'project-prepper' ); ?></h3>
+			<?php if ( (int) ( $inq->project_id ?? 0 ) > 0 ) : ?>
+				<p class="pp-portal__hint">
+					<?php esc_html_e( 'A project was created from this inquiry.', 'project-prepper' ); ?>
+					<a class="pp-portal__btn pp-portal__btn--sm" href="<?php echo esc_url( add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $inq->project_id ], self::portal_url() ) ); ?>"><?php esc_html_e( 'Go to project', 'project-prepper' ); ?></a>
+				</p>
+			<?php endif; ?>
+			<div class="pp-portal__actions">
+				<?php if ( $group_id > 0 && ! $is_closed && (int) ( $inq->project_id ?? 0 ) <= 0 ) : ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<?php self::action_fields( 'inquiry_to_project' ); ?>
+						<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create project', 'project-prepper' ); ?></button>
+					</form>
+				<?php endif; ?>
+				<details class="pp-portal__edit">
+					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+					<?php self::inquiry_form( 'inquiry_update', $inq ); ?>
+				</details>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this inquiry?', 'project-prepper' ) ); ?>');">
+					<?php self::action_fields( 'inquiry_delete' ); ?>
+					<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
+					<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
+				</form>
+			</div>
 		</section>
 		<?php
 	}
 
 	private static function inquiry_form( string $do, ?object $inq ): void {
-		$val = static fn( string $f, $d = '' ) => $inq && isset( $inq->$f ) && null !== $inq->$f ? $inq->$f : $d;
+		$val   = static fn( string $f, $d = '' ) => $inq && isset( $inq->$f ) && null !== $inq->$f ? $inq->$f : $d;
+		$money = static fn( string $f ) => null !== ( $inq->$f ?? null ) ? number_format( (float) $inq->$f, 2, '.', '' ) : '';
 		?>
 		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<?php self::action_fields( $do ); ?>
 			<?php if ( $inq ) : ?>
 				<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
 			<?php endif; ?>
-			<label><?php esc_html_e( 'Contact name', 'project-prepper' ); ?>
-				<input type="text" name="pp_name" value="<?php echo esc_attr( (string) $val( 'name' ) ); ?>" required>
+			<label><?php esc_html_e( 'Title', 'project-prepper' ); ?>
+				<input type="text" name="pp_title" value="<?php echo esc_attr( (string) $val( 'title' ) ); ?>" placeholder="<?php esc_attr_e( 'e.g. Company party Miller Ltd.', 'project-prepper' ); ?>">
 			</label>
-			<label><?php esc_html_e( 'Email', 'project-prepper' ); ?>
-				<input type="email" name="pp_email" value="<?php echo esc_attr( (string) $val( 'email' ) ); ?>">
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Client name', 'project-prepper' ); ?>
+					<input type="text" name="pp_name" value="<?php echo esc_attr( (string) $val( 'name' ) ); ?>" required>
+				</label>
+				<label><?php esc_html_e( 'Contact person', 'project-prepper' ); ?>
+					<input type="text" name="pp_contact" value="<?php echo esc_attr( (string) $val( 'contact_person' ) ); ?>">
+				</label>
+			</div>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Email', 'project-prepper' ); ?>
+					<input type="email" name="pp_email" value="<?php echo esc_attr( (string) $val( 'email' ) ); ?>">
+				</label>
+				<label><?php esc_html_e( 'Phone', 'project-prepper' ); ?>
+					<input type="text" name="pp_phone" value="<?php echo esc_attr( (string) $val( 'phone' ) ); ?>">
+				</label>
+			</div>
+			<label><?php esc_html_e( 'Venue / location', 'project-prepper' ); ?>
+				<input type="text" name="pp_venue" value="<?php echo esc_attr( (string) $val( 'venue_name' ) ); ?>">
 			</label>
-			<label><?php esc_html_e( 'Phone', 'project-prepper' ); ?>
-				<input type="text" name="pp_phone" value="<?php echo esc_attr( (string) $val( 'phone' ) ); ?>">
-			</label>
-			<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
-				<input type="date" name="pp_from" value="<?php echo esc_attr( (string) $val( 'date_from' ) ); ?>">
-			</label>
-			<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
-				<input type="date" name="pp_to" value="<?php echo esc_attr( (string) $val( 'date_to' ) ); ?>">
-			</label>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+					<input type="date" name="pp_from" value="<?php echo esc_attr( (string) $val( 'date_from' ) ); ?>">
+				</label>
+				<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+					<input type="date" name="pp_to" value="<?php echo esc_attr( (string) $val( 'date_to' ) ); ?>">
+				</label>
+			</div>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Estimated budget (€)', 'project-prepper' ); ?>
+					<input type="number" name="pp_budget" min="0" step="0.01" value="<?php echo esc_attr( $money( 'estimated_budget' ) ); ?>" placeholder="0.00">
+				</label>
+				<label><?php esc_html_e( 'Offer amount (€)', 'project-prepper' ); ?>
+					<input type="number" name="pp_offer" min="0" step="0.01" value="<?php echo esc_attr( $money( 'offer_amount' ) ); ?>" placeholder="0.00">
+				</label>
+			</div>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Probability (%)', 'project-prepper' ); ?>
+					<input type="number" name="pp_probability" min="0" max="100" step="5" value="<?php echo esc_attr( null !== ( $inq->probability ?? null ) ? (string) (int) $inq->probability : '' ); ?>" placeholder="50">
+				</label>
+				<label><?php esc_html_e( 'Next follow-up', 'project-prepper' ); ?>
+					<input type="date" name="pp_follow_up" value="<?php echo esc_attr( (string) $val( 'follow_up' ) ); ?>">
+				</label>
+			</div>
 			<label><?php esc_html_e( 'Message / notes', 'project-prepper' ); ?>
 				<textarea name="pp_message" rows="2"><?php echo esc_textarea( (string) $val( 'message' ) ); ?></textarea>
 			</label>
@@ -4163,56 +4662,138 @@ class MemberPortal {
 	 * Umfrage-Liste + „Neue Umfrage"-Formular — von Projekt- UND Gruppen-Umfragen
 	 * genutzt. $ctx['prefix'] = 'poll' (Projekt) | 'gpoll' (Gruppe) wählt die
 	 * Dispatcher-Aktionen; poll_ctx_hidden() setzt das Redirect-Ziel.
+	 *
+	 * App-Pendant PollCard/PollDateGrid: Teilnehmer-Matrix (wer hat wie
+	 * gestimmt), eigene Zeile mit Zyklus-Button pro Option (leer→Ja→Vielleicht→
+	 * Nein→Ja …), Zusagen-Zeile mit Hervorhebung der besten Option, Meta-Zeile
+	 * (Ersteller · Teilnehmer · Frist) und Schließen/Öffnen/Löschen.
 	 */
 	private static function render_polls_list( array $polls, array $ctx ): void {
 		$pre = $ctx['prefix'];
+		$uid = get_current_user_id();
 		if ( ! $polls ) : ?>
-			<p class="pp-portal__empty pp-gov__empty"><?php esc_html_e( 'No polls yet.', 'project-prepper' ); ?></p>
+			<p class="pp-portal__empty pp-gov__empty"><?php echo esc_html( (string) ( $ctx['empty'] ?? __( 'No polls yet.', 'project-prepper' ) ) ); ?></p>
 		<?php else :
 			foreach ( $polls as $poll ) :
-				$open = ( 'open' === $poll->status ); ?>
+				$open    = ( 'open' === $poll->status );
+				$expired = Polls::deadline_passed( $poll );
+				$votable = $open && $poll->can_vote && ! $expired;
+				$voters  = Polls::voters( (int) $poll->id );
+				$options = (array) $poll->options;
+
+				// Eigene Zeile immer zuerst, danach die übrigen Teilnehmer.
+				$others = array_values( array_filter( $voters, static fn( $v ) => (int) $v->user_id !== $uid ) );
+				$n_part = count( $voters ) + ( ( $poll->can_vote && count( $others ) === count( $voters ) ) ? 1 : 0 );
+
+				// Beste Option = meiste Zusagen (App: grüne Hervorhebung).
+				$best = 0;
+				foreach ( $options as $opt ) {
+					$best = max( $best, (int) $opt->yes );
+				}
+
+				$meta   = [];
+				$author = ! empty( $poll->created_by ) ? get_userdata( (int) $poll->created_by ) : null;
+				if ( $author ) {
+					/* translators: %s: name of the poll creator. */
+					$meta[] = sprintf( __( 'by %s', 'project-prepper' ), $author->display_name );
+				}
+				/* translators: %d: number of poll participants. */
+				$meta[] = sprintf( _n( '%d participant', '%d participants', $n_part, 'project-prepper' ), $n_part );
+				if ( ! empty( $poll->deadline ) && '0000-00-00 00:00:00' !== (string) $poll->deadline ) {
+					/* translators: %s: poll deadline (date and time). */
+					$meta[] = sprintf( __( 'until %s', 'project-prepper' ), date_i18n( (string) get_option( 'date_format' ) . ' H:i', strtotime( (string) $poll->deadline ) ) );
+				}
+				?>
 				<div class="pp-gov">
 					<div class="pp-gov__head">
 						<span class="pp-gov__title"><?php echo esc_html( $poll->title ); ?></span>
 						<span class="pp-status pp-status--<?php echo $open ? 'open' : 'done'; ?>"><?php echo esc_html( $open ? __( 'Open', 'project-prepper' ) : __( 'Closed', 'project-prepper' ) ); ?></span>
 						<span class="pp-gov__mode"><?php echo esc_html( 'date' === $poll->poll_type ? __( 'Date poll', 'project-prepper' ) : __( 'Choice poll', 'project-prepper' ) ); ?></span>
 					</div>
+					<p class="pp-gov__meta"><?php echo esc_html( implode( ' · ', $meta ) ); ?></p>
 					<?php if ( '' !== (string) $poll->description ) : ?>
 						<p class="pp-gov__desc"><?php echo nl2br( esc_html( $poll->description ) ); ?></p>
 					<?php endif; ?>
-					<div class="pp-poll-opts">
-						<?php foreach ( (array) $poll->options as $opt ) :
-							$mine = $poll->my_votes->{(string) $opt->id} ?? ''; ?>
-							<div class="pp-poll-opt">
-								<span class="pp-poll-opt__label"><?php echo esc_html( self::poll_option_label( $poll->poll_type, $opt ) ); ?></span>
-								<span class="pp-poll-opt__tally">
-									<span class="pp-poll-c pp-poll-c--yes"><?php echo (int) $opt->yes; ?></span>
-									<span class="pp-poll-c pp-poll-c--maybe"><?php echo (int) $opt->maybe; ?></span>
-									<span class="pp-poll-c pp-poll-c--no"><?php echo (int) $opt->no; ?></span>
-								</span>
-								<?php if ( $open && $poll->can_vote ) : ?>
-									<span class="pp-poll-opt__vote">
-										<?php foreach ( [ 'yes' => __( 'Yes', 'project-prepper' ), 'maybe' => __( 'Maybe', 'project-prepper' ), 'no' => __( 'No', 'project-prepper' ) ] as $v => $vl ) : ?>
-											<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-												<?php self::action_fields( $pre . '_vote' ); ?>
-												<?php self::poll_ctx_hidden( $ctx ); ?>
-												<input type="hidden" name="pp_option" value="<?php echo (int) $opt->id; ?>">
-												<input type="hidden" name="pp_vote" value="<?php echo esc_attr( $v ); ?>">
-												<button type="submit" class="pp-poll-btn pp-poll-btn--<?php echo esc_attr( $v ); ?><?php echo $mine === $v ? ' is-active' : ''; ?>"><?php echo esc_html( $vl ); ?></button>
-											</form>
+					<?php if ( $open && $expired ) : ?>
+						<p class="pp-portal__hint"><?php esc_html_e( 'The deadline for this poll has passed — voting is closed.', 'project-prepper' ); ?></p>
+					<?php endif; ?>
+
+					<div class="pp-pollgrid">
+						<table class="pp-pollgrid__table">
+							<thead>
+								<tr>
+									<th class="pp-pollgrid__who"></th>
+									<?php foreach ( $options as $opt ) : ?>
+										<th class="pp-pollgrid__opt"><?php self::poll_option_head( (string) $poll->poll_type, $opt ); ?></th>
+									<?php endforeach; ?>
+								</tr>
+							</thead>
+							<tbody>
+								<?php if ( $poll->can_vote ) : ?>
+									<tr class="pp-pollgrid__me">
+										<td class="pp-pollgrid__who">
+											<?php echo esc_html( wp_get_current_user()->display_name ); ?>
+											<span class="pp-muted-inline"><?php esc_html_e( '(you)', 'project-prepper' ); ?></span>
+										</td>
+										<?php foreach ( $options as $opt ) :
+											$mine = (string) ( $poll->my_votes->{(string) $opt->id} ?? '' );
+											if ( $votable ) :
+												// Zyklus wie die App: leer→Ja→Vielleicht→Nein→Ja …
+												$next = [ '' => 'yes', 'yes' => 'maybe', 'maybe' => 'no', 'no' => 'yes' ][ $mine ] ?? 'yes';
+												$hint = [ 'yes' => __( 'Yes', 'project-prepper' ), 'maybe' => __( 'Maybe', 'project-prepper' ), 'no' => __( 'No', 'project-prepper' ) ];
+												?>
+												<td>
+													<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+														<?php self::action_fields( $pre . '_vote' ); ?>
+														<?php self::poll_ctx_hidden( $ctx ); ?>
+														<input type="hidden" name="pp_option" value="<?php echo (int) $opt->id; ?>">
+														<input type="hidden" name="pp_vote" value="<?php echo esc_attr( $next ); ?>">
+														<button type="submit"
+															class="pp-pollgrid__btn<?php echo '' !== $mine ? ' pp-pollgrid__btn--' . esc_attr( $mine ) : ''; ?>"
+															title="<?php echo esc_attr( '' !== $mine ? $hint[ $mine ] : __( 'Click to vote', 'project-prepper' ) ); ?>"><?php echo esc_html( self::poll_vote_glyph( $mine ) ); ?></button>
+													</form>
+												</td>
+											<?php else : ?>
+												<td><span class="pp-pollgrid__cell<?php echo '' !== $mine ? ' pp-pollgrid__btn--' . esc_attr( $mine ) : ''; ?>"><?php echo esc_html( self::poll_vote_glyph( $mine, '' ) ); ?></span></td>
+											<?php endif; ?>
 										<?php endforeach; ?>
-									</span>
+									</tr>
 								<?php endif; ?>
-							</div>
-						<?php endforeach; ?>
+								<?php foreach ( $others as $voter ) : ?>
+									<tr>
+										<td class="pp-pollgrid__who"><?php echo esc_html( $voter->display_name ); ?></td>
+										<?php foreach ( $options as $opt ) :
+											$v = (string) ( $voter->votes->{(string) $opt->id} ?? '' ); ?>
+											<td><span class="pp-pollgrid__cell<?php echo '' !== $v ? ' pp-pollgrid__btn--' . esc_attr( $v ) : ''; ?>"><?php echo esc_html( self::poll_vote_glyph( $v, '' ) ); ?></span></td>
+										<?php endforeach; ?>
+									</tr>
+								<?php endforeach; ?>
+								<tr class="pp-pollgrid__sums">
+									<td class="pp-pollgrid__who"><?php esc_html_e( 'Yes votes', 'project-prepper' ); ?></td>
+									<?php foreach ( $options as $opt ) : ?>
+										<td class="<?php echo ( $best > 0 && (int) $opt->yes === $best ) ? 'pp-pollgrid__best' : ''; ?>"><?php echo (int) $opt->yes; ?></td>
+									<?php endforeach; ?>
+								</tr>
+							</tbody>
+						</table>
 					</div>
+
 					<?php if ( self::gov_can_manage( $poll ) ) : ?>
-						<form class="pp-gov__manage" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-							<?php self::action_fields( $open ? $pre . '_close' : $pre . '_reopen' ); ?>
-							<?php self::poll_ctx_hidden( $ctx ); ?>
-							<input type="hidden" name="pp_poll" value="<?php echo (int) $poll->id; ?>">
-							<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php echo esc_html( $open ? __( 'Close', 'project-prepper' ) : __( 'Reopen', 'project-prepper' ) ); ?></button>
-						</form>
+						<div class="pp-gov__manage">
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+								<?php self::action_fields( $open ? $pre . '_close' : $pre . '_reopen' ); ?>
+								<?php self::poll_ctx_hidden( $ctx ); ?>
+								<input type="hidden" name="pp_poll" value="<?php echo (int) $poll->id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php echo esc_html( $open ? __( 'Close', 'project-prepper' ) : __( 'Reopen', 'project-prepper' ) ); ?></button>
+							</form>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+								onsubmit="return confirm('<?php echo esc_js( __( 'Delete this poll including all votes?', 'project-prepper' ) ); ?>');">
+								<?php self::action_fields( $pre . '_delete' ); ?>
+								<?php self::poll_ctx_hidden( $ctx ); ?>
+								<input type="hidden" name="pp_poll" value="<?php echo (int) $poll->id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
+							</form>
+						</div>
 					<?php endif; ?>
 				</div>
 			<?php endforeach;
@@ -4250,6 +4831,9 @@ class MemberPortal {
 					<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-poll-add" data-label="<?php esc_attr_e( 'Option', 'project-prepper' ); ?>"><?php esc_html_e( '+ Add option', 'project-prepper' ); ?></button>
 					<p class="pp-poll-opthint"><?php esc_html_e( 'At least two options. For date polls enter YYYY-MM-DD (optionally HH:MM). Empty boxes are ignored.', 'project-prepper' ); ?></p>
 				</fieldset>
+				<label><?php esc_html_e( 'Deadline (optional)', 'project-prepper' ); ?>
+					<input type="datetime-local" name="pp_deadline">
+				</label>
 				<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
 					<textarea name="pp_description" rows="2"></textarea>
 				</label>
@@ -4258,6 +4842,26 @@ class MemberPortal {
 			</div>
 		</dialog>
 		<?php
+	}
+
+	/** Kopfzelle einer Umfrage-Option: Termin (Wochentag/Datum/Zeit) oder Label. */
+	private static function poll_option_head( string $poll_type, object $opt ): void {
+		if ( 'date' === $poll_type && ! empty( $opt->option_date ) ) {
+			$ts = strtotime( (string) $opt->option_date );
+			echo '<span class="pp-pollgrid__dow">' . esc_html( $ts ? date_i18n( 'D', $ts ) : '' ) . '</span>';
+			echo '<span class="pp-pollgrid__date">' . esc_html( $ts ? date_i18n( 'j.n.', $ts ) : (string) $opt->option_date ) . '</span>';
+			if ( ! empty( $opt->option_time ) ) {
+				echo '<span class="pp-pollgrid__time">' . esc_html( substr( (string) $opt->option_time, 0, 5 ) ) . '</span>';
+			}
+			return;
+		}
+		echo '<span class="pp-pollgrid__label">' . esc_html( (string) $opt->label ) . '</span>';
+	}
+
+	/** Symbol für eine Stimme in der Matrix (App: ✓ / ? / ✗, leer = ·). */
+	private static function poll_vote_glyph( string $vote, string $empty = '·' ): string {
+		$map = [ 'yes' => '✓', 'maybe' => '?', 'no' => '✕' ];
+		return $map[ $vote ] ?? $empty;
 	}
 
 	/**
@@ -4304,9 +4908,9 @@ class MemberPortal {
 		?>
 		<div class="pp-kpi-grid pp-kpi-grid--compact">
 			<?php
-			self::rental_kpi( __( 'Projects', 'project-prepper' ), (string) count( $projects ), 'info' );
-			self::rental_kpi( __( 'Planned costs', 'project-prepper' ), $eur( $planned ), 'primary' );
-			self::rental_kpi( __( 'Actual costs', 'project-prepper' ), $eur( $actual ), $actual > $planned ? 'warning' : 'success' );
+			self::mini_kpi( __( 'Projects', 'project-prepper' ), (string) count( $projects ), 'info' );
+			self::mini_kpi( __( 'Planned costs', 'project-prepper' ), $eur( $planned ), 'primary' );
+			self::mini_kpi( __( 'Actual costs', 'project-prepper' ), $eur( $actual ), $actual > $planned ? 'warning' : 'success' );
 			?>
 		</div>
 
@@ -4327,10 +4931,9 @@ class MemberPortal {
 			<section class="pp-card">
 				<div class="pp-rows">
 					<?php foreach ( $shown as $c ) :
-						$purl = add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $c->project_id ], $base );
-						$desc = '' !== (string) $c->description ? $c->description : '';
-						$amount     = null !== $c->amount_actual ? (float) $c->amount_actual : (float) $c->amount_planned;
-						$is_planned = ( null === $c->amount_actual ); ?>
+						// Projekt-Link direkt in den Kosten-Reiter des Projekts (App: ?tab=costs).
+						$purl = add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $c->project_id, 'pp_tab' => 'costs' ], $base );
+						$desc = '' !== (string) $c->description ? $c->description : ''; ?>
 						<div class="pp-row pp-row--costs">
 							<span class="pp-row__main">
 								<a class="pp-row__link" href="<?php echo esc_url( $purl ); ?>"><?php echo esc_html( $c->project_name ?: '—' ); ?></a>
@@ -4338,9 +4941,15 @@ class MemberPortal {
 							</span>
 							<span class="pp-row__meta">
 								<?php
-								echo esc_html( $eur( $amount ) );
-								if ( $is_planned ) {
-									echo ' · ' . esc_html__( 'planned', 'project-prepper' );
+								// Plan- UND Ist-Betrag getrennt wie die App-Tabelle.
+								/* translators: %s: planned amount. */
+								echo esc_html( sprintf( __( 'Plan %s', 'project-prepper' ), $eur( (float) $c->amount_planned ) ) );
+								echo ' · ';
+								if ( null !== $c->amount_actual ) {
+									/* translators: %s: actual amount. */
+									echo '<strong>' . esc_html( sprintf( __( 'Actual %s', 'project-prepper' ), $eur( (float) $c->amount_actual ) ) ) . '</strong>';
+								} else {
+									echo esc_html( __( 'Actual', 'project-prepper' ) . ' —' );
 								}
 								?>
 							</span>
@@ -4365,10 +4974,53 @@ class MemberPortal {
 			echo '<p class="pp-portal__empty">' . esc_html__( 'You are in Solo. Pick a group in the workspace switcher (top left) to run polls.', 'project-prepper' ) . '</p>';
 			return;
 		}
-		$polls = Polls::for_group( $active, get_current_user_id() ?: null );
+		$uid   = get_current_user_id();
+		$polls = Polls::for_group( $active, $uid ?: null );
+
+		// Filter-Reiter wie die App (Aktiv/Alle/Geschlossen/Meine).
+		$open_polls   = array_values( array_filter( $polls, static fn( $p ) => 'open' === $p->status ) );
+		$closed_polls = array_values( array_filter( $polls, static fn( $p ) => 'open' !== $p->status ) );
+		$mine_polls   = array_values( array_filter( $polls, static fn( $p ) => (int) $p->created_by === $uid ) );
+		$tabs         = [
+			/* translators: %d: number of active polls. */
+			'active' => sprintf( __( 'Active (%d)', 'project-prepper' ), count( $open_polls ) ),
+			'all'    => __( 'All', 'project-prepper' ),
+			/* translators: %d: number of closed polls. */
+			'closed' => sprintf( __( 'Closed (%d)', 'project-prepper' ), count( $closed_polls ) ),
+			/* translators: %d: number of polls created by the current user. */
+			'mine'   => sprintf( __( 'Mine (%d)', 'project-prepper' ), count( $mine_polls ) ),
+		];
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Anzeige-Auswahl.
+		$tab = sanitize_key( wp_unslash( (string) ( $_GET['pp_tab'] ?? 'active' ) ) );
+		if ( ! isset( $tabs[ $tab ] ) ) {
+			$tab = 'active';
+		}
+		$tab_base = self::view_url( 'polls' );
+		switch ( $tab ) {
+			case 'all':
+				$shown = $polls;
+				$empty = __( 'No polls found.', 'project-prepper' );
+				break;
+			case 'closed':
+				$shown = $closed_polls;
+				$empty = __( 'No closed polls.', 'project-prepper' );
+				break;
+			case 'mine':
+				$shown = $mine_polls;
+				$empty = __( 'You have not created any polls yet.', 'project-prepper' );
+				break;
+			default:
+				$shown = $open_polls;
+				$empty = __( 'No active polls.', 'project-prepper' );
+		}
 		?>
+		<nav class="pp-proj-tabs" aria-label="<?php esc_attr_e( 'Poll filters', 'project-prepper' ); ?>">
+			<?php foreach ( $tabs as $key => $label ) : ?>
+				<a class="pp-proj-tabs__tab<?php echo $key === $tab ? ' pp-proj-tabs__tab--on' : ''; ?>"<?php echo $key === $tab ? ' aria-current="page"' : ''; ?> href="<?php echo esc_url( 'active' === $key ? $tab_base : add_query_arg( 'pp_tab', $key, $tab_base ) ); ?>"><?php echo esc_html( $label ); ?></a>
+			<?php endforeach; ?>
+		</nav>
 		<section class="pp-card">
-			<?php self::render_polls_list( $polls, [ 'prefix' => 'gpoll', 'group' => $active ] ); ?>
+			<?php self::render_polls_list( $shown, [ 'prefix' => 'gpoll', 'group' => $active, 'empty' => $empty ] ); ?>
 		</section>
 		<?php
 	}
@@ -4498,6 +5150,7 @@ class MemberPortal {
 		$next        = gmdate( 'Y-m', strtotime( '+1 month', $first_ts ) );
 
 		$by_day = self::calendar_events( $user, $groups, $month_start, $month_end );
+		$cals   = CalendarEvents::calendars( (int) $user->ID, self::active_group_id( $groups ) );
 		$base   = self::view_url( 'calendar' );
 		?>
 		<header class="pp-app__page-head">
@@ -4533,12 +5186,7 @@ class MemberPortal {
 					echo '<div class="pp-cal__cell' . ( $is_today ? ' pp-cal__cell--today' : '' ) . '">';
 					echo '<span class="pp-cal__daynum">' . (int) $d . '</span>';
 					foreach ( array_slice( $events, 0, 3 ) as $ev ) {
-						$cls = 'pp-cal__chip pp-cal__chip--' . $ev['type'];
-						if ( ! empty( $ev['url'] ) ) {
-							echo '<a class="' . esc_attr( $cls ) . '" href="' . esc_url( $ev['url'] ) . '" title="' . esc_attr( $ev['label'] ) . '">' . esc_html( $ev['label'] ) . '</a>';
-						} else {
-							echo '<span class="' . esc_attr( $cls ) . '" title="' . esc_attr( $ev['label'] ) . '">' . esc_html( $ev['label'] ) . '</span>';
-						}
+						self::cal_chip( $ev );
 					}
 					$extra = count( $events ) - 3;
 					if ( $extra > 0 ) {
@@ -4550,9 +5198,10 @@ class MemberPortal {
 				?>
 			</div>
 
-			<?php self::calendar_legend(); ?>
+			<?php self::calendar_legend( $cals ); ?>
 		</div>
 		<?php
+		self::render_calendar_manage( $user, $groups, $cals, $month_start, $month_end );
 	}
 
 	/** Wochenansicht des Kalenders (7 Spalten, alle Events je Tag, ohne Kürzung). */
@@ -4572,6 +5221,7 @@ class MemberPortal {
 		$next       = gmdate( 'Y-m-d', strtotime( '+7 day', $monday_ts ) );
 
 		$by_day = self::calendar_events( $user, $groups, $week_start, $week_end );
+		$cals   = CalendarEvents::calendars( (int) $user->ID, self::active_group_id( $groups ) );
 		$base   = self::view_url( 'calendar' );
 		$week_base = add_query_arg( 'pp_cal', 'week', $base );
 		?>
@@ -4603,12 +5253,7 @@ class MemberPortal {
 					echo '<div class="pp-cal__weekday-head">' . esc_html( date_i18n( 'D j.', $day_ts ) ) . '</div>';
 					if ( $events ) {
 						foreach ( $events as $ev ) {
-							$cls = 'pp-cal__chip pp-cal__chip--' . $ev['type'];
-							if ( ! empty( $ev['url'] ) ) {
-								echo '<a class="' . esc_attr( $cls ) . '" href="' . esc_url( $ev['url'] ) . '" title="' . esc_attr( $ev['label'] ) . '">' . esc_html( $ev['label'] ) . '</a>';
-							} else {
-								echo '<span class="' . esc_attr( $cls ) . '" title="' . esc_attr( $ev['label'] ) . '">' . esc_html( $ev['label'] ) . '</span>';
-							}
+							self::cal_chip( $ev );
 						}
 					} else {
 						echo '<span class="pp-cal__weekday-empty">·</span>';
@@ -4618,15 +5263,32 @@ class MemberPortal {
 				?>
 			</div>
 
-			<?php self::calendar_legend(); ?>
+			<?php self::calendar_legend( $cals ); ?>
 		</div>
 		<?php
+		self::render_calendar_manage( $user, $groups, $cals, $week_start, $week_end );
 	}
 
-	/** Gemeinsame Kalender-Legende (Monat + Woche). */
-	private static function calendar_legend(): void {
+	/** Ein Kalender-Chip im Monats-/Wochenraster (mit optionaler Kalender-Farbe). */
+	private static function cal_chip( array $ev ): void {
+		$cls   = 'pp-cal__chip pp-cal__chip--' . $ev['type'];
+		$style = ! empty( $ev['color'] )
+			? ' style="background:' . esc_attr( $ev['color'] ) . ';border-left-color:' . esc_attr( $ev['color'] ) . ';color:#fff"'
+			: '';
+		if ( ! empty( $ev['url'] ) ) {
+			echo '<a class="' . esc_attr( $cls ) . '"' . $style . ' href="' . esc_url( $ev['url'] ) . '" title="' . esc_attr( $ev['label'] ) . '">' . esc_html( $ev['label'] ) . '</a>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $style ist oben esc_attr-escaped.
+		} else {
+			echo '<span class="' . esc_attr( $cls ) . '"' . $style . ' title="' . esc_attr( $ev['label'] ) . '">' . esc_html( $ev['label'] ) . '</span>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $style ist oben esc_attr-escaped.
+		}
+	}
+
+	/** Gemeinsame Kalender-Legende (Monat + Woche) — inkl. eigener Kalender. */
+	private static function calendar_legend( array $calendars = [] ): void {
 		?>
 		<div class="pp-cal__legend">
+			<?php foreach ( $calendars as $c ) : ?>
+				<span class="pp-cal__legend-item"><span class="pp-cal__dot" style="background:<?php echo esc_attr( $c->color ); ?>"></span><?php echo esc_html( $c->name ); ?></span>
+			<?php endforeach; ?>
 			<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--project"></span><?php esc_html_e( 'Project', 'project-prepper' ); ?></span>
 			<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--schedule"></span><?php esc_html_e( 'Schedule', 'project-prepper' ); ?></span>
 			<span class="pp-cal__legend-item"><span class="pp-cal__dot pp-cal__dot--borrow"></span><?php esc_html_e( 'Loan', 'project-prepper' ); ?></span>
@@ -4650,6 +5312,178 @@ class MemberPortal {
 	}
 
 	/**
+	 * Termine + Kalender des aktiven Arbeitsbereichs unter dem Raster (App:
+	 * Events CRUD + GroupManager): Termin-Liste im sichtbaren Zeitraum mit
+	 * Inline-Edit/Löschen, „Neuer Termin"-Modal im App-Look und die
+	 * Kalender-Verwaltung (Name + Farbe aus der festen App-Palette).
+	 */
+	private static function render_calendar_manage( WP_User $user, array $groups, array $cals, string $from, string $to ): void {
+		$active = self::active_group_id( $groups );
+		$events = CalendarEvents::events_between( (int) $user->ID, $active, $from, $to );
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Your events', 'project-prepper' ); ?></h3>
+			<p class="pp-portal__hint"><?php echo esc_html( $active ? __( 'Events of your active group — visible to all its members.', 'project-prepper' ) : __( 'Your personal events (solo workspace).', 'project-prepper' ) ); ?></p>
+			<?php if ( ! $events ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No events in this period.', 'project-prepper' ); ?></p>
+			<?php else : ?>
+				<div class="pp-rows">
+					<?php foreach ( $events as $e ) :
+						$color = (string) ( $e->calendar_color ?: CalendarEvents::COLORS[0] );
+						$time  = trim( substr( (string) $e->time_start, 0, 5 ) . ( '' !== (string) $e->time_end ? '–' . substr( (string) $e->time_end, 0, 5 ) : '' ), '–' );
+						$meta  = array_filter( [
+							self::fmt_range( (string) $e->date_from, (string) $e->date_to ),
+							$time,
+							(string) $e->location,
+							(string) ( $e->calendar_name ?? '' ),
+						], static fn( $v ) => '' !== (string) $v );
+						?>
+						<div class="pp-row pp-row--event" id="pp-ev-<?php echo (int) $e->id; ?>">
+							<span class="pp-ev-dot" style="background:<?php echo esc_attr( $color ); ?>"></span>
+							<span class="pp-row__main">
+								<?php echo esc_html( $e->title ); ?>
+								<span class="pp-row__sub"><?php echo esc_html( implode( ' · ', $meta ) ); ?></span>
+							</span>
+							<details class="pp-portal__edit">
+								<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+								<?php self::event_form( $cals, $e ); ?>
+							</details>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+								onsubmit="return confirm('<?php echo esc_js( __( 'Delete this event?', 'project-prepper' ) ); ?>');">
+								<?php self::action_fields( 'event_delete' ); ?>
+								<input type="hidden" name="pp_event" value="<?php echo (int) $e->id; ?>">
+								<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
+							</form>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+
+			<button type="button" class="pp-portal__btn pp-portal__btn--sm" data-pp-modal="pp-event-create"><?php esc_html_e( 'New event', 'project-prepper' ); ?></button>
+			<dialog class="pp-modal pp-modal--portal" id="pp-event-create">
+				<div class="pp-modal-header">
+					<h2 class="pp-modal__title"><?php esc_html_e( 'New event', 'project-prepper' ); ?></h2>
+					<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+				</div>
+				<div class="pp-modal-body">
+					<?php self::event_form( $cals, null ); ?>
+				</div>
+			</dialog>
+		</section>
+
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Calendars', 'project-prepper' ); ?></h3>
+			<p class="pp-portal__hint"><?php esc_html_e( 'Color-code your events with calendars — like the calendar groups in the app.', 'project-prepper' ); ?></p>
+			<?php if ( $cals ) : ?>
+				<div class="pp-rows">
+					<?php foreach ( $cals as $c ) : ?>
+						<div class="pp-row">
+							<span class="pp-ev-dot" style="background:<?php echo esc_attr( $c->color ); ?>"></span>
+							<span class="pp-row__main"><?php echo esc_html( $c->name ); ?></span>
+							<details class="pp-portal__edit">
+								<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+								<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<?php self::action_fields( 'calgroup_update' ); ?>
+									<input type="hidden" name="pp_calendar" value="<?php echo (int) $c->id; ?>">
+									<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+										<input type="text" name="pp_name" value="<?php echo esc_attr( $c->name ); ?>" required>
+									</label>
+									<?php self::color_swatches( (string) $c->color ); ?>
+									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+								</form>
+							</details>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+								onsubmit="return confirm('<?php echo esc_js( __( 'Delete this calendar? Its events will be kept without a calendar.', 'project-prepper' ) ); ?>');">
+								<?php self::action_fields( 'calgroup_delete' ); ?>
+								<input type="hidden" name="pp_calendar" value="<?php echo (int) $c->id; ?>">
+								<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
+							</form>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+			<details class="pp-portal__add">
+				<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Add calendar', 'project-prepper' ); ?></summary>
+				<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<?php self::action_fields( 'calgroup_create' ); ?>
+					<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+						<input type="text" name="pp_name" required>
+					</label>
+					<?php self::color_swatches( '' ); ?>
+					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Add calendar', 'project-prepper' ); ?></button>
+				</form>
+			</details>
+		</section>
+		<?php
+	}
+
+	/** Termin-Formular (Neu + Bearbeiten) — im Modal 2-spaltig, inline gestapelt. */
+	private static function event_form( array $cals, ?object $e ): void {
+		?>
+		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<?php self::action_fields( $e ? 'event_update' : 'event_create' ); ?>
+			<?php if ( $e ) : ?>
+				<input type="hidden" name="pp_event" value="<?php echo (int) $e->id; ?>">
+			<?php endif; ?>
+			<label><?php esc_html_e( 'Title', 'project-prepper' ); ?>
+				<input type="text" name="pp_title" value="<?php echo esc_attr( $e ? (string) $e->title : '' ); ?>" required>
+			</label>
+			<label><?php esc_html_e( 'Calendar', 'project-prepper' ); ?>
+				<select name="pp_calendar">
+					<option value="0"><?php esc_html_e( 'No calendar', 'project-prepper' ); ?></option>
+					<?php foreach ( $cals as $c ) : ?>
+						<option value="<?php echo (int) $c->id; ?>"<?php selected( $e && (int) $e->calendar_group_id === (int) $c->id ); ?>><?php echo esc_html( $c->name ); ?></option>
+					<?php endforeach; ?>
+				</select>
+			</label>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+					<input type="date" name="pp_from" value="<?php echo esc_attr( $e ? (string) $e->date_from : '' ); ?>" required>
+				</label>
+				<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+					<input type="date" name="pp_to" value="<?php echo esc_attr( $e ? (string) ( $e->date_to ?: '' ) : '' ); ?>">
+				</label>
+			</div>
+			<div class="pp-portal__form-row">
+				<label><?php esc_html_e( 'Start time', 'project-prepper' ); ?>
+					<input type="time" name="pp_time_start" value="<?php echo esc_attr( $e ? (string) $e->time_start : '' ); ?>">
+				</label>
+				<label><?php esc_html_e( 'End time', 'project-prepper' ); ?>
+					<input type="time" name="pp_time_end" value="<?php echo esc_attr( $e ? (string) $e->time_end : '' ); ?>">
+				</label>
+			</div>
+			<p class="pp-portal__hint"><?php esc_html_e( 'Leave the times empty for an all-day event.', 'project-prepper' ); ?></p>
+			<label><?php esc_html_e( 'Location', 'project-prepper' ); ?>
+				<input type="text" name="pp_location" value="<?php echo esc_attr( $e ? (string) $e->location : '' ); ?>">
+			</label>
+			<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
+				<textarea name="pp_description" rows="2"><?php echo esc_textarea( $e ? (string) $e->description : '' ); ?></textarea>
+			</label>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php echo esc_html( $e ? __( 'Save', 'project-prepper' ) : __( 'Create event', 'project-prepper' ) ); ?></button>
+		</form>
+		<?php
+	}
+
+	/** Farb-Auswahl als Radio-Swatches (feste App-Palette). */
+	private static function color_swatches( string $current ): void {
+		$current = '' !== $current ? strtoupper( $current ) : CalendarEvents::COLORS[0];
+		if ( ! in_array( $current, CalendarEvents::COLORS, true ) ) {
+			$current = CalendarEvents::COLORS[0];
+		}
+		?>
+		<fieldset class="pp-swatches">
+			<legend><?php esc_html_e( 'Color', 'project-prepper' ); ?></legend>
+			<?php foreach ( CalendarEvents::COLORS as $c ) : ?>
+				<label class="pp-swatch">
+					<input type="radio" name="pp_color" value="<?php echo esc_attr( $c ); ?>"<?php checked( $current, $c ); ?>>
+					<span class="pp-swatch__dot" style="background:<?php echo esc_attr( $c ); ?>"></span>
+				</label>
+			<?php endforeach; ?>
+		</fieldset>
+		<?php
+	}
+
+	/**
 	 * Events des Monats [ms..me] nach Tag (Y-m-d) gruppiert — gruppen-gescoped:
 	 * eigene Gruppen-Projekte (+ deren Zeitplan) und eigene Ausleihen. KEINE
 	 * site-weiten Verleihe (das ist Admin-Sache).
@@ -4657,6 +5491,19 @@ class MemberPortal {
 	private static function calendar_events( WP_User $user, array $groups, string $ms, string $me ): array {
 		$by_day   = [];
 		$projects = self::member_projects( $groups );
+
+		// Eigene Termine des aktiven Arbeitsbereichs (v0.29.0) — in der Farbe
+		// ihres Kalenders; Chip springt zur Termin-Liste unter dem Raster.
+		$active = self::active_group_id( $groups );
+		foreach ( CalendarEvents::events_between( (int) $user->ID, $active, $ms, $me ) as $e ) {
+			$label = trim( ( '' !== (string) $e->time_start ? $e->time_start . ' ' : '' ) . $e->title );
+			self::cal_span( $by_day, (string) $e->date_from, (string) ( $e->date_to ?: $e->date_from ), $ms, $me, [
+				'type'  => 'event',
+				'label' => $label,
+				'url'   => '#pp-ev-' . (int) $e->id,
+				'color' => (string) ( $e->calendar_color ?: CalendarEvents::COLORS[0] ),
+			] );
+		}
 
 		foreach ( $projects as $p ) {
 			$start = (string) ( $p->date_start ?? '' );
@@ -4722,8 +5569,8 @@ class MemberPortal {
 			] );
 		}
 
-		// Pro Tag stabil sortieren: Projekt, Zeitplan, Verleih.
-		$order = [ 'project' => 0, 'schedule' => 1, 'borrow' => 2 ];
+		// Pro Tag stabil sortieren: Termin, Projekt, Zeitplan, Verleih.
+		$order = [ 'event' => 0, 'project' => 1, 'schedule' => 2, 'borrow' => 3 ];
 		foreach ( $by_day as &$list ) {
 			usort( $list, static fn( $a, $b ) => ( $order[ $a['type'] ] ?? 9 ) <=> ( $order[ $b['type'] ] ?? 9 ) );
 		}
@@ -4990,7 +5837,7 @@ class MemberPortal {
 	}
 
 	/** Eine Kollektiv-Karte: Mitglieder + Einladen + offene Beitritts-Abstimmungen. */
-	private static function render_collective( int $group_id, string $name, string $role, int $user_id ): void {
+	private static function render_collective( int $group_id, string $name, string $role, int $user_id, string $description = '' ): void {
 		$members     = Groups::members( $group_id );
 		$invitations = Governance::invitations_for_group( $group_id, [ 'pending', 'voting' ] );
 		// Austreten erlaubt für Mitglieder; ein Gründer nur, wenn ein weiterer Gründer bleibt.
@@ -5011,6 +5858,27 @@ class MemberPortal {
 					<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Member', 'project-prepper' ); ?></span>
 				<?php endif; ?>
 			</div>
+
+			<?php if ( '' !== trim( $description ) ) : ?>
+				<p class="pp-portal__collective-desc"><?php echo nl2br( esc_html( $description ) ); ?></p>
+			<?php endif; ?>
+
+			<?php if ( 'founder' === $role ) : ?>
+				<details class="pp-portal__edit">
+					<summary class="pp-portal__chip"><?php esc_html_e( 'Edit collective', 'project-prepper' ); ?></summary>
+					<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<?php self::action_fields( 'group_update' ); ?>
+						<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+						<label><?php esc_html_e( 'Collective name', 'project-prepper' ); ?>
+							<input type="text" name="pp_name" value="<?php echo esc_attr( $name ); ?>" required>
+						</label>
+						<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
+							<textarea name="pp_description" rows="2"><?php echo esc_textarea( $description ); ?></textarea>
+						</label>
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+					</form>
+				</details>
+			<?php endif; ?>
 
 			<div class="pp-portal__memberlist">
 				<?php
@@ -6164,6 +7032,9 @@ class MemberPortal {
 	/** @param array<object> $groups */
 	private static function render_browse( WP_User $user, array $groups ): void {
 		if ( ! $groups ) {
+			?>
+			<p class="pp-portal__empty"><?php esc_html_e( 'Browsing works in a group workspace. Switch your workspace (top left) to a collective to see what its members share.', 'project-prepper' ); ?></p>
+			<?php
 			return;
 		}
 		$conditions = Shortcodes::condition_labels();
@@ -6247,13 +7118,18 @@ class MemberPortal {
 		}
 		$html = (string) ob_get_clean();
 		if ( ! $any ) {
+			?>
+			<p class="pp-portal__empty"><?php esc_html_e( 'No equipment is shared with this collective yet. Members share items from “My inventory” in their solo workspace.', 'project-prepper' ); ?></p>
+			<?php
 			return;
 		}
+		$browse_url = add_query_arg( [ 'pp_view' => 'lending', 'pp_tab' => 'browse' ], self::portal_url() );
 		?>
 		<section class="pp-portal__section">
 			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Available in your collectives', 'project-prepper' ); ?></h3>
 			<form class="pp-browse-period" method="get">
 				<input type="hidden" name="pp_view" value="lending">
+				<input type="hidden" name="pp_tab" value="browse">
 				<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
 					<input type="date" name="pp_bfrom" value="<?php echo esc_attr( $pf ); ?>">
 				</label>
@@ -6262,7 +7138,7 @@ class MemberPortal {
 				</label>
 				<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Check availability', 'project-prepper' ); ?></button>
 				<?php if ( $period_ok ) : ?>
-					<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::view_url( 'lending' ) ); ?>"><?php esc_html_e( 'Reset', 'project-prepper' ); ?></a>
+					<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $browse_url ); ?>"><?php esc_html_e( 'Reset', 'project-prepper' ); ?></a>
 				<?php endif; ?>
 			</form>
 			<?php echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- intern erzeugtes, bereits escaptes Markup. ?>

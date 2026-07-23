@@ -1185,6 +1185,15 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-modal-body > .pp-portal__form > label select,
 .pp-modal-body > .pp-portal__form > label textarea { width: 100%; color: var(--pp-foreground); }
 .pp-modal-body > .pp-portal__form > label:has( textarea ) { grid-column: 1 / -1; }
+/* Feld-Paare (.pp-portal__form-row) im Modal: Labels im selben App-Look wie
+ * die direkten Grid-Kinder (sonst fett/groß neben gedimmt/klein). */
+.pp-modal-body > .pp-portal__form .pp-portal__form-row > label { font-size: .78rem; color: var(--pp-muted-foreground); }
+.pp-modal-body > .pp-portal__form .pp-portal__form-row input { color: var(--pp-foreground); }
+/* Positions-Auswahl (Verleih bearbeiten) über die volle Modal-Breite. */
+.pp-modal-body > .pp-portal__form > .pp-portal__rental-items { grid-column: 1 / -1; }
+/* Checkbox + Artikelname in einer Zeile — `.pp-portal__form label` (flex-column)
+ * braucht die höhere label.-Spezifität (bekanntes Gotcha). */
+.pp-portal__form label.pp-portal__rental-item-pick { flex-direction: row; align-items: center; }
 .pp-modal-body > .pp-portal__form > button { grid-column: 1 / -1; justify-self: start; margin-top: .2rem; }
 
 /* Foto-Bereich oben im Modal */
@@ -1815,6 +1824,23 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-row__meta--strong { color: var(--pp-foreground); font-weight: 600; min-width: 5.5em; text-align: right; }
 .pp-muted-inline { color: var(--pp-muted-foreground); font-size: .82rem; }
 
+/* Anfragen (App: /inquiries): ganze Zeile als Link zur Detail-Ansicht,
+   Angebotssumme + Wahrscheinlichkeits-Badge wie die App-Liste. */
+a.pp-row--link { color: inherit; text-decoration: none; }
+a.pp-row--link:hover .pp-row__main { color: #4f46e5; }
+.pp-inq-amount { font-weight: 600; font-variant-numeric: tabular-nums; }
+.pp-prob { border-radius: 999px; padding: .1rem .5rem; font-size: .78rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pp-prob--hi { background: var(--pp-success-light); color: #059669; }
+.pp-prob--mid { background: var(--pp-warning-light); color: var(--pp-warning); }
+.pp-prob--lo { background: var(--pp-destructive-light); color: var(--pp-destructive); }
+.pp-inq-overdue { color: var(--pp-destructive); font-weight: 600; }
+
+/* Anfrage-Detail: Pipeline-Leiste — alle Stufen sichtbar, nur serverseitig
+   erlaubte Übergänge sind klickbar, der Rest gedimmt. */
+.pp-inq-pipeline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pp-inq-pipeline form { margin: 0; }
+.pp-portal__chip--off { opacity: .45; cursor: default; }
+
 /* Globale Kosten-Übersicht: Projekt-Link + Kategorie/Beschreibung als Unterzeile. */
 .pp-row--costs .pp-row__main { display: flex; flex-direction: column; gap: 2px; }
 .pp-row--costs .pp-row__link { color: #4f46e5; text-decoration: none; font-weight: 500; }
@@ -2180,3 +2206,68 @@ a.pp-cal__chip:hover { filter: brightness(.97); }
 	/* Modal-Backdrop etwas dunkler */
 	.pp-modal::backdrop { background: rgba(0, 0, 0, .65); }
 }
+
+/* ===== Parity-Lauf v0.103.0: Umfrage-Matrix, Kalender-Termine, Farb-Swatches ===== */
+
+/* Umfragen: Meta-Zeile + Teilnehmer-Matrix (App: PollCard/PollDateGrid) */
+.pp-gov__meta { margin: 2px 0 0; font-size: .78rem; color: var(--pp-muted-foreground); }
+.pp-pollgrid { overflow-x: auto; margin-top: 8px; }
+.pp-pollgrid__table { border-collapse: collapse; font-size: .82rem; min-width: 100%; }
+.pp-pollgrid__table th,
+.pp-pollgrid__table td { padding: 4px 6px; text-align: center; border-top: 1px solid var(--pp-muted); }
+.pp-pollgrid__table thead th { border-top: none; vertical-align: bottom; }
+.pp-pollgrid__who { text-align: left !important; font-weight: 500; white-space: nowrap; min-width: 110px; }
+.pp-pollgrid__opt { min-width: 64px; }
+.pp-pollgrid__dow,
+.pp-pollgrid__time { display: block; font-size: .7rem; color: var(--pp-muted-foreground); font-weight: 400; }
+.pp-pollgrid__date { display: block; font-weight: 600; }
+.pp-pollgrid__label { font-weight: 600; }
+.pp-pollgrid__me { background: var(--pp-primary-light); }
+.pp-pollgrid form { margin: 0; display: inline-flex; }
+.pp-pollgrid__btn,
+.pp-pollgrid__cell {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 34px;
+	height: 34px;
+	border-radius: 8px;
+	font: inherit;
+	font-size: .95rem;
+	font-weight: 700;
+	color: var(--pp-muted-foreground);
+	background: var(--pp-muted);
+	border: 1px solid transparent;
+}
+button.pp-pollgrid__btn { border-color: var(--pp-border); cursor: pointer; }
+button.pp-pollgrid__btn:hover { filter: brightness(.96); }
+.pp-pollgrid__cell { background: transparent; }
+.pp-pollgrid__btn--yes { background: var(--pp-success-light); color: var(--pp-success); border-color: var(--pp-success); }
+.pp-pollgrid__btn--maybe { background: var(--pp-warning-light); color: var(--pp-warning); border-color: var(--pp-warning); }
+.pp-pollgrid__btn--no { background: var(--pp-destructive-light); color: var(--pp-destructive); border-color: var(--pp-destructive); }
+.pp-pollgrid__sums td { border-top: 2px solid var(--pp-border); font-weight: 700; }
+.pp-pollgrid__sums .pp-pollgrid__who { font-weight: 600; font-size: .75rem; color: var(--pp-muted-foreground); }
+.pp-pollgrid__best { color: var(--pp-success); }
+/* Schließen/Öffnen + Löschen nebeneinander */
+.pp-gov__manage { display: flex; gap: 6px; flex-wrap: wrap; }
+.pp-gov__manage form { margin: 0; }
+
+/* Kalender: eigene Termine (Farbe kommt inline vom Kalender) */
+.pp-cal__chip--event { background: var(--pp-primary-light); border-left-color: var(--pp-primary); color: #4338ca; }
+.pp-ev-dot { width: 12px; height: 12px; border-radius: 4px; display: inline-block; flex: none; }
+.pp-row--event .pp-row__main { display: flex; flex-direction: column; }
+.pp-row--event { scroll-margin-top: 80px; }
+
+/* Farb-Swatches (feste App-Palette) — `.pp-portal__form label` ist flex-column,
+ * daher die label.-Spezifität (bekanntes Gotcha). */
+.pp-swatches { border: none; margin: 0; padding: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pp-swatches legend { font-size: .78rem; color: var(--pp-muted-foreground); padding: 0; margin: 0 4px 0 0; float: left; }
+label.pp-swatch,
+.pp-portal__form label.pp-swatch { display: inline-flex; flex-direction: row; margin: 0; cursor: pointer; position: relative; }
+.pp-swatch input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.pp-swatch__dot { width: 22px; height: 22px; border-radius: 50%; display: inline-block; box-sizing: border-box; }
+.pp-swatch:has(input:checked) .pp-swatch__dot { outline: 2px solid var(--pp-foreground); outline-offset: 2px; }
+.pp-swatch input:focus-visible + .pp-swatch__dot { outline: 2px solid var(--pp-primary); outline-offset: 2px; }
+
+/* Kollektiv-Beschreibung auf der Karte */
+.pp-portal__collective-desc { margin: 4px 0 8px; font-size: .85rem; color: var(--pp-muted-foreground); }

@@ -180,6 +180,7 @@ class Polls {
 			'description' => isset( $data['description'] ) ? (string) $data['description'] : '',
 			'poll_type'   => $poll_type,
 			'status'      => 'open',
+			'deadline'    => self::sanitize_deadline( $data['deadline'] ?? '' ),
 			'created_by'  => get_current_user_id() ?: null,
 			'created_at'  => current_time( 'mysql' ),
 			'closed_at'   => null,
@@ -235,6 +236,7 @@ class Polls {
 			'description' => isset( $data['description'] ) ? (string) $data['description'] : '',
 			'poll_type'   => $poll_type,
 			'status'      => 'open',
+			'deadline'    => self::sanitize_deadline( $data['deadline'] ?? '' ),
 			'created_by'  => get_current_user_id() ?: null,
 			'created_at'  => current_time( 'mysql' ),
 			'closed_at'   => null,
@@ -321,6 +323,9 @@ class Polls {
 		}
 		if ( 'open' !== $poll->status ) {
 			return new WP_Error( 'pp_poll_closed', __( 'This poll is already closed.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
+		if ( self::deadline_passed( $poll ) ) {
+			return new WP_Error( 'pp_poll_deadline', __( 'The deadline for this poll has passed.', 'project-prepper' ), [ 'status' => 409 ] );
 		}
 		if ( ! in_array( $vote, self::VOTES, true ) ) {
 			return new WP_Error( 'pp_invalid_vote', __( 'Invalid vote.', 'project-prepper' ), [ 'status' => 400 ] );
@@ -451,6 +456,68 @@ class Polls {
 		$wpdb->delete( Schema::table( 'project_polls' ), [ 'id' => $id ], [ '%d' ] );
 		ActivityLog::log( 'poll_deleted', 'project', $poll->project_id, [ 'poll_id' => $id ] );
 		return true;
+	}
+
+	/**
+	 * Teilnehmer-Matrix einer Umfrage (App: PollDateGrid) — wer hat wie
+	 * gestimmt: eine Zeile pro Teilnehmer mit display_name und votes
+	 * (option_id → yes|no|maybe). Sortiert nach Name.
+	 *
+	 * @return array<object> Zeilen {user_id, display_name, votes:object}.
+	 */
+	public static function voters( int $poll_id ): array {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT v.user_id, v.option_id, v.vote, u.display_name
+			 FROM %i v
+			 INNER JOIN %i o ON o.id = v.option_id
+			 LEFT JOIN %i u ON u.ID = v.user_id
+			 WHERE o.poll_id = %d
+			 ORDER BY u.display_name ASC, v.user_id ASC',
+			Schema::table( 'project_poll_votes' ),
+			Schema::table( 'project_poll_options' ),
+			$wpdb->users,
+			$poll_id
+		) ) ?: [];
+
+		$by_user = [];
+		foreach ( $rows as $r ) {
+			$uid = (int) $r->user_id;
+			if ( ! isset( $by_user[ $uid ] ) ) {
+				$by_user[ $uid ] = (object) [
+					'user_id'      => $uid,
+					'display_name' => '' !== (string) $r->display_name ? (string) $r->display_name : __( 'Unknown', 'project-prepper' ),
+					'votes'        => new \stdClass(),
+				];
+			}
+			$by_user[ $uid ]->votes->{(string) (int) $r->option_id} = $r->vote;
+		}
+		return array_values( $by_user );
+	}
+
+	/** Ist die (optionale) Abstimmungsfrist einer Umfrage abgelaufen? */
+	public static function deadline_passed( object $poll ): bool {
+		$deadline = (string) ( $poll->deadline ?? '' );
+		return '' !== $deadline && '0000-00-00 00:00:00' !== $deadline && $deadline < current_time( 'mysql' );
+	}
+
+	/**
+	 * Deadline-Eingabe („YYYY-MM-DDTHH:MM" aus datetime-local oder
+	 * „YYYY-MM-DD HH:MM[:SS]") → MySQL-datetime oder NULL.
+	 */
+	private static function sanitize_deadline( $raw ): ?string {
+		$raw = str_replace( 'T', ' ', trim( (string) $raw ) );
+		if ( '' === $raw ) {
+			return null;
+		}
+		if ( preg_match( '/^\d{4}-\d{2}-\d{2} ([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/', $raw ) ) {
+			return substr( $raw, 0, 16 ) . ':00';
+		}
+		// Nur Datum → Ende des Tages.
+		if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $raw ) && Availability::is_valid_date( $raw ) ) {
+			return $raw . ' 23:59:59';
+		}
+		return null;
 	}
 
 	/* ===================== Intern ===================== */

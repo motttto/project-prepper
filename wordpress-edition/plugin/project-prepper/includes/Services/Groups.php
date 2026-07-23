@@ -291,7 +291,7 @@ class Groups {
 	 * Gruppen des Users inkl. Name, Slug und eigener Rolle — für das
 	 * Member-Portal (eine Query, ohne die Mitglieder-Auflösung von get()).
 	 *
-	 * @return array<object> Zeilen {id, name, slug, member_role}.
+	 * @return array<object> Zeilen {id, name, slug, description, member_role}.
 	 */
 	public static function user_groups( int $user_id ): array {
 		global $wpdb;
@@ -299,7 +299,7 @@ class Groups {
 			return [];
 		}
 		return $wpdb->get_results( $wpdb->prepare(
-			'SELECT g.id, g.name, g.slug, gm.member_role
+			'SELECT g.id, g.name, g.slug, g.description, gm.member_role
 			 FROM %i gm JOIN %i g ON g.id = gm.group_id
 			 WHERE gm.user_id = %d
 			 ORDER BY (gm.member_role = %s) DESC, g.name ASC',

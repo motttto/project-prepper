@@ -51,6 +51,36 @@ class MemberInquiries {
 	}
 
 	/**
+	 * Pipeline-Felder (App-Parität inquiries): sanitisierte Spaltenwerte aus dem
+	 * Formular-Input — Geldwerte leer→NULL, Wahrscheinlichkeit auf 0–100 geklemmt.
+	 *
+	 * @return array<string,mixed>
+	 */
+	private static function fields( array $data ): array {
+		$money = static function ( $v ) {
+			return ( null === $v || '' === $v ) ? null : round( (float) $v, 2 );
+		};
+		$prob = null;
+		if ( isset( $data['probability'] ) && '' !== (string) $data['probability'] ) {
+			$prob = max( 0, min( 100, (int) $data['probability'] ) );
+		}
+		return [
+			'title'            => (string) ( $data['title'] ?? '' ),
+			'contact_person'   => (string) ( $data['contact_person'] ?? '' ),
+			'email'            => (string) ( $data['email'] ?? '' ),
+			'phone'            => (string) ( $data['phone'] ?? '' ),
+			'message'          => (string) ( $data['message'] ?? '' ),
+			'venue_name'       => (string) ( $data['venue_name'] ?? '' ),
+			'date_from'        => ! empty( $data['date_from'] ) ? $data['date_from'] : null,
+			'date_to'          => ! empty( $data['date_to'] ) ? $data['date_to'] : null,
+			'estimated_budget' => $money( $data['estimated_budget'] ?? null ),
+			'offer_amount'     => $money( $data['offer_amount'] ?? null ),
+			'probability'      => $prob,
+			'follow_up'        => ! empty( $data['follow_up'] ) ? $data['follow_up'] : null,
+		];
+	}
+
+	/**
 	 * Neue Anfrage im aktiven Arbeitsbereich anlegen.
 	 *
 	 * @return int|WP_Error
@@ -61,24 +91,19 @@ class MemberInquiries {
 		}
 		$name = trim( (string) ( $data['name'] ?? '' ) );
 		if ( '' === $name ) {
-			return new WP_Error( 'pp_missing_name', __( 'Please enter a contact name for the inquiry.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_missing_name', __( 'Please enter a client name for the inquiry.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		global $wpdb;
 		$now = current_time( 'mysql' );
-		$wpdb->insert( Schema::table( 'inquiries' ), [
+		$wpdb->insert( Schema::table( 'inquiries' ), array_merge( self::fields( $data ), [
 			'name'           => $name,
-			'email'          => (string) ( $data['email'] ?? '' ),
-			'phone'          => (string) ( $data['phone'] ?? '' ),
-			'message'        => (string) ( $data['message'] ?? '' ),
-			'date_from'      => ! empty( $data['date_from'] ) ? $data['date_from'] : null,
-			'date_to'        => ! empty( $data['date_to'] ) ? $data['date_to'] : null,
 			'items'          => wp_json_encode( [] ),
 			'status'         => 'new',
 			'owner_user_id'  => $group_id > 0 ? null : $user_id,
 			'owner_group_id' => $group_id > 0 ? $group_id : null,
 			'created_at'     => $now,
 			'updated_at'     => $now,
-		] );
+		] ) );
 		$id = (int) $wpdb->insert_id;
 		ActivityLog::log( 'inquiry_created', 'inquiry', $id, [ 'name' => $name, 'owner_group' => $group_id ] );
 		return $id;
@@ -96,22 +121,17 @@ class MemberInquiries {
 		}
 		$name = trim( (string) ( $data['name'] ?? '' ) );
 		if ( '' === $name ) {
-			return new WP_Error( 'pp_missing_name', __( 'Please enter a contact name for the inquiry.', 'project-prepper' ), [ 'status' => 400 ] );
+			return new WP_Error( 'pp_missing_name', __( 'Please enter a client name for the inquiry.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		global $wpdb;
 		$wpdb->update(
 			Schema::table( 'inquiries' ),
-			[
+			array_merge( self::fields( $data ), [
 				'name'       => $name,
-				'email'      => (string) ( $data['email'] ?? '' ),
-				'phone'      => (string) ( $data['phone'] ?? '' ),
-				'message'    => (string) ( $data['message'] ?? '' ),
-				'date_from'  => ! empty( $data['date_from'] ) ? $data['date_from'] : null,
-				'date_to'    => ! empty( $data['date_to'] ) ? $data['date_to'] : null,
 				'updated_at' => current_time( 'mysql' ),
-			],
+			] ),
 			[ 'id' => $id ],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s' ],
+			null,
 			[ '%d' ]
 		);
 		return true;
@@ -150,21 +170,40 @@ class MemberInquiries {
 		if ( in_array( $inq->status, [ 'won', 'lost', 'closed' ], true ) ) {
 			return new WP_Error( 'pp_already_closed', __( 'This inquiry is already closed.', 'project-prepper' ), [ 'status' => 409 ] );
 		}
+		// Budget-Mapping wie die App (inquiries/[id] handleCreateProject):
+		// estimated_budget → budget_planned (Fallback offer_amount),
+		// offer_amount → revenue_actual.
+		$budget  = $inq->estimated_budget ?? $inq->offer_amount ?? null;
+		$revenue = $inq->offer_amount ?? null;
+		$title   = trim( (string) ( $inq->title ?? '' ) );
+
 		$project_id = Projects::create( [
-			'name'           => $inq->name,
+			'name'           => '' !== $title ? $title : $inq->name,
 			'status'         => 'planned',
 			'date_start'     => $inq->date_from,
 			'date_end'       => $inq->date_to,
+			'venue_name'     => (string) ( $inq->venue_name ?? '' ),
 			'client_name'    => $inq->name,
 			'client_email'   => $inq->email,
 			'client_phone'   => $inq->phone,
 			'notes'          => $inq->message,
+			'budget_planned' => null !== $budget ? (string) $budget : '',
+			'revenue_actual' => null !== $revenue ? (string) $revenue : '',
 			'owner_group_id' => $group_id,
 		] );
 		if ( is_wp_error( $project_id ) ) {
 			return $project_id;
 		}
 		Inquiries::set_status( $id, 'won' );
+		// Projekt-Verknüpfung merken — das Detail zeigt dann „Zum Projekt".
+		global $wpdb;
+		$wpdb->update(
+			Schema::table( 'inquiries' ),
+			[ 'project_id' => (int) $project_id ],
+			[ 'id' => $id ],
+			[ '%d' ],
+			[ '%d' ]
+		);
 		ActivityLog::log( 'inquiry_to_project', 'inquiry', $id, [ 'project_id' => $project_id ] );
 		return $project_id;
 	}
