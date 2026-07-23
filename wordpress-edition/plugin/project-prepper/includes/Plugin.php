@@ -26,6 +26,7 @@ class Plugin {
 		add_action( 'rest_api_init', [ self::class, 'register_rest_routes' ] );
 
 		Email\Notifications::init();
+		Services\Telegram::init();
 		Privacy::init();
 		Security::init();
 		Federation::init();

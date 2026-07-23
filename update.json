@@ -1,9 +1,9 @@
 {
-  "version": "0.107.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.107.0/project-prepper-0.107.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.107.0",
+  "version": "0.108.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.108.0/project-prepper-0.108.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.108.0",
   "published": "2026-07-23",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Kollektive: Gründer können jetzt im Portal Mitglieder entfernen und ein Kollektiv auflösen (beim Auflösen bleiben die Projekte erhalten und wandern auf die Site-Ebene). Dazu interne Code-Qualitäts-Fixes."
+  "changelog": "Telegram-Benachrichtigungen: Betreiber hinterlegt einen Bot-Token, Gründer tragen die Chat-ID ihrer Gruppe ein — das Portal schickt bei neuen Anfragen, Technik-Buchungen und RSVP-Zusagen eine kurze Nachricht in die Telegram-Gruppe. (Eingehender Bot folgt später.)"
 }

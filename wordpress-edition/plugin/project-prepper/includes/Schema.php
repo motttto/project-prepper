@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.31.0';
+	const VERSION    = '0.32.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -408,6 +408,7 @@ class Schema {
 				slug varchar(190) NOT NULL,
 				description text,
 				logo_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				telegram_chat_id varchar(64) NOT NULL DEFAULT '',
 				created_by bigint(20) unsigned DEFAULT NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),

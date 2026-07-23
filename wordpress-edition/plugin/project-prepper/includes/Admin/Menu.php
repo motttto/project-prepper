@@ -256,7 +256,44 @@ class Menu {
 	}
 
 	public static function render_settings(): void {
-		echo '<div class="wrap"><h1>' . esc_html__( 'Settings', 'project-prepper' ) . '</h1><div id="pp-admin" data-page="settings"></div></div>';
+		echo '<div class="wrap"><h1>' . esc_html__( 'Settings', 'project-prepper' ) . '</h1>';
+		self::render_telegram_card();
+		echo '<div id="pp-admin" data-page="settings"></div></div>';
+	}
+
+	/**
+	 * Instanz-Bot-Token für Telegram-Benachrichtigungen (Betreiber-Sache). EIN
+	 * Token pro Instanz; die chat_id pro Kollektiv setzen Gründer im Portal. Das
+	 * Token wird nie im Klartext zurückgegeben — nur der Status (gesetzt / nicht).
+	 * Muster wie die Update-Token-Karte (admin-post, Passwort-Feld, Konstant-Lock).
+	 */
+	private static function render_telegram_card(): void {
+		$has    = \ProjectPrepper\Services\Telegram::has_bot_token();
+		$locked = \ProjectPrepper\Services\Telegram::token_locked_by_constant();
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Anzeige nach Redirect.
+		$saved  = isset( $_GET['pp_msg'] ) && 'telegram_token_saved' === $_GET['pp_msg'];
+		echo '<div class="card" style="max-width:680px;margin:1em 0;padding:4px 18px 14px">';
+		echo '<h2>' . esc_html__( 'Telegram notifications', 'project-prepper' ) . '</h2>';
+		if ( $saved ) {
+			echo '<div class="notice notice-success inline"><p>' . esc_html__( 'Saved.', 'project-prepper' ) . '</p></div>';
+		}
+		echo '<p class="description">' . esc_html__( 'Optional. Set one bot token for this instance to send short notifications (new inquiries, bookings, availability) to a collective’s Telegram group. Each collective’s founders set their own chat ID in the portal under “Edit collective”.', 'project-prepper' ) . '</p>';
+		echo '<p>' . esc_html__( 'Status:', 'project-prepper' ) . ' <strong>' . ( $has ? esc_html__( 'bot token active', 'project-prepper' ) : esc_html__( 'no bot token (notifications off)', 'project-prepper' ) ) . '</strong></p>';
+		if ( $locked ) {
+			echo '<p><strong>' . esc_html__( 'The token is set via the PP_TELEGRAM_BOT_TOKEN constant in wp-config.php (the most secure option). The field below is therefore disabled.', 'project-prepper' ) . '</strong></p>';
+		} else {
+			echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" autocomplete="off">';
+			echo '<input type="hidden" name="action" value="pp_save_telegram_token">';
+			wp_nonce_field( 'pp_save_telegram_token' );
+			echo '<input type="password" name="pp_telegram_token" autocomplete="new-password" class="regular-text" placeholder="123456789:ABCdef…" style="width:100%;max-width:440px" aria-label="' . esc_attr__( 'Telegram bot token', 'project-prepper' ) . '">';
+			echo '<p><button class="button button-primary" name="pp_do" value="save">' . esc_html__( 'Save token', 'project-prepper' ) . '</button> ';
+			if ( $has ) {
+				echo '<button class="button" name="pp_do" value="remove">' . esc_html__( 'Remove token', 'project-prepper' ) . '</button>';
+			}
+			echo '</p></form>';
+		}
+		echo '<p class="description">' . esc_html__( 'Create a bot with @BotFather in Telegram, then add the bot to the group and use that group’s chat ID.', 'project-prepper' ) . '</p>';
+		echo '</div>';
 	}
 
 	public static function render_users(): void {

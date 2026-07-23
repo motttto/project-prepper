@@ -29,6 +29,7 @@ use ProjectPrepper\Services\Decisions;
 use ProjectPrepper\Services\Polls;
 use ProjectPrepper\Services\CalendarEvents;
 use ProjectPrepper\Services\FederatedBorrow;
+use ProjectPrepper\Services\Telegram;
 use ProjectPrepper\Rest\CalendarController;
 use ProjectPrepper\Federation;
 use WP_User;
@@ -373,8 +374,8 @@ class MemberPortal {
 		if ( in_array( $do, [ 'gpoll_vote', 'gpoll_create', 'gpoll_close', 'gpoll_reopen', 'gpoll_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'polls', self::portal_url() );
 		}
-		// Aus einer Gruppe austreten / Gruppe bearbeiten kehrt zur Kollektive-Ansicht zurück.
-		if ( in_array( $do, [ 'group_leave', 'group_update', 'member_remove', 'group_delete' ], true ) ) {
+		// Aus einer Gruppe austreten / Gruppe bearbeiten / Telegram-Test kehrt zur Kollektive-Ansicht zurück.
+		if ( in_array( $do, [ 'group_leave', 'group_update', 'member_remove', 'group_delete', 'telegram_test' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
 		}
 		// Kalender-Aktionen kehren in die Kalender-Ansicht zurück — inklusive
@@ -465,16 +466,26 @@ class MemberPortal {
 				$ok_msg = 'group_left';
 				break;
 			case 'group_update':
-				// Nur Gründer der Gruppe dürfen Name/Beschreibung ändern.
+				// Nur Gründer der Gruppe dürfen Name/Beschreibung/Telegram-chat_id ändern.
 				if ( ! self::is_group_founder( $grp_id, get_current_user_id() ) ) {
 					$result = new \WP_Error( 'pp_forbidden', 'forbidden' );
 				} else {
 					$result = Groups::update( $grp_id, [
-						'name'        => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
-						'description' => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
+						'name'             => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+						'description'      => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
+						'telegram_chat_id' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_telegram_chat_id'] ?? '' ) ) ),
 					] );
 				}
 				$ok_msg = 'group_saved';
+				break;
+			case 'telegram_test':
+				// Nur Gründer dürfen eine Testnachricht an die Gruppe auslösen.
+				if ( ! self::is_group_founder( $grp_id, get_current_user_id() ) ) {
+					$result = new \WP_Error( 'pp_forbidden', 'forbidden' );
+				} else {
+					$result = Telegram::send_test( $grp_id );
+				}
+				$ok_msg = 'telegram_sent';
 				break;
 			case 'member_remove':
 				// Nur Gründer dürfen andere Mitglieder entfernen; Selbst-Entfernen
@@ -574,7 +585,11 @@ class MemberPortal {
 				$ok_msg = 'category_deleted';
 				break;
 			case 'inquiry_create':
-				$result = MemberInquiries::create( get_current_user_id(), self::active_workspace_group(), self::inquiry_input() );
+				$gid    = self::active_workspace_group();
+				$result = MemberInquiries::create( get_current_user_id(), $gid, self::inquiry_input() );
+				if ( ! is_wp_error( $result ) && $gid > 0 ) {
+					self::notify_new_inquiry( $gid, (int) $result );
+				}
 				$ok_msg = 'inquiry_saved';
 				break;
 			case 'inquiry_update':
@@ -603,7 +618,12 @@ class MemberPortal {
 				$ok_msg = 'team_revoked';
 				break;
 			case 'inqteam_rsvp':
-				$result = InquiryTeam::respond( (int) ( $_POST['pp_inquiry'] ?? 0 ), get_current_user_id(), sanitize_key( wp_unslash( (string) ( $_POST['pp_rsvp'] ?? '' ) ) ) );
+				$rsvp   = sanitize_key( wp_unslash( (string) ( $_POST['pp_rsvp'] ?? '' ) ) );
+				$inq_id = (int) ( $_POST['pp_inquiry'] ?? 0 );
+				$result = InquiryTeam::respond( $inq_id, get_current_user_id(), $rsvp );
+				if ( ! is_wp_error( $result ) && 'accepted' === $rsvp ) {
+					self::notify_rsvp_accepted( $inq_id, get_current_user_id() );
+				}
 				$ok_msg = 'rsvp_saved';
 				break;
 			case 'rental_create':
@@ -644,6 +664,9 @@ class MemberPortal {
 					$result = true;
 				} else {
 					$ok_msg = 'booking_saved';
+				}
+				if ( ! is_wp_error( $result ) ) {
+					self::notify_new_booking( self::active_workspace_group(), $proj_id );
 				}
 				break;
 			case 'project_item_update':
@@ -1054,6 +1077,10 @@ class MemberPortal {
 				$msg = 'missing_required';
 			} elseif ( 'pp_no_selection' === $code ) {
 				$msg = 'booking_none_selected';
+			} elseif ( 'pp_telegram_not_configured' === $code ) {
+				$msg = 'telegram_not_configured';
+			} elseif ( in_array( $code, [ 'pp_telegram_http', 'pp_telegram_api' ], true ) ) {
+				$msg = 'telegram_failed';
 			} else {
 				$msg = 'error';
 			}
@@ -1074,6 +1101,97 @@ class MemberPortal {
 		}
 		wp_safe_redirect( add_query_arg( 'pp_msg', $msg, $back ) );
 		exit;
+	}
+
+	/* ===================== Telegram-Auslöser ===================== */
+
+	/**
+	 * Kurzer Portal-Link als Telegram-HTML-Anker. Args → Portal-URL mit
+	 * pp_view/pp_project/pp_inquiry; Label übersetzt. & im href wird für den
+	 * HTML-Parse-Mode zu &amp; escaped (Telegram fügt es beim Aufruf zusammen).
+	 */
+	private static function telegram_link( array $args, string $label ): string {
+		$url = add_query_arg( $args, self::portal_url() );
+		return '<a href="' . Telegram::esc( $url ) . '">' . Telegram::esc( $label ) . '</a>';
+	}
+
+	/**
+	 * Benachrichtigung: neue Anfrage in einer Gruppe. Feuert NUR, wenn die
+	 * besitzende Gruppe Telegram konfiguriert hat (Instanz-Token + chat_id).
+	 * Fehler beim Versand sind bewusst folgenlos (Service loggt still).
+	 */
+	private static function notify_new_inquiry( int $group_id, int $inquiry_id ): void {
+		if ( $group_id <= 0 || ! Telegram::is_configured( $group_id ) ) {
+			return;
+		}
+		$inq = Inquiries::get( $inquiry_id );
+		if ( ! $inq ) {
+			return;
+		}
+		$name = trim( (string) ( $inq->name ?? '' ) );
+		$text = sprintf(
+			/* translators: %s: client name of the inquiry (bold). */
+			__( 'New inquiry: %s', 'project-prepper' ),
+			'<b>' . Telegram::esc( '' !== $name ? $name : __( 'Untitled', 'project-prepper' ) ) . '</b>'
+		) . "\n" . self::telegram_link(
+			[ 'pp_view' => 'inquiries', 'pp_inquiry' => $inquiry_id ],
+			__( 'Open in the portal', 'project-prepper' )
+		);
+		Telegram::send_to_group( $group_id, $text );
+	}
+
+	/**
+	 * Benachrichtigung: neue Technik-Buchung in einem Gruppen-Projekt. Feuert
+	 * nur bei konfigurierter Gruppe.
+	 */
+	private static function notify_new_booking( int $group_id, int $project_id ): void {
+		if ( $group_id <= 0 || $project_id <= 0 || ! Telegram::is_configured( $group_id ) ) {
+			return;
+		}
+		$project = Projects::get( $project_id );
+		if ( ! $project ) {
+			return;
+		}
+		$text = sprintf(
+			/* translators: %s: project name (bold). */
+			__( 'New equipment booking in project %s', 'project-prepper' ),
+			'<b>' . Telegram::esc( (string) $project->name ) . '</b>'
+		) . "\n" . self::telegram_link(
+			[ 'pp_view' => 'projects', 'pp_project' => $project_id ],
+			__( 'Open in the portal', 'project-prepper' )
+		);
+		Telegram::send_to_group( $group_id, $text );
+	}
+
+	/**
+	 * Benachrichtigung: ein Mitglied hat für eine Gruppen-Anfrage zugesagt.
+	 * Die Gruppe wird aus der Anfrage gelesen (respond hat sie bereits gegated).
+	 */
+	private static function notify_rsvp_accepted( int $inquiry_id, int $user_id ): void {
+		$inq = Inquiries::get( $inquiry_id );
+		if ( ! $inq ) {
+			return;
+		}
+		$group_id = (int) ( $inq->owner_group_id ?? 0 );
+		if ( $group_id <= 0 || ! Telegram::is_configured( $group_id ) ) {
+			return;
+		}
+		$user  = get_userdata( $user_id );
+		$who   = $user ? $user->display_name : sprintf( '#%d', $user_id );
+		$title = trim( (string) ( $inq->title ?? '' ) );
+		if ( '' === $title ) {
+			$title = trim( (string) ( $inq->name ?? '' ) );
+		}
+		$text = sprintf(
+			/* translators: 1: member name, 2: inquiry title (bold). */
+			__( '%1$s is available for %2$s', 'project-prepper' ),
+			Telegram::esc( $who ),
+			'<b>' . Telegram::esc( '' !== $title ? $title : __( 'an inquiry', 'project-prepper' ) ) . '</b>'
+		) . "\n" . self::telegram_link(
+			[ 'pp_view' => 'inquiries', 'pp_inquiry' => $inquiry_id ],
+			__( 'Open in the portal', 'project-prepper' )
+		);
+		Telegram::send_to_group( $group_id, $text );
 	}
 
 	/** Statusmeldungen für ?pp_msg — Code → menschenlesbarer Text. */
@@ -1143,6 +1261,9 @@ class MemberPortal {
 			'calendar_deleted' => [ 'ok', __( 'Calendar deleted. Its events were kept.', 'project-prepper' ) ],
 			'feed_rotated'     => [ 'ok', __( 'New feed URL created. Please update your calendar subscriptions.', 'project-prepper' ) ],
 			'group_saved'      => [ 'ok', __( 'Collective updated.', 'project-prepper' ) ],
+			'telegram_sent'          => [ 'ok', __( 'Test message sent to your Telegram group.', 'project-prepper' ) ],
+			'telegram_failed'        => [ 'err', __( 'Telegram message could not be sent. Please check the chat ID and that the operator’s bot is in the group.', 'project-prepper' ) ],
+			'telegram_not_configured' => [ 'err', __( 'Telegram is not set up yet. Add a chat ID (and ask the operator to set a bot token).', 'project-prepper' ) ],
 			'member_removed'   => [ 'ok', __( 'Member removed from the collective.', 'project-prepper' ) ],
 			'group_deleted'    => [ 'ok', __( 'Collective dissolved. Its projects were kept and moved to the site level.', 'project-prepper' ) ],
 			'fed_decided'      => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
@@ -6487,6 +6608,10 @@ class MemberPortal {
 			}
 		}
 		$can_leave = ( 'founder' !== $role ) || $founder_count > 1;
+		// Telegram-Benachrichtigungen: chat_id des Kollektivs + ob der Betreiber
+		// überhaupt einen Instanz-Bot-Token hinterlegt hat (nur für Gründer sichtbar).
+		$tg_chat_id = 'founder' === $role ? Telegram::chat_id( $group_id ) : '';
+		$tg_has_bot = 'founder' === $role ? Telegram::has_bot_token() : false;
 		?>
 		<div class="pp-portal__collective">
 			<div class="pp-portal__collective-head">
@@ -6517,8 +6642,24 @@ class MemberPortal {
 						<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
 							<textarea name="pp_description" rows="2"><?php echo esc_textarea( $description ); ?></textarea>
 						</label>
+						<label><?php esc_html_e( 'Telegram chat ID (optional)', 'project-prepper' ); ?>
+							<input type="text" name="pp_telegram_chat_id" value="<?php echo esc_attr( $tg_chat_id ); ?>" placeholder="-1001234567890" inputmode="text">
+						</label>
+						<p class="pp-portal__hint">
+							<?php esc_html_e( 'Send short notifications (new inquiries, bookings) to your collective’s Telegram group. Add the instance bot to the group, then paste the group’s chat ID here.', 'project-prepper' ); ?>
+							<?php if ( ! $tg_has_bot ) : ?>
+								<br><strong><?php esc_html_e( 'The operator has not set up a Telegram bot yet — notifications stay off until they do.', 'project-prepper' ); ?></strong>
+							<?php endif; ?>
+						</p>
 						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
 					</form>
+					<?php if ( '' !== $tg_chat_id && $tg_has_bot ) : ?>
+						<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<?php self::action_fields( 'telegram_test' ); ?>
+							<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+							<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Send test message', 'project-prepper' ); ?></button>
+						</form>
+					<?php endif; ?>
 					<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 						<input type="hidden" name="action" value="pp_group_logo">
 						<?php wp_nonce_field( 'pp_group_logo', 'pp_nonce' ); ?>

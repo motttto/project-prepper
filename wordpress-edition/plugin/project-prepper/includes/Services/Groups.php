@@ -147,6 +147,12 @@ class Groups {
 		if ( array_key_exists( 'logo_id', $data ) ) {
 			$fields['logo_id'] = max( 0, (int) $data['logo_id'] );
 		}
+		if ( array_key_exists( 'telegram_chat_id', $data ) ) {
+			// Telegram-Chat-ID (Zielgruppe für Benachrichtigungen): numerische ID
+			// (Gruppen sind negativ, z. B. -1001234567890) oder @channelusername.
+			// Leer = Benachrichtigungen aus. Siehe Services\Telegram.
+			$fields['telegram_chat_id'] = \ProjectPrepper\Services\Telegram::sanitize_chat_id( (string) $data['telegram_chat_id'] );
+		}
 		if ( $fields ) {
 			$wpdb->update( Schema::table( 'groups' ), $fields, [ 'id' => $id ] );
 			ActivityLog::log( 'group_updated', 'group', $id, [ 'fields' => array_keys( $fields ) ] );
