@@ -1311,7 +1311,7 @@ msgid "Save"
 msgstr "Speichern"
 
 #: includes/Admin/Menu.php:278
-#: includes/Admin/Menu.php:334
+#: includes/Admin/Menu.php:354
 #: admin/js/admin.js:391
 #: admin/js/admin.js:683
 #: admin/js/admin.js:1101
@@ -3899,7 +3899,7 @@ msgstr "0 = unbegrenzt. Einladungen werden pro Mitglied über rollende 24 Stunde
 msgid "Public profile"
 msgstr "Öffentliches Profil"
 
-#: includes/Updater.php:363
+#: includes/Updater.php:395
 msgid "See the GitHub release notes."
 msgstr "Siehe die GitHub-Release-Notes."
 
@@ -5074,7 +5074,8 @@ msgstr "Du darfst kein Inventar teilen."
 
 #: includes/Services/MemberInventory.php:461
 #: includes/Services/Telegram.php:208
-#: includes/Updater.php:48
+#: includes/Updater.php:55
+#: includes/Updater.php:80
 msgid "You are not allowed to do this."
 msgstr "Dazu hast du keine Berechtigung."
 
@@ -5489,46 +5490,46 @@ msgstr "Vorherige Einweisung"
 msgid "Qualified users only"
 msgstr "Nur mit Fachkunde"
 
-#: includes/Admin/Menu.php:332
+#: includes/Admin/Menu.php:352
 msgid "Update token (GitHub)"
 msgstr "Update-Token (GitHub)"
 
-#: includes/Admin/Menu.php:336
+#: includes/Admin/Menu.php:356
 msgid "Optional. Authenticated update checks raise GitHub’s rate limit from 60 to 5000 requests per hour — recommended on shared hosting, where the auto-updater otherwise fails intermittently. A token WITHOUT any scopes is enough for a public repository."
 msgstr "Optional. Authentifizierte Update-Prüfungen heben GitHubs Limit von 60 auf 5000 Anfragen pro Stunde an — empfohlen auf Shared-Hosting, wo der Auto-Updater sonst zeitweise fehlschlägt. Für ein öffentliches Repository genügt ein Token OHNE jegliche Scopes."
 
 #: includes/Admin/Menu.php:281
-#: includes/Admin/Menu.php:337
+#: includes/Admin/Menu.php:357
 msgid "Status:"
 msgstr "Status:"
 
-#: includes/Admin/Menu.php:337
+#: includes/Admin/Menu.php:357
 msgid "token active"
 msgstr "Token aktiv"
 
-#: includes/Admin/Menu.php:337
+#: includes/Admin/Menu.php:357
 msgid "no token (unauthenticated, 60/h)"
 msgstr "kein Token (unauthentifiziert, 60/h)"
 
-#: includes/Admin/Menu.php:339
+#: includes/Admin/Menu.php:359
 msgid "The token is set via the PP_UPDATE_TOKEN constant in wp-config.php (the most secure option). The field below is therefore disabled."
 msgstr "Das Token wird über die Konstante PP_UPDATE_TOKEN in der wp-config.php gesetzt (die sicherste Option). Das Feld unten ist daher deaktiviert."
 
-#: includes/Admin/Menu.php:344
+#: includes/Admin/Menu.php:364
 msgid "GitHub token"
 msgstr "GitHub-Token"
 
 #: includes/Admin/Menu.php:289
-#: includes/Admin/Menu.php:345
+#: includes/Admin/Menu.php:365
 msgid "Save token"
 msgstr "Token speichern"
 
 #: includes/Admin/Menu.php:291
-#: includes/Admin/Menu.php:347
+#: includes/Admin/Menu.php:367
 msgid "Remove token"
 msgstr "Token entfernen"
 
-#: includes/Admin/Menu.php:351
+#: includes/Admin/Menu.php:371
 msgid "Create a fine-grained token on GitHub (Read-only, no scopes needed) →"
 msgstr "Fine-grained Token auf GitHub erstellen (Read-only, keine Scopes nötig) →"
 
@@ -6674,3 +6675,23 @@ msgstr "Für Clients, die Änderungen zurückschreiben können (Apple Kalender, 
 #, php-format
 msgid "Username: %s — Password: your calendar token (the same secret as in the feed URL above, the part after “token=”)."
 msgstr "Benutzername: %s — Passwort: dein Kalender-Token (dasselbe Geheimnis wie in der Feed-URL oben, der Teil nach „token=“)."
+
+#: includes/Admin/Menu.php:331
+msgid "Plugin updates"
+msgstr "Plugin-Updates"
+
+#: includes/Admin/Menu.php:333
+msgid "You are on the latest version."
+msgstr "Du hast die neueste Version."
+
+#: includes/Admin/Menu.php:335
+msgid "Installed version:"
+msgstr "Installierte Version:"
+
+#: includes/Admin/Menu.php:336
+msgid "Checks GitHub right now (bypassing the 6-hour cache) and, if a new version is available, takes you straight to the WordPress update screen."
+msgstr "Prüft jetzt sofort bei GitHub (unter Umgehung des 6-Stunden-Caches) und bringt dich bei einer neuen Version direkt zur WordPress-Aktualisierungsseite."
+
+#: includes/Admin/Menu.php:340
+msgid "Check for updates now"
+msgstr "Jetzt auf Updates prüfen"

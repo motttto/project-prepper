@@ -25,7 +25,7 @@ class Updater {
 	const DEFAULT_REPO = 'motttto/project-prepper';
 	const CACHE_KEY    = 'pp_update_release';
 	const CACHE_TTL    = 6 * HOUR_IN_SECONDS;
-	const FAIL_TTL     = 15 * MINUTE_IN_SECONDS;
+	const FAIL_TTL     = 2 * MINUTE_IN_SECONDS;
 	const TOKEN_OPTION = 'pp_update_token';
 
 	public static function init(): void {
@@ -40,6 +40,38 @@ class Updater {
 		add_filter( 'plugins_api', [ self::class, 'details' ], 20, 3 );
 		add_filter( 'upgrader_source_selection', [ self::class, 'fix_source_dir' ], 10, 4 );
 		add_action( 'admin_post_pp_save_update_token', [ self::class, 'handle_save_token' ] );
+		add_action( 'admin_post_pp_check_update', [ self::class, 'handle_check_update' ] );
+	}
+
+	/**
+	 * „Jetzt auf Updates prüfen" (Betreiber-Button auf der Sicherheits-Seite):
+	 * verwirft den eigenen Cache (inkl. eines evtl. kurzlebigen Fehlversuchs)
+	 * UND WordPress' Update-Transient, erzwingt einen frischen Check und schickt
+	 * bei verfügbarem Update direkt zum WP-Update-Screen — spart den Umweg über
+	 * „Dashboard → Aktualisierungen → Erneut prüfen".
+	 */
+	public static function handle_check_update(): void {
+		if ( ! current_user_can( Capabilities::OPERATE ) || ! check_admin_referer( 'pp_check_update' ) ) {
+			wp_die( esc_html__( 'You are not allowed to do this.', 'project-prepper' ) );
+		}
+		// Eigenen Cache leeren und frisch von GitHub holen (setzt CACHE_KEY neu).
+		delete_transient( self::CACHE_KEY );
+		$rel = self::latest_release( true );
+		// WP zu einem echten Re-Check zwingen, damit sein Update-Screen unsere
+		// Version sofort kennt (unser Filter füllt die Response).
+		delete_site_transient( 'update_plugins' );
+		if ( function_exists( 'wp_update_plugins' ) ) {
+			wp_update_plugins();
+		}
+		$available = is_array( $rel ) && '' !== (string) $rel['package']
+			&& version_compare( (string) $rel['version'], PP_VERSION, '>' );
+		if ( $available ) {
+			// Direkt dorthin, wo „Jetzt aktualisieren" wartet.
+			wp_safe_redirect( self_admin_url( 'update-core.php' ) );
+			exit;
+		}
+		wp_safe_redirect( add_query_arg( 'pp_msg', 'upd_current', admin_url( 'admin.php?page=pp-security' ) ) );
+		exit;
 	}
 
 	/** Update-Token im Admin speichern/entfernen (nur Betreiber:innen). */

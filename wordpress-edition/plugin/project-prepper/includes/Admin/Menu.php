@@ -318,8 +318,28 @@ class Menu {
 
 	public static function render_security(): void {
 		echo '<div class="wrap"><h1>' . esc_html__( 'Security', 'project-prepper' ) . '</h1>';
+		self::render_update_check_card();
 		self::render_update_token_card();
 		echo '<div id="pp-admin" data-page="security"></div></div>';
+	}
+
+	/** „Jetzt auf Updates prüfen" — erzwingt einen frischen Check ohne den Umweg über die WP-Aktualisierungen-Seite. */
+	private static function render_update_check_card(): void {
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Anzeige nach Redirect.
+		$current = isset( $_GET['pp_msg'] ) && 'upd_current' === $_GET['pp_msg'];
+		echo '<div class="card" style="max-width:680px;margin:1em 0;padding:4px 18px 14px">';
+		echo '<h2>' . esc_html__( 'Plugin updates', 'project-prepper' ) . '</h2>';
+		if ( $current ) {
+			echo '<div class="notice notice-success inline"><p>' . esc_html__( 'You are on the latest version.', 'project-prepper' ) . '</p></div>';
+		}
+		echo '<p>' . esc_html__( 'Installed version:', 'project-prepper' ) . ' <strong>' . esc_html( PP_VERSION ) . '</strong></p>';
+		echo '<p class="description">' . esc_html__( 'Checks GitHub right now (bypassing the 6-hour cache) and, if a new version is available, takes you straight to the WordPress update screen.', 'project-prepper' ) . '</p>';
+		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+		echo '<input type="hidden" name="action" value="pp_check_update">';
+		wp_nonce_field( 'pp_check_update' );
+		echo '<button class="button button-primary">' . esc_html__( 'Check for updates now', 'project-prepper' ) . '</button>';
+		echo '</form>';
+		echo '</div>';
 	}
 
 	/** Feld für das optionale GitHub-Update-Token (gegen das 60/h-Rate-Limit). */

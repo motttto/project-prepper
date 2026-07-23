@@ -3,6 +3,24 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.111.0 2026-07-24 (Schnelleres Update-Prüfen — Betreiber-Komfort, Schema UNVERÄNDERT 0.33.0)
+> **Kein Schema-Change, keine Migration.** Reiner Betreiber-Komfort rund um den GitHub-Selbst-Updater.
+> **Neuer Button „Jetzt auf Updates prüfen"** auf der wp-admin-Seite Project Prepper → **Sicherheit**
+> (neue Karte „Plugin-Updates" mit installierter Version + Button, `Menu::render_update_check_card`).
+> **Neuer admin-post-Handler `pp_check_update`** (`Updater::handle_check_update`, Cap `Capabilities::OPERATE`
+> + Nonce `pp_check_update`): leert den eigenen Updater-Cache (`pp_update_release`-Transient, inkl. eines evtl.
+> kurzlebigen Fehlversuchs) UND WordPress' `update_plugins`-Site-Transient, erzwingt via `wp_update_plugins()`
+> einen frischen Check; ist ein Update verfügbar → Redirect direkt zu `update-core.php`, sonst zurück zur
+> Sicherheits-Seite mit „Du hast die neueste Version." (`pp_msg=upd_current`). Spart den Umweg über
+> Dashboard → Aktualisierungen → „Erneut prüfen". **`FAIL_TTL` 15 → 2 Min** (Updater.php) — ein zu früher/
+> fehlgeschlagener Check sperrt nur noch 2 statt 15 Min. Beide Pfade im wp-env-Browser verifiziert (aktuell →
+> „neueste Version"; mit gemocktem höherem Release → landet auf update-core.php mit dem Plugin-Update in der Liste).
+> **i18n:** 5 neue Quellstrings (englisch) + deutsche Übersetzungen in de_DE.po (0 fuzzy), .mo via WP-POMO neu
+> gebaut (1386 Einträge), Stichproben grün. Plugin Check = nur erwartete `hidden_files` + `plugin_updater_detected`.
+> `build.sh` → `dist/project-prepper-0.111.0.zip` (1.2M, 120 Dateien). Root-`update.json` auf 0.111.0 + Asset-URL.
+> Commit/Push `wordpress-edition` + GitHub-Release `v0.111.0` mit ZIP-Asset; Updater sieht das Release
+> (`is_asset=true`, package = ZIP).
+
 > ## 🚀 Release v0.109.0 2026-07-23 (Presence / „Wer ist online" — Polling-Heartbeat, Schema UNVERÄNDERT 0.32.0)
 > **Kein Schema-Change** (user_meta `pp_last_seen`, keine Migration).
 > Pendant zu den Supabase-Realtime-Presence-Kanälen der App (`use-presence.ts`/`presence-avatars.tsx`),

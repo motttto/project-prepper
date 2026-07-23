@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.110.0
+Stable tag: 0.111.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.111.0 =
+* Updates: a “Check for updates now” button on the Security admin page forces a fresh update check (clearing the plugin's own cache and WordPress's) and jumps straight to the update screen when a new version is available. The failed-check cache window was also shortened from 15 to 2 minutes.
 
 = 0.110.0 =
 * Calendar: two-way CalDAV — external calendar apps (Apple Calendar, Thunderbird, DAVx5) can now subscribe to your portal calendars and create, edit and delete events that sync back. Sign in with your username and calendar token; the CalDAV URL is shown in the calendar’s subscribe section next to the read-only iCal feed.
