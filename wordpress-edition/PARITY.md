@@ -3,6 +3,21 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.112.0 2026-07-24 („Bereits gebucht"-Markierung im Technik-Picker, Schema UNVERÄNDERT 0.33.0)
+> **Kein Schema-Change, keine Migration.** Rein additive Frontend-Verbesserung im „Technik buchen"-Picker
+> (Projekt-Detail → Equipment-Reiter, `MemberPortal.php`). Jede Artikel-Zeile, die für DIESES Projekt bereits
+> gebucht ist, erhält eine orange Markierung **„bereits gebucht (N×)"** neben dem Namen (N = bereits gebuchte
+> Menge, aus dem vorhandenen `$booked_qty`-Array). Row-Klasse `pp-book-item--booked` (Name leicht gedimmt),
+> Badge `pp-book-item__badge` (CSS über `--pp-warning-light`/`--pp-warning`, hell + dunkel). Der Artikel bleibt
+> buchbar — man kann bewusst mehr davon buchen; keine Logikänderung an der Buchung selbst.
+> **Plugin-Check-Fix:** die neue `printf(...)`-Ausgabe brauchte einen Inline-`(int)`-Cast auf die Menge, damit
+> `WordPress.Security.EscapeOutput` grün bleibt (Konvention wie an allen anderen `printf( esc_html__ … , (int) … )`
+> im File). **i18n:** 1 neuer Quellstring „already booked (%d×)" → „bereits gebucht (%d×)" (0 fuzzy, keine JS-Strings),
+> .pot regeneriert, .po abgeglichen, .mo via WP-POMO neu gebaut (1388 Einträge), Stichprobe grün.
+> Plugin Check = nur erwartete `hidden_files` + `plugin_updater_detected`. `build.sh` → `dist/project-prepper-0.112.0.zip`
+> (1.2M, 120 Dateien). Root-`update.json` auf 0.112.0 + Asset-URL. Commit/Push `wordpress-edition` + GitHub-Release
+> `v0.112.0` mit ZIP-Asset; Updater sieht das Release (`is_asset=true`, package = ZIP).
+
 > ## 🚀 Release v0.111.0 2026-07-24 (Schnelleres Update-Prüfen — Betreiber-Komfort, Schema UNVERÄNDERT 0.33.0)
 > **Kein Schema-Change, keine Migration.** Reiner Betreiber-Komfort rund um den GitHub-Selbst-Updater.
 > **Neuer Button „Jetzt auf Updates prüfen"** auf der wp-admin-Seite Project Prepper → **Sicherheit**

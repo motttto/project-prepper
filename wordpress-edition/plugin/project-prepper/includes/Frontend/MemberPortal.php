@@ -4090,8 +4090,10 @@ class MemberPortal {
 									/* translators: %s: daily rate in euros. */
 									$bits[] = sprintf( __( '%s €/day', 'project-prepper' ), number_format_i18n( (float) $rate, 2 ) );
 								}
+								// Ist dieser Artikel für dieses Projekt bereits gebucht?
+								$already = (int) ( $booked_qty[ (int) $item->id ] ?? 0 );
 								?>
-								<div class="pp-book-item">
+								<div class="pp-book-item<?php echo $already > 0 ? ' pp-book-item--booked' : ''; ?>">
 									<label class="pp-book-item__pick">
 										<input type="checkbox" name="pp_items[]" value="<?php echo (int) $item->id; ?>">
 										<?php if ( ! empty( $item->image_url ) ) : ?>
@@ -4100,7 +4102,15 @@ class MemberPortal {
 											<span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span>
 										<?php endif; ?>
 										<span class="pp-book-item__text">
-											<span class="pp-book-item__name"><?php echo esc_html( $item->name ); ?></span>
+											<span class="pp-book-item__name">
+												<?php echo esc_html( $item->name ); ?>
+												<?php if ( $already > 0 ) : ?>
+													<span class="pp-book-item__badge"><?php
+														/* translators: %d: quantity already booked for this project. */
+														printf( esc_html__( 'already booked (%d×)', 'project-prepper' ), (int) $already );
+													?></span>
+												<?php endif; ?>
+											</span>
 											<span class="pp-book-item__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></span>
 										</span>
 									</label>

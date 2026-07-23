@@ -1356,6 +1356,19 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-book-item__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pp-book-item__name { font-weight: 500; font-size: .9rem; color: var(--pp-foreground); }
 .pp-book-item__meta { color: var(--pp-muted-foreground); font-size: .78rem; }
+/* „Bereits gebucht" — Artikel, der für dieses Projekt schon gebucht ist. */
+.pp-book-item__badge {
+	display: inline-block;
+	margin-left: .4rem;
+	padding: .05rem .4rem;
+	border-radius: 999px;
+	font-size: .68rem;
+	font-weight: 600;
+	background: var(--pp-warning-light);
+	color: var(--pp-warning);
+	vertical-align: middle;
+}
+.pp-book-item--booked .pp-book-item__name { color: var(--pp-muted-foreground); }
 .pp-share__notes { display: flex; flex-direction: column; gap: .2rem; font-size: .82rem; }
 .pp-share__notes textarea { width: 100%; }
 
