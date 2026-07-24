@@ -15,6 +15,7 @@ use ProjectPrepper\Services\Rentals;
 use ProjectPrepper\Services\Inquiries;
 use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\Projects;
+use ProjectPrepper\Services\BookingApprovals;
 use ProjectPrepper\Services\Availability;
 use ProjectPrepper\Services\Costs;
 use ProjectPrepper\Services\Schedule;
@@ -429,6 +430,10 @@ class MemberPortal {
 		if ( in_array( $do, [ 'project_create', 'project_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'projects', self::portal_url() );
 		}
+		// Freigabe-Entscheidungen kehren zur Freigaben-Ansicht zurück.
+		if ( in_array( $do, [ 'booking_approve', 'booking_reject' ], true ) ) {
+			$back = add_query_arg( 'pp_view', 'approvals', self::portal_url() );
+		}
 		// Reiter-Erhalt für ALLE View-Redirects: die Umbauten oben starten von
 		// portal_url() neu — den aktiven Reiter der Ausgangsseite wieder anhängen
 		// (unbekannte Reiter fallen in der Ziel-View auf den Default zurück).
@@ -687,6 +692,23 @@ class MemberPortal {
 			case 'project_item_remove':
 				$result = self::member_remove_booking( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ) );
 				$ok_msg = 'booking_removed';
+				break;
+			// --- Freigabe-Workflow: nur der Artikel-Eigentümer entscheidet (Gate im Service) ---
+			case 'booking_approve':
+				$result = BookingApprovals::approve( get_current_user_id(), (int) ( $_POST['pp_line'] ?? 0 ) );
+				if ( is_array( $result ) ) {
+					do_action( 'pp_booking_approval_decided', $result + [ 'status' => 'approved' ] );
+					$result = true;
+				}
+				$ok_msg = 'booking_approved';
+				break;
+			case 'booking_reject':
+				$result = BookingApprovals::reject( get_current_user_id(), (int) ( $_POST['pp_line'] ?? 0 ) );
+				if ( is_array( $result ) ) {
+					do_action( 'pp_booking_approval_decided', $result + [ 'status' => 'rejected' ] );
+					$result = true;
+				}
+				$ok_msg = 'booking_rejected';
 				break;
 			// --- Projekt-Unterlisten (Gate: project_sub_actions oben) ---
 			case 'sched_add':
@@ -1088,6 +1110,8 @@ class MemberPortal {
 				$msg = 'missing_required';
 			} elseif ( 'pp_no_selection' === $code ) {
 				$msg = 'booking_none_selected';
+			} elseif ( 'pp_not_pending' === $code ) {
+				$msg = 'booking_decided_already';
 			} elseif ( 'pp_telegram_not_configured' === $code ) {
 				$msg = 'telegram_not_configured';
 			} elseif ( in_array( $code, [ 'pp_telegram_http', 'pp_telegram_api' ], true ) ) {
@@ -1252,8 +1276,12 @@ class MemberPortal {
 			'not_group_member'   => [ 'err', __( 'This user is not a member of the project group.', 'project-prepper' ) ],
 			'booking_saved'    => [ 'ok', __( 'Equipment booked.', 'project-prepper' ) ],
 			'booking_partial'  => [ 'ok', __( 'Booked what was available — some items were already taken in this period.', 'project-prepper' ) ],
+			'booking_pending'  => [ 'ok', __( 'Booked. Some items need the owner’s approval and are marked as pending.', 'project-prepper' ) ],
 			'booking_none_selected' => [ 'err', __( 'Please tick at least one item to book.', 'project-prepper' ) ],
 			'booking_removed'  => [ 'ok', __( 'Booking removed.', 'project-prepper' ) ],
+			'booking_approved' => [ 'ok', __( 'Booking approved.', 'project-prepper' ) ],
+			'booking_rejected' => [ 'ok', __( 'Booking rejected and removed.', 'project-prepper' ) ],
+			'booking_decided_already' => [ 'err', __( 'This request has already been decided.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
 			'borrow_decided'   => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'borrow_cancelled' => [ 'ok', __( 'Request cancelled.', 'project-prepper' ) ],
@@ -1662,6 +1690,9 @@ class MemberPortal {
 							case 'collectives':
 								self::view_collectives( $user, $groups );
 								break;
+							case 'approvals':
+								self::view_approvals( $user );
+								break;
 							default:
 								self::view_dashboard( $user, $groups );
 						}
@@ -1711,7 +1742,7 @@ class MemberPortal {
 	private static function current_view(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$view    = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : 'dashboard';
-		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'inquiries', 'calendar', 'costs', 'polls', 'network', 'collectives' ];
+		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'inquiries', 'calendar', 'costs', 'polls', 'network', 'collectives', 'approvals' ];
 		return in_array( $view, $allowed, true ) ? $view : 'dashboard';
 	}
 
@@ -1969,6 +2000,16 @@ class MemberPortal {
 			];
 		}
 
+		// Offene Freigabe-Anfragen für meine Artikel (Technik-Buchungen).
+		$approvals = BookingApprovals::pending_count_for_owner( $uid );
+		if ( $approvals > 0 ) {
+			$items[] = [
+				/* translators: %d: number of equipment approval requests. */
+				'label' => sprintf( _n( '%d equipment approval awaiting you', '%d equipment approvals awaiting you', $approvals, 'project-prepper' ), $approvals ),
+				'url'   => self::view_url( 'approvals' ),
+			];
+		}
+
 		// Offene „Bist du dabei?"-Anfragen (Team-RSVP bei Anfragen).
 		$rsvps = count( InquiryTeam::pending_for_user( $uid ) );
 		if ( $rsvps > 0 ) {
@@ -2133,6 +2174,35 @@ class MemberPortal {
 							<span class="pp-row__main"><?php echo esc_html( (string) $pt->title ); ?></span>
 							<span class="pp-row__meta"><?php echo esc_html( (string) $pt->project_name ); ?></span>
 							<span class="pp-portal__chip"><?php esc_html_e( 'Accept or decline', 'project-prepper' ); ?></span>
+						</a>
+					<?php endforeach; ?>
+				</div>
+			</section>
+		<?php endif; ?>
+
+		<?php
+		// Offene Freigabe-Anfragen für MEINE Artikel (App: use-booking-approvals).
+		$pending_approvals = BookingApprovals::pending_for_owner( (int) $user->ID );
+		if ( $pending_approvals ) :
+			?>
+			<section class="pp-card pp-taskhint">
+				<h3 class="pp-card__title">
+					<?php esc_html_e( 'Equipment approvals', 'project-prepper' ); ?>
+					<span class="pp-team-chip pp-team-chip--invited"><?php echo (int) count( $pending_approvals ); ?></span>
+				</h3>
+				<div class="pp-rows">
+					<?php foreach ( $pending_approvals as $pa ) : ?>
+						<a class="pp-row pp-row--link" href="<?php echo esc_url( self::view_url( 'approvals' ) ); ?>">
+							<span class="pp-row__main"><?php echo esc_html( (string) $pa->item_name ); ?></span>
+							<span class="pp-row__meta">
+								<?php
+								echo esc_html( (string) $pa->project_name );
+								if ( '' !== (string) $pa->requester_name ) {
+									echo ' · ' . esc_html( (string) $pa->requester_name );
+								}
+								?>
+							</span>
+							<span class="pp-portal__chip"><?php esc_html_e( 'Approve or reject', 'project-prepper' ); ?></span>
 						</a>
 					<?php endforeach; ?>
 				</div>
@@ -3562,28 +3632,53 @@ class MemberPortal {
 		}
 
 		$pool     = self::bookable_pool( $p );
+		$uid      = get_current_user_id();
 		$booked   = 0;
 		$failed   = 0;
+		$pending  = 0;
 		$last_err = null;
 		foreach ( $item_ids as $item_id ) {
 			if ( ! isset( $pool[ $item_id ] ) ) {
 				// Nicht aus dem Pool — harte Grenze (IDOR), sofort abbrechen.
 				return new \WP_Error( 'pp_forbidden', __( 'Only equipment shared with this collective can be booked.', 'project-prepper' ), [ 'status' => 403 ] );
 			}
-			$qty = max( 1, (int) ( $qty_raw[ $item_id ] ?? 1 ) );
-			$res = Projects::add_item( $pid, [ 'item_id' => $item_id, 'quantity' => $qty ] + $shared );
+			$pool_item = $pool[ $item_id ];
+			$owner_id  = (int) ( $pool_item->shared_by ?? 0 );
+			// Freigabe nötig, wenn der Artikel jemand ANDEREM gehört UND die Freigabe
+			// die Bedingung „requires_approval" trägt. Eigene Artikel + freie Freigaben
+			// werden sofort gebucht (auto-approved).
+			$needs = $owner_id > 0 && $owner_id !== $uid && ! empty( $pool_item->requires_approval );
+
+			$qty  = max( 1, (int) ( $qty_raw[ $item_id ] ?? 1 ) );
+			$line = [ 'item_id' => $item_id, 'quantity' => $qty ] + $shared;
+			if ( $needs ) {
+				$line['approval_status'] = 'pending';
+				$line['requested_by']    = $uid;
+			}
+			$res = Projects::add_item( $pid, $line );
 			if ( is_wp_error( $res ) ) {
 				$failed++;
 				$last_err = $res;
 			} else {
 				$booked++;
+				if ( $needs ) {
+					$pending++;
+					// Freigabe-Anfrage an den Eigentümer (E-Mail + Portal-Eintrag,
+					// der über den DB-Status geführt wird). Fehler beim Mailversand
+					// bleiben folgenlos.
+					do_action( 'pp_booking_approval_requested', (int) $res, $owner_id, $uid );
+				}
 			}
 		}
 
 		if ( 0 === $booked ) {
 			return $last_err ?: new \WP_Error( 'pp_not_available', __( 'One of the items is not available in that period. Please adjust the dates or quantity.', 'project-prepper' ) );
 		}
-		return $failed > 0 ? 'booking_partial' : true;
+		if ( $failed > 0 ) {
+			return 'booking_partial';
+		}
+		// Alles gebucht — bei mind. einer Freigabe-Anfrage eigene Meldung.
+		return $pending > 0 ? 'booking_pending' : true;
 	}
 
 	/** Buchungszeile ändern (Menge/Zeitraum/Notiz — der Artikel bleibt). */
@@ -3811,6 +3906,115 @@ class MemberPortal {
 		<?php
 	}
 
+	/* ---------- Freigaben (Technik-Buchungen mit Owner-Zustimmung) ---------- */
+
+	/**
+	 * Ansicht „Freigaben": offene Freigabe-Anfragen für die EIGENEN Artikel des
+	 * Users (workspace-unabhängig — es geht um Eigentum, nicht um die aktive
+	 * Gruppe). Pendant zur App-`use-booking-approvals`. Jede Anfrage zeigt Projekt,
+	 * Anfrager, Menge, Zeitraum + die eigenen Bedingungen (Tagessatz/Tags/Text) und
+	 * bietet Annehmen/Ablehnen. Nur der Eigentümer sieht diese Liste (Service-Gate).
+	 */
+	private static function view_approvals( WP_User $user ): void {
+		$pending = BookingApprovals::pending_for_owner( (int) $user->ID );
+		$presets = MemberInventory::condition_presets();
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'Equipment approvals', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Requests to use your equipment in a collective project — approve them on your own terms.', 'project-prepper' ); ?></p>
+		</header>
+
+		<?php if ( ! $pending ) : ?>
+			<div class="pp-card">
+				<p class="pp-portal__empty"><?php esc_html_e( 'No open approval requests. When someone books your equipment on approval, it shows up here.', 'project-prepper' ); ?></p>
+			</div>
+		<?php else : ?>
+			<div class="pp-approvals">
+				<?php foreach ( $pending as $r ) :
+					$range = self::fmt_range( $r->date_from_eff, $r->date_to_eff );
+					$rate  = '' !== (string) ( $r->share_daily_rate ?? '' ) ? $r->share_daily_rate : '';
+					$text  = trim( (string) ( $r->conditions ?? '' ) );
+					?>
+					<div class="pp-approval">
+						<div class="pp-approval__head">
+							<span class="pp-approval__item"><?php echo esc_html( (string) $r->item_name ); ?></span>
+							<?php if ( ! empty( $r->inventory_number ) ) : ?>
+								<span class="pp-portal__item-num"><?php echo esc_html( (string) $r->inventory_number ); ?></span>
+							<?php endif; ?>
+							<span class="pp-appr-chip pp-appr--pending"><?php esc_html_e( 'Pending', 'project-prepper' ); ?></span>
+						</div>
+						<div class="pp-approval__meta">
+							<?php
+							echo esc_html( (string) $r->project_name );
+							if ( '' !== (string) $r->requester_name ) {
+								/* translators: %s: requester name. */
+								echo ' · ' . esc_html( sprintf( __( 'requested by %s', 'project-prepper' ), $r->requester_name ) );
+							}
+							/* translators: %d: quantity. */
+							echo ' · ' . esc_html( sprintf( __( 'Qty %d', 'project-prepper' ), (int) $r->quantity ) );
+							if ( '' !== $range ) {
+								echo ' · ' . esc_html( $range );
+							}
+							?>
+						</div>
+						<?php if ( ! empty( $r->conditions_tags ) || '' !== (string) $rate || '' !== $text ) : ?>
+							<div class="pp-approval__cond">
+								<span class="pp-approval__cond-label"><?php esc_html_e( 'Your terms:', 'project-prepper' ); ?></span>
+								<?php self::render_condition_chips( (array) $r->conditions_tags, $presets ); ?>
+								<?php if ( '' !== (string) $rate ) : ?>
+									<span class="pp-cond-chip">
+										<?php
+										/* translators: %s: daily rate in euros. */
+										echo esc_html( sprintf( __( '%s €/day', 'project-prepper' ), number_format_i18n( (float) $rate, 2 ) ) );
+										?>
+									</span>
+								<?php endif; ?>
+								<?php if ( '' !== $text ) : ?>
+									<span class="pp-approval__cond-text"><?php echo esc_html( $text ); ?></span>
+								<?php endif; ?>
+							</div>
+						<?php endif; ?>
+						<div class="pp-portal__actions">
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;">
+								<?php self::action_fields( 'booking_approve' ); ?>
+								<input type="hidden" name="pp_line" value="<?php echo (int) $r->line_id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Approve', 'project-prepper' ); ?></button>
+							</form>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;" onsubmit="return confirm('<?php echo esc_js( __( 'Reject this request? The booking will be removed.', 'project-prepper' ) ); ?>');">
+								<?php self::action_fields( 'booking_reject' ); ?>
+								<input type="hidden" name="pp_line" value="<?php echo (int) $r->line_id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Reject', 'project-prepper' ); ?></button>
+							</form>
+						</div>
+					</div>
+				<?php endforeach; ?>
+			</div>
+		<?php endif; ?>
+		<?php
+	}
+
+	/** Bedingungs-Tags als kleine Chips (Preset-Label, Fallback = Schlüssel). */
+	private static function render_condition_chips( array $tags, array $presets ): void {
+		foreach ( $tags as $tag ) {
+			$tag = (string) $tag;
+			echo '<span class="pp-cond-chip">' . esc_html( $presets[ $tag ] ?? $tag ) . '</span>';
+		}
+	}
+
+	/**
+	 * Freigabe-Status-Chip einer Buchungszeile (Anfrager-Seite). „Freigegeben" wird
+	 * nur gezeigt, wenn die Zeile tatsächlich einen Freigabe-Durchlauf hatte
+	 * (decided_at gesetzt) — auto-freigegebene Buchungen bleiben unmarkiert.
+	 */
+	private static function approval_chip( object $line ): void {
+		$status = (string) ( $line->approval_status ?? 'approved' );
+		if ( 'pending' === $status ) {
+			echo '<span class="pp-appr-chip pp-appr--pending">' . esc_html__( 'Pending', 'project-prepper' ) . '</span>';
+		} elseif ( 'approved' === $status && ! empty( $line->decided_at ) ) {
+			echo '<span class="pp-appr-chip pp-appr--approved">' . esc_html__( 'Approved', 'project-prepper' ) . '</span>';
+		}
+	}
+
 	/** Projekte des aktiven Workspaces (Solo → keine; sonst nur die aktive Gruppe). */
 	private static function member_projects( array $groups ): array {
 		$active = self::active_group_id( $groups );
@@ -4008,6 +4212,7 @@ class MemberPortal {
 								<?php if ( ! empty( $line->inventory_number ) ) : ?>
 									<span class="pp-portal__item-num"><?php echo esc_html( $line->inventory_number ); ?></span>
 								<?php endif; ?>
+								<?php self::approval_chip( $line ); ?>
 								<span class="pp-row__meta">
 									<?php
 									/* translators: %d: quantity. */
@@ -4068,13 +4273,15 @@ class MemberPortal {
 						<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
 						<input type="search" class="pp-book-search" placeholder="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>">
 						<div class="pp-book-list">
+							<?php $presets = MemberInventory::condition_presets(); ?>
 							<?php foreach ( $pool as $item ) :
 								$bits = [];
 								if ( '' !== (string) ( $item->inventory_number ?? '' ) ) {
 									$bits[] = $item->inventory_number;
 								}
 								if ( '' !== (string) ( $item->owner_name ?? '' ) ) {
-									$bits[] = $item->owner_name;
+									/* translators: %s: owner name of the shared item. */
+									$bits[] = sprintf( __( 'by %s', 'project-prepper' ), $item->owner_name );
 								}
 								if ( $has_period ) {
 									$free = Availability::available_quantity( (int) $item->id, (string) $p->date_start, (string) $p->date_end, 0, (int) $p->id );
@@ -4114,6 +4321,27 @@ class MemberPortal {
 												<?php endif; ?>
 											</span>
 											<span class="pp-book-item__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></span>
+											<?php
+											// Freigabe-Bedingungen des Eigentümers sichtbar machen (Pendant
+											// zum App-Leih-Modal): Bedingungs-Chips, Freitext, Freigabe-Hinweis.
+											$cond_tags = (array) ( $item->conditions_tags ?? [] );
+											$cond_text = trim( (string) ( $item->conditions ?? '' ) );
+											// „Freigabe erforderlich" nur, wenn der Artikel jemand ANDEREM
+											// gehört — für eigene Artikel wird sowieso auto-freigegeben
+											// (spiegelt die Entscheidung in member_book_equipment).
+											$req_appr  = ! empty( $item->requires_approval ) && (int) ( $item->shared_by ?? 0 ) !== get_current_user_id();
+											if ( $cond_tags || '' !== $cond_text || $req_appr ) :
+												?>
+												<span class="pp-book-item__cond">
+													<?php if ( $req_appr ) : ?>
+														<span class="pp-book-item__approval"><?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></span>
+													<?php endif; ?>
+													<?php self::render_condition_chips( $cond_tags, $presets ); ?>
+													<?php if ( '' !== $cond_text ) : ?>
+														<span class="pp-book-item__cond-text" title="<?php echo esc_attr( $cond_text ); ?>"><?php echo esc_html( $cond_text ); ?></span>
+													<?php endif; ?>
+												</span>
+											<?php endif; ?>
 										</span>
 									</label>
 									<input type="number" class="pp-book-item__qty" name="pp_qty[<?php echo (int) $item->id; ?>]" min="1" max="<?php echo (int) $avail; ?>" value="1" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"<?php disabled( $avail <= 0 ); ?>>

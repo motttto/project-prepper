@@ -1,9 +1,9 @@
 {
-  "version": "0.113.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.113.0/project-prepper-0.113.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.113.0",
+  "version": "0.114.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.114.0/project-prepper-0.114.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.114.0",
   "published": "2026-07-24",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Technik-Buchung: das Mengenfeld ist jetzt auf die verfügbare Anzahl begrenzt, und Artikel ohne freie Menge werden ausgegraut/deaktiviert — man kann nicht mehr mehr wählen als vorhanden ist."
+  "changelog": "Technik-Freigabe: Wer fremdes, mit „Freigabe erforderlich“ geteiltes Material bucht, löst jetzt eine Freigabe-Anfrage aus — der Eigentümer bekommt eine E-Mail und eine „Freigaben“-Ansicht im Portal, um sie zu seinen Bedingungen anzunehmen oder abzulehnen. Der Buchungs-Picker zeigt jetzt Eigentümer, Tagessatz, Freigabe-Bedingungen und ob eine Freigabe nötig ist; jede Buchungszeile zeigt ihren Freigabe-Status."
 }

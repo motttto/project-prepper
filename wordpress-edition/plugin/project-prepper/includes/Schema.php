@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.33.0';
+	const VERSION    = '0.34.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -247,6 +247,11 @@ class Schema {
 
 		// Equipment-Buchungen pro Projekt (Pendant zu `bookings` der App).
 		// date_from/date_to NULL = Zeile erbt den Projekt-Zeitraum.
+		// approval_status (v0.34.0) — Pendant zu bookings.approval_status der App:
+		// approved | pending | rejected. Default 'approved' = Altbuchungen +
+		// auto-freigegebene bleiben gültig. requested_by = Anfrager (bei pending),
+		// decided_at = Zeitpunkt der Eigentümer-Entscheidung. Pending-Zeilen zählen
+		// weiterhin gegen die Verfügbarkeit (Availability zählt alle Zeilen).
 		dbDelta( "CREATE TABLE {$p_items} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			project_id bigint(20) unsigned NOT NULL,
@@ -255,9 +260,13 @@ class Schema {
 			date_from date DEFAULT NULL,
 			date_to date DEFAULT NULL,
 			notes text,
+			approval_status varchar(20) NOT NULL DEFAULT 'approved',
+			requested_by bigint(20) unsigned DEFAULT NULL,
+			decided_at datetime DEFAULT NULL,
 			PRIMARY KEY  (id),
 			KEY project_id (project_id),
-			KEY item_id (item_id)
+			KEY item_id (item_id),
+			KEY approval_status (approval_status)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$p_lists} (

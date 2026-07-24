@@ -370,9 +370,18 @@ class Projects {
 		) );
 	}
 
+	// Gültige Freigabe-Stati einer Buchungszeile (Pendant zur App).
+	const APPROVAL_STATUSES = [ 'approved', 'pending', 'rejected' ];
+
 	/**
 	 * Buchungszeile anlegen — mit Verfügbarkeits-Guard über den effektiven
 	 * Zeitraum (Zeilen-Datum, Fallback Projekt-Zeitraum).
+	 *
+	 * Optionale Freigabe-Felder in $line (vom Member-Portal gesetzt, wenn der
+	 * Artikel einem anderen Mitglied gehört und Freigabe verlangt): 'approval_status'
+	 * ('pending') + 'requested_by' (User-ID des Anfragers). Default = 'approved'
+	 * (eigene Artikel, Freigabe nicht nötig, REST/Backend). Pending-Zeilen zählen
+	 * weiterhin gegen die Verfügbarkeit (siehe Availability).
 	 *
 	 * @return int|WP_Error
 	 */
@@ -389,13 +398,22 @@ class Projects {
 			return $validated;
 		}
 
+		$approval = in_array( $line['approval_status'] ?? '', self::APPROVAL_STATUSES, true )
+			? (string) $line['approval_status']
+			: 'approved';
+		$requested_by = 'approved' !== $approval && ! empty( $line['requested_by'] )
+			? (int) $line['requested_by']
+			: null;
+
 		$wpdb->insert( Schema::table( 'project_items' ), [
-			'project_id' => $project_id,
-			'item_id'    => $validated['item_id'],
-			'quantity'   => $validated['quantity'],
-			'date_from'  => $validated['date_from'],
-			'date_to'    => $validated['date_to'],
-			'notes'      => $line['notes'] ?? '',
+			'project_id'      => $project_id,
+			'item_id'         => $validated['item_id'],
+			'quantity'        => $validated['quantity'],
+			'date_from'       => $validated['date_from'],
+			'date_to'         => $validated['date_to'],
+			'notes'           => $line['notes'] ?? '',
+			'approval_status' => $approval,
+			'requested_by'    => $requested_by,
 		] );
 		$line_id = (int) $wpdb->insert_id;
 

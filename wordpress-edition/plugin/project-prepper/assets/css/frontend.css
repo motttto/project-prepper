@@ -2534,3 +2534,72 @@ label.pp-swatch,
 
 /* Dashboard-Hinweis: offene Aufgaben-Zuweisungen */
 .pp-taskhint { margin-bottom: 1rem; }
+
+/* ===== Freigabe-Workflow für Technik-Buchungen (App: use-booking-approvals) ===== */
+/* Bedingungen im Buchungs-Picker: Chips + Freigabe-Hinweis + Freitext. */
+.pp-book-item__cond {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 4px;
+	margin-top: 3px;
+}
+.pp-cond-chip {
+	display: inline-block;
+	padding: .05rem .4rem;
+	border-radius: 999px;
+	font-size: .68rem;
+	font-weight: 600;
+	background: var(--pp-muted);
+	color: var(--pp-muted-foreground);
+	border: 1px solid var(--pp-border);
+}
+.pp-book-item__approval {
+	display: inline-block;
+	padding: .05rem .4rem;
+	border-radius: 999px;
+	font-size: .68rem;
+	font-weight: 600;
+	background: var(--pp-warning-light);
+	color: var(--pp-warning);
+}
+.pp-book-item__cond-text {
+	font-size: .72rem;
+	color: var(--pp-muted-foreground);
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/* Freigabe-Status-Chips (Anfrager-Seite + Freigaben-Ansicht). */
+.pp-appr-chip {
+	display: inline-block;
+	padding: 1px 8px;
+	border-radius: 999px;
+	font-size: .72rem;
+	font-weight: 600;
+	white-space: nowrap;
+}
+.pp-appr--pending { background: var(--pp-warning-light); color: var(--pp-warning); }
+.pp-appr--approved { background: var(--pp-success-light); color: var(--pp-success); }
+.pp-appr--rejected { background: var(--pp-destructive-light); color: var(--pp-destructive); }
+
+/* Freigaben-Ansicht: Anfrage-Karten. */
+.pp-approvals { display: flex; flex-direction: column; gap: 10px; }
+.pp-approval {
+	border: 1px solid var(--pp-border);
+	border-radius: 12px;
+	background: var(--pp-surface);
+	padding: 12px 14px;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+.pp-approval__head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.pp-approval__item { font-weight: 600; color: var(--pp-foreground); }
+.pp-approval__meta { font-size: .82rem; color: var(--pp-muted-foreground); }
+.pp-approval__cond { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pp-approval__cond-label { font-size: .78rem; font-weight: 600; color: var(--pp-foreground); }
+.pp-approval__cond-text { font-size: .82rem; color: var(--pp-muted-foreground); flex-basis: 100%; }
+.pp-approval .pp-portal__actions { margin-top: 2px; }

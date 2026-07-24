@@ -598,7 +598,9 @@ class MemberInventory {
 	public static function items_shared_with_group( int $group_id ): array {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			'SELECT i.*, s.shared_by, s.daily_rate AS share_daily_rate, c.name AS category_name, c.icon AS category_icon
+			'SELECT i.*, s.shared_by, s.daily_rate AS share_daily_rate,
+			        s.requires_approval, s.conditions_tags, s.conditions,
+			        c.name AS category_name, c.icon AS category_icon
 			 FROM %i s
 			 JOIN %i i ON i.id = s.item_id
 			 LEFT JOIN %i c ON c.id = i.category_id
@@ -614,6 +616,10 @@ class MemberInventory {
 			$row->owner_name = $owner ? $owner->display_name : '';
 			// Vorschaubild wie in der Inventar-Liste (Attachment → medium).
 			$row->image_url  = ! empty( $row->image_id ) ? ( wp_get_attachment_image_url( (int) $row->image_id, 'medium' ) ?: null ) : null;
+			// Freigabe-Bedingungen für Picker-Anzeige + Buchungslogik entpacken.
+			$row->requires_approval = ! empty( $row->requires_approval );
+			$tags                   = json_decode( (string) $row->conditions_tags, true );
+			$row->conditions_tags   = is_array( $tags ) ? $tags : [];
 		}
 		return $rows;
 	}

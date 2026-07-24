@@ -5,6 +5,7 @@ use ProjectPrepper\Services\Rentals;
 use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance;
 use ProjectPrepper\Services\Borrowing;
+use ProjectPrepper\Services\BookingApprovals;
 use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Frontend\MemberPortal;
 
@@ -29,6 +30,9 @@ class Notifications {
 		add_action( 'pp_group_invited', [ self::class, 'on_group_invited' ], 10, 1 );
 		add_action( 'pp_borrow_requested', [ self::class, 'on_borrow_requested' ], 10, 1 );
 		add_action( 'pp_borrow_decided', [ self::class, 'on_borrow_decided' ], 10, 2 );
+		// Freigabe-Workflow für Technik-Buchungen (an Eigentümer / an Anfrager).
+		add_action( 'pp_booking_approval_requested', [ self::class, 'on_booking_requested' ], 10, 3 );
+		add_action( 'pp_booking_approval_decided', [ self::class, 'on_booking_decided' ], 10, 1 );
 	}
 
 	public static function default_templates(): array {
@@ -75,6 +79,18 @@ class Notifications {
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
 				'body'    => __( "Hello,\n\nyour request to borrow \"{{item_name}}\" ({{date_from}} to {{date_to}}) was {{status}}.\n\nDetails:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
+			'booking_requested' => [
+				/* translators: Email subject. Keep the {{item_name}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'Approval needed for {{item_name}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello,\n\n{{requester_name}} would like to use your equipment \"{{item_name}}\" ({{quantity}}×, {{date_from}} to {{date_to}}) for the project \"{{project_name}}\".\n\nApprove it on your own terms in the portal:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
+			'booking_decided' => [
+				/* translators: Email subject. Keep the {{item_name}}, {{status}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'Your booking of {{item_name}} was {{status}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello,\n\nyour booking of \"{{item_name}}\" for the project \"{{project_name}}\" was {{status}}.\n\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
 			'member_2fa_code' => [
 				/* translators: Email subject. Keep the {{site_name}} placeholder unchanged. */
 				'subject' => __( 'Your login code — {{site_name}}', 'project-prepper' ),
@@ -99,6 +115,8 @@ class Notifications {
 			'group_invitation' => __( 'Group invitation', 'project-prepper' ),
 			'borrow_requested' => __( 'Borrow request (to owner)', 'project-prepper' ),
 			'borrow_decided'   => __( 'Borrow decision (to requester)', 'project-prepper' ),
+			'booking_requested' => __( 'Equipment approval request (to owner)', 'project-prepper' ),
+			'booking_decided'   => __( 'Equipment approval decision (to requester)', 'project-prepper' ),
 			'member_2fa_code'  => __( 'Member login code (2FA)', 'project-prepper' ),
 		];
 	}
@@ -265,6 +283,75 @@ class Notifications {
 			'date_to'    => $req->date_to ? mysql2date( 'd.m.Y', $req->date_to ) : '—',
 			'portal_url' => MemberPortal::portal_url(),
 			'site_name'  => get_bloginfo( 'name' ),
+		];
+		wp_mail( $requester->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
+	}
+
+	/**
+	 * Freigabe-Anfrage an den Eigentümer: ein Mitglied hat seinen Artikel für ein
+	 * Projekt gebucht, das Freigabe verlangt. Portal-Link zur Freigaben-Ansicht
+	 * (KEIN anonymer Zustimmen-Link — Freigabe passiert eingeloggt im Portal).
+	 * Ohne SMTP scheitert wp_mail still — der Portal-Eintrag ist verbindlich.
+	 */
+	public static function on_booking_requested( int $line_id, int $owner_id, int $requester_id ): void {
+		if ( ! self::enabled() ) {
+			return;
+		}
+		$owner = get_userdata( $owner_id );
+		if ( ! $owner || ! is_email( $owner->user_email ) ) {
+			return;
+		}
+		$ctx = BookingApprovals::get_line_context( $line_id );
+		if ( ! $ctx ) {
+			return;
+		}
+		$requester = get_userdata( $requester_id );
+		$tpl       = self::templates()['booking_requested'];
+		$vars      = [
+			'item_name'      => (string) $ctx->item_name,
+			'project_name'   => (string) $ctx->project_name,
+			'requester_name' => $requester ? $requester->display_name : '',
+			'quantity'       => (int) $ctx->quantity,
+			'date_from'      => $ctx->date_from_eff ? mysql2date( 'd.m.Y', $ctx->date_from_eff ) : '—',
+			'date_to'        => $ctx->date_to_eff ? mysql2date( 'd.m.Y', $ctx->date_to_eff ) : '—',
+			'portal_url'     => add_query_arg( 'pp_view', 'approvals', MemberPortal::portal_url() ),
+			'site_name'      => get_bloginfo( 'name' ),
+		];
+		wp_mail( $owner->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
+	}
+
+	/**
+	 * Entscheidungs-Info an den Anfrager (angenommen/abgelehnt). Der Payload trägt
+	 * alle nötigen Felder, weil die Buchungszeile bei einer Ablehnung entfernt
+	 * wurde und nicht mehr nachgeladen werden kann.
+	 *
+	 * @param array $payload requester_id, item_name, project_name, project_id, status.
+	 */
+	public static function on_booking_decided( array $payload ): void {
+		if ( ! self::enabled() ) {
+			return;
+		}
+		$status = (string) ( $payload['status'] ?? '' );
+		if ( ! in_array( $status, [ 'approved', 'rejected' ], true ) ) {
+			return;
+		}
+		$requester = get_userdata( (int) ( $payload['requester_id'] ?? 0 ) );
+		if ( ! $requester || ! is_email( $requester->user_email ) ) {
+			return;
+		}
+		$status_text = 'approved' === $status
+			? __( 'approved', 'project-prepper' )
+			: __( 'rejected', 'project-prepper' );
+		$tpl  = self::templates()['booking_decided'];
+		$vars = [
+			'item_name'    => (string) ( $payload['item_name'] ?? '' ),
+			'project_name' => (string) ( $payload['project_name'] ?? '' ),
+			'status'       => $status_text,
+			'portal_url'   => add_query_arg(
+				[ 'pp_view' => 'projects', 'pp_project' => (int) ( $payload['project_id'] ?? 0 ), 'pp_tab' => 'equipment' ],
+				MemberPortal::portal_url()
+			),
+			'site_name'    => get_bloginfo( 'name' ),
 		];
 		wp_mail( $requester->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
 	}
