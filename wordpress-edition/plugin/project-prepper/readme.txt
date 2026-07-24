@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.112.0
+Stable tag: 0.113.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.113.0 =
+* Equipment: the booking picker now caps each item’s quantity at what’s actually available and disables items with nothing free, so you can’t select more than exists.
 
 = 0.112.0 =
 * Equipment: items already booked for the current project are now flagged “already booked (N×)” in the booking picker, so you can see at a glance what’s in the project.

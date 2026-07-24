@@ -3,6 +3,21 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.113.0 2026-07-24 (Technik-Picker: Menge auf verfügbare Anzahl begrenzt, Schema UNVERÄNDERT 0.33.0)
+> **Kein Schema-Change, keine Migration.** Rein additive Frontend-Verbesserung im „Technik buchen"-Picker
+> (Projekt-Detail → Equipment-Reiter, `MemberPortal.php` + `frontend.css`). Pro Artikel wird jetzt die tatsächlich
+> noch buchbare Menge `$avail` berechnet (im Projektzeitraum frei `$free` bzw. Gesamtbestand minus im Projekt
+> schon gebucht `$item->quantity − $already`). Das Mengen-Zahlenfeld bekommt `max="$avail"`, und Artikel mit
+> `$avail <= 0` (nichts mehr frei) werden komplett **deaktiviert** (`disabled()` auf Checkbox + Mengenfeld) und
+> gedimmt (neue Klasse `pp-book-item--unavailable`, opacity .55, `cursor: not-allowed`). Damit verhindert schon die
+> UI die Überbuchung, die der Server über die Availability-Guards ohnehin ablehnt — diese bleiben als harte Grenze
+> unverändert, keine Logikänderung an der Buchung selbst. **i18n:** keine neuen Quellstrings (nur `max`/`disabled`-
+> Attribute + CSS); .pot regeneriert (nur Zeilennummern-Shift + Versions-Header), .po abgeglichen (0 fuzzy, keine
+> Content-Änderung), .mo via WP-POMO neu gebaut (1387 Einträge, byte-identisch), Stichprobe grün.
+> Plugin Check = nur erwartete `hidden_files` + `plugin_updater_detected`. `build.sh` → `dist/project-prepper-0.113.0.zip`
+> (1.2M, 120 Dateien). Root-`update.json` auf 0.113.0 + Asset-URL. Commit/Push `wordpress-edition` + GitHub-Release
+> `v0.113.0` mit ZIP-Asset; Updater sieht das Release (`is_asset=true`, package = ZIP).
+
 > ## 🚀 Release v0.112.0 2026-07-24 („Bereits gebucht"-Markierung im Technik-Picker, Schema UNVERÄNDERT 0.33.0)
 > **Kein Schema-Change, keine Migration.** Rein additive Frontend-Verbesserung im „Technik buchen"-Picker
 > (Projekt-Detail → Equipment-Reiter, `MemberPortal.php`). Jede Artikel-Zeile, die für DIESES Projekt bereits

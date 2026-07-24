@@ -1369,6 +1369,9 @@ a.pp-front-card-media { text-decoration: none; }
 	vertical-align: middle;
 }
 .pp-book-item--booked .pp-book-item__name { color: var(--pp-muted-foreground); }
+/* Nichts mehr frei → nicht wählbar. */
+.pp-book-item--unavailable { opacity: .55; }
+.pp-book-item--unavailable .pp-book-item__pick { cursor: not-allowed; }
 .pp-share__notes { display: flex; flex-direction: column; gap: .2rem; font-size: .82rem; }
 .pp-share__notes textarea { width: 100%; }
 

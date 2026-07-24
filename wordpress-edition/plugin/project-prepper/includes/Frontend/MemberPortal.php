@@ -4092,10 +4092,12 @@ class MemberPortal {
 								}
 								// Ist dieser Artikel für dieses Projekt bereits gebucht?
 								$already = (int) ( $booked_qty[ (int) $item->id ] ?? 0 );
+								// Noch buchbare Menge: im Zeitraum frei bzw. Gesamtbestand minus schon gebucht.
+								$avail = $has_period ? (int) $free : max( 0, (int) $item->quantity - $already );
 								?>
-								<div class="pp-book-item<?php echo $already > 0 ? ' pp-book-item--booked' : ''; ?>">
+								<div class="pp-book-item<?php echo $already > 0 ? ' pp-book-item--booked' : ''; ?><?php echo $avail <= 0 ? ' pp-book-item--unavailable' : ''; ?>">
 									<label class="pp-book-item__pick">
-										<input type="checkbox" name="pp_items[]" value="<?php echo (int) $item->id; ?>">
+										<input type="checkbox" name="pp_items[]" value="<?php echo (int) $item->id; ?>"<?php disabled( $avail <= 0 ); ?>>
 										<?php if ( ! empty( $item->image_url ) ) : ?>
 											<img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy">
 										<?php else : ?>
@@ -4114,7 +4116,7 @@ class MemberPortal {
 											<span class="pp-book-item__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></span>
 										</span>
 									</label>
-									<input type="number" class="pp-book-item__qty" name="pp_qty[<?php echo (int) $item->id; ?>]" min="1" value="1" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>">
+									<input type="number" class="pp-book-item__qty" name="pp_qty[<?php echo (int) $item->id; ?>]" min="1" max="<?php echo (int) $avail; ?>" value="1" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"<?php disabled( $avail <= 0 ); ?>>
 								</div>
 							<?php endforeach; ?>
 						</div>

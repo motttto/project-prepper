@@ -1,9 +1,9 @@
 {
-  "version": "0.112.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.112.0/project-prepper-0.112.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.112.0",
+  "version": "0.113.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.113.0/project-prepper-0.113.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.113.0",
   "published": "2026-07-24",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Technik-Buchung: Artikel, die für das aktuelle Projekt schon gebucht sind, werden im Buchungs-Picker jetzt mit „bereits gebucht (N×)“ markiert."
+  "changelog": "Technik-Buchung: das Mengenfeld ist jetzt auf die verfügbare Anzahl begrenzt, und Artikel ohne freie Menge werden ausgegraut/deaktiviert — man kann nicht mehr mehr wählen als vorhanden ist."
 }
