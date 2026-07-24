@@ -199,6 +199,32 @@ class GroupGovernance {
 		return true;
 	}
 
+	/**
+	 * Einladungs-E-Mail erneut versenden (nur solange noch offen / nicht
+	 * angenommen). Mitglied der Gruppe oder Admin. Feuert denselben Hook wie
+	 * beim Anlegen, sodass genau die Einladungs-Mail nochmal rausgeht.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function resend( int $invitation_id ) {
+		$inv = self::get( $invitation_id );
+		if ( ! $inv ) {
+			return new WP_Error( 'pp_not_found', __( 'Invitation not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$uid = get_current_user_id();
+		if ( ! Groups::is_member( (int) $inv->group_id, $uid ) && ! Groups::user_is_admin( $uid ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'Only members of this collective can resend invitations.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		// Erneut senden ergibt nur Sinn, solange die Person noch nicht angenommen
+		// hat (pending = Einladungs-Mail-Phase; voting = bereits angenommen).
+		if ( 'pending' !== $inv->status ) {
+			return new WP_Error( 'pp_bad_state', __( 'This invitation can no longer be resent.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		ActivityLog::log( 'group_invitation_resent', 'group', (int) $inv->group_id, [ 'invitation_id' => $invitation_id ] );
+		do_action( 'pp_group_invited', $invitation_id );
+		return true;
+	}
+
 	/* ===================== Abstimmen ===================== */
 
 	/**

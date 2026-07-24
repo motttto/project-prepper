@@ -3,6 +3,23 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.117.0 2026-07-24 (Kollektiv-Einladungen: erneut senden + löschen, Schema UNVERÄNDERT 0.34.0)
+> **Kein Schema-Change, keine Migration, keine neue Datei.** Rein Frontend/Service
+> (`includes/Frontend/MemberPortal.php`, `includes/Services/GroupGovernance.php`). Jede offene Einladung in der
+> Kollektiv-Karte hat jetzt zwei Aktionen: **Erneut senden** (neu, `invite_resend` → `GroupGovernance::resend()`:
+> feuert denselben `pp_group_invited`-Hook, verschickt die Einladungs-Mail nochmal, beliebig oft, nur solange
+> `pending`, Mitglied-/Admin-Gate; Meldung „Einladung erneut gesendet.") und **Löschen** (der bisherige
+> „Cancel"-Button, jetzt klar als Löschen beschriftet + Bestätigungs-Dialog + Danger-Style; nutzt weiter
+> `Governance::cancel`; Meldung jetzt „Einladung gelöscht." statt „abgebrochen"). Beide kehren zur
+> Kollektive-Ansicht zurück (`invite_resend`/`cancel` in die Redirect-Liste aufgenommen). Per wp-env-Browser inkl.
+> Mail-Mock verifiziert, dass die Resend-Mail tatsächlich rausgeht. **i18n:** 6 neue Quellstrings (Resend,
+> Delete this invitation?, Invitation deleted., Invitation sent again., „Only members…", „This invitation can no
+> longer be resent.") — dt. Übersetzungen in de_DE.po, `.pot` regeneriert (0.117.0), `.po` abgeglichen (0 fuzzy,
+> „Invitation cancelled." als ungenutzt entfallen), `.mo` per WP-POMO gebaut (1415 Einträge), Stichprobe grün.
+> **Plugin Check:** nur die zwei by-design-ERRORs (hidden_files, plugin_updater_detected). ZIP
+> `project-prepper-0.117.0.zip` (1.2M, 121 Dateien), Root-`update.json` auf 0.117.0. GitHub-Release `v0.117.0` mit
+> ZIP-Asset, Updater sieht das Release (is_asset=true, package zeigt aufs ZIP).
+
 > ## 🚀 Release v0.116.0 2026-07-24 (Bugfix: Kollektiv-Einladung per E-Mail zeigte immer generische Fehlermeldung, Schema UNVERÄNDERT 0.34.0)
 > **Kein Schema-Change, keine Migration, keine neue Datei.** Rein Frontend/Dispatcher (`includes/Frontend/MemberPortal.php`).
 > Der Portal-Dispatcher mappte KEINEN der Invite-Fehlercodes (`pp_bad_email`, `pp_already_member`,
@@ -1039,6 +1056,8 @@ Vereinbarung — 4 Multi-User/Gruppen-Tabs, Architektur-Entscheidung nötig).
 - Architektur-Entscheidung „echtes Gruppen-Overlay" ist **getroffen** (2026-06-13, docs/03-GRUPPEN-ARCHITEKTUR.md) — die 4 ehemals blockierten Projekt-Tabs sind jetzt als Gruppen-Phasen 2–5 verplant.
 
 ## Log
+
+- **Release v0.117.0** (2026-07-24, Release-Agent): Version gebumpt (Header + `PP_VERSION` + `readme.txt` Stable tag = 0.117.0, **Schema unverändert 0.34.0**, keine Migration/keine neue Datei), Changelog-Block in `readme.txt` (Collectives: open invitations can now be resent and deleted). i18n: `.pot` regeneriert (Header 0.117.0), `.po` via `update-po` abgeglichen (0 fuzzy, „Invitation cancelled." als ungenutzt entfallen), 6 neue Quellstrings deutsch übersetzt (Resend/Delete this invitation?/Invitation deleted./Invitation sent again./„Only members…"/„This invitation can no longer be resent."), `.mo` per WP-POMO gebaut (1415 Einträge), 3 Stichproben gegen die frische `.mo` grün. Keine JS-Strings. Plugin Check nur die zwei by-design-ERRORs (`hidden_files` + `plugin_updater_detected`). ZIP `dist/project-prepper-0.117.0.zip` (Top-Ordner `project-prepper/`, 1,2 MB, 121 Dateien, `.mo` enthalten, keine hidden files), Root-`update.json` auf 0.117.0. Committet + gepusht auf `wordpress-edition`, GitHub-Release `v0.117.0` mit ZIP-Asset, Updater sieht das Release (is_asset=true, package zeigt aufs ZIP). Feature: **Kollektiv-Einladungen erneut senden + löschen** — jede offene Einladung in der Kollektiv-Karte bekommt „Erneut senden" (`invite_resend` → `GroupGovernance::resend()`, feuert `pp_group_invited` erneut, nur `pending`, Mitglied-/Admin-Gate) und der bisherige Cancel-Button wird klar zu „Löschen" (Bestätigungs-Dialog + Danger-Style, weiter `Governance::cancel`, Meldung jetzt „Einladung gelöscht."). Beide Aktionen redirecten in die Kollektive-Ansicht. Per wp-env-Browser + Mail-Mock verifiziert (Resend-Mail geht raus).
 
 - **Release v0.115.0** (2026-07-24, Release-Agent): Version gebumpt (Header + `PP_VERSION` + `readme.txt` Stable tag = 0.115.0, Schema unverändert 0.34.0), Changelog-Block in `readme.txt`, i18n (`.pot` regeneriert = 1411 msgids, `.po` abgeglichen 0 fuzzy, `.mo` per WP-POMO gebaut, Stichprobe grün), Plugin Check nur die zwei by-design-ERRORs (`hidden_files` + `plugin_updater_detected`), ZIP `dist/project-prepper-0.115.0.zip` (Top-Ordner `project-prepper/`, ~1,2 MB) gebaut, Root-`update.json` auf 0.115.0 aktualisiert, committet + gepusht auf `wordpress-edition`, GitHub-Release `v0.115.0` mit ZIP-Asset, Updater sieht das Release (is_asset=true, package zeigt aufs ZIP). Feature-Details siehe nächster Eintrag.
 

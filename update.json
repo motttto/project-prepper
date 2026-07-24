@@ -1,9 +1,9 @@
 {
-  "version": "0.116.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.116.0/project-prepper-0.116.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.116.0",
+  "version": "0.117.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.117.0/project-prepper-0.117.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.117.0",
   "published": "2026-07-24",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Fix: Eine Person per E-Mail in ein Kollektiv einzuladen zeigte immer nur „Etwas ist schief gelaufen“ — jetzt erscheint der konkrete Grund (ungültige E-Mail, schon Mitglied, schon eingeladen, Tageslimit, kein Mitglied). Nach dem Einladen/Gründen landet man wieder in der Kollektive-Ansicht."
+  "changelog": "Kollektive: Offene Einladungen lassen sich jetzt direkt in der Kollektiv-Karte erneut senden (verschickt die Einladungs-E-Mail nochmal, beliebig oft) und löschen."
 }

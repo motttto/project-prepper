@@ -387,7 +387,7 @@ class MemberPortal {
 			$back = add_query_arg( 'pp_view', 'polls', self::portal_url() );
 		}
 		// Aus einer Gruppe austreten / Gruppe bearbeiten / Telegram-Test kehrt zur Kollektive-Ansicht zurück.
-		if ( in_array( $do, [ 'group_leave', 'group_update', 'member_remove', 'group_delete', 'telegram_test', 'invite', 'found' ], true ) ) {
+		if ( in_array( $do, [ 'group_leave', 'group_update', 'member_remove', 'group_delete', 'telegram_test', 'invite', 'found', 'invite_resend', 'cancel' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
 		}
 		// Kalender-Aktionen kehren in die Kalender-Ansicht zurück — inklusive
@@ -467,6 +467,10 @@ class MemberPortal {
 			case 'cancel':
 				$result = Governance::cancel( $inv_id );
 				$ok_msg = 'cancelled';
+				break;
+			case 'invite_resend':
+				$result = Governance::resend( $inv_id );
+				$ok_msg = 'invite_resent';
 				break;
 			case 'vote':
 				$result = Governance::vote( $inv_id, sanitize_key( wp_unslash( (string) ( $_POST['pp_vote'] ?? '' ) ) ) );
@@ -1262,7 +1266,8 @@ class MemberPortal {
 			'forbidden'              => [ 'err', __( 'You are not allowed to do this.', 'project-prepper' ) ],
 			'accepted'  => [ 'ok', __( 'Invitation accepted.', 'project-prepper' ) ],
 			'declined'  => [ 'ok', __( 'Invitation declined.', 'project-prepper' ) ],
-			'cancelled' => [ 'ok', __( 'Invitation cancelled.', 'project-prepper' ) ],
+			'cancelled' => [ 'ok', __( 'Invitation deleted.', 'project-prepper' ) ],
+			'invite_resent' => [ 'ok', __( 'Invitation sent again.', 'project-prepper' ) ],
 			'voted'         => [ 'ok', __( 'Your vote was recorded.', 'project-prepper' ) ],
 			'item_saved'    => [ 'ok', __( 'Item saved.', 'project-prepper' ) ],
 			'item_deleted'  => [ 'ok', __( 'Item deleted.', 'project-prepper' ) ],
@@ -7120,6 +7125,11 @@ class MemberPortal {
 					<span class="pp-portal__vote-email"><?php echo esc_html( $inv->invited_email ); ?></span>
 					<?php if ( 'pending' === $inv->status ) : ?>
 						<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Waiting for acceptance', 'project-prepper' ); ?></span>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<?php self::action_fields( 'invite_resend' ); ?>
+							<input type="hidden" name="pp_invitation" value="<?php echo (int) $inv->id; ?>">
+							<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Resend', 'project-prepper' ); ?></button>
+						</form>
 					<?php else : /* voting */ ?>
 						<span class="pp-portal__tag pp-portal__tag--muted">
 							<?php
@@ -7147,10 +7157,10 @@ class MemberPortal {
 							</div>
 						<?php endif; ?>
 					<?php endif; ?>
-					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this invitation?', 'project-prepper' ) ); ?>');">
 						<?php self::action_fields( 'cancel' ); ?>
 						<input type="hidden" name="pp_invitation" value="<?php echo (int) $inv->id; ?>">
-						<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Cancel', 'project-prepper' ); ?></button>
+						<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-portal__btn--danger"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
 					</form>
 				</div>
 			<?php endforeach; ?>

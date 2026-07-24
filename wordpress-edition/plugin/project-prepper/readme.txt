@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.116.0
+Stable tag: 0.117.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.117.0 =
+* Collectives: open invitations can now be resent (sends the invite email again, as often as needed) and deleted, right from the collective card.
 
 = 0.116.0 =
 * Fix: inviting someone to a collective by email always showed a generic “Something went wrong” — it now shows the actual reason (invalid email, already a member, already invited, daily limit, not a member). Inviting or founding a collective now returns you to the collectives view.
