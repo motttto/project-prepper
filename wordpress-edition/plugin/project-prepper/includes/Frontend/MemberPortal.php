@@ -335,6 +335,8 @@ class MemberPortal {
 		wp_parse_str( $ref_query, $ref_args );
 		$ref_tab     = sanitize_key( (string) ( $ref_args['pp_tab'] ?? '' ) );
 		$ref_inquiry = (int) ( $ref_args['pp_inquiry'] ?? 0 );
+		$ref_group   = (int) ( $ref_args['pp_group'] ?? 0 );
+		$ref_ctab    = sanitize_key( (string) ( $ref_args['pp_ctab'] ?? '' ) );
 		if ( '' !== $ref_tab ) {
 			$back = add_query_arg( 'pp_tab', $ref_tab, $back );
 		}
@@ -386,8 +388,21 @@ class MemberPortal {
 		if ( in_array( $do, [ 'gpoll_vote', 'gpoll_create', 'gpoll_close', 'gpoll_reopen', 'gpoll_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'polls', self::portal_url() );
 		}
-		// Aus einer Gruppe austreten / Gruppe bearbeiten / Telegram-Test kehrt zur Kollektive-Ansicht zurück.
-		if ( in_array( $do, [ 'group_leave', 'group_update', 'member_remove', 'group_delete', 'telegram_test', 'invite', 'found', 'invite_resend', 'cancel' ], true ) ) {
+		// Kollektiv-Detail-Aktionen kehren ins jeweilige Gruppen-Detail zurück und
+		// erhalten den aktiven Reiter (Übersicht/Einstellungen) über den Referer.
+		$collective_detail_actions = [ 'invite', 'invite_resend', 'invite_remind_voters', 'cancel', 'vote', 'group_update', 'member_remove', 'telegram_test' ];
+		if ( in_array( $do, $collective_detail_actions, true ) ) {
+			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
+			if ( $ref_group > 0 ) {
+				$back = add_query_arg( 'pp_group', $ref_group, $back );
+				if ( '' !== $ref_ctab ) {
+					$back = add_query_arg( 'pp_ctab', $ref_ctab, $back );
+				}
+			}
+		}
+		// Gründen / Austreten / Auflösen sowie Einladung annehmen/ablehnen kehren zur
+		// Kollektive-LISTE zurück (das Detail wäre danach ggf. nicht mehr zugänglich).
+		if ( in_array( $do, [ 'found', 'group_leave', 'group_delete', 'accept', 'decline' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
 		}
 		// Kalender-Aktionen kehren in die Kalender-Ansicht zurück — inklusive
@@ -453,8 +468,16 @@ class MemberPortal {
 				$ok_msg = 'founded';
 				break;
 			case 'invite':
-				$result = Governance::invite( $grp_id, sanitize_email( wp_unslash( (string) ( $_POST['pp_email'] ?? '' ) ) ) );
+				$result = Governance::invite(
+					$grp_id,
+					sanitize_email( wp_unslash( (string) ( $_POST['pp_email'] ?? '' ) ) ),
+					sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_message'] ?? '' ) ) )
+				);
 				$ok_msg = 'invited';
+				break;
+			case 'invite_remind_voters':
+				$result = Governance::remind_voters( $inv_id );
+				$ok_msg = 'voters_reminded';
 				break;
 			case 'accept':
 				$result = Governance::accept( $inv_id );
@@ -1136,6 +1159,8 @@ class MemberPortal {
 				$msg = 'invite_limit';
 			} elseif ( 'pp_not_member' === $code ) {
 				$msg = 'invite_not_member';
+			} elseif ( 'pp_no_voters' === $code ) {
+				$msg = 'voters_all_voted';
 			} elseif ( 'pp_forbidden' === $code ) {
 				$msg = 'forbidden';
 			} else {
@@ -1268,6 +1293,8 @@ class MemberPortal {
 			'declined'  => [ 'ok', __( 'Invitation declined.', 'project-prepper' ) ],
 			'cancelled' => [ 'ok', __( 'Invitation deleted.', 'project-prepper' ) ],
 			'invite_resent' => [ 'ok', __( 'Invitation sent again.', 'project-prepper' ) ],
+			'voters_reminded'  => [ 'ok', __( 'Reminder sent to the members who have not voted yet.', 'project-prepper' ) ],
+			'voters_all_voted' => [ 'err', __( 'Everyone has already voted — no reminder needed.', 'project-prepper' ) ],
 			'voted'         => [ 'ok', __( 'Your vote was recorded.', 'project-prepper' ) ],
 			'item_saved'    => [ 'ok', __( 'Item saved.', 'project-prepper' ) ],
 			'item_deleted'  => [ 'ok', __( 'Item deleted.', 'project-prepper' ) ],
@@ -2001,7 +2028,7 @@ class MemberPortal {
 					$items[] = [
 						/* translators: %s: invited email address. */
 						'label' => sprintf( __( 'Vote on joining: %s', 'project-prepper' ), $inv->invited_email ),
-						'url'   => self::view_url( 'collectives' ),
+						'url'   => add_query_arg( [ 'pp_view' => 'collectives', 'pp_group' => (int) $gid ], self::portal_url() ),
 					];
 				}
 			}
@@ -2938,6 +2965,29 @@ class MemberPortal {
 	}
 
 	private static function view_collectives( WP_User $user, array $groups ): void {
+		// Einzel-Kollektiv-Detail (?pp_group=ID) — wie die App die zwei-Reiter-
+		// Gruppendetailseite. Nur eigene Kollektive; Fremde/Unbekannte → Hinweis.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
+		$gid = isset( $_GET['pp_group'] ) ? (int) $_GET['pp_group'] : 0;
+		if ( $gid > 0 ) {
+			$active = null;
+			foreach ( $groups as $g ) {
+				if ( (int) $g->id === $gid ) {
+					$active = $g;
+					break;
+				}
+			}
+			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
+			if ( ! $active ) {
+				?>
+				<p class="pp-proj-back"><a href="<?php echo esc_url( $back ); ?>"><?php esc_html_e( '← Back to collectives', 'project-prepper' ); ?></a></p>
+				<p class="pp-portal__empty"><?php esc_html_e( 'This collective is not available.', 'project-prepper' ); ?></p>
+				<?php
+				return;
+			}
+			self::view_collective_detail( $active, (int) $user->ID );
+			return;
+		}
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title"><?php esc_html_e( 'My collectives', 'project-prepper' ); ?></h1>
@@ -2947,9 +2997,11 @@ class MemberPortal {
 		<section class="pp-portal__section">
 			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Your collectives', 'project-prepper' ); ?></h3>
 			<?php if ( $groups ) : ?>
-				<?php foreach ( $groups as $group ) {
-					self::render_collective( (int) $group->id, $group->name, $group->member_role, (int) $user->ID, (string) ( $group->description ?? '' ), (int) ( $group->logo_id ?? 0 ) );
-				} ?>
+				<div class="pp-collective-list">
+					<?php foreach ( $groups as $group ) {
+						self::render_collective_card( $group );
+					} ?>
+				</div>
 			<?php else : ?>
 				<p class="pp-portal__empty"><?php esc_html_e( 'You are not part of any collective yet. Found one below or accept an invitation to start sharing inventory.', 'project-prepper' ); ?></p>
 			<?php endif; ?>
@@ -6968,18 +7020,72 @@ class MemberPortal {
 		<?php
 	}
 
-	/** Eine Kollektiv-Karte: Mitglieder + Einladen + offene Beitritts-Abstimmungen. */
-	private static function render_collective( int $group_id, string $name, string $role, int $user_id, string $description = '', int $logo_id = 0 ): void {
-		$members     = Groups::members( $group_id );
-		$invitations = Governance::invitations_for_group( $group_id, [ 'pending', 'voting' ] );
-		$logo_url    = self::group_logo_url( $logo_id );
-		// Presence-Momentaufnahme: welche Mitglieder sind gerade online? Nur
-		// innerhalb des eigenen Kollektivs sichtbar (Batch-Meta-Query über genau
-		// diese Mitglieder). Kein Live-Update — Stand beim Seitenaufbau.
-		$online_ids   = Presence::online_user_ids( array_map( static fn( $m ) => (int) $m->user_id, $members ) );
-		$online_set   = array_fill_keys( $online_ids, true );
-		$online_count = count( $online_ids );
-		// Austreten erlaubt für Mitglieder; ein Gründer nur, wenn ein weiterer Gründer bleibt.
+	/** Kompakte, verlinkte Kollektiv-Karte in der „Alle Gruppen"-Liste. */
+	private static function render_collective_card( object $group ): void {
+		$gid      = (int) $group->id;
+		$role     = (string) $group->member_role;
+		$members  = Groups::members( $gid );
+		$count    = count( $members );
+		$online   = count( Presence::online_user_ids( array_map( static fn( $m ) => (int) $m->user_id, $members ) ) );
+		$logo_url = self::group_logo_url( (int) ( $group->logo_id ?? 0 ) );
+		$desc     = trim( (string) ( $group->description ?? '' ) );
+		$url      = add_query_arg( [ 'pp_view' => 'collectives', 'pp_group' => $gid ], self::portal_url() );
+		?>
+		<a class="pp-collective-card" href="<?php echo esc_url( $url ); ?>">
+			<span class="pp-collective-card__logo">
+				<?php if ( $logo_url ) : ?>
+					<img src="<?php echo esc_url( $logo_url ); ?>" alt="">
+				<?php else : ?>
+					<span class="pp-collective-card__initial"><?php echo esc_html( self::initials( $group->name ) ); ?></span>
+				<?php endif; ?>
+			</span>
+			<span class="pp-collective-card__body">
+				<span class="pp-collective-card__head">
+					<span class="pp-collective-card__name"><?php echo esc_html( $group->name ); ?></span>
+					<span class="pp-portal__tag<?php echo 'founder' === $role ? '' : ' pp-portal__tag--muted'; ?>"><?php echo esc_html( 'founder' === $role ? __( 'Founder', 'project-prepper' ) : __( 'Member', 'project-prepper' ) ); ?></span>
+				</span>
+				<?php if ( '' !== $desc ) : ?>
+					<span class="pp-collective-card__desc"><?php echo esc_html( $desc ); ?></span>
+				<?php endif; ?>
+				<span class="pp-collective-card__meta">
+					<?php
+					/* translators: %d: number of members. */
+					echo esc_html( sprintf( _n( '%d member', '%d members', $count, 'project-prepper' ), $count ) );
+					if ( $online > 0 ) :
+						?>
+						<span class="pp-portal__online-count">
+							<span class="pp-portal__online-dot" aria-hidden="true"></span>
+							<?php
+							/* translators: %d: number of members currently online. */
+							echo esc_html( sprintf( _n( '%d online', '%d online', $online, 'project-prepper' ), $online ) );
+							?>
+						</span>
+					<?php endif; ?>
+				</span>
+			</span>
+		</a>
+		<?php
+	}
+
+	/**
+	 * Einzel-Kollektiv-Detail mit zwei Reitern (Übersicht/Einstellungen) — Pendant
+	 * zur Gruppendetailseite der App. Reiterwahl über ?pp_ctab; die Governance-
+	 * Aktionen kehren über den Referer in den jeweiligen Reiter zurück.
+	 */
+	private static function view_collective_detail( object $group_row, int $user_id ): void {
+		$gid   = (int) $group_row->id;
+		$role  = (string) $group_row->member_role;
+		$group = Groups::get( $gid ); // volle Zeile inkl. created_at/logo_id + ->members.
+		$back  = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
+		if ( ! $group ) {
+			?>
+			<p class="pp-proj-back"><a href="<?php echo esc_url( $back ); ?>"><?php esc_html_e( '← Back to collectives', 'project-prepper' ); ?></a></p>
+			<p class="pp-portal__empty"><?php esc_html_e( 'This collective is not available.', 'project-prepper' ); ?></p>
+			<?php
+			return;
+		}
+		$members       = $group->members;
+		$active_count  = count( $members );
 		$founder_count = 0;
 		foreach ( $members as $m ) {
 			if ( 'founder' === $m->member_role ) {
@@ -6987,95 +7093,88 @@ class MemberPortal {
 			}
 		}
 		$can_leave = ( 'founder' !== $role ) || $founder_count > 1;
-		// Telegram-Benachrichtigungen: chat_id des Kollektivs + ob der Betreiber
-		// überhaupt einen Instanz-Bot-Token hinterlegt hat (nur für Gründer sichtbar).
-		$tg_chat_id = 'founder' === $role ? Telegram::chat_id( $group_id ) : '';
-		$tg_has_bot = 'founder' === $role ? Telegram::has_bot_token() : false;
+		$logo_url  = self::group_logo_url( (int) ( $group->logo_id ?? 0 ) );
+		$created   = self::fmt_date( $group->created_at ?? '' );
+
+		$tabs = [
+			'overview' => __( 'Overview', 'project-prepper' ),
+			'settings' => __( 'Settings', 'project-prepper' ),
+		];
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Anzeige-Auswahl.
+		$ctab = sanitize_key( wp_unslash( (string) ( $_GET['pp_ctab'] ?? 'overview' ) ) );
+		if ( ! isset( $tabs[ $ctab ] ) ) {
+			$ctab = 'overview';
+		}
+		$tab_base = add_query_arg( [ 'pp_view' => 'collectives', 'pp_group' => $gid ], self::portal_url() );
 		?>
-		<div class="pp-portal__collective">
-			<div class="pp-portal__collective-head">
-				<?php if ( $logo_url ) : ?>
-					<img class="pp-portal__collective-logo" src="<?php echo esc_url( $logo_url ); ?>" alt="">
-				<?php endif; ?>
-				<span class="pp-portal__group-name"><?php echo esc_html( $name ); ?></span>
-				<?php if ( 'founder' === $role ) : ?>
-					<span class="pp-portal__tag"><?php esc_html_e( 'Founder', 'project-prepper' ); ?></span>
-				<?php else : ?>
-					<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Member', 'project-prepper' ); ?></span>
-				<?php endif; ?>
-			</div>
-
-			<?php if ( '' !== trim( $description ) ) : ?>
-				<p class="pp-portal__collective-desc"><?php echo nl2br( esc_html( $description ) ); ?></p>
-			<?php endif; ?>
-
-			<?php if ( 'founder' === $role ) : ?>
-				<details class="pp-portal__edit">
-					<summary class="pp-portal__chip"><?php esc_html_e( 'Edit collective', 'project-prepper' ); ?></summary>
-					<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-						<?php self::action_fields( 'group_update' ); ?>
-						<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
-						<label><?php esc_html_e( 'Collective name', 'project-prepper' ); ?>
-							<input type="text" name="pp_name" value="<?php echo esc_attr( $name ); ?>" required>
-						</label>
-						<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
-							<textarea name="pp_description" rows="2"><?php echo esc_textarea( $description ); ?></textarea>
-						</label>
-						<label><?php esc_html_e( 'Telegram chat ID (optional)', 'project-prepper' ); ?>
-							<input type="text" name="pp_telegram_chat_id" value="<?php echo esc_attr( $tg_chat_id ); ?>" placeholder="-1001234567890" inputmode="text">
-						</label>
-						<p class="pp-portal__hint">
-							<?php esc_html_e( 'Send short notifications (new inquiries, bookings) to your collective’s Telegram group. Add the instance bot to the group, then paste the group’s chat ID here.', 'project-prepper' ); ?>
-							<?php if ( ! $tg_has_bot ) : ?>
-								<br><strong><?php esc_html_e( 'The operator has not set up a Telegram bot yet — notifications stay off until they do.', 'project-prepper' ); ?></strong>
-							<?php endif; ?>
-						</p>
-						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
-					</form>
-					<?php if ( '' !== $tg_chat_id && $tg_has_bot ) : ?>
-						<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-							<?php self::action_fields( 'telegram_test' ); ?>
-							<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
-							<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Send test message', 'project-prepper' ); ?></button>
-						</form>
-					<?php endif; ?>
-					<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-						<input type="hidden" name="action" value="pp_group_logo">
-						<?php wp_nonce_field( 'pp_group_logo', 'pp_nonce' ); ?>
-						<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
-						<label><?php echo esc_html( $logo_url ? __( 'Replace logo', 'project-prepper' ) : __( 'Logo (optional)', 'project-prepper' ) ); ?>
-							<input type="file" name="pp_logo" accept="image/*" required>
-						</label>
-						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Upload logo', 'project-prepper' ); ?></button>
-					</form>
+		<p class="pp-proj-back"><a href="<?php echo esc_url( $back ); ?>"><?php esc_html_e( '← Back to collectives', 'project-prepper' ); ?></a></p>
+		<header class="pp-app__page-head">
+			<div class="pp-collective-detail__head">
+				<span class="pp-collective-card__logo pp-collective-detail__logo">
 					<?php if ( $logo_url ) : ?>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-							<input type="hidden" name="action" value="pp_group_logo">
-							<?php wp_nonce_field( 'pp_group_logo', 'pp_nonce' ); ?>
-							<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
-							<input type="hidden" name="pp_remove" value="1">
-							<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Remove logo', 'project-prepper' ); ?></button>
-						</form>
+						<img src="<?php echo esc_url( $logo_url ); ?>" alt="">
+					<?php else : ?>
+						<span class="pp-collective-card__initial"><?php echo esc_html( self::initials( $group->name ) ); ?></span>
 					<?php endif; ?>
-				</details>
-			<?php endif; ?>
-
-			<div class="pp-portal__memberlist">
-				<h4 class="pp-portal__memberhead">
-					<?php
-					/* translators: %d: number of members. */
-					echo esc_html( sprintf( _n( '%d member', '%d members', count( $members ), 'project-prepper' ), count( $members ) ) );
-					if ( $online_count > 0 ) :
+				</span>
+				<div>
+					<div class="pp-proj-detail-head">
+						<h1 class="pp-app__page-title"><?php echo esc_html( $group->name ); ?></h1>
+						<span class="pp-portal__tag<?php echo 'founder' === $role ? '' : ' pp-portal__tag--muted'; ?>"><?php echo esc_html( 'founder' === $role ? __( 'Founder', 'project-prepper' ) : __( 'Member', 'project-prepper' ) ); ?></span>
+					</div>
+					<p class="pp-app__page-sub">
+						<?php
+						/* translators: %d: number of active members. */
+						echo esc_html( sprintf( _n( '%d active member', '%d active members', $active_count, 'project-prepper' ), $active_count ) );
+						if ( '' !== $created ) {
+							/* translators: %s: date the collective was founded. */
+							echo esc_html( ' · ' . sprintf( __( 'founded on %s', 'project-prepper' ), $created ) );
+						}
 						?>
-						<span class="pp-portal__online-count">
-							<span class="pp-portal__online-dot" aria-hidden="true"></span>
-							<?php
-							/* translators: %d: number of members currently online. */
-							echo esc_html( sprintf( _n( '%d online', '%d online', $online_count, 'project-prepper' ), $online_count ) );
-							?>
-						</span>
-					<?php endif; ?>
-				</h4>
+					</p>
+				</div>
+			</div>
+		</header>
+
+		<nav class="pp-proj-tabs" aria-label="<?php esc_attr_e( 'Collective sections', 'project-prepper' ); ?>">
+			<?php foreach ( $tabs as $key => $label ) : ?>
+				<a class="pp-proj-tabs__tab<?php echo $key === $ctab ? ' pp-proj-tabs__tab--on' : ''; ?>"<?php echo $key === $ctab ? ' aria-current="page"' : ''; ?> href="<?php echo esc_url( 'overview' === $key ? $tab_base : add_query_arg( 'pp_ctab', $key, $tab_base ) ); ?>"><?php echo esc_html( $label ); ?></a>
+			<?php endforeach; ?>
+		</nav>
+
+		<?php
+		if ( 'settings' === $ctab ) {
+			self::render_collective_settings( $group, $role, $can_leave, $logo_url );
+		} else {
+			self::render_collective_overview( $gid, $role, $user_id, $members );
+		}
+	}
+
+	/** Übersicht-Reiter: Mitglieder (mit E-Mail) + Einladen + Einladungen. */
+	private static function render_collective_overview( int $group_id, string $role, int $user_id, array $members ): void {
+		$online_ids = Presence::online_user_ids( array_map( static fn( $m ) => (int) $m->user_id, $members ) );
+		$online_set = array_fill_keys( $online_ids, true );
+		$online     = count( $online_ids );
+		$open       = Governance::invitations_for_group( $group_id, [ 'pending', 'voting' ] );
+		$recent     = Governance::recent_approved_for_group( $group_id );
+		?>
+		<section class="pp-portal__section">
+			<h3 class="pp-portal__subtitle">
+				<?php
+				/* translators: %d: number of members. */
+				echo esc_html( sprintf( _n( 'Members (%d)', 'Members (%d)', count( $members ), 'project-prepper' ), count( $members ) ) );
+				if ( $online > 0 ) :
+					?>
+					<span class="pp-portal__online-count">
+						<span class="pp-portal__online-dot" aria-hidden="true"></span>
+						<?php
+						/* translators: %d: number of members currently online. */
+						echo esc_html( sprintf( _n( '%d online', '%d online', $online, 'project-prepper' ), $online ) );
+						?>
+					</span>
+				<?php endif; ?>
+			</h3>
+			<div class="pp-portal__memberlist">
 				<?php
 				foreach ( $members as $m ) :
 					$is_founder = ( 'founder' === $m->member_role );
@@ -7084,14 +7183,19 @@ class MemberPortal {
 					$joined     = self::fmt_date( $m->joined_at );
 					?>
 					<div class="pp-portal__member">
-						<span class="pp-portal__member-name">
-							<?php if ( $is_online ) : ?>
-								<span class="pp-portal__online-dot" title="<?php esc_attr_e( 'Online', 'project-prepper' ); ?>"></span>
-								<span class="screen-reader-text"><?php esc_html_e( 'Online', 'project-prepper' ); ?></span>
-							<?php endif; ?>
-							<?php echo esc_html( $m->display_name ); ?>
-							<?php if ( $is_self ) : ?>
-								<span class="pp-portal__member-you"><?php esc_html_e( '(you)', 'project-prepper' ); ?></span>
+						<span class="pp-collective-member__id">
+							<span class="pp-portal__member-name">
+								<?php if ( $is_online ) : ?>
+									<span class="pp-portal__online-dot" title="<?php esc_attr_e( 'Online', 'project-prepper' ); ?>"></span>
+									<span class="screen-reader-text"><?php esc_html_e( 'Online', 'project-prepper' ); ?></span>
+								<?php endif; ?>
+								<?php echo esc_html( $m->display_name ); ?>
+								<?php if ( $is_self ) : ?>
+									<span class="pp-portal__member-you"><?php esc_html_e( '(you)', 'project-prepper' ); ?></span>
+								<?php endif; ?>
+							</span>
+							<?php if ( '' !== (string) $m->user_email ) : ?>
+								<span class="pp-collective-member__email"><?php echo esc_html( $m->user_email ); ?></span>
 							<?php endif; ?>
 						</span>
 						<span class="pp-portal__member-meta">
@@ -7119,58 +7223,118 @@ class MemberPortal {
 				<?php endforeach; ?>
 			</div>
 
-			<?php foreach ( $invitations as $inv ) :
-				$is_invitee = ( (int) $inv->invited_user_id === $user_id ); ?>
-				<div class="pp-portal__vote">
-					<span class="pp-portal__vote-email"><?php echo esc_html( $inv->invited_email ); ?></span>
-					<?php if ( 'pending' === $inv->status ) : ?>
-						<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Waiting for acceptance', 'project-prepper' ); ?></span>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-							<?php self::action_fields( 'invite_resend' ); ?>
-							<input type="hidden" name="pp_invitation" value="<?php echo (int) $inv->id; ?>">
-							<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Resend', 'project-prepper' ); ?></button>
-						</form>
-					<?php else : /* voting */ ?>
-						<span class="pp-portal__tag pp-portal__tag--muted">
-							<?php
-							/* translators: 1: approvals, 2: members needed. */
-							printf( esc_html__( '%1$d / %2$d approvals', 'project-prepper' ), (int) $inv->approvals, (int) $inv->needed );
-							?>
-						</span>
-						<?php if ( ! $is_invitee ) : ?>
-							<?php if ( $inv->my_vote ) : ?>
-								<span class="pp-portal__tag"><?php echo esc_html( self::vote_label( $inv->my_vote ) ); ?></span>
-							<?php endif; ?>
-							<div class="pp-portal__actions">
-								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-									<?php self::action_fields( 'vote' ); ?>
-									<input type="hidden" name="pp_invitation" value="<?php echo (int) $inv->id; ?>">
-									<input type="hidden" name="pp_vote" value="approve">
-									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Approve', 'project-prepper' ); ?></button>
-								</form>
-								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-									<?php self::action_fields( 'vote' ); ?>
-									<input type="hidden" name="pp_invitation" value="<?php echo (int) $inv->id; ?>">
-									<input type="hidden" name="pp_vote" value="reject">
-									<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Reject', 'project-prepper' ); ?></button>
-								</form>
-							</div>
-						<?php endif; ?>
-					<?php endif; ?>
-					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this invitation?', 'project-prepper' ) ); ?>');">
-						<?php self::action_fields( 'cancel' ); ?>
-						<input type="hidden" name="pp_invitation" value="<?php echo (int) $inv->id; ?>">
-						<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-portal__btn--danger"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
-					</form>
-				</div>
-			<?php endforeach; ?>
+			<details class="pp-portal__add" style="margin-top:.75rem">
+				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Invite a member', 'project-prepper' ); ?></summary>
+				<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<?php self::action_fields( 'invite' ); ?>
+					<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+					<p class="pp-portal__hint" style="border:0;padding:0;margin:0 0 .2rem"><?php esc_html_e( 'All existing members must approve unanimously.', 'project-prepper' ); ?></p>
+					<label><?php esc_html_e( 'Email address', 'project-prepper' ); ?>
+						<input type="email" name="pp_email" placeholder="email@example.com" required>
+					</label>
+					<label><?php esc_html_e( 'Message (optional)', 'project-prepper' ); ?>
+						<textarea name="pp_message" rows="2" placeholder="<?php esc_attr_e( 'Add a personal note to the invitation…', 'project-prepper' ); ?>"></textarea>
+					</label>
+					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Send invitation', 'project-prepper' ); ?></button>
+				</form>
+			</details>
+		</section>
 
-			<form class="pp-portal__form pp-portal__form--inline" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-				<?php self::action_fields( 'invite' ); ?>
-				<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
-				<input type="email" name="pp_email" placeholder="<?php esc_attr_e( 'Invite by email', 'project-prepper' ); ?>" required>
-				<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Invite', 'project-prepper' ); ?></button>
-			</form>
+		<?php if ( $open || $recent ) : ?>
+			<section class="pp-portal__section">
+				<h3 class="pp-portal__subtitle">
+					<?php
+					/* translators: %d: number of open invitations. */
+					printf( esc_html__( 'Invitations (%d open)', 'project-prepper' ), count( $open ) );
+					?>
+				</h3>
+				<div class="pp-invite-list">
+					<?php
+					foreach ( $open as $inv ) {
+						self::render_invitation_card( $inv, $user_id );
+					}
+					foreach ( $recent as $inv ) {
+						self::render_invitation_card( $inv, $user_id );
+					}
+					?>
+				</div>
+			</section>
+		<?php endif; ?>
+		<?php
+	}
+
+	/** Einstellungen-Reiter: Kollektiv bearbeiten (Gründer) + Austreten/Auflösen. */
+	private static function render_collective_settings( object $group, string $role, bool $can_leave, ?string $logo_url ): void {
+		$group_id   = (int) $group->id;
+		$name       = (string) $group->name;
+		$description = (string) ( $group->description ?? '' );
+		$tg_chat_id = 'founder' === $role ? Telegram::chat_id( $group_id ) : '';
+		$tg_has_bot = 'founder' === $role ? Telegram::has_bot_token() : false;
+		?>
+		<section class="pp-portal__section">
+			<?php if ( 'founder' === $role ) : ?>
+				<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Edit collective', 'project-prepper' ); ?></h3>
+				<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<?php self::action_fields( 'group_update' ); ?>
+					<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+					<label><?php esc_html_e( 'Collective name', 'project-prepper' ); ?>
+						<input type="text" name="pp_name" value="<?php echo esc_attr( $name ); ?>" required>
+					</label>
+					<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
+						<textarea name="pp_description" rows="2"><?php echo esc_textarea( $description ); ?></textarea>
+					</label>
+					<label><?php esc_html_e( 'Telegram chat ID (optional)', 'project-prepper' ); ?>
+						<input type="text" name="pp_telegram_chat_id" value="<?php echo esc_attr( $tg_chat_id ); ?>" placeholder="-1001234567890" inputmode="text">
+					</label>
+					<p class="pp-portal__hint">
+						<?php esc_html_e( 'Send short notifications (new inquiries, bookings) to your collective’s Telegram group. Add the instance bot to the group, then paste the group’s chat ID here.', 'project-prepper' ); ?>
+						<?php if ( ! $tg_has_bot ) : ?>
+							<br><strong><?php esc_html_e( 'The operator has not set up a Telegram bot yet — notifications stay off until they do.', 'project-prepper' ); ?></strong>
+						<?php endif; ?>
+					</p>
+					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+				</form>
+				<?php if ( '' !== $tg_chat_id && $tg_has_bot ) : ?>
+					<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<?php self::action_fields( 'telegram_test' ); ?>
+						<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+						<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Send test message', 'project-prepper' ); ?></button>
+					</form>
+				<?php endif; ?>
+				<div class="pp-collective-settings__logo">
+					<span class="pp-collective-card__logo pp-collective-detail__logo">
+						<?php if ( $logo_url ) : ?>
+							<img src="<?php echo esc_url( $logo_url ); ?>" alt="">
+						<?php else : ?>
+							<span class="pp-collective-card__initial"><?php echo esc_html( self::initials( $name ) ); ?></span>
+						<?php endif; ?>
+					</span>
+					<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<input type="hidden" name="action" value="pp_group_logo">
+						<?php wp_nonce_field( 'pp_group_logo', 'pp_nonce' ); ?>
+						<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+						<label><?php echo esc_html( $logo_url ? __( 'Replace logo', 'project-prepper' ) : __( 'Logo (optional)', 'project-prepper' ) ); ?>
+							<input type="file" name="pp_logo" accept="image/*" required>
+						</label>
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Upload logo', 'project-prepper' ); ?></button>
+					</form>
+					<?php if ( $logo_url ) : ?>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<input type="hidden" name="action" value="pp_group_logo">
+							<?php wp_nonce_field( 'pp_group_logo', 'pp_nonce' ); ?>
+							<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+							<input type="hidden" name="pp_remove" value="1">
+							<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Remove logo', 'project-prepper' ); ?></button>
+						</form>
+					<?php endif; ?>
+				</div>
+			<?php else : ?>
+				<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Settings', 'project-prepper' ); ?></h3>
+				<?php if ( '' !== trim( $description ) ) : ?>
+					<p class="pp-portal__collective-desc"><?php echo nl2br( esc_html( $description ) ); ?></p>
+				<?php endif; ?>
+				<p class="pp-portal__hint" style="border:0;padding:0"><?php esc_html_e( 'Only founders can change the collective’s settings.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
 
 			<div class="pp-portal__collective-foot">
 				<?php if ( $can_leave ) : ?>
@@ -7194,6 +7358,148 @@ class MemberPortal {
 					</form>
 				<?php endif; ?>
 			</div>
+		</section>
+		<?php
+	}
+
+	/** Status-Chip-Klasse + Label für eine Einladung. */
+	private static function invitation_status_meta( string $status ): array {
+		$map = [
+			'pending'   => [ 'pp-portal__tag--warn', __( 'Waiting for answer', 'project-prepper' ) ],
+			'voting'    => [ 'pp-portal__tag--info', __( 'Voting in progress', 'project-prepper' ) ],
+			'approved'  => [ 'pp-portal__tag--ok', __( 'Joined', 'project-prepper' ) ],
+			'rejected'  => [ 'pp-portal__tag--muted', __( 'Rejected by a member', 'project-prepper' ) ],
+			'cancelled' => [ 'pp-portal__tag--muted', __( 'Withdrawn', 'project-prepper' ) ],
+		];
+		return $map[ $status ] ?? [ 'pp-portal__tag--muted', $status ];
+	}
+
+	/** Eine Einladungs-Karte im Übersicht-Reiter (offen: aktiv, approved: read-only). */
+	private static function render_invitation_card( object $inv, int $user_id ): void {
+		$status        = (string) $inv->status;
+		[ $cls, $label ] = self::invitation_status_meta( $status );
+		$is_invitee    = ( (int) $inv->invited_user_id === $user_id );
+		$reminders     = (int) ( $inv->reminder_count ?? 0 );
+		$vreminders    = (int) ( $inv->voting_reminder_count ?? 0 );
+		$created       = self::fmt_date( $inv->created_at );
+		$msg           = trim( (string) ( $inv->message ?? '' ) );
+		$inviter       = (string) ( $inv->inviter_name ?? '' );
+		$title         = (string) ( $inv->invitee_name ?? '' );
+		if ( '' === $title ) {
+			$title = (string) $inv->invited_email;
+		}
+		$show_email    = ( '' !== (string) $inv->invited_email && $title !== (string) $inv->invited_email );
+		$pending       = isset( $inv->pending_voter_names ) && is_array( $inv->pending_voter_names ) ? $inv->pending_voter_names : [];
+		?>
+		<div class="pp-invite-card">
+			<div class="pp-invite-card__top">
+				<div class="pp-invite-card__id">
+					<span class="pp-invite-card__name"><?php echo esc_html( $title ); ?></span>
+					<?php if ( $show_email ) : ?>
+						<span class="pp-invite-card__email"><?php echo esc_html( $inv->invited_email ); ?></span>
+					<?php endif; ?>
+				</div>
+				<span class="pp-portal__tag <?php echo esc_attr( $cls ); ?>"><?php echo esc_html( $label ); ?></span>
+			</div>
+
+			<div class="pp-invite-card__meta">
+				<span>
+					<?php
+					if ( '' !== $inviter && '' !== $created ) {
+						/* translators: 1: inviter name, 2: date. */
+						printf( esc_html__( 'Invited by %1$s · %2$s', 'project-prepper' ), esc_html( $inviter ), esc_html( $created ) );
+					} elseif ( '' !== $created ) {
+						echo esc_html( $created );
+					}
+					?>
+				</span>
+				<?php if ( $reminders > 0 ) : ?>
+					<?php /* translators: %d: number of reminder emails sent. */ ?>
+					<span class="pp-invite-card__chip"><?php echo esc_html( sprintf( __( 'Reminded %d×', 'project-prepper' ), $reminders ) ); ?></span>
+				<?php endif; ?>
+				<?php if ( $vreminders > 0 ) : ?>
+					<?php /* translators: %d: number of voting reminders sent. */ ?>
+					<span class="pp-invite-card__chip pp-invite-card__chip--info"><?php echo esc_html( sprintf( __( 'Voting reminder %d×', 'project-prepper' ), $vreminders ) ); ?></span>
+				<?php endif; ?>
+			</div>
+
+			<?php if ( '' !== $msg ) : ?>
+				<p class="pp-invite-card__quote"><?php echo esc_html( '„' . $msg . '“' ); ?></p>
+			<?php endif; ?>
+
+			<?php if ( 'voting' === $status ) :
+				$needed = max( 1, (int) $inv->needed );
+				$pct    = min( 100, (int) round( (int) $inv->approvals / $needed * 100 ) );
+				?>
+				<div class="pp-invite-card__voting">
+					<div class="pp-invite-card__progress-label">
+						<?php
+						/* translators: 1: approvals, 2: members needed. */
+						printf( esc_html__( '%1$d / %2$d approvals', 'project-prepper' ), (int) $inv->approvals, (int) $inv->needed );
+						?>
+					</div>
+					<div class="pp-invite-card__bar"><span class="pp-invite-card__fill" style="width:<?php echo esc_attr( $pct ); ?>%"></span></div>
+
+					<?php if ( $pending ) : ?>
+						<div class="pp-invite-card__pending">
+							<span class="pp-invite-card__pending-names">
+								<?php
+								/* translators: %s: comma-separated member names. */
+								printf( esc_html__( 'Awaiting: %s', 'project-prepper' ), esc_html( implode( ', ', $pending ) ) );
+								?>
+							</span>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+								<?php self::action_fields( 'invite_remind_voters' ); ?>
+								<input type="hidden" name="pp_invitation" value="<?php echo (int) $inv->id; ?>">
+								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Remind', 'project-prepper' ); ?></button>
+							</form>
+						</div>
+					<?php endif; ?>
+
+					<?php if ( ! $is_invitee ) : ?>
+						<?php if ( $inv->my_vote ) : ?>
+							<div class="pp-invite-card__myvote">
+								<?php
+								/* translators: %s: the user's own vote (approved/rejected). */
+								printf( esc_html__( 'Your vote: %s', 'project-prepper' ), esc_html( self::vote_label( $inv->my_vote ) ) );
+								?>
+							</div>
+						<?php else : ?>
+							<div class="pp-portal__actions">
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<?php self::action_fields( 'vote' ); ?>
+									<input type="hidden" name="pp_invitation" value="<?php echo (int) $inv->id; ?>">
+									<input type="hidden" name="pp_vote" value="approve">
+									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Approve', 'project-prepper' ); ?></button>
+								</form>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<?php self::action_fields( 'vote' ); ?>
+									<input type="hidden" name="pp_invitation" value="<?php echo (int) $inv->id; ?>">
+									<input type="hidden" name="pp_vote" value="reject">
+									<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Reject', 'project-prepper' ); ?></button>
+								</form>
+							</div>
+						<?php endif; ?>
+					<?php endif; ?>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( in_array( $status, [ 'pending', 'voting' ], true ) ) : ?>
+				<div class="pp-invite-card__actions">
+					<?php if ( 'pending' === $status ) : ?>
+						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+							<?php self::action_fields( 'invite_resend' ); ?>
+							<input type="hidden" name="pp_invitation" value="<?php echo (int) $inv->id; ?>">
+							<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Remind', 'project-prepper' ); ?></button>
+						</form>
+					<?php endif; ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Withdraw this invitation?', 'project-prepper' ) ); ?>');">
+						<?php self::action_fields( 'cancel' ); ?>
+						<input type="hidden" name="pp_invitation" value="<?php echo (int) $inv->id; ?>">
+						<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-portal__btn--danger"><?php esc_html_e( 'Withdraw invitation', 'project-prepper' ); ?></button>
+					</form>
+				</div>
+			<?php endif; ?>
 		</div>
 		<?php
 	}
@@ -8142,6 +8448,11 @@ class MemberPortal {
 			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
 			exit;
 		}
+		// Zurück in den Einstellungen-Reiter des jeweiligen Kollektiv-Details.
+		$back = add_query_arg(
+			[ 'pp_view' => 'collectives', 'pp_group' => $group_id, 'pp_ctab' => 'settings' ],
+			self::portal_url()
+		);
 		$group  = Groups::get( $group_id );
 		$old_id = $group ? (int) ( $group->logo_id ?? 0 ) : 0;
 

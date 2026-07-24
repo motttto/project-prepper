@@ -28,6 +28,8 @@ class Notifications {
 		add_action( 'pp_inquiry_created', [ self::class, 'on_inquiry_created' ], 10, 1 );
 		// Member-Portal (Phase 4.1): Kollektiv-Einladung + Leih-Anfragen.
 		add_action( 'pp_group_invited', [ self::class, 'on_group_invited' ], 10, 1 );
+		// Voting-Phase: Erinnerung an die noch nicht abstimmenden Mitglieder.
+		add_action( 'pp_group_voting_reminder', [ self::class, 'on_voting_reminder' ], 10, 2 );
 		add_action( 'pp_borrow_requested', [ self::class, 'on_borrow_requested' ], 10, 1 );
 		add_action( 'pp_borrow_decided', [ self::class, 'on_borrow_decided' ], 10, 2 );
 		// Freigabe-Workflow für Technik-Buchungen (an Eigentümer / an Anfrager).
@@ -64,8 +66,14 @@ class Notifications {
 			'group_invitation' => [
 				/* translators: Email subject. Keep the {{group_name}} and {{site_name}} placeholders unchanged. */
 				'subject' => __( 'You have been invited to {{group_name}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. {{message}} expands to the optional personal note (or nothing). */
+				'body'    => __( "Hello,\n\n{{inviter_name}} has invited you to join the collective \"{{group_name}}\".{{message}}\n\nSign in to accept the invitation:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
+			'group_vote_reminder' => [
+				/* translators: Email subject. Keep the {{group_name}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'Reminder: please vote on a new member for {{group_name}} — {{site_name}}', 'project-prepper' ),
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
-				'body'    => __( "Hello,\n\n{{inviter_name}} has invited you to join the collective \"{{group_name}}\".\n\nSign in to accept the invitation:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+				'body'    => __( "Hello,\n\na new member (\"{{invitee_name}}\") is waiting to join the collective \"{{group_name}}\" and your vote is still missing.\n\nCast your vote here:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
 			'borrow_requested' => [
 				/* translators: Email subject. Keep the {{item_name}} placeholder unchanged. */
@@ -113,6 +121,7 @@ class Notifications {
 			'rental_returned'  => __( 'Rental: return confirmed', 'project-prepper' ),
 			'inquiry_received' => __( 'Inquiry received (operator)', 'project-prepper' ),
 			'group_invitation' => __( 'Group invitation', 'project-prepper' ),
+			'group_vote_reminder' => __( 'Group: reminder to vote on a new member', 'project-prepper' ),
 			'borrow_requested' => __( 'Borrow request (to owner)', 'project-prepper' ),
 			'borrow_decided'   => __( 'Borrow decision (to requester)', 'project-prepper' ),
 			'booking_requested' => __( 'Equipment approval request (to owner)', 'project-prepper' ),
@@ -225,13 +234,52 @@ class Notifications {
 		$group   = Groups::get( (int) $inv->group_id );
 		$inviter = $inv->invited_by ? get_userdata( (int) $inv->invited_by ) : null;
 		$tpl     = self::templates()['group_invitation'];
-		$vars    = [
+		// Optionale Nachricht als eigener Block (nur wenn gesetzt) — so bleibt die
+		// Mail sauber, wenn keine Nachricht hinterlegt wurde.
+		$note = trim( (string) ( $inv->message ?? '' ) );
+		$vars = [
 			'group_name'   => $group ? $group->name : '',
 			'inviter_name' => $inviter ? $inviter->display_name : get_bloginfo( 'name' ),
+			'message'      => '' !== $note ? "\n\n" . __( 'Personal note:', 'project-prepper' ) . "\n" . $note : '',
 			'portal_url'   => MemberPortal::portal_url(),
 			'site_name'    => get_bloginfo( 'name' ),
 		];
 		wp_mail( $inv->invited_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
+	}
+
+	/**
+	 * Voting-Erinnerung: benachrichtigt die aktiven Mitglieder, die noch nicht
+	 * über eine laufende Beitritts-Einladung abgestimmt haben. Eine Mail je
+	 * Empfänger (mit gültiger Adresse). Ohne SMTP scheitert wp_mail still.
+	 *
+	 * @param int   $invitation_id Einladung in der Voting-Phase.
+	 * @param int[] $recipient_ids Aktive Mitglieder, deren Stimme noch fehlt.
+	 */
+	public static function on_voting_reminder( int $invitation_id, array $recipient_ids ): void {
+		if ( ! self::enabled() || ! $recipient_ids ) {
+			return;
+		}
+		$inv = GroupGovernance::get( $invitation_id );
+		if ( ! $inv ) {
+			return;
+		}
+		$group   = Groups::get( (int) $inv->group_id );
+		$invitee = $inv->invited_user_id ? get_userdata( (int) $inv->invited_user_id ) : null;
+		$tpl     = self::templates()['group_vote_reminder'];
+		$vars    = [
+			'group_name'   => $group ? $group->name : '',
+			'invitee_name' => $invitee ? $invitee->display_name : (string) $inv->invited_email,
+			'portal_url'   => add_query_arg( 'pp_view', 'collectives', MemberPortal::portal_url() ),
+			'site_name'    => get_bloginfo( 'name' ),
+		];
+		$subject = self::render( $tpl['subject'], $vars );
+		$body    = self::render( $tpl['body'], $vars );
+		foreach ( array_unique( array_map( 'intval', $recipient_ids ) ) as $uid ) {
+			$user = get_userdata( $uid );
+			if ( $user && is_email( $user->user_email ) ) {
+				wp_mail( $user->user_email, $subject, $body );
+			}
+		}
 	}
 
 	public static function on_borrow_requested( int $request_id ): void {

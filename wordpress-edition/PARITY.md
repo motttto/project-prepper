@@ -3,6 +3,58 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.118.0 2026-07-24 (Kollektiv-Detail auf App-Niveau, Schema 0.35.0)
+> **Ausgeliefert.** Enthält den darunter beschriebenen Parity-Lauf: zwei-Reiter-Kollektiv-Detailseite
+> (Übersicht/Einstellungen via `pp_group`+`pp_ctab`), Header „N aktive Mitglieder · gegründet am …", Mitglieder
+> mit E-Mail, reiche Einladungen (optionale Nachricht als Zitat + in der Mail, klare Status-Labels wartet/
+> Abstimmung/aufgenommen, „N× erinnert" + „Voting-Erinnerung N×", Voting-Fortschritt + Nicht-Voter-Erinnerung
+> via `invite_remind_voters`, „Aufgenommen"-read-only). **Schema additiv 0.35.0** (`pp_group_invitations`:
+> `message`/`reminder_count`/`voting_reminder_count`, dbDelta, keine Datenmigration). Geänderte Dateien:
+> `Schema.php`, `Services/GroupGovernance.php`, `Email/Notifications.php`, `Frontend/MemberPortal.php`,
+> `assets/css/frontend.css`, `languages/*` (34 neue Strings, `.pot`/`.po`/`.mo` gebaut). Plugin Check: nur die
+> zwei by-design-ERRORs (`hidden_files`, `plugin_updater_detected`). ZIP 1.2 MB, `update.json` auf 0.118.0.
+
+> ## 🧩 Parity-Lauf 2026-07-24 (Schema 0.35.0 — Kollektiv-Detail auf App-Niveau: zwei-Reiter-Ansicht + reiche Einladungen; → released als v0.118.0)
+> **Feature-Aufwertung der Gruppen-/Kollektiv-Ansicht auf den Stand der Supabase-`groups/[id]`-Seite.** Statt
+> jedes Kollektiv als EINE Karte in der „Alle Gruppen"-Liste zu rendern, gibt es jetzt eine **Einzel-Detailansicht
+> mit zwei Reitern (Übersicht / Einstellungen)** — Navigations-Muster wie das Projekt-Detail (`pp-proj-tabs`):
+> `pp_view=collectives` → Liste verlinkter Karten (Logo/Initiale, Name, Rolle, Mitgliederzahl + online);
+> `pp_view=collectives&pp_group=ID` → Detail mit `pp_ctab=overview|settings` (Default overview). **Header** (beide
+> Reiter): „N aktive Mitglieder · gegründet am {created_at}". **Übersicht:** Mitgliederliste MIT E-Mail je Mitglied
+> (zusätzlich zu Name/Rolle/Online-Punkt/Beitrittsdatum, Entfernen für Gründer) + „Mitglied einladen"; darunter die
+> **reiche Einladungs-Sektion**. **Einstellungen:** das bestehende „Kollektiv bearbeiten" (Name/Beschreibung/Logo)
+> + Telegram-Chat-ID + Test + Austreten/Auflösen. **Bewusst NICHT gebaut** (User-Vorgabe): Telegram-Topic-ID +
+> Inventar-Suffix.
+> **Schema additiv 0.35.0** (`pp_group_invitations`, dbDelta): `message text NULL` (Einladungs-Nachricht wie App
+> `invited_message`), `reminder_count int` (E-Mail-Erinnerungen der pending-Phase), `voting_reminder_count int`
+> (Erinnerungen der Voting-Phase). Keine Datenmigration nötig (nur Spalten mit Defaults).
+> **Reiche Einladungen** (an die App angelehnt): (1) **Einladen mit optionaler Nachricht** — das Einlade-Formular
+> bekommt ein Textfeld „Nachricht (optional)"; `GroupGovernance::invite($gid,$email,$message)` speichert sie, die
+> Karte zeigt sie als Zitat, und `Notifications::on_group_invited` nimmt sie als „Persönliche Nachricht:"-Block in
+> die Mail auf (nur wenn gesetzt). (2) **Status-Labels** klar: „Wartet auf Antwort" (pending, warn) / „Abstimmung
+> läuft" (voting, info) / „Aufgenommen" (approved, ok), Voting zeigt „{approvals}/{needed} Zustimmungen" +
+> Fortschrittsbalken + „Deine Stimme: …". **Kürzlich Aufgenommene** werden read-only mitgezeigt
+> (`recent_approved_for_group`, LIMIT 15). (3) **Erinnerungs-Zähler**: „N× erinnert" (pending, `reminder_count`++ bei
+> jedem `invite_resend`) und „Voting-Erinnerung N×" (voting, neue Aktion `invite_remind_voters` →
+> `GroupGovernance::remind_voters()`: mailt die noch nicht abstimmenden aktiven Mitglieder via neuem Hook
+> `pp_group_voting_reminder` + Template `group_vote_reminder`, `voting_reminder_count`++, Mitglied-/Gründer-Gate,
+> `pp_no_voters` wenn alle schon abgestimmt). „Einladung zurückziehen" = bestehendes `cancel`.
+> **Dispatcher/Sicherheit:** neue pp_do-Aktion `invite_remind_voters`; die Kollektiv-Detail-Aktionen
+> (`invite`/`invite_resend`/`invite_remind_voters`/`cancel`/`vote`/`group_update`/`member_remove`/`telegram_test`)
+> kehren jetzt ins jeweilige Gruppen-Detail zurück und erhalten den Reiter über `pp_group`/`pp_ctab` aus dem
+> Referer; `handle_group_logo` redirectet in den Einstellungen-Reiter; Bell-Voting-Eintrag verlinkt aufs
+> Gruppen-Detail. Alle Aktionen weiterhin Nonce (`pp_collective`) + Mitglied-/Gründer-Gate (RLS-Ersatz).
+> **Getestet** (wp-env :8888, portaltest Gruppe 23): Service-Ebene (invite speichert message + Mail mit Nachricht;
+> resend → reminder_count++; remind_voters → voting_reminder_count++ + Mail NUR an Nicht-Abstimmer; IDOR tester1 →
+> pp_not_member/pp_forbidden, DB unverändert). Browser (echte Klicks + Screenshots, Mail-Mock via DB-Option,
+> Light+Dark): Liste→Detail, Reiter-Wechsel + Reiter-Erhalt nach group_update, Header „3 active members · founded
+> on …", Mitglieder mit E-Mail, Einladen mit Nachricht → Zitat + Mail, Erneut senden → „Reminded 1×", Voting-Karte
+> „1/3 Zustimmungen"+Balken+„Awaiting"+„Du hast zugestimmt", „Erinnern" → „Voting reminder 1×" + 3 Mails an
+> Nicht-Voter, „Aufgenommen"-Read-only. HTTP-IDOR (tester1 crafted POST mit gültiger Nonce) → forbidden/not_member,
+> Einladung 25 unverändert. `php -l` (4 Dateien) grün, `msgfmt --check-format` grün. i18n: 34 neue Quellstrings
+> deutsch in `de_DE.po` (nur `.po`; `.pot`/`.mo` macht der Release-Agent). **Offen für Release:** Version-Bump,
+> Changelog, .pot/.mo, Plugin Check, ZIP, update.json, Commit/Push/GitHub-Release.
+
 > ## 🚀 Release v0.117.0 2026-07-24 (Kollektiv-Einladungen: erneut senden + löschen, Schema UNVERÄNDERT 0.34.0)
 > **Kein Schema-Change, keine Migration, keine neue Datei.** Rein Frontend/Service
 > (`includes/Frontend/MemberPortal.php`, `includes/Services/GroupGovernance.php`). Jede offene Einladung in der
@@ -976,6 +1028,11 @@ Verbleibender Backlog (Mittel/Niedrig, Produktentscheidung):
 - ✅ **Globale Kosten-Übersicht** (v0.97.0) — `pp_view=costs`, Gruppen-Aggregat. Erledigt.
 - ✅ **Eigenständige Umfragen** (v0.x, `pp_view=polls`) — gruppenweite date/choice-Umfragen. Erledigt.
 - ✅ **Gruppen-Mitgliederliste** (v0.97.0) — Karten mit Rolle + Beitrittsdatum statt Komma-Liste. Erledigt.
+- ✅ **Kollektiv-Detail auf App-Niveau** (2026-07-24, Schema 0.35.0) — zwei-Reiter-Einzelansicht (Übersicht/
+  Einstellungen, `pp_group`+`pp_ctab`), Header „N aktive Mitglieder · gegründet am …", Mitglieder MIT E-Mail,
+  reiche Einladungen (optionale Nachricht als Zitat + in der Mail, Status-Labels, „N× erinnert" + „Voting-Erinnerung
+  N×", Voting-Fortschritt + Nicht-Voter-Erinnerung via `invite_remind_voters`, „Aufgenommen"-read-only). Erledigt.
+  **Bewusst ausgeschlossen (User-Vorgabe): Telegram-Topic-ID + Inventar-Suffix.**
 - ✅ **Kalender im Portal** (v0.96.0) — Monats-/Wochenraster mit Projekten/Zeitplan/Leihen + externe
   Verleihe + iCal-Link (cap-gated). Erledigt.
 - ✅ **Projekte-Tabs im Portal** (v0.96.0) — Portal-Detail spiegelt jetzt Kosten/Material/Team/Kontakte/
@@ -1057,6 +1114,7 @@ Vereinbarung — 4 Multi-User/Gruppen-Tabs, Architektur-Entscheidung nötig).
 
 ## Log
 
+- **Parity-Lauf Kollektiv-Detail** (2026-07-24, `wp-parity`, Schema **0.35.0**, NICHT committed/released): Gruppen-/Kollektiv-Ansicht auf App-`groups/[id]`-Niveau gehoben. Schema additiv (`message`/`reminder_count`/`voting_reminder_count` auf `pp_group_invitations`, dbDelta, Migration verifiziert 0.35.0). `Services/GroupGovernance.php`: `invite()` nimmt `$message`, `resend()` erhöht `reminder_count`, neu `remind_voters()` (Voting-Erinnerung an Nicht-Abstimmer, `voting_reminder_count`++, Hook `pp_group_voting_reminder`) + `recent_approved_for_group()` + Enrichment (inviter/invitee-Namen, `pending_voter_names`). `Email/Notifications.php`: Nachricht als „Persönliche Nachricht:"-Block in der Einladungs-Mail (nur wenn gesetzt) + neues Template `group_vote_reminder` + Handler `on_voting_reminder`. `Frontend/MemberPortal.php`: Liste = verlinkte Karten (`render_collective_card`); Detail `view_collective_detail` mit `.pp-proj-tabs` (Übersicht/Einstellungen via `pp_ctab`), `render_collective_overview` (Mitglieder+E-Mail, Einladen mit Nachricht, offene + kürzlich aufgenommene Einladungen via `render_invitation_card`), `render_collective_settings` (Bearbeiten/Telegram/Logo/Austreten/Auflösen); Dispatcher: neue Aktion `invite_remind_voters`, Detail-Aktionen erhalten `pp_group`/`pp_ctab` über den Referer, `handle_group_logo`+Bell aufs Detail. CSS: neue Karten-/Einladungs-/Chip-Klassen über `--pp-*` (Light+Dark). i18n: 34 neue Quellstrings deutsch in `de_DE.po` (nur `.po`). Getestet: Service (Mail-Mock via DB-Option) + Browser (echte Klicks/Screenshots, Light+Dark) + HTTP-IDOR (tester1 → forbidden/not_member, DB unverändert); `php -l` grün, `msgfmt --check-format` grün. Testdaten (Test-Einladungen, Beschreibung, Mail-Mock-mu-plugin) aufgeräumt. Offen für Release-Agent: Version-Bump/Changelog/.pot/.mo/Plugin-Check/ZIP/update.json/Commit+Release.
 - **Release v0.117.0** (2026-07-24, Release-Agent): Version gebumpt (Header + `PP_VERSION` + `readme.txt` Stable tag = 0.117.0, **Schema unverändert 0.34.0**, keine Migration/keine neue Datei), Changelog-Block in `readme.txt` (Collectives: open invitations can now be resent and deleted). i18n: `.pot` regeneriert (Header 0.117.0), `.po` via `update-po` abgeglichen (0 fuzzy, „Invitation cancelled." als ungenutzt entfallen), 6 neue Quellstrings deutsch übersetzt (Resend/Delete this invitation?/Invitation deleted./Invitation sent again./„Only members…"/„This invitation can no longer be resent."), `.mo` per WP-POMO gebaut (1415 Einträge), 3 Stichproben gegen die frische `.mo` grün. Keine JS-Strings. Plugin Check nur die zwei by-design-ERRORs (`hidden_files` + `plugin_updater_detected`). ZIP `dist/project-prepper-0.117.0.zip` (Top-Ordner `project-prepper/`, 1,2 MB, 121 Dateien, `.mo` enthalten, keine hidden files), Root-`update.json` auf 0.117.0. Committet + gepusht auf `wordpress-edition`, GitHub-Release `v0.117.0` mit ZIP-Asset, Updater sieht das Release (is_asset=true, package zeigt aufs ZIP). Feature: **Kollektiv-Einladungen erneut senden + löschen** — jede offene Einladung in der Kollektiv-Karte bekommt „Erneut senden" (`invite_resend` → `GroupGovernance::resend()`, feuert `pp_group_invited` erneut, nur `pending`, Mitglied-/Admin-Gate) und der bisherige Cancel-Button wird klar zu „Löschen" (Bestätigungs-Dialog + Danger-Style, weiter `Governance::cancel`, Meldung jetzt „Einladung gelöscht."). Beide Aktionen redirecten in die Kollektive-Ansicht. Per wp-env-Browser + Mail-Mock verifiziert (Resend-Mail geht raus).
 
 - **Release v0.115.0** (2026-07-24, Release-Agent): Version gebumpt (Header + `PP_VERSION` + `readme.txt` Stable tag = 0.115.0, Schema unverändert 0.34.0), Changelog-Block in `readme.txt`, i18n (`.pot` regeneriert = 1411 msgids, `.po` abgeglichen 0 fuzzy, `.mo` per WP-POMO gebaut, Stichprobe grün), Plugin Check nur die zwei by-design-ERRORs (`hidden_files` + `plugin_updater_detected`), ZIP `dist/project-prepper-0.115.0.zip` (Top-Ordner `project-prepper/`, ~1,2 MB) gebaut, Root-`update.json` auf 0.115.0 aktualisiert, committet + gepusht auf `wordpress-edition`, GitHub-Release `v0.115.0` mit ZIP-Asset, Updater sieht das Release (is_asset=true, package zeigt aufs ZIP). Feature-Details siehe nächster Eintrag.

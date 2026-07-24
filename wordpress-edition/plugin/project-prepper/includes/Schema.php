@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.34.0';
+	const VERSION    = '0.35.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -614,13 +614,21 @@ class Schema {
 			// Mitglieder einstimmig ab. invited_user_id wird gesetzt, sobald ein
 			// WP-User mit der E-Mail existiert (beim Einladen oder bei Registrierung).
 			// status: pending → voting → approved | rejected | cancelled.
+			// v0.35.0: message (optionale Einladungs-Nachricht, wie App
+			// group_invitations.invited_message), reminder_count (E-Mail-Erinnerungen
+			// in der pending-Phase) und voting_reminder_count (Erinnerungen an die
+			// noch nicht abstimmenden Mitglieder in der voting-Phase, wie App
+			// voting_reminder_count).
 			dbDelta( "CREATE TABLE {$g_invites} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				group_id bigint(20) unsigned NOT NULL,
 				invited_email varchar(190) NOT NULL DEFAULT '',
 				invited_user_id bigint(20) unsigned DEFAULT NULL,
 				invited_by bigint(20) unsigned DEFAULT NULL,
+				message text,
 				status varchar(20) NOT NULL DEFAULT 'pending',
+				reminder_count int(10) unsigned NOT NULL DEFAULT 0,
+				voting_reminder_count int(10) unsigned NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				resolved_at datetime DEFAULT NULL,
 				PRIMARY KEY  (id),

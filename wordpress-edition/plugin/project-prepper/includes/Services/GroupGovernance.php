@@ -56,9 +56,11 @@ class GroupGovernance {
 	/**
 	 * Aktives Mitglied lädt jemanden per E-Mail in seine Gruppe ein.
 	 *
+	 * @param string $message Optionale Nachricht an die eingeladene Person
+	 *                        (wird auf der Karte + in der Einladungs-Mail gezeigt).
 	 * @return int|WP_Error Einladungs-ID.
 	 */
-	public static function invite( int $group_id, string $email ) {
+	public static function invite( int $group_id, string $email, string $message = '' ) {
 		global $wpdb;
 		$uid = get_current_user_id();
 
@@ -107,11 +109,13 @@ class GroupGovernance {
 			return new WP_Error( 'pp_already_invited', __( 'There is already an open invitation for this address.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 
+		$message = trim( wp_strip_all_tags( $message ) );
 		$wpdb->insert( Schema::table( 'group_invitations' ), [
 			'group_id'        => $group_id,
 			'invited_email'   => $email,
 			'invited_user_id' => $invited_user_id,
 			'invited_by'      => $uid,
+			'message'         => '' !== $message ? $message : null,
 			'status'          => 'pending',
 			'created_at'      => current_time( 'mysql' ),
 		] );
@@ -207,6 +211,7 @@ class GroupGovernance {
 	 * @return true|WP_Error
 	 */
 	public static function resend( int $invitation_id ) {
+		global $wpdb;
 		$inv = self::get( $invitation_id );
 		if ( ! $inv ) {
 			return new WP_Error( 'pp_not_found', __( 'Invitation not found.', 'project-prepper' ), [ 'status' => 404 ] );
@@ -220,8 +225,67 @@ class GroupGovernance {
 		if ( 'pending' !== $inv->status ) {
 			return new WP_Error( 'pp_bad_state', __( 'This invitation can no longer be resent.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
+		// Erinnerungs-Zähler der pending-Phase hochsetzen (App: reminder_count).
+		$wpdb->update(
+			Schema::table( 'group_invitations' ),
+			[ 'reminder_count' => (int) $inv->reminder_count + 1 ],
+			[ 'id' => $invitation_id ],
+			[ '%d' ],
+			[ '%d' ]
+		);
 		ActivityLog::log( 'group_invitation_resent', 'group', (int) $inv->group_id, [ 'invitation_id' => $invitation_id ] );
 		do_action( 'pp_group_invited', $invitation_id );
+		return true;
+	}
+
+	/**
+	 * Aktives Mitglied erinnert die noch nicht abstimmenden Mitglieder in der
+	 * Voting-Phase per E-Mail (Pendant zur App-Aktion „Erinnern" bei laufendem
+	 * Beitritts-Voting). Erhöht voting_reminder_count. Der/die Eingeladene selbst
+	 * stimmt nicht mit und wird nicht erinnert.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function remind_voters( int $invitation_id ) {
+		global $wpdb;
+		$inv = self::get( $invitation_id );
+		if ( ! $inv ) {
+			return new WP_Error( 'pp_not_found', __( 'Invitation not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$uid = get_current_user_id();
+		if ( ! current_user_can( Capabilities::COLLECTIVES ) ||
+			( ! Groups::is_member( (int) $inv->group_id, $uid ) && ! Groups::user_is_admin( $uid ) ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'Only members of this collective can send voting reminders.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		if ( 'voting' !== $inv->status ) {
+			return new WP_Error( 'pp_bad_state', __( 'This invitation is not open for voting.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		// Abstimmberechtigte = aktive Mitglieder ohne den/die Eingeladene/n.
+		$eligible = array_values( array_diff(
+			self::active_member_ids( (int) $inv->group_id ),
+			[ (int) $inv->invited_user_id ]
+		) );
+		$voted = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
+			'SELECT voter_id FROM %i WHERE invitation_id = %d',
+			Schema::table( 'group_invitation_votes' ),
+			$invitation_id
+		) ) );
+		$non_voters = array_values( array_diff( $eligible, $voted ) );
+		if ( ! $non_voters ) {
+			// Alle haben schon abgestimmt — nichts zu erinnern (Button ist dann aus).
+			return new WP_Error( 'pp_no_voters', __( 'Everyone has already voted.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		$wpdb->update(
+			Schema::table( 'group_invitations' ),
+			[ 'voting_reminder_count' => (int) $inv->voting_reminder_count + 1 ],
+			[ 'id' => $invitation_id ],
+			[ '%d' ],
+			[ '%d' ]
+		);
+		ActivityLog::log( 'group_voting_reminded', 'group', (int) $inv->group_id, [ 'invitation_id' => $invitation_id, 'recipients' => count( $non_voters ) ] );
+		do_action( 'pp_group_voting_reminder', $invitation_id, $non_voters );
 		return true;
 	}
 
@@ -372,8 +436,68 @@ class GroupGovernance {
 			$row->my_vote   = self::vote_of( (int) $row->id, $uid );
 			$row->approvals = self::approve_count( (int) $row->id, (int) $row->group_id );
 			$row->needed    = self::active_member_count( (int) $row->group_id );
+			$row->pending_voter_names = ( 'voting' === $row->status )
+				? self::non_voter_names( (int) $row->id, (int) $row->group_id, (int) $row->invited_user_id )
+				: [];
+			self::decorate_names( $row );
 		}
 		return $rows;
+	}
+
+	/**
+	 * Zuletzt aufgenommene Einladungen einer Gruppe (status approved) — für die
+	 * read-only „Aufgenommen"-Anzeige im Kollektiv-Detail (App zeigt approved
+	 * Einladungen weiter mit). Begrenzt und nach Auflösungszeitpunkt sortiert.
+	 *
+	 * @return array<object>
+	 */
+	public static function recent_approved_for_group( int $group_id, int $limit = 15 ): array {
+		global $wpdb;
+		$limit = max( 1, min( 50, $limit ) );
+		$rows  = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM %i WHERE group_id = %d AND status = 'approved'
+			 ORDER BY resolved_at DESC, id DESC LIMIT %d",
+			Schema::table( 'group_invitations' ),
+			$group_id,
+			$limit
+		) ) ?: [];
+		foreach ( $rows as $row ) {
+			self::decorate_names( $row );
+		}
+		return $rows;
+	}
+
+	/**
+	 * Namen der abstimmberechtigten Mitglieder, deren Stimme noch fehlt (Voting-
+	 * Phase). Der/die Eingeladene stimmt nicht mit.
+	 *
+	 * @return string[]
+	 */
+	private static function non_voter_names( int $invitation_id, int $group_id, int $invitee_id ): array {
+		global $wpdb;
+		$eligible = array_values( array_diff( self::active_member_ids( $group_id ), [ $invitee_id ] ) );
+		if ( ! $eligible ) {
+			return [];
+		}
+		$voted = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
+			'SELECT voter_id FROM %i WHERE invitation_id = %d',
+			Schema::table( 'group_invitation_votes' ),
+			$invitation_id
+		) ) );
+		$names = [];
+		foreach ( array_diff( $eligible, $voted ) as $uid ) {
+			$user    = get_userdata( (int) $uid );
+			$names[] = $user ? $user->display_name : ( '#' . (int) $uid );
+		}
+		return $names;
+	}
+
+	/** Einlader-/Eingeladenen-Namen an eine Einladungszeile hängen (fürs Portal). */
+	private static function decorate_names( object $row ): void {
+		$inviter = $row->invited_by ? get_userdata( (int) $row->invited_by ) : null;
+		$row->inviter_name = $inviter ? $inviter->display_name : '';
+		$invitee = $row->invited_user_id ? get_userdata( (int) $row->invited_user_id ) : null;
+		$row->invitee_name = $invitee ? $invitee->display_name : (string) $row->invited_email;
 	}
 
 	/**

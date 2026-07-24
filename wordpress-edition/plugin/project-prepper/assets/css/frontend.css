@@ -743,6 +743,90 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-portal__member-meta { display: inline-flex; align-items: center; gap: .5rem; }
 .pp-portal__member-joined { font-size: .78rem; color: var(--pp-muted-foreground); }
 
+/* Kollektiv-Detail (v0.35.0) — verlinkte Karten-Liste in „Alle Gruppen" + zwei-
+ * Reiter-Detail (Übersicht/Einstellungen) mit reicher Mitglieder-/Einladungs-
+ * anzeige (Pendant zur Gruppendetailseite der App). Farben über --pp-*-Tokens,
+ * damit Light/Dark ohne eigenes Schema funktionieren. */
+.pp-collective-list { display: flex; flex-direction: column; gap: .6rem; }
+.pp-collective-card {
+	display: flex;
+	align-items: center;
+	gap: .8rem;
+	background: var(--pp-surface);
+	border: 1px solid var(--pp-border);
+	border-radius: var(--pp-radius);
+	padding: .8rem 1rem;
+	text-decoration: none;
+	color: inherit;
+	transition: border-color .15s ease, background .15s ease;
+}
+.pp-collective-card:hover { border-color: var(--pp-primary); background: var(--pp-muted); }
+.pp-collective-card__logo {
+	width: 42px; height: 42px; flex: none;
+	border-radius: 10px; overflow: hidden;
+	display: flex; align-items: center; justify-content: center;
+	background: var(--pp-muted);
+}
+.pp-collective-card__logo img { width: 100%; height: 100%; object-fit: cover; }
+.pp-collective-card__initial { font-size: 1.1rem; font-weight: 700; color: var(--pp-muted-foreground); }
+.pp-collective-card__body { display: flex; flex-direction: column; gap: .15rem; min-width: 0; flex: 1; }
+.pp-collective-card__head { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+.pp-collective-card__name { font-size: .95rem; font-weight: 600; color: var(--pp-foreground); }
+.pp-collective-card__desc {
+	font-size: .82rem; color: var(--pp-muted-foreground);
+	overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%;
+}
+.pp-collective-card__meta { font-size: .8rem; color: var(--pp-muted-foreground); display: inline-flex; align-items: center; gap: .3rem; }
+
+.pp-collective-detail__head { display: flex; align-items: center; gap: .9rem; }
+.pp-collective-detail__logo { width: 48px; height: 48px; }
+.pp-collective-detail__logo .pp-collective-card__initial { font-size: 1.25rem; }
+
+.pp-collective-member__id { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.pp-collective-member__email { font-size: .78rem; color: var(--pp-muted-foreground); }
+
+.pp-collective-settings__logo {
+	display: flex; align-items: flex-start; gap: 1rem; flex-wrap: wrap;
+	margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--pp-border);
+}
+
+/* Status-Chip-Varianten für Einladungen. */
+.pp-portal__tag--warn { color: var(--pp-warning); background: var(--pp-warning-light); }
+.pp-portal__tag--info { color: #2563eb; background: var(--pp-info-light); }
+.pp-portal__tag--ok   { color: #059669; background: var(--pp-success-light); }
+
+/* Einladungs-Karten (Übersicht-Reiter). */
+.pp-invite-list { display: flex; flex-direction: column; gap: .6rem; }
+.pp-invite-card { background: var(--pp-muted); border-radius: 10px; padding: .75rem .9rem; }
+.pp-invite-card__top { display: flex; align-items: flex-start; justify-content: space-between; gap: .6rem; }
+.pp-invite-card__id { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.pp-invite-card__name { font-size: .92rem; font-weight: 600; color: var(--pp-foreground); }
+.pp-invite-card__email { font-size: .78rem; color: var(--pp-muted-foreground); }
+.pp-invite-card__meta {
+	display: flex; align-items: center; gap: .4rem; flex-wrap: wrap;
+	font-size: .78rem; color: var(--pp-muted-foreground); margin-top: .25rem;
+}
+.pp-invite-card__chip {
+	font-size: .7rem; font-weight: 600;
+	padding: .1rem .45rem; border-radius: 999px;
+	background: var(--pp-warning-light); color: var(--pp-warning);
+}
+.pp-invite-card__chip--info { background: var(--pp-info-light); color: #2563eb; }
+.pp-invite-card__quote { margin: .5rem 0 0; font-size: .84rem; font-style: italic; color: var(--pp-muted-foreground); }
+.pp-invite-card__voting { margin-top: .6rem; }
+.pp-invite-card__progress-label { font-size: .78rem; color: var(--pp-muted-foreground); margin-bottom: .3rem; }
+.pp-invite-card__bar { height: 6px; background: var(--pp-border); border-radius: 999px; overflow: hidden; }
+.pp-invite-card__fill { display: block; height: 100%; background: var(--pp-success); border-radius: 999px; }
+.pp-invite-card__pending {
+	display: flex; align-items: center; justify-content: space-between; gap: .6rem;
+	flex-wrap: wrap; margin-top: .5rem;
+}
+.pp-invite-card__pending-names { font-size: .78rem; color: var(--pp-muted-foreground); }
+.pp-invite-card__myvote { font-size: .8rem; color: var(--pp-muted-foreground); margin-top: .5rem; }
+.pp-invite-card__actions { display: flex; gap: .4rem; flex-wrap: wrap; margin-top: .6rem; }
+.pp-invite-card__actions form, .pp-invite-card__pending form { margin: 0; }
+.pp-invite-card__voting .pp-portal__actions { margin-top: .5rem; }
+
 /* Presence — „Wer ist online" (Heartbeat-Polling, Momentaufnahme beim
  * Seitenaufbau). Der grüne Punkt läuft über --pp-success und ist damit in
  * beiden Themes gut sichtbar (Light #10b981 / Dark #34d399). */
