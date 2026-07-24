@@ -387,7 +387,7 @@ class MemberPortal {
 			$back = add_query_arg( 'pp_view', 'polls', self::portal_url() );
 		}
 		// Aus einer Gruppe austreten / Gruppe bearbeiten / Telegram-Test kehrt zur Kollektive-Ansicht zurück.
-		if ( in_array( $do, [ 'group_leave', 'group_update', 'member_remove', 'group_delete', 'telegram_test' ], true ) ) {
+		if ( in_array( $do, [ 'group_leave', 'group_update', 'member_remove', 'group_delete', 'telegram_test', 'invite', 'found' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'collectives', self::portal_url() );
 		}
 		// Kalender-Aktionen kehren in die Kalender-Ansicht zurück — inklusive
@@ -1122,6 +1122,18 @@ class MemberPortal {
 				$msg = 'telegram_not_configured';
 			} elseif ( in_array( $code, [ 'pp_telegram_http', 'pp_telegram_api' ], true ) ) {
 				$msg = 'telegram_failed';
+			} elseif ( 'pp_bad_email' === $code ) {
+				$msg = 'invite_bad_email';
+			} elseif ( 'pp_already_member' === $code ) {
+				$msg = 'invite_already_member';
+			} elseif ( 'pp_already_invited' === $code ) {
+				$msg = 'invite_already_invited';
+			} elseif ( 'pp_invite_limit' === $code ) {
+				$msg = 'invite_limit';
+			} elseif ( 'pp_not_member' === $code ) {
+				$msg = 'invite_not_member';
+			} elseif ( 'pp_forbidden' === $code ) {
+				$msg = 'forbidden';
 			} else {
 				$msg = 'error';
 			}
@@ -1242,6 +1254,12 @@ class MemberPortal {
 			'feedback_ok'  => [ 'ok', __( 'Thanks for your feedback!', 'project-prepper' ) ],
 			'feedback_err' => [ 'err', __( 'Please enter a message.', 'project-prepper' ) ],
 			'invited'   => [ 'ok', __( 'Invitation sent.', 'project-prepper' ) ],
+			'invite_bad_email'       => [ 'err', __( 'Please enter a valid email address.', 'project-prepper' ) ],
+			'invite_already_member'  => [ 'err', __( 'That person is already a member of this collective.', 'project-prepper' ) ],
+			'invite_already_invited' => [ 'err', __( 'There is already an open invitation for this address.', 'project-prepper' ) ],
+			'invite_limit'           => [ 'err', __( 'You have reached your invitation limit for today.', 'project-prepper' ) ],
+			'invite_not_member'      => [ 'err', __( 'Only members of this collective can invite others.', 'project-prepper' ) ],
+			'forbidden'              => [ 'err', __( 'You are not allowed to do this.', 'project-prepper' ) ],
 			'accepted'  => [ 'ok', __( 'Invitation accepted.', 'project-prepper' ) ],
 			'declined'  => [ 'ok', __( 'Invitation declined.', 'project-prepper' ) ],
 			'cancelled' => [ 'ok', __( 'Invitation cancelled.', 'project-prepper' ) ],

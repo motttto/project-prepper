@@ -1,9 +1,9 @@
 {
-  "version": "0.115.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.115.0/project-prepper-0.115.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.115.0",
+  "version": "0.116.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.116.0/project-prepper-0.116.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.116.0",
   "published": "2026-07-24",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Technik-Buchung: bestehende Buchungen lassen sich jetzt bearbeiten (Menge, Zeitraum, Notiz) statt neu zu buchen. Braucht der Artikel eine Freigabe und ist die Änderung materiell (mehr Menge oder anderer Zeitraum), geht die Buchung wieder auf „Ausstehend“ und der Eigentümer wird erneut um Freigabe gebeten; eine kleinere Menge oder eine reine Notiz-Änderung behält die bestehende Freigabe."
+  "changelog": "Fix: Eine Person per E-Mail in ein Kollektiv einzuladen zeigte immer nur „Etwas ist schief gelaufen“ — jetzt erscheint der konkrete Grund (ungültige E-Mail, schon Mitglied, schon eingeladen, Tageslimit, kein Mitglied). Nach dem Einladen/Gründen landet man wieder in der Kollektive-Ansicht."
 }

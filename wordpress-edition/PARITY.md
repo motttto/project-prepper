@@ -3,6 +3,22 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.116.0 2026-07-24 (Bugfix: Kollektiv-Einladung per E-Mail zeigte immer generische Fehlermeldung, Schema UNVERÄNDERT 0.34.0)
+> **Kein Schema-Change, keine Migration, keine neue Datei.** Rein Frontend/Dispatcher (`includes/Frontend/MemberPortal.php`).
+> Der Portal-Dispatcher mappte KEINEN der Invite-Fehlercodes (`pp_bad_email`, `pp_already_member`,
+> `pp_already_invited`, `pp_invite_limit`, `pp_not_member`) auf eine spezifische Meldung — alle fielen auf die
+> generische „Etwas ist schief gelaufen". Jetzt zeigt jeder Fall die klare Ursache (neue `pp_msg`-Codes
+> `invite_bad_email`/`invite_already_member`/`invite_already_invited`/`invite_limit`/`invite_not_member`); zusätzlich
+> `pp_forbidden` → „Dazu hast du keine Berechtigung." (neuer Code `forbidden`) statt generisch. Zweitens: `invite`
+> und `found` in die collectives-Redirect-Liste aufgenommen → nach Einladen/Gründen landet man wieder in der
+> Kollektive-Ansicht (statt auf dem Dashboard). Der Einladungs-Mechanismus selbst war NICHT kaputt (Happy-Path
+> verifiziert). **i18n:** keine neuen Quellstrings — alle sechs Meldungstexte existierten bereits in de_DE.po (in den
+> WP_Error-Meldungen von `GroupGovernance.php`); `.pot` regeneriert (identischer msgid-Satz, nur Zeilennummern +
+> Versions-Header), `.po` abgeglichen (0 fuzzy, Übersetzungsinhalt unverändert), `.mo` per WP-POMO gebaut (1410
+> Einträge, byte-identisch), Stichprobe grün. **Plugin Check:** nur die zwei by-design-ERRORs (hidden_files,
+> plugin_updater_detected). ZIP `project-prepper-0.116.0.zip` (1.2M, 121 Dateien), Root-`update.json` auf 0.116.0.
+> GitHub-Release `v0.116.0` mit ZIP-Asset, Updater sieht das Release (is_asset=true).
+
 > ## 🧩 Parity-Lauf 2026-07-24 (Schema 0.34.0 — Freigabe-Workflow für Technik-Buchungen + Eigentümer/Bedingungen im Picker; NICHT committed/released)
 > Großes Feature: Buchungen aus dem Gruppen-Pool respektieren jetzt die Freigabe-Bedingungen der
 > Eigentümer (App-Pendant: `use-booking-approvals` + `bookings.approval_status` + `inventory_group_shares`).
