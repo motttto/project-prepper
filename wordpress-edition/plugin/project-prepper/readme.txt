@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.114.0
+Stable tag: 0.115.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.115.0 =
+* Equipment: existing bookings can now be edited (quantity, dates, notes) instead of re-booking. If the item needs approval and the change is material (more quantity or a different period), it goes back to pending and the owner is asked to approve again; a smaller quantity or a note-only change keeps the existing approval.
 
 = 0.114.0 =
 * Equipment: an approval workflow for booking shared gear — booking an item that its owner shared with “approval required” now creates a pending request; the owner gets an email and an in-portal “Approvals” view to accept or decline it under their own terms. The picker now shows each item’s owner, daily rate, sharing conditions and whether approval is required; each booking line shows its approval status.

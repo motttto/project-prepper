@@ -1,9 +1,9 @@
 {
-  "version": "0.114.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.114.0/project-prepper-0.114.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.114.0",
+  "version": "0.115.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.115.0/project-prepper-0.115.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.115.0",
   "published": "2026-07-24",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Technik-Freigabe: Wer fremdes, mit „Freigabe erforderlich“ geteiltes Material bucht, löst jetzt eine Freigabe-Anfrage aus — der Eigentümer bekommt eine E-Mail und eine „Freigaben“-Ansicht im Portal, um sie zu seinen Bedingungen anzunehmen oder abzulehnen. Der Buchungs-Picker zeigt jetzt Eigentümer, Tagessatz, Freigabe-Bedingungen und ob eine Freigabe nötig ist; jede Buchungszeile zeigt ihren Freigabe-Status."
+  "changelog": "Technik-Buchung: bestehende Buchungen lassen sich jetzt bearbeiten (Menge, Zeitraum, Notiz) statt neu zu buchen. Braucht der Artikel eine Freigabe und ist die Änderung materiell (mehr Menge oder anderer Zeitraum), geht die Buchung wieder auf „Ausstehend“ und der Eigentümer wird erneut um Freigabe gebeten; eine kleinere Menge oder eine reine Notiz-Änderung behält die bestehende Freigabe."
 }

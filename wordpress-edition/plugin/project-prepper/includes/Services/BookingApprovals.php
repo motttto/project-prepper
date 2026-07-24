@@ -201,4 +201,19 @@ class BookingApprovals {
 			'project_name' => (string) $line->project_name,
 		];
 	}
+
+	/**
+	 * Ist die Änderung einer Buchungszeile „materiell" für den Eigentümer, d. h.
+	 * benachteiligt sie ihn und rechtfertigt eine erneute Freigabe? Material =
+	 * Menge ERHÖHT ODER Zeitraum geändert. Eine Mengen-Reduktion bei gleichem
+	 * Zeitraum (oder eine reine Notiz-Änderung) ist NICHT materiell — der
+	 * Eigentümer wird damit nicht schlechter gestellt und nicht erneut gefragt.
+	 *
+	 * Zeitraum-Vergleich über die GESPEICHERTEN Werte (leer = erbt Projekt-
+	 * Zeitraum); NULL/'' werden gleich behandelt.
+	 */
+	public static function is_material_change( int $old_qty, int $new_qty, string $old_from, string $old_to, string $new_from, string $new_to ): bool {
+		$date_changed = ( $old_from !== $new_from ) || ( $old_to !== $new_to );
+		return $new_qty > $old_qty || $date_changed;
+	}
 }

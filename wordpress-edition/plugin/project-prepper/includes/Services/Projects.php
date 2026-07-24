@@ -465,6 +465,17 @@ class Projects {
 		if ( array_key_exists( 'notes', $line ) ) {
 			$fields['notes'] = (string) $line['notes'];
 		}
+		// Optionale Freigabe-Felder (vom Member-Portal beim Re-Approval gesetzt).
+		// Whitelist wie in add_item; requested_by/decided_at folgen dem Status.
+		if ( array_key_exists( 'approval_status', $line ) && in_array( $line['approval_status'], self::APPROVAL_STATUSES, true ) ) {
+			$fields['approval_status'] = (string) $line['approval_status'];
+		}
+		if ( array_key_exists( 'requested_by', $line ) ) {
+			$fields['requested_by'] = ! empty( $line['requested_by'] ) ? (int) $line['requested_by'] : null;
+		}
+		if ( array_key_exists( 'decided_at', $line ) ) {
+			$fields['decided_at'] = null === $line['decided_at'] ? null : (string) $line['decided_at'];
+		}
 		$wpdb->update( Schema::table( 'project_items' ), $fields, [ 'id' => $line_id, 'project_id' => $project_id ] );
 
 		ActivityLog::log( 'project_item_updated', 'project', $project_id, [

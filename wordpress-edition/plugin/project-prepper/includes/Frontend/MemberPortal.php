@@ -687,7 +687,13 @@ class MemberPortal {
 				break;
 			case 'project_item_update':
 				$result = self::member_update_booking( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ) );
-				$ok_msg = 'booking_saved';
+				// String-Rückgabe = eigener Erfolgs-Meldungscode (Re-Approval).
+				if ( is_string( $result ) ) {
+					$ok_msg = $result;
+					$result = true;
+				} else {
+					$ok_msg = 'booking_saved';
+				}
 				break;
 			case 'project_item_remove':
 				$result = self::member_remove_booking( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ) );
@@ -1279,6 +1285,7 @@ class MemberPortal {
 			'booking_pending'  => [ 'ok', __( 'Booked. Some items need the owner’s approval and are marked as pending.', 'project-prepper' ) ],
 			'booking_none_selected' => [ 'err', __( 'Please tick at least one item to book.', 'project-prepper' ) ],
 			'booking_removed'  => [ 'ok', __( 'Booking removed.', 'project-prepper' ) ],
+			'booking_reapproval' => [ 'ok', __( 'Change saved — it needs the owner’s approval again and is marked as pending.', 'project-prepper' ) ],
 			'booking_approved' => [ 'ok', __( 'Booking approved.', 'project-prepper' ) ],
 			'booking_rejected' => [ 'ok', __( 'Booking rejected and removed.', 'project-prepper' ) ],
 			'booking_decided_already' => [ 'err', __( 'This request has already been decided.', 'project-prepper' ) ],
@@ -3681,12 +3688,63 @@ class MemberPortal {
 		return $pending > 0 ? 'booking_pending' : true;
 	}
 
-	/** Buchungszeile ändern (Menge/Zeitraum/Notiz — der Artikel bleibt). */
+	/**
+	 * Buchungszeile ändern (Menge/Zeitraum/Notiz — der Artikel bleibt). Löst bei
+	 * einer MATERIELLEN Änderung (Menge erhöht ODER Zeitraum geändert) an einer
+	 * bereits freigegebenen Zeile eines fremden, freigabepflichtigen Artikels eine
+	 * ERNEUTE Freigabe aus (Status zurück auf pending + Eigentümer-Mail). Nicht-
+	 * materielle Änderungen (Menge gleich/kleiner bei gleichem Zeitraum, reine
+	 * Notiz) lassen den Status unberührt — der Eigentümer wird nicht gespamt.
+	 *
+	 * @return true|string|\WP_Error 'booking_reapproval' = erneut freigabepflichtig.
+	 */
 	private static function member_update_booking( int $pid, int $line_id ) {
-		if ( ! self::member_owned_project( $pid ) ) {
+		$p = self::member_owned_project( $pid );
+		if ( ! $p ) {
 			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
 		}
-		return Projects::update_item( $pid, $line_id, self::booking_input() );
+		$existing = Projects::get_item_line( $pid, $line_id );
+		if ( ! $existing ) {
+			return new \WP_Error( 'pp_not_found', __( 'Line item not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$input = self::booking_input();
+
+		// Braucht der Artikel eine Freigabe (fremd + requires_approval)? Owner aus
+		// dem Gruppen-Pool (shared_by = Eigentümer/Freigebende:r).
+		$uid       = get_current_user_id();
+		$pool      = self::bookable_pool( $p );
+		$pool_item = $pool[ (int) $existing->item_id ] ?? null;
+		$owner_id  = $pool_item ? (int) ( $pool_item->shared_by ?? 0 ) : 0;
+		$needs     = $pool_item && $owner_id > 0 && $owner_id !== $uid && ! empty( $pool_item->requires_approval );
+
+		$reapprove = false;
+		if ( $needs && 'approved' === (string) $existing->approval_status ) {
+			$material = BookingApprovals::is_material_change(
+				(int) $existing->quantity,
+				(int) $input['quantity'],
+				(string) ( $existing->date_from ?? '' ),
+				(string) ( $existing->date_to ?? '' ),
+				(string) $input['date_from'],
+				(string) $input['date_to']
+			);
+			if ( $material ) {
+				// Zurück auf pending + Eigentümer erneut anfragen.
+				$input['approval_status'] = 'pending';
+				$input['requested_by']    = $uid;
+				$input['decided_at']      = null;
+				$reapprove                = true;
+			}
+		}
+		// pending-Zeilen: Werte werden aktualisiert, Status bleibt pending (kein
+		// approval-Feld übergeben) — keine zweite Mail. Eigener Artikel / keine
+		// Freigabepflicht: Status bleibt approved.
+
+		$res = Projects::update_item( $pid, $line_id, $input );
+		if ( ! is_wp_error( $res ) && $reapprove ) {
+			do_action( 'pp_booking_approval_requested', $line_id, $owner_id, $uid );
+			return 'booking_reapproval';
+		}
+		return $res;
 	}
 
 	/** Buchungszeile entfernen. */
