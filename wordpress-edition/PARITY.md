@@ -3,6 +3,19 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.121.0 2026-07-25 (Packliste: zweiter Status „Getestet", Schema 0.37.0)
+> **Ausgeliefert.** Im Reiter **„Packliste"** hat jede Buchungszeile jetzt neben dem Gepackt-Toggle einen
+> **„Getestet"-Button** — eigener gespeicherter Status (`tested_at`), eigenes Druck-Kästchen auf der A4-Liste,
+> bleibt nach Reload, für alle Kollektiv-Mitglieder sichtbar. Der Zähler im Kopf zeigt beides:
+> „N von M gepackt · K getestet". **Schema additiv 0.37.0** (`pp_project_items.tested_at datetime`, dbDelta,
+> keine Datenmigration). Geänderte Dateien: `Schema.php` (VERSION 0.37.0), `Services/Projects.php`
+> (generischer `set_line_flag()` mit Whitelist `LINE_FLAGS` = packed/tested, `set_packed()` delegiert),
+> `Frontend/MemberPortal.php` (Aktion `project_item_test`, generischer `member_toggle_flag()`, „Getestet"-Spalte,
+> Helper `packlist_flag_cell()`, Zähler-String), `assets/css/frontend.css` (6-Spalten-Grid, `.pp-pack-col--test`,
+> Mobil + `@media print`), `languages/*` (5 neue Strings dt. übersetzt + „Unbekannter Status.", `.pot`/`.po`/`.mo`
+> gebaut). Plugin Check: nur die zwei by-design-ERRORs (`hidden_files`, `plugin_updater_detected`). ZIP 1.2 MB,
+> `update.json` auf 0.121.0. GitHub-Release `v0.121.0` mit ZIP-Asset, Updater sieht das Release.
+
 > ## 🚀 Release v0.120.0 2026-07-25 (Bugfix: Redirect nach Inventar-Aktionen, Schema UNVERÄNDERT 0.36.0)
 > **Ausgeliefert.** Bugfix: Beim Anlegen/Bearbeiten/Löschen eines Artikels in „Mein Inventar" sprang die
 > Ansicht fälschlich aufs Dashboard zurück. Ursache: im Dispatcher-Redirect (`handle_collective_action`) standen

@@ -361,25 +361,37 @@ class Projects {
 		) ) ?: [];
 	}
 
+	/** Packlisten-Zeitstempel-Felder, die {@see set_line_flag} setzen darf. */
+	const LINE_FLAGS = [ 'packed' => 'packed_at', 'tested' => 'tested_at' ];
+
 	/**
-	 * Packlisten-Status einer Buchungszeile setzen: $packed=true → packed_at auf
-	 * jetzt, false → NULL (zurückgesetzt). Der Aufrufer erzwingt den Projekt-
-	 * Zugriff (member_owned_project).
+	 * Packlisten-Status (gepackt/getestet) einer Buchungszeile setzen: $on=true →
+	 * Feld auf jetzt, false → NULL (zurückgesetzt). Der Aufrufer erzwingt den
+	 * Projekt-Zugriff (member_owned_project).
 	 *
+	 * @param string $flag 'packed' oder 'tested' (Whitelist {@see LINE_FLAGS}).
 	 * @return true|WP_Error
 	 */
-	public static function set_packed( int $project_id, int $line_id, bool $packed ) {
+	public static function set_line_flag( int $project_id, int $line_id, string $flag, bool $on ) {
 		global $wpdb;
+		if ( ! isset( self::LINE_FLAGS[ $flag ] ) ) {
+			return new WP_Error( 'pp_bad_flag', __( 'Unknown status.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
 		$existing = self::get_item_line( $project_id, $line_id );
 		if ( ! $existing ) {
 			return new WP_Error( 'pp_not_found', __( 'Line item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		$wpdb->update(
 			Schema::table( 'project_items' ),
-			[ 'packed_at' => $packed ? current_time( 'mysql' ) : null ],
+			[ self::LINE_FLAGS[ $flag ] => $on ? current_time( 'mysql' ) : null ],
 			[ 'id' => $line_id, 'project_id' => $project_id ]
 		);
 		return true;
+	}
+
+	/** Kurzform: „gepackt"-Status setzen (Pendant zu {@see set_line_flag}). */
+	public static function set_packed( int $project_id, int $line_id, bool $packed ) {
+		return self::set_line_flag( $project_id, $line_id, 'packed', $packed );
 	}
 
 	public static function get_item_line( int $project_id, int $line_id ): ?object {

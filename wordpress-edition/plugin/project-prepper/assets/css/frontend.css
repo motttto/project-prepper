@@ -2698,7 +2698,7 @@ label.pp-swatch,
 .pp-packlist__table { display: flex; flex-direction: column; }
 .pp-pack-row {
 	display: grid;
-	grid-template-columns: 40px 52px minmax(0, 1fr) minmax(72px, auto) minmax(96px, auto);
+	grid-template-columns: 40px 52px minmax(0, 1fr) minmax(64px, auto) minmax(96px, auto) minmax(96px, auto);
 	align-items: center;
 	gap: 12px;
 	padding: 8px 0;
@@ -2714,7 +2714,8 @@ label.pp-swatch,
 }
 .pp-pack-row--done { opacity: .6; }
 .pp-pack-col--qty { font-weight: 700; color: var(--pp-foreground); }
-.pp-pack-col--pack { display: flex; align-items: center; gap: 8px; }
+.pp-pack-col--pack,
+.pp-pack-col--test { display: flex; align-items: center; gap: 8px; }
 
 .pp-pack-thumb {
 	width: 48px;
@@ -2759,7 +2760,7 @@ label.pp-swatch,
 }
 
 @media (max-width: 640px) {
-	.pp-pack-row { grid-template-columns: 34px 44px minmax(0, 1fr) auto; gap: 8px; }
+	.pp-pack-row { grid-template-columns: 34px 44px minmax(0, 1fr) auto auto; gap: 8px; }
 	.pp-pack-col--cond { grid-column: 3; font-size: .78rem; color: var(--pp-muted-foreground); }
 	.pp-pack-row--head .pp-pack-col--cond { display: none; }
 }
@@ -2796,7 +2797,8 @@ label.pp-swatch,
 
 	.pp-pack-row { break-inside: avoid; border-bottom: 1px solid #999; opacity: 1 !important; }
 	.pp-pack-thumb { width: 40px; height: 40px; }
-	.pp-pack-col--pack { justify-content: flex-start; }
+	.pp-pack-col--pack,
+	.pp-pack-col--test { justify-content: flex-start; }
 	.pp-pack-box { width: 20px; height: 20px; border-color: #000; }
 
 	/* Farben/Hintergründe im Druck erzwingen (Kästchen-Haken). */

@@ -1,9 +1,9 @@
 {
-  "version": "0.120.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.120.0/project-prepper-0.120.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.120.0",
+  "version": "0.121.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.121.0/project-prepper-0.121.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.121.0",
   "published": "2026-07-25",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Fehlerbehebung: Beim Anlegen, Bearbeiten oder Löschen eines Artikels in „Mein Inventar“ sprang die Ansicht fälschlich aufs Dashboard zurück. Jetzt bleibt man nach der Aktion in der Inventar-Ansicht. Kein Schema-Change (bleibt 0.36.0)."
+  "changelog": "Packliste: Jede Buchungszeile hat jetzt neben „Gepackt“ einen zweiten Status „Getestet“ — eigener gespeicherter Status mit eigenem Kästchen auf der gedruckten A4-Liste. Der Status bleibt nach dem Neuladen und ist für alle im Kollektiv sichtbar; der Zähler im Kopf zeigt beides („N von M gepackt · K getestet“). Schema additiv 0.37.0, keine Migration."
 }

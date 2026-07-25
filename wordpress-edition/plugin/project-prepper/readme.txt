@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.120.0
+Stable tag: 0.121.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.121.0 =
+* Packing list: each booking now has a second status “Tested” next to “Packed” — an own saved status with its own checkbox on the printed A4 list.
+* The tested status stays after reload and is shared with everyone in the group; the header counter shows both, e.g. “N of M packed · K tested”.
+* Schema 0.37.0: adds a tested_at column on project items (additive, no migration needed).
 
 = 0.120.0 =
 * Fix: creating, editing or deleting an item in “My inventory” no longer jumps back to the dashboard — you now stay in the inventory view after the action.

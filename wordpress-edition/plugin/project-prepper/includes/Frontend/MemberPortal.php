@@ -730,8 +730,14 @@ class MemberPortal {
 			case 'project_item_pack':
 				// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce oben geprüft.
 				$want   = ! empty( $_POST['pp_packed'] );
-				$result = self::member_toggle_packed( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ), $want );
+				$result = self::member_toggle_flag( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ), 'packed', $want );
 				$ok_msg = $want ? 'packlist_packed' : 'packlist_unpacked';
+				break;
+			case 'project_item_test':
+				// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce oben geprüft.
+				$want   = ! empty( $_POST['pp_tested'] );
+				$result = self::member_toggle_flag( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ), 'tested', $want );
+				$ok_msg = $want ? 'packlist_tested' : 'packlist_untested';
 				break;
 			// --- Freigabe-Workflow: nur der Artikel-Eigentümer entscheidet (Gate im Service) ---
 			case 'booking_approve':
@@ -1344,6 +1350,8 @@ class MemberPortal {
 			'booking_removed'  => [ 'ok', __( 'Booking removed.', 'project-prepper' ) ],
 			'packlist_packed'   => [ 'ok', __( 'Marked as packed.', 'project-prepper' ) ],
 			'packlist_unpacked' => [ 'ok', __( 'Marked as not packed.', 'project-prepper' ) ],
+			'packlist_tested'   => [ 'ok', __( 'Marked as tested.', 'project-prepper' ) ],
+			'packlist_untested' => [ 'ok', __( 'Marked as not tested.', 'project-prepper' ) ],
 			'booking_reapproval' => [ 'ok', __( 'Change saved — it needs the owner’s approval again and is marked as pending.', 'project-prepper' ) ],
 			'booking_approved' => [ 'ok', __( 'Booking approved.', 'project-prepper' ) ],
 			'booking_rejected' => [ 'ok', __( 'Booking rejected and removed.', 'project-prepper' ) ],
@@ -3839,12 +3847,12 @@ class MemberPortal {
 		return Projects::remove_item( $pid, $line_id );
 	}
 
-	/** Packlisten-Status einer Buchungszeile umschalten (Gate: aktiver Workspace). */
-	private static function member_toggle_packed( int $pid, int $line_id, bool $packed ) {
+	/** Packlisten-Status (gepackt/getestet) einer Buchungszeile umschalten (Gate: aktiver Workspace). */
+	private static function member_toggle_flag( int $pid, int $line_id, string $flag, bool $on ) {
 		if ( ! self::member_owned_project( $pid ) ) {
 			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
 		}
-		return Projects::set_packed( $pid, $line_id, $packed );
+		return Projects::set_line_flag( $pid, $line_id, $flag, $on );
 	}
 
 	/* ---------- Projekt-Unterlisten (Zeitplan/Aufgaben/…) ---------- */
@@ -3866,7 +3874,7 @@ class MemberPortal {
 			'contact_add', 'contact_update', 'contact_delete',
 			'cost_add', 'cost_update', 'cost_delete',
 			'profit_add', 'profit_update', 'profit_remove',
-			'project_finance', 'file_detach', 'project_item_pack',
+			'project_finance', 'file_detach', 'project_item_pack', 'project_item_test',
 		];
 	}
 
@@ -4643,12 +4651,16 @@ class MemberPortal {
 	 * „gepackt" wird pro Zeile gespeichert (packed_at) und ist für alle sichtbar.
 	 */
 	private static function render_project_packlist( object $p, bool $can_edit ): void {
-		$lines      = (array) ( $p->items ?? [] );
-		$conditions = Shortcodes::condition_labels();
-		$done_lines = 0;
+		$lines        = (array) ( $p->items ?? [] );
+		$conditions   = Shortcodes::condition_labels();
+		$packed_lines = 0;
+		$tested_lines = 0;
 		foreach ( $lines as $l ) {
 			if ( ! empty( $l->packed_at ) ) {
-				$done_lines++;
+				$packed_lines++;
+			}
+			if ( ! empty( $l->tested_at ) ) {
+				$tested_lines++;
 			}
 		}
 		$range = self::fmt_range( $p->date_start, $p->date_end );
@@ -4672,8 +4684,8 @@ class MemberPortal {
 			<?php else : ?>
 				<p class="pp-packlist__summary">
 					<?php
-					/* translators: 1: number of packed items, 2: total number of items. */
-					printf( esc_html__( '%1$d of %2$d items packed', 'project-prepper' ), (int) $done_lines, count( $lines ) );
+					/* translators: 1: packed count, 2: total count, 3: tested count. */
+					printf( esc_html__( '%1$d of %2$d packed · %3$d tested', 'project-prepper' ), (int) $packed_lines, count( $lines ), (int) $tested_lines );
 					?>
 				</p>
 				<div class="pp-packlist__table" role="table">
@@ -4683,6 +4695,7 @@ class MemberPortal {
 						<span class="pp-pack-col pp-pack-col--desc" role="columnheader"><?php esc_html_e( 'Item', 'project-prepper' ); ?></span>
 						<span class="pp-pack-col pp-pack-col--cond" role="columnheader"><?php esc_html_e( 'Condition', 'project-prepper' ); ?></span>
 						<span class="pp-pack-col pp-pack-col--pack" role="columnheader"><?php esc_html_e( 'Packed', 'project-prepper' ); ?></span>
+						<span class="pp-pack-col pp-pack-col--test" role="columnheader"><?php esc_html_e( 'Tested', 'project-prepper' ); ?></span>
 					</div>
 					<?php foreach ( $lines as $line ) :
 						$is_packed = ! empty( $line->packed_at );
@@ -4691,6 +4704,7 @@ class MemberPortal {
 						$desc      = trim( (string) ( $line->item_description ?? '' ) );
 						?>
 						<div class="pp-pack-row<?php echo $is_packed ? ' pp-pack-row--done' : ''; ?>" role="row">
+							<?php $is_tested = ! empty( $line->tested_at ); ?>
 							<span class="pp-pack-col pp-pack-col--qty" role="cell"><?php echo (int) $line->quantity; ?>×</span>
 							<span class="pp-pack-col pp-pack-col--photo" role="cell">
 								<?php if ( '' !== $img ) : ?>
@@ -4709,30 +4723,54 @@ class MemberPortal {
 								<?php endif; ?>
 							</span>
 							<span class="pp-pack-col pp-pack-col--cond" role="cell"><?php echo esc_html( $cond ); ?></span>
-							<span class="pp-pack-col pp-pack-col--pack" role="cell">
-								<?php // Kästchen für den Ausdruck: gefüllt = gepackt. ?>
-								<span class="pp-pack-box<?php echo $is_packed ? ' pp-pack-box--on' : ''; ?>" aria-hidden="true"></span>
-								<?php if ( $can_edit ) : ?>
-									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pp-pack-form">
-										<?php self::action_fields( 'project_item_pack' ); ?>
-										<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
-										<input type="hidden" name="pp_line" value="<?php echo (int) $line->id; ?>">
-										<input type="hidden" name="pp_packed" value="<?php echo $is_packed ? '0' : '1'; ?>">
-										<button type="submit" class="pp-portal__chip<?php echo $is_packed ? ' pp-portal__chip--done' : ''; ?>"><?php
-											echo $is_packed
-												? esc_html__( 'Packed', 'project-prepper' ) . ' ✓'
-												: esc_html__( 'Mark packed', 'project-prepper' );
-										?></button>
-									</form>
-								<?php else : ?>
-									<span class="pp-pack-status"><?php echo $is_packed ? esc_html__( 'Packed', 'project-prepper' ) : esc_html__( 'Open', 'project-prepper' ); ?></span>
-								<?php endif; ?>
-							</span>
+							<?php
+							self::packlist_flag_cell( $p, $line, $is_packed, $can_edit, [
+								'col'       => 'pack',
+								'action'    => 'project_item_pack',
+								'field'     => 'pp_packed',
+								'label_on'  => __( 'Packed', 'project-prepper' ),
+								'label_off' => __( 'Mark packed', 'project-prepper' ),
+							] );
+							self::packlist_flag_cell( $p, $line, $is_tested, $can_edit, [
+								'col'       => 'test',
+								'action'    => 'project_item_test',
+								'field'     => 'pp_tested',
+								'label_on'  => __( 'Tested', 'project-prepper' ),
+								'label_off' => __( 'Mark tested', 'project-prepper' ),
+							] );
+							?>
 						</div>
 					<?php endforeach; ?>
 				</div>
 			<?php endif; ?>
 		</section>
+		<?php
+	}
+
+	/**
+	 * Eine Packlisten-Statuszelle (gepackt oder getestet): Druck-Kästchen +
+	 * Toggle-Button (bzw. read-only Status). $cfg: col ('pack'|'test'), action
+	 * (pp_do), field (Hidden-Feldname), label_on/label_off (bereits übersetzt).
+	 */
+	private static function packlist_flag_cell( object $p, object $line, bool $on, bool $can_edit, array $cfg ): void {
+		?>
+		<span class="pp-pack-col pp-pack-col--<?php echo esc_attr( $cfg['col'] ); ?>" role="cell">
+			<?php // Kästchen für den Ausdruck: gefüllt = erledigt. ?>
+			<span class="pp-pack-box<?php echo $on ? ' pp-pack-box--on' : ''; ?>" aria-hidden="true"></span>
+			<?php if ( $can_edit ) : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pp-pack-form">
+					<?php self::action_fields( $cfg['action'] ); ?>
+					<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+					<input type="hidden" name="pp_line" value="<?php echo (int) $line->id; ?>">
+					<input type="hidden" name="<?php echo esc_attr( $cfg['field'] ); ?>" value="<?php echo $on ? '0' : '1'; ?>">
+					<button type="submit" class="pp-portal__chip<?php echo $on ? ' pp-portal__chip--done' : ''; ?>"><?php
+						echo $on ? esc_html( $cfg['label_on'] ) . ' ✓' : esc_html( $cfg['label_off'] );
+					?></button>
+				</form>
+			<?php else : ?>
+				<span class="pp-pack-status"><?php echo $on ? esc_html( $cfg['label_on'] ) : esc_html__( 'Open', 'project-prepper' ); ?></span>
+			<?php endif; ?>
+		</span>
 		<?php
 	}
 
