@@ -417,8 +417,9 @@ class MemberPortal {
 				}
 			}
 		}
-		// Kategorie- und Gesamt-Freigabe-Aktionen kehren zur Inventar-Ansicht zurück.
-		if ( in_array( $do, [ 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all', 'item_share', 'item_unshare', 'item_share_set' ], true ) ) {
+		// Inventar-, Kategorie- und Gesamt-Freigabe-Aktionen kehren zur Inventar-
+		// Ansicht zurück (statt aufs Dashboard) — inkl. Artikel anlegen/bearbeiten/löschen.
+		if ( in_array( $do, [ 'item_create', 'item_update', 'item_delete', 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all', 'item_share', 'item_unshare', 'item_share_set' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		}
 		// Anfragen-Aktionen kehren zur Anfragen-Ansicht zurück — Bearbeiten und

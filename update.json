@@ -1,9 +1,9 @@
 {
-  "version": "0.119.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.119.0/project-prepper-0.119.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.119.0",
+  "version": "0.120.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.120.0/project-prepper-0.120.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.120.0",
   "published": "2026-07-25",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Projekte: neuer Reiter „Packliste“ — eine druckfertige A4-Liste der fürs Projekt gebuchten Technik (Menge, Foto, Artikel mit Inventar-Nr. und Beschreibung, Zustand und ein Gepackt-Häkchen). Der Gepackt-Status wird pro Buchung gespeichert, bleibt nach dem Neuladen erhalten und ist für alle im Kollektiv sichtbar, mit Zähler „N von M Artikeln gepackt“. Ein Drucken-Knopf gibt nur die Liste auf A4 mit Projektkopf und Abhak-Kästchen aus; für Betrachter außerhalb des besitzenden Kollektivs ist die Liste schreibgeschützt. Schema 0.36.0 (additive Spalte packed_at, keine Migration nötig)."
+  "changelog": "Fehlerbehebung: Beim Anlegen, Bearbeiten oder Löschen eines Artikels in „Mein Inventar“ sprang die Ansicht fälschlich aufs Dashboard zurück. Jetzt bleibt man nach der Aktion in der Inventar-Ansicht. Kein Schema-Change (bleibt 0.36.0)."
 }

@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.119.0
+Stable tag: 0.120.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,9 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.120.0 =
+* Fix: creating, editing or deleting an item in “My inventory” no longer jumps back to the dashboard — you now stay in the inventory view after the action.
 
 = 0.119.0 =
 * Projects: new “Packing list” tab — a print-ready A4 list of the equipment booked for a project (quantity, photo, item with number and description, condition, and a packed checkbox).

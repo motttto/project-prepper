@@ -3,6 +3,16 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.120.0 2026-07-25 (Bugfix: Redirect nach Inventar-Aktionen, Schema UNVERÄNDERT 0.36.0)
+> **Ausgeliefert.** Bugfix: Beim Anlegen/Bearbeiten/Löschen eines Artikels in „Mein Inventar" sprang die
+> Ansicht fälschlich aufs Dashboard zurück. Ursache: im Dispatcher-Redirect (`handle_collective_action`) standen
+> nur Kategorie-/Freigabe-Aktionen in der „zurück zu `pp_view=inventory`"-Liste; `item_create`/`item_update`/
+> `item_delete` fehlten und fielen auf den Default (`portal_url()` = Dashboard). Fix: diese drei Aktionen in
+> dieselbe `in_array(...)`-Liste aufgenommen. **Kein Schema-Change** (bleibt 0.36.0), **keine neuen i18n-Strings**.
+> Geänderte Datei: `Frontend/MemberPortal.php` (eine Zeile + Kommentar). Plugin Check: nur die zwei
+> by-design-ERRORs (`hidden_files`, `plugin_updater_detected`). ZIP 1.2 MB, `update.json` auf 0.120.0.
+> GitHub-Release `v0.120.0` mit ZIP-Asset, Updater sieht das Release (is_asset=true, package zeigt aufs ZIP).
+
 > ## 🚀 Release v0.119.0 2026-07-25 (Projekt-Reiter „Packliste", Schema 0.36.0)
 > **Ausgeliefert.** Neuer Projekt-Reiter **„Packliste"**: druckfertige A4-Liste des fürs Projekt gebuchten
 > Equipments — Spalten Menge · Foto · Artikel (Name + Inventar-Nr. + Beschreibung) · Zustand · Gepackt. Der
