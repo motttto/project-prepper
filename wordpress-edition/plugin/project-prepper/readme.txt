@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.118.0
+Stable tag: 0.119.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,12 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.119.0 =
+* Projects: new “Packing list” tab — a print-ready A4 list of the equipment booked for a project (quantity, photo, item with number and description, condition, and a packed checkbox).
+* The packed status is saved per booking, stays after reload and is shared with everyone in the group, with a “N of M items packed” counter.
+* A print button and print stylesheet output just the list on A4 with the project header and a check box per item; the list is read-only for viewers outside the owning collective.
+* Schema 0.36.0: adds a packed_at column on project items (additive, no migration needed).
 
 = 0.118.0 =
 * Collectives: a richer per-group detail page with Overview / Settings tabs — members now show their email, the header shows the founding date, and invitations show the personal message, an “invited by …” line, clear status (waiting / voting / joined) and reminder counts. You can attach a message when inviting, resend the invite (counted) and, during voting, remind members who haven’t voted yet.

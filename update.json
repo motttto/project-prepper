@@ -1,9 +1,9 @@
 {
-  "version": "0.118.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.118.0/project-prepper-0.118.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.118.0",
-  "published": "2026-07-24",
+  "version": "0.119.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.119.0/project-prepper-0.119.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.119.0",
+  "published": "2026-07-25",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Kollektive: reichere Gruppen-Detailseite mit Reitern Übersicht / Einstellungen — Mitglieder mit E-Mail, „gegründet am“ im Kopf, und Einladungen mit persönlicher Nachricht, „eingeladen von …“, klarem Status (wartet / Abstimmung / aufgenommen) und Erinnerungs-Zählern. Beim Einladen kann man eine Nachricht mitschicken, die Einladung erneut senden (gezählt) und während der Abstimmung die noch nicht abstimmenden Mitglieder erinnern."
+  "changelog": "Projekte: neuer Reiter „Packliste“ — eine druckfertige A4-Liste der fürs Projekt gebuchten Technik (Menge, Foto, Artikel mit Inventar-Nr. und Beschreibung, Zustand und ein Gepackt-Häkchen). Der Gepackt-Status wird pro Buchung gespeichert, bleibt nach dem Neuladen erhalten und ist für alle im Kollektiv sichtbar, mit Zähler „N von M Artikeln gepackt“. Ein Drucken-Knopf gibt nur die Liste auf A4 mit Projektkopf und Abhak-Kästchen aus; für Betrachter außerhalb des besitzenden Kollektivs ist die Liste schreibgeschützt. Schema 0.36.0 (additive Spalte packed_at, keine Migration nötig)."
 }

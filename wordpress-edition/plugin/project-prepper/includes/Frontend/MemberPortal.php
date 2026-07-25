@@ -726,6 +726,12 @@ class MemberPortal {
 				$result = self::member_remove_booking( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ) );
 				$ok_msg = 'booking_removed';
 				break;
+			case 'project_item_pack':
+				// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce oben geprüft.
+				$want   = ! empty( $_POST['pp_packed'] );
+				$result = self::member_toggle_packed( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ), $want );
+				$ok_msg = $want ? 'packlist_packed' : 'packlist_unpacked';
+				break;
 			// --- Freigabe-Workflow: nur der Artikel-Eigentümer entscheidet (Gate im Service) ---
 			case 'booking_approve':
 				$result = BookingApprovals::approve( get_current_user_id(), (int) ( $_POST['pp_line'] ?? 0 ) );
@@ -1335,6 +1341,8 @@ class MemberPortal {
 			'booking_pending'  => [ 'ok', __( 'Booked. Some items need the owner’s approval and are marked as pending.', 'project-prepper' ) ],
 			'booking_none_selected' => [ 'err', __( 'Please tick at least one item to book.', 'project-prepper' ) ],
 			'booking_removed'  => [ 'ok', __( 'Booking removed.', 'project-prepper' ) ],
+			'packlist_packed'   => [ 'ok', __( 'Marked as packed.', 'project-prepper' ) ],
+			'packlist_unpacked' => [ 'ok', __( 'Marked as not packed.', 'project-prepper' ) ],
 			'booking_reapproval' => [ 'ok', __( 'Change saved — it needs the owner’s approval again and is marked as pending.', 'project-prepper' ) ],
 			'booking_approved' => [ 'ok', __( 'Booking approved.', 'project-prepper' ) ],
 			'booking_rejected' => [ 'ok', __( 'Booking rejected and removed.', 'project-prepper' ) ],
@@ -3830,6 +3838,14 @@ class MemberPortal {
 		return Projects::remove_item( $pid, $line_id );
 	}
 
+	/** Packlisten-Status einer Buchungszeile umschalten (Gate: aktiver Workspace). */
+	private static function member_toggle_packed( int $pid, int $line_id, bool $packed ) {
+		if ( ! self::member_owned_project( $pid ) ) {
+			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		return Projects::set_packed( $pid, $line_id, $packed );
+	}
+
 	/* ---------- Projekt-Unterlisten (Zeitplan/Aufgaben/…) ---------- */
 
 	/**
@@ -3849,7 +3865,7 @@ class MemberPortal {
 			'contact_add', 'contact_update', 'contact_delete',
 			'cost_add', 'cost_update', 'cost_delete',
 			'profit_add', 'profit_update', 'profit_remove',
-			'project_finance', 'file_detach',
+			'project_finance', 'file_detach', 'project_item_pack',
 		];
 	}
 
@@ -4253,6 +4269,7 @@ class MemberPortal {
 			'overview'   => __( 'Overview', 'project-prepper' ),
 			'schedule'   => __( 'Schedule', 'project-prepper' ),
 			'equipment'  => __( 'Equipment', 'project-prepper' ),
+			'packlist'   => __( 'Packing list', 'project-prepper' ),
 			'team'       => __( 'Team & contacts', 'project-prepper' ),
 			'materials'  => __( 'Materials', 'project-prepper' ),
 			'costs'      => __( 'Costs', 'project-prepper' ),
@@ -4510,6 +4527,9 @@ class MemberPortal {
 		// App, kein Finanz-Leak gegen Nicht-Mitglieder.
 		$g_members = $can_edit ? Groups::members( (int) $p->owner_group_id ) : [];
 		switch ( $tab ) {
+			case 'packlist':
+				self::render_project_packlist( $p, $can_edit );
+				break;
 			case 'schedule':
 				self::render_project_schedule( $p, $can_edit );
 				break;
@@ -4614,6 +4634,105 @@ class MemberPortal {
 			</form>
 			<?php
 		endforeach;
+	}
+
+	/**
+	 * Packliste — druckfertige (A4) Liste des gebuchten Equipments. Spalten von
+	 * links: Anzahl · Foto · Beschreibung + Inventar-Nr. · Zustand · gepackt.
+	 * „gepackt" wird pro Zeile gespeichert (packed_at) und ist für alle sichtbar.
+	 */
+	private static function render_project_packlist( object $p, bool $can_edit ): void {
+		$lines      = (array) ( $p->items ?? [] );
+		$conditions = Shortcodes::condition_labels();
+		$done_lines = 0;
+		foreach ( $lines as $l ) {
+			if ( ! empty( $l->packed_at ) ) {
+				$done_lines++;
+			}
+		}
+		$range = self::fmt_range( $p->date_start, $p->date_end );
+		?>
+		<section class="pp-card pp-packlist">
+			<div class="pp-packlist__head">
+				<h3 class="pp-card__title"><?php esc_html_e( 'Packing list', 'project-prepper' ); ?></h3>
+				<?php if ( $lines ) : ?>
+					<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-pack-print" onclick="window.print()"><?php esc_html_e( 'Print', 'project-prepper' ); ?></button>
+				<?php endif; ?>
+			</div>
+
+			<?php // Nur im Druck sichtbarer Kopf (A4) — identifiziert das Projekt auf dem Ausdruck. ?>
+			<div class="pp-packlist__print-head" aria-hidden="true">
+				<strong><?php echo esc_html( $p->name ); ?></strong>
+				<span><?php echo esc_html( $p->project_number . ( '' !== $range ? ' · ' . $range : '' ) ); ?></span>
+			</div>
+
+			<?php if ( ! $lines ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No equipment booked yet — nothing to pack.', 'project-prepper' ); ?></p>
+			<?php else : ?>
+				<p class="pp-packlist__summary">
+					<?php
+					/* translators: 1: number of packed items, 2: total number of items. */
+					printf( esc_html__( '%1$d of %2$d items packed', 'project-prepper' ), (int) $done_lines, count( $lines ) );
+					?>
+				</p>
+				<div class="pp-packlist__table" role="table">
+					<div class="pp-pack-row pp-pack-row--head" role="row">
+						<span class="pp-pack-col pp-pack-col--qty" role="columnheader"><?php esc_html_e( 'Qty', 'project-prepper' ); ?></span>
+						<span class="pp-pack-col pp-pack-col--photo" role="columnheader"><?php esc_html_e( 'Photo', 'project-prepper' ); ?></span>
+						<span class="pp-pack-col pp-pack-col--desc" role="columnheader"><?php esc_html_e( 'Item', 'project-prepper' ); ?></span>
+						<span class="pp-pack-col pp-pack-col--cond" role="columnheader"><?php esc_html_e( 'Condition', 'project-prepper' ); ?></span>
+						<span class="pp-pack-col pp-pack-col--pack" role="columnheader"><?php esc_html_e( 'Packed', 'project-prepper' ); ?></span>
+					</div>
+					<?php foreach ( $lines as $line ) :
+						$is_packed = ! empty( $line->packed_at );
+						$img       = ! empty( $line->image_id ) ? ( wp_get_attachment_image_url( (int) $line->image_id, 'thumbnail' ) ?: '' ) : '';
+						$cond      = $conditions[ $line->item_condition ] ?? (string) $line->item_condition;
+						$desc      = trim( (string) ( $line->item_description ?? '' ) );
+						?>
+						<div class="pp-pack-row<?php echo $is_packed ? ' pp-pack-row--done' : ''; ?>" role="row">
+							<span class="pp-pack-col pp-pack-col--qty" role="cell"><?php echo (int) $line->quantity; ?>×</span>
+							<span class="pp-pack-col pp-pack-col--photo" role="cell">
+								<?php if ( '' !== $img ) : ?>
+									<img class="pp-pack-thumb" src="<?php echo esc_url( $img ); ?>" alt="" loading="lazy">
+								<?php else : ?>
+									<span class="pp-pack-thumb pp-pack-thumb--empty" aria-hidden="true"></span>
+								<?php endif; ?>
+							</span>
+							<span class="pp-pack-col pp-pack-col--desc" role="cell">
+								<span class="pp-pack-name"><?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?></span>
+								<?php if ( ! empty( $line->inventory_number ) ) : ?>
+									<span class="pp-pack-num"><?php echo esc_html( $line->inventory_number ); ?></span>
+								<?php endif; ?>
+								<?php if ( '' !== $desc ) : ?>
+									<span class="pp-pack-desc"><?php echo esc_html( $desc ); ?></span>
+								<?php endif; ?>
+							</span>
+							<span class="pp-pack-col pp-pack-col--cond" role="cell"><?php echo esc_html( $cond ); ?></span>
+							<span class="pp-pack-col pp-pack-col--pack" role="cell">
+								<?php // Kästchen für den Ausdruck: gefüllt = gepackt. ?>
+								<span class="pp-pack-box<?php echo $is_packed ? ' pp-pack-box--on' : ''; ?>" aria-hidden="true"></span>
+								<?php if ( $can_edit ) : ?>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pp-pack-form">
+										<?php self::action_fields( 'project_item_pack' ); ?>
+										<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+										<input type="hidden" name="pp_line" value="<?php echo (int) $line->id; ?>">
+										<input type="hidden" name="pp_packed" value="<?php echo $is_packed ? '0' : '1'; ?>">
+										<button type="submit" class="pp-portal__chip<?php echo $is_packed ? ' pp-portal__chip--done' : ''; ?>"><?php
+											echo $is_packed
+												? esc_html__( 'Packed', 'project-prepper' ) . ' ✓'
+												: esc_html__( 'Mark packed', 'project-prepper' );
+										?></button>
+									</form>
+								<?php else : ?>
+									<span class="pp-pack-status"><?php echo $is_packed ? esc_html__( 'Packed', 'project-prepper' ) : esc_html__( 'Open', 'project-prepper' ); ?></span>
+								<?php endif; ?>
+							</span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+		</section>
+		<?php
 	}
 
 	/** Zeitplan — nach Tag gruppiert (wie der Zeitplan-Tab der App). */

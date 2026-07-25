@@ -11,7 +11,7 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.35.0';
+	const VERSION    = '0.36.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -252,6 +252,8 @@ class Schema {
 		// auto-freigegebene bleiben gültig. requested_by = Anfrager (bei pending),
 		// decided_at = Zeitpunkt der Eigentümer-Entscheidung. Pending-Zeilen zählen
 		// weiterhin gegen die Verfügbarkeit (Availability zählt alle Zeilen).
+		// packed_at (v0.36.0) — Packlisten-Status: NULL = noch nicht gepackt,
+		// datetime = als „gepackt" markiert. Additiv via dbDelta, keine Migration.
 		dbDelta( "CREATE TABLE {$p_items} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			project_id bigint(20) unsigned NOT NULL,
@@ -263,6 +265,7 @@ class Schema {
 			approval_status varchar(20) NOT NULL DEFAULT 'approved',
 			requested_by bigint(20) unsigned DEFAULT NULL,
 			decided_at datetime DEFAULT NULL,
+			packed_at datetime DEFAULT NULL,
 			PRIMARY KEY  (id),
 			KEY project_id (project_id),
 			KEY item_id (item_id),

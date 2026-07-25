@@ -349,7 +349,8 @@ class Projects {
 	public static function items_for( int $project_id ): array {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare(
-			'SELECT pi.*, i.name AS item_name, i.inventory_number
+			'SELECT pi.*, i.name AS item_name, i.inventory_number,
+			        i.description AS item_description, i.item_condition, i.image_id
 			 FROM %i pi
 			 LEFT JOIN %i i ON i.id = pi.item_id
 			 WHERE pi.project_id = %d
@@ -358,6 +359,27 @@ class Projects {
 			Schema::table( 'items' ),
 			$project_id
 		) ) ?: [];
+	}
+
+	/**
+	 * Packlisten-Status einer Buchungszeile setzen: $packed=true → packed_at auf
+	 * jetzt, false → NULL (zurückgesetzt). Der Aufrufer erzwingt den Projekt-
+	 * Zugriff (member_owned_project).
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function set_packed( int $project_id, int $line_id, bool $packed ) {
+		global $wpdb;
+		$existing = self::get_item_line( $project_id, $line_id );
+		if ( ! $existing ) {
+			return new WP_Error( 'pp_not_found', __( 'Line item not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$wpdb->update(
+			Schema::table( 'project_items' ),
+			[ 'packed_at' => $packed ? current_time( 'mysql' ) : null ],
+			[ 'id' => $line_id, 'project_id' => $project_id ]
+		);
+		return true;
 	}
 
 	public static function get_item_line( int $project_id, int $line_id ): ?object {

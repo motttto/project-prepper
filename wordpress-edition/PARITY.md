@@ -3,6 +3,19 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🚀 Release v0.119.0 2026-07-25 (Projekt-Reiter „Packliste", Schema 0.36.0)
+> **Ausgeliefert.** Neuer Projekt-Reiter **„Packliste"**: druckfertige A4-Liste des fürs Projekt gebuchten
+> Equipments — Spalten Menge · Foto · Artikel (Name + Inventar-Nr. + Beschreibung) · Zustand · Gepackt. Der
+> **Gepackt-Status wird pro Buchungszeile gespeichert** (`packed_at`), bleibt nach Reload, ist für alle
+> Kollektiv-Mitglieder sichtbar, Zähler „N von M Artikeln gepackt". **Drucken-Button** + `@media print`-Stil
+> (nur die Liste auf A4, App-Chrome aus, Projektkopf + Abhak-Kästchen je Artikel). Read-only für Betrachter
+> außerhalb des besitzenden Kollektivs. **Schema additiv 0.36.0** (`pp_project_items.packed_at datetime`,
+> dbDelta, keine Datenmigration). Geänderte Dateien: `Schema.php`, `Services/Projects.php`
+> (`items_for()` liefert `image_id`/`item_condition`/`item_description`, neue `set_packed()`),
+> `Frontend/MemberPortal.php` (Reiter `packlist`, Aktion `project_item_pack`, `render_project_packlist()`),
+> `assets/css/frontend.css`, `languages/*` (9 neue Strings, `.pot`/`.po`/`.mo` gebaut). Plugin Check: nur die
+> zwei by-design-ERRORs (`hidden_files`, `plugin_updater_detected`). ZIP 1.2 MB, `update.json` auf 0.119.0.
+
 > ## 🚀 Release v0.118.0 2026-07-24 (Kollektiv-Detail auf App-Niveau, Schema 0.35.0)
 > **Ausgeliefert.** Enthält den darunter beschriebenen Parity-Lauf: zwei-Reiter-Kollektiv-Detailseite
 > (Übersicht/Einstellungen via `pp_group`+`pp_ctab`), Header „N aktive Mitglieder · gegründet am …", Mitglieder

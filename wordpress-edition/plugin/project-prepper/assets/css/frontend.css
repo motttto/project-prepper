@@ -2687,3 +2687,118 @@ label.pp-swatch,
 .pp-approval__cond-label { font-size: .78rem; font-weight: 600; color: var(--pp-foreground); }
 .pp-approval__cond-text { font-size: .82rem; color: var(--pp-muted-foreground); flex-basis: 100%; }
 .pp-approval .pp-portal__actions { margin-top: 2px; }
+
+/* ---------- Packliste (Packing list) ---------- */
+.pp-packlist__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pp-packlist__head .pp-card__title { margin: 0; }
+.pp-packlist__summary { color: var(--pp-muted-foreground); font-size: .85rem; margin: 4px 0 12px; }
+/* Druck-Kopf: nur beim Drucken sichtbar (siehe @media print). */
+.pp-packlist__print-head { display: none; }
+
+.pp-packlist__table { display: flex; flex-direction: column; }
+.pp-pack-row {
+	display: grid;
+	grid-template-columns: 40px 52px minmax(0, 1fr) minmax(72px, auto) minmax(96px, auto);
+	align-items: center;
+	gap: 12px;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--pp-border);
+}
+.pp-pack-row:last-child { border-bottom: none; }
+.pp-pack-row--head {
+	font-size: .72rem;
+	text-transform: uppercase;
+	letter-spacing: .04em;
+	color: var(--pp-muted-foreground);
+	font-weight: 600;
+}
+.pp-pack-row--done { opacity: .6; }
+.pp-pack-col--qty { font-weight: 700; color: var(--pp-foreground); }
+.pp-pack-col--pack { display: flex; align-items: center; gap: 8px; }
+
+.pp-pack-thumb {
+	width: 48px;
+	height: 48px;
+	border-radius: 8px;
+	object-fit: cover;
+	background: var(--pp-muted);
+	display: block;
+}
+.pp-pack-thumb--empty { border: 1px dashed var(--pp-border); }
+
+.pp-pack-col--desc { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pp-pack-name { font-weight: 600; color: var(--pp-foreground); }
+.pp-pack-num {
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: .74rem;
+	color: var(--pp-muted-foreground);
+}
+.pp-pack-desc { font-size: .8rem; color: var(--pp-muted-foreground); }
+.pp-pack-status { font-size: .8rem; color: var(--pp-muted-foreground); }
+.pp-pack-form { margin: 0; }
+.pp-portal__chip--done { background: var(--pp-primary); border-color: var(--pp-primary); color: #fff; }
+
+/* Abhak-Kästchen — auf dem Bildschirm dezent, im Druck das Kern-Element. */
+.pp-pack-box {
+	width: 18px;
+	height: 18px;
+	flex: none;
+	border: 1.5px solid var(--pp-border);
+	border-radius: 4px;
+	background: transparent;
+}
+.pp-pack-box--on { background: var(--pp-primary); border-color: var(--pp-primary); position: relative; }
+.pp-pack-box--on::after {
+	content: "";
+	position: absolute;
+	left: 5px; top: 1px;
+	width: 5px; height: 10px;
+	border: solid #fff;
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg);
+}
+
+@media (max-width: 640px) {
+	.pp-pack-row { grid-template-columns: 34px 44px minmax(0, 1fr) auto; gap: 8px; }
+	.pp-pack-col--cond { grid-column: 3; font-size: .78rem; color: var(--pp-muted-foreground); }
+	.pp-pack-row--head .pp-pack-col--cond { display: none; }
+}
+
+/* ---------- A4-Druck: nur die Packliste, ohne App-Chrome ---------- */
+@media print {
+	/* App-Rahmen ausblenden. */
+	.pp-app__sidebar,
+	.pp-app__topbar,
+	.pp-app__overlay,
+	.pp-proj-tabs,
+	.pp-portal__actions,
+	#wpadminbar,
+	.pp-pack-print,
+	.pp-pack-form,
+	.pp-portal__notice { display: none !important; }
+
+	/* Layout auf volle Breite ohne Ränder. */
+	.pp-app,
+	.pp-app__main-wrap,
+	.pp-app__main,
+	.pp-app__content { display: block !important; margin: 0 !important; padding: 0 !important; max-width: none !important; }
+
+	.pp-card { border: none !important; box-shadow: none !important; padding: 0 !important; }
+	.pp-packlist__print-head {
+		display: flex !important;
+		flex-direction: column;
+		gap: 2px;
+		margin-bottom: 10px;
+		padding-bottom: 8px;
+		border-bottom: 2px solid #000;
+	}
+	.pp-packlist__print-head strong { font-size: 1.15rem; }
+
+	.pp-pack-row { break-inside: avoid; border-bottom: 1px solid #999; opacity: 1 !important; }
+	.pp-pack-thumb { width: 40px; height: 40px; }
+	.pp-pack-col--pack { justify-content: flex-start; }
+	.pp-pack-box { width: 20px; height: 20px; border-color: #000; }
+
+	/* Farben/Hintergründe im Druck erzwingen (Kästchen-Haken). */
+	* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
