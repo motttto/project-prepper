@@ -1,9 +1,9 @@
 {
-  "version": "0.121.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.121.0/project-prepper-0.121.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.121.0",
+  "version": "0.122.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.122.0/project-prepper-0.122.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.122.0",
   "published": "2026-07-25",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Packliste: Jede Buchungszeile hat jetzt neben „Gepackt“ einen zweiten Status „Getestet“ — eigener gespeicherter Status mit eigenem Kästchen auf der gedruckten A4-Liste. Der Status bleibt nach dem Neuladen und ist für alle im Kollektiv sichtbar; der Zähler im Kopf zeigt beides („N von M gepackt · K getestet“). Schema additiv 0.37.0, keine Migration."
+  "changelog": "Sicherheits-Release. Geschlossen wurde ein kollektivübergreifender Datenzugriff: Ein Mitglied konnte bisher über die REST-API und die Betreiber-Seiten Inventar-, Verleih- und Anfrage-Daten anderer Kollektive lesen. Mitglieder sehen jetzt nur noch ihre eigenen Kollektive; das Mitglieder-Portal behält seinen vollen Umfang. Zusätzlich: Lücke beim Löschen von Artikel-Dokumenten geschlossen, Formel-/CSV-Injection im Inventar-Export neutralisiert, kleinere Härtungen (öffentliche Artikelseite, Projekt-Löschen/Entfernen, Updater-Download nur von GitHub). Login-Drosselung ist jetzt standardmäßig AN (5 Fehlversuche/IP sperren 15 Min., im Backend abschaltbar). Schema 0.38.0 ohne Tabellen-Änderung — der Versionswechsel setzt nur die verschärfte Mitglieder-Rolle auf Bestandsinstanzen neu."
 }

@@ -100,7 +100,10 @@ class ItemDetail {
 		}
 
 		add_filter( 'pre_get_document_title', static function () use ( $row ) {
-			return $row->name . ' – ' . get_bloginfo( 'name' );
+			// Selbst escapen: der Filter kurzschließt wp_get_document_title() vor
+			// dessen internem esc_html; bei klassischen Themes echot der Core den
+			// Rückgabewert ungeescaped in <title> (Defense-in-Depth).
+			return esc_html( $row->name . ' – ' . get_bloginfo( 'name' ) );
 		} );
 
 		wp_enqueue_style( 'pp-frontend' );

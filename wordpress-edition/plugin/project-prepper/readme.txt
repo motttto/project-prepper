@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.121.0
+Stable tag: 0.122.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.122.0 =
+* Security hardening: closed a cross-collective data leak — a group member could previously read inventory, rental and inquiry data of other collectives via the REST API and the operator admin pages. Members now only see their own collectives; the member portal keeps its full scope.
+* Fixed a media permission gap (an item document could be deleted without belonging to that item) and neutralized formula/CSV injection in the inventory export.
+* Smaller hardening: escaped the public item page title, added access checks on project delete/remove, restricted the updater download to GitHub hosts.
+* Login throttling is now ON by default (5 failed attempts per IP block logins for 15 minutes) — operators can turn it off under Settings → Security.
+* Schema 0.38.0: no table changes; the version bump re-applies the tightened member role on existing installs.
 
 = 0.121.0 =
 * Packing list: each booking now has a second status “Tested” next to “Packed” — an own saved status with its own checkbox on the printed A4 list.

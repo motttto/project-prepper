@@ -22,6 +22,21 @@ class ImportExportController extends BaseController {
 	 * Export-Spaltenköpfe (19 Spalten) — Methode statt const, damit __() greift.
 	 * de_DE liefert weiterhin die bisherigen deutschen Excel-Header.
 	 */
+	/**
+	 * CSV-/Formula-Injection abwehren: Zellen, die mit einem Zeichen beginnen, das
+	 * Tabellenkalkulationen (Excel/LibreOffice) als Formel interpretieren
+	 * (`= + - @`, Tab, CR), mit führendem Apostroph als Text neutralisieren. So
+	 * kann ein nutzerkontrolliertes Feld wie `=HYPERLINK(...)` beim Öffnen der
+	 * Export-Datei keinen Code/keine Exfiltration auslösen.
+	 */
+	public static function csv_safe( $value ): string {
+		$value = (string) $value;
+		if ( '' !== $value && false !== strpbrk( $value[0], "=+-@\t\r" ) ) {
+			return "'" . $value;
+		}
+		return $value;
+	}
+
 	public static function export_columns(): array {
 		return [
 			'inventory_number' => __( 'Inventory number', 'project-prepper' ),
@@ -115,7 +130,7 @@ class ImportExportController extends BaseController {
 					$row[] = $item->{$key} ?? '';
 				}
 			}
-			fputcsv( $out, $row, ';' );
+			fputcsv( $out, array_map( [ self::class, 'csv_safe' ], $row ), ';' );
 		}
 
 		ActivityLog::log( 'inventory_exported', 'item', null, [ 'count' => count( $items ) ] );

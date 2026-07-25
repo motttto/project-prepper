@@ -540,6 +540,12 @@ class ProjectsController extends BaseController {
 	}
 
 	public function delete( WP_REST_Request $request ) {
+		// Zugriffsgate (Defense-in-Depth): Projects::get() erzwingt Gruppen-Zugriff
+		// (Mitglied ODER MANAGE_GROUPS/Admin) — verhindert, dass eine Custom-Rolle
+		// mit EDIT_PROJECTS ohne MANAGE_GROUPS fremde Kollektiv-Projekte löscht.
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
 		Projects::delete( (int) $request['id'] );
 		return new WP_REST_Response( [ 'deleted' => true ] );
 	}
@@ -599,6 +605,11 @@ class ProjectsController extends BaseController {
 	}
 
 	public function remove_item( WP_REST_Request $request ) {
+		// Zugriffsgate wie bei delete() — kein Entfernen von Buchungen fremder
+		// Kollektiv-Projekte durch eine Rolle ohne MANAGE_GROUPS.
+		if ( ! Projects::get( (int) $request['id'] ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
 		$result = Projects::remove_item( (int) $request['id'], (int) $request['line_id'] );
 		if ( is_wp_error( $result ) ) {
 			return $result;

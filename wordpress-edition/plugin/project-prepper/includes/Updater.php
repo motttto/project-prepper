@@ -171,6 +171,12 @@ class Updater {
 		if ( ! is_array( $rel ) ) {
 			$rel = self::fetch_from_api();
 		}
+		// Supply-Chain-Härtung: das Update-ZIP nur akzeptieren, wenn die package-URL
+		// von einem vertrauenswürdigen Host stammt (GitHub). Sonst könnte ein
+		// manipuliertes/übernommenes Manifest ein beliebiges ZIP unterschieben.
+		if ( is_array( $rel ) && ! self::package_host_allowed( (string) ( $rel['package'] ?? '' ) ) ) {
+			$rel = null;
+		}
 		// Fehlversuche (z. B. 403 Rate-Limit) nur kurz cachen, damit ein erneuter
 		// Check bald wieder die Quelle fragt, statt 6 h „kein Release" festzuhalten.
 		if ( ! is_array( $rel ) ) {
@@ -179,6 +185,31 @@ class Updater {
 		}
 		set_transient( self::CACHE_KEY, $rel, self::CACHE_TTL );
 		return $rel;
+	}
+
+	/**
+	 * Ist der Host der package-URL vertrauenswürdig? Default: GitHub-Hosts
+	 * (github.com + *.githubusercontent.com). Betreiber, die Manifest UND ZIP
+	 * selbst hosten, können die Allowlist per Filter `pp_updater_package_hosts`
+	 * erweitern.
+	 */
+	private static function package_host_allowed( string $url ): bool {
+		if ( '' === $url ) {
+			return false;
+		}
+		$host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+		if ( '' === $host ) {
+			return false;
+		}
+		$allowed = (array) apply_filters( 'pp_updater_package_hosts', [ 'github.com', 'www.github.com', 'codeload.github.com' ] );
+		foreach ( $allowed as $ok ) {
+			$ok = strtolower( (string) $ok );
+			if ( $host === $ok ) {
+				return true;
+			}
+		}
+		// *.githubusercontent.com (Release-Assets/Raw) generisch zulassen.
+		return (bool) preg_match( '/(^|\.)githubusercontent\.com$/', $host );
 	}
 
 	/**

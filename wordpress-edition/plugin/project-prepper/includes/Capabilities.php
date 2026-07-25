@@ -82,16 +82,18 @@ class Capabilities {
 			self::COLLECTIVES     => true,
 		] );
 
-		// Member: nur lesen (≈ App-Rolle "Member" mit View-Permissions) + an
-		// Kollektiven teilnehmen (Member-Portal, Selbstbedienung im Frontend).
+		// Member: NUR Kollektiv-Teilnahme im Frontend-Portal (Selbstbedienung).
+		// Die VIEW_*-Caps wurden bewusst ENTFERNT (Sicherheit, v0.122.0): sie
+		// gaten die betreiberweiten Operator-Flächen (wp-admin-Seiten in Menu.php
+		// + REST-Controller Items/Rentals/Inquiries), die instanzweit ALLE Daten
+		// aller Kollektive liefern. Ein Mitglied hätte sie mit dem Portal-REST-Nonce
+		// abrufen können (Cross-Tenant-Leak). Der Portal-Zugriff selbst hängt NICHT
+		// an diesen Caps, sondern an der Gruppen-Mitgliedschaft — Mitglieder behalten
+		// vollen Portal-Funktionsumfang. Operator-Sichten bleiben Manager/Admin.
 		remove_role( 'pp_member' );
 		add_role( 'pp_member', __( 'Prepper Member', 'project-prepper' ), [
-			'read'               => true,
-			self::VIEW_INVENTORY => true,
-			self::VIEW_PROJECTS  => true,
-			self::VIEW_RENTALS   => true,
-			self::VIEW_INQUIRIES => true,
-			self::COLLECTIVES    => true,
+			'read'            => true,
+			self::COLLECTIVES => true,
 		] );
 	}
 

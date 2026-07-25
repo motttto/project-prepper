@@ -5,9 +5,9 @@ defined( 'ABSPATH' ) || exit;
 
 /**
  * Sicherheits-Prozesse fürs Frontend (Member-Portal) — zentral schaltbar im
- * Backend, **per Default alle AUS**. Aktiviert der Plattform-Betreiber einen
- * Schalter, greift die jeweilige Härtung; ist er aus, verhält sich alles wie
- * bisher (kein Verhalten ändert sich ohne bewusste Aktivierung).
+ * Backend. Konservative Defaults; einzige AUSNAHME seit v0.122.0: die
+ * Login-Brute-Force-Drosselung ist standardmäßig AN (sicherer Default), alle
+ * übrigen Härtungen bleiben opt-in. Jeder Schalter ist im Backend umstellbar.
  *
  * Speicherung: Option `pp_security` (assoziatives Array). Siehe Admin →
  * Project Prepper → Sicherheit.
@@ -20,7 +20,9 @@ class Security {
 	public static function defaults(): array {
 		return [
 			// Frontend-Login gegen Brute-Force sperren (zählt Fehlversuche pro IP).
-			'login_throttle'          => false,
+			// Seit v0.122.0 standardmäßig AN (sicherer Default; WP-Core hat keinen
+			// Brute-Force-Schutz). Betreiber können es im Backend abschalten.
+			'login_throttle'          => true,
 			'login_max_attempts'      => 5,
 			'login_lockout_minutes'   => 15,
 			// Schneeball-Schutz: max. Anzahl Kollektive, in denen ein User sein darf (0 = unbegrenzt).

@@ -103,8 +103,15 @@ class MediaController extends BaseController {
 		if ( ! $item ) {
 			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
-		$doc_id = (int) $request['doc_id'];
-		$docs   = array_values( array_filter( array_map( 'intval', (array) $item->document_ids ), static function ( $id ) use ( $doc_id ) {
+		$doc_id  = (int) $request['doc_id'];
+		$current = array_map( 'intval', (array) $item->document_ids );
+		// BOLA-Schutz: nur ein Attachment löschen, das WIRKLICH zu diesem Artikel
+		// gehört — sonst könnte über eine beliebige doc_id jedes Medium der
+		// Mediathek hart gelöscht werden.
+		if ( ! in_array( $doc_id, $current, true ) ) {
+			return new WP_Error( 'pp_not_found', __( 'Document not found for this item.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$docs = array_values( array_filter( $current, static function ( $id ) use ( $doc_id ) {
 			return $id !== $doc_id;
 		} ) );
 		wp_delete_attachment( $doc_id, true );

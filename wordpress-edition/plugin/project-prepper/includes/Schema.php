@@ -11,7 +11,10 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	const VERSION    = '0.37.0';
+	// v0.38.0: keine Tabellen-Änderung — der Bump erzwingt nur, dass Plugin::init()
+	// Capabilities::install() erneut ausführt (entzieht pp_member die VIEW_*-Caps,
+	// Security-Fix v0.122.0). dbDelta läuft idempotent durch.
+	const VERSION    = '0.38.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen

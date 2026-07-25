@@ -3,6 +3,27 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔒 Release v0.122.0 2026-07-25 (Security-Härtung: Cross-Tenant-REST geschlossen, Schema 0.38.0)
+> **Ausgeliefert.** Sicherheits-Release aus der umfassenden Sicherheitsüberprüfung. Kernfund: die REST-API war
+> cap-gated statt mandanten-gescoped, und die Rolle `pp_member` hatte `VIEW_*`-Caps + einen Portal-REST-Nonce →
+> ein Mitglied konnte instanzweit alle Inventar-/Verleih-/Anfrage-Daten **aller** Kollektive lesen (Cross-Tenant-Leak).
+> Fixes: **HIGH+IDOR** — `pp_member` verliert die `VIEW_*`-Caps (Rolle jetzt nur `read`+`COLLECTIVES`), schließt
+> REST `/items` `/rentals` `/inquiries` (Liste+`{id}`) **und** die identischen wp-admin-Operator-Seiten; Portal-Zugriff
+> hängt an der Gruppen-Mitgliedschaft, nicht an diesen Caps → Mitglieder behalten vollen Portal-Umfang. **Schema-Bump
+> 0.37.0 → 0.38.0** (KEINE Tabellen-Änderung) erzwingt nur, dass `Plugin::init()` bei Versionswechsel
+> `Capabilities::install()` neu ausführt, damit der Cap-Entzug auf Bestandsinstanzen greift. **MEDIUM:** Media-BOLA —
+> `MediaController::delete_document` prüft `in_array($doc_id, item->document_ids)` vor `wp_delete_attachment`;
+> CSV-/Formula-Injection im Inventar-Export via neuem `ImportExportController::csv_safe()` neutralisiert (`export_csv`
+> + `MemberPortal::handle_inventory_export`). **LOW:** öffentl. Artikelseite Titel `esc_html` (`ItemDetail.php`),
+> `ProjectsController::delete`+`remove_item` mit `Projects::get()`-Zugriffsgate, `Updater` package-URL-Host-Allowlist
+> (github.com + *.githubusercontent.com, Filter `pp_updater_package_hosts`), `Security` `login_throttle` **Default
+> jetzt AN** (5 Fehlversuche/IP → 15 min, im Backend abschaltbar). **Info:** `profit_add` prüft Zielperson via
+> `Groups::is_member`. Geänderte Dateien: `Capabilities.php`, `Schema.php` (VERSION 0.38.0), `Rest/MediaController.php`,
+> `Rest/ImportExportController.php`, `Rest/ProjectsController.php`, `Frontend/ItemDetail.php`, `Frontend/MemberPortal.php`,
+> `Updater.php`, `Security.php`; `languages/*` (neuer String „Document not found for this item." dt. übersetzt,
+> `.pot`/`.po`/`.mo` gebaut). Plugin Check: nur die zwei by-design-ERRORs (`hidden_files`, `plugin_updater_detected`).
+> ZIP 1.2 MB, `update.json` auf 0.122.0. GitHub-Release `v0.122.0` mit ZIP-Asset, Updater sieht das Release.
+>
 > ## 🚀 Release v0.121.0 2026-07-25 (Packliste: zweiter Status „Getestet", Schema 0.37.0)
 > **Ausgeliefert.** Im Reiter **„Packliste"** hat jede Buchungszeile jetzt neben dem Gepackt-Toggle einen
 > **„Getestet"-Button** — eigener gespeicherter Status (`tested_at`), eigenes Druck-Kästchen auf der A4-Liste,

@@ -929,7 +929,14 @@ class MemberPortal {
 				$ok_msg = 'proj_entry_deleted';
 				break;
 			case 'profit_add':
-				$result = ProfitShares::add( $proj_id, (int) ( $_POST['pp_user'] ?? 0 ), self::profit_input() );
+				// Zielperson muss Mitglied der Projektgruppe sein (wie member_task_save).
+				$pp_user = (int) ( $_POST['pp_user'] ?? 0 );
+				$p_pf    = self::member_owned_project( $proj_id );
+				if ( $pp_user && $p_pf && ! Groups::is_member( (int) $p_pf->owner_group_id, $pp_user ) ) {
+					$result = new \WP_Error( 'pp_not_group_member', __( 'This user is not a member of the project group.', 'project-prepper' ), [ 'status' => 400 ] );
+				} else {
+					$result = ProfitShares::add( $proj_id, $pp_user, self::profit_input() );
+				}
 				$ok_msg = 'proj_entry_saved';
 				break;
 			case 'profit_update':
@@ -8224,7 +8231,8 @@ class MemberPortal {
 			foreach ( array_keys( $columns ) as $key ) {
 				$row[] = self::export_inventory_cell( $it, $key, $conditions );
 			}
-			fputcsv( $out, $row, ';' );
+			// CSV-/Formula-Injection abwehren (gemeinsamer Helfer).
+			fputcsv( $out, array_map( [ \ProjectPrepper\Rest\ImportExportController::class, 'csv_safe' ], $row ), ';' );
 		}
 		exit; // php://output wird beim Exit geschlossen.
 	}
