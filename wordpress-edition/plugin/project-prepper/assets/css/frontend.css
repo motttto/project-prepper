@@ -2765,6 +2765,75 @@ label.pp-swatch,
 	.pp-pack-row--head .pp-pack-col--cond { display: none; }
 }
 
+/* ============================================================
+ * App-Look-Angleichung — Signatur-Kanten-Glow (wie globals.css der
+ * Live-App), portal-weit auf ALLEN Ansichten. Scope = Inhaltsbereich der
+ * App-Shell (.pp-app__main) UND die eigenständigen `.pp-front`-Seiten
+ * (Login, öffentliche Shortcodes). Die Sidebar-Chrome bleibt bewusst
+ * unberührt (eigener dunkler Hover). Beim Hover weicher Indigo-Schimmer
+ * (inset-Ring + Halo), beim Klick leichtes Einsinken. Siehe Skill
+ * /app-design.
+ *
+ * Eine Variable trägt die Ring-Farbe, damit sie an einer Stelle steuerbar
+ * ist (identisch in Light/Dark, wie in der App).
+ * ============================================================ */
+.pp-app__main,
+.pp-front { --pp-glow: 129, 140, 248; }
+
+.pp-app__main :is(button, a, select, [role="button"], [role="option"],
+	[role="menuitem"], .pp-portal__chip, .pp-proj-tabs__tab),
+.pp-front :is(button, a, select, [role="button"], [role="option"],
+	[role="menuitem"], .pp-portal__chip) {
+	transition: box-shadow .2s ease, transform .15s ease,
+		background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+
+/* Interaktive Elemente: Ring + Halo beim Hover */
+.pp-app__main :is(button, [role="button"], select, .pp-portal__chip,
+	.pp-proj-tabs__tab):hover:not(:disabled),
+.pp-app__main a:not(.pp-proj-card):not(.pp-collective-card):not(.pp-front-card-link):hover,
+.pp-app__main .pp-card li:hover,
+.pp-app__main table tr:hover,
+.pp-front :is(button, [role="button"], select, .pp-portal__chip):hover:not(:disabled),
+.pp-front a:not(.pp-front-card-link):hover {
+	box-shadow: inset 0 0 0 1px rgba(var(--pp-glow), .3),
+		0 0 6px 0 rgba(var(--pp-glow), .15);
+}
+
+/* Klick: leichtes Einsinken */
+.pp-app__main :is(button, [role="button"]):active:not(:disabled),
+.pp-app__main a:active,
+.pp-front :is(button, [role="button"]):active:not(:disabled),
+.pp-front a:active {
+	transform: scale(.98);
+	box-shadow: inset 0 0 0 1px rgba(var(--pp-glow), .5),
+		0 0 4px 0 rgba(var(--pp-glow), .25);
+}
+
+/* Karten mit Schatten-Lift bekommen zusätzlich den Indigo-Ring, damit alle
+ * Rubriken (Projekte, Dashboard-KPIs, Inventar, Gruppen) denselben
+ * Wiedererkennungswert wie die App haben. */
+.pp-app__main .pp-proj-card:hover,
+.pp-app__main .pp-kpi:not(.pp-kpi--static):hover,
+.pp-app__main .pp-front-card-link:hover,
+.pp-front .pp-front-card-link:hover {
+	box-shadow: inset 0 0 0 1px rgba(var(--pp-glow), .35),
+		0 10px 15px -3px rgb(0 0 0 / .08),
+		0 0 8px 0 rgba(var(--pp-glow), .12);
+	transform: translateY(-1px);
+	border-color: transparent;
+}
+
+/* Gruppen-Karten haben schon einen eigenen Hover (Border→Primary + muted
+ * bg); den Ring/Halo legen wir additiv darüber, Border-Farbe bleibt. */
+.pp-app__main .pp-collective-card:hover {
+	box-shadow: inset 0 0 0 1px rgba(var(--pp-glow), .3),
+		0 0 8px 0 rgba(var(--pp-glow), .12);
+}
+
+/* Aktiver Reiter behält seinen Surface-Look; nur inaktive Reiter glowen. */
+.pp-app__main .pp-proj-tabs__tab--on:hover { box-shadow: var(--pp-shadow); }
+
 /* ---------- A4-Druck: nur die Packliste, ohne App-Chrome ---------- */
 @media print {
 	/* App-Rahmen ausblenden. */

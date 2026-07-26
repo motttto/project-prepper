@@ -1,9 +1,9 @@
 {
-  "version": "0.122.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.122.0/project-prepper-0.122.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.122.0",
-  "published": "2026-07-25",
+  "version": "0.123.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.123.0/project-prepper-0.123.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.123.0",
+  "published": "2026-07-26",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Sicherheits-Release. Geschlossen wurde ein kollektivübergreifender Datenzugriff: Ein Mitglied konnte bisher über die REST-API und die Betreiber-Seiten Inventar-, Verleih- und Anfrage-Daten anderer Kollektive lesen. Mitglieder sehen jetzt nur noch ihre eigenen Kollektive; das Mitglieder-Portal behält seinen vollen Umfang. Zusätzlich: Lücke beim Löschen von Artikel-Dokumenten geschlossen, Formel-/CSV-Injection im Inventar-Export neutralisiert, kleinere Härtungen (öffentliche Artikelseite, Projekt-Löschen/Entfernen, Updater-Download nur von GitHub). Login-Drosselung ist jetzt standardmäßig AN (5 Fehlversuche/IP sperren 15 Min., im Backend abschaltbar). Schema 0.38.0 ohne Tabellen-Änderung — der Versionswechsel setzt nur die verschärfte Mitglieder-Rolle auf Bestandsinstanzen neu."
+  "changelog": "App-Look angeglichen: der Indigo-Kanten-Glow der Live-App liegt jetzt portal-weit auf allen Ansichten (Buttons, Links, Reiter, Chips, Karten in Projekten/Dashboard/Gruppen/öffentlichem Inventar), Light + Dark. Reine CSS-Änderung, kein Schema-/i18n-Change."
 }

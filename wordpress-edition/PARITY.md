@@ -3,6 +3,19 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🎨 Release v0.123.0 2026-07-26 (App-Look: Indigo-Kanten-Glow portal-weit, Schema UNVERÄNDERT 0.38.0)
+> **Ausgeliefert.** Reine CSS-Änderung in `assets/css/frontend.css` (Abschnitt „App-Look-Angleichung", vor dem
+> `@media print`-Block): der Signatur-Kanten-Glow der alten Supabase-App (Indigo inset-Ring + Halo beim Hover,
+> `scale(.98)` beim Klick) liegt jetzt portal-weit auf allen Ansichten. Scope `.pp-app__main` + `.pp-front`
+> (App-Shell-Views + Login/öffentliche Shortcodes), Sidebar bewusst ausgenommen. Ring/Halo auf Buttons, Links,
+> Selects, Chips, Projekt-Reiter, Tabellenzeilen, Listen; Klick-`scale(.98)` auf Buttons/Links; einheitlicher
+> Karten-Ring auf `.pp-proj-card`, `.pp-kpi:not(.pp-kpi--static)`, `.pp-front-card-link`, additiv auf
+> `.pp-collective-card`. Ring-Farbe über neue Variable `--pp-glow: 129, 140, 248` (identisch Light/Dark).
+> Ausgenommen: `.pp-invite-card` (nicht klickbar) und aktiver Reiter `.pp-proj-tabs__tab--on`. Kein Schema-/
+> i18n-Change. Neu im Repo (Dev-Werkzeug, kein Plugin-Code): `.claude/commands/app-design.md`.
+> Plugin Check sauber (nur by-design hidden_files/plugin_updater_detected). ZIP 1.2 MB, `update.json` auf 0.123.0.
+> GitHub-Release `v0.123.0` mit ZIP-Asset, Updater sieht das Release.
+>
 > ## 🔒 Release v0.122.0 2026-07-25 (Security-Härtung: Cross-Tenant-REST geschlossen, Schema 0.38.0)
 > **Ausgeliefert.** Sicherheits-Release aus der umfassenden Sicherheitsüberprüfung. Kernfund: die REST-API war
 > cap-gated statt mandanten-gescoped, und die Rolle `pp_member` hatte `VIEW_*`-Caps + einen Portal-REST-Nonce →
