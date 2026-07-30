@@ -2,6 +2,7 @@
 namespace ProjectPrepper\Rest;
 
 use ProjectPrepper\Capabilities;
+use ProjectPrepper\Email\Mailer;
 use ProjectPrepper\Email\Notifications;
 use WP_REST_Request;
 use WP_REST_Response;
@@ -57,6 +58,9 @@ class SettingsController extends BaseController {
 		if ( array_key_exists( 'public_show_rates', $json ) ) {
 			update_option( 'pp_public_show_rates', (bool) $json['public_show_rates'] );
 		}
+		if ( array_key_exists( 'smtp', $json ) && is_array( $json['smtp'] ) ) {
+			Mailer::save( $json['smtp'] );
+		}
 		if ( array_key_exists( 'email_templates', $json ) && is_array( $json['email_templates'] ) ) {
 			$clean    = [];
 			$defaults = Notifications::default_templates();
@@ -87,9 +91,16 @@ class SettingsController extends BaseController {
 	 * aber ein verlässlicher Hinweis auf eine kaputte Mail-Konfiguration.)
 	 */
 	public function test_email(): WP_REST_Response {
-		$user = wp_get_current_user();
-		$to   = $user ? $user->user_email : get_option( 'admin_email' );
-		$sent = false;
+		$user  = wp_get_current_user();
+		$to    = $user ? $user->user_email : get_option( 'admin_email' );
+		$sent  = false;
+		$error = '';
+		// Fehlermeldung des Mailers (z. B. SMTP-Login fehlgeschlagen) einsammeln,
+		// damit der Betreiber im UI sieht, WORAN der Versand scheitert.
+		$capture = static function ( $wp_error ) use ( &$error ) {
+			$error = $wp_error->get_error_message();
+		};
+		add_action( 'wp_mail_failed', $capture );
 		if ( $to ) {
 			$sent = wp_mail(
 				$to,
@@ -98,13 +109,20 @@ class SettingsController extends BaseController {
 				__( 'This is a test email from Project Prepper. If you received it, outgoing mail works.', 'project-prepper' )
 			);
 		}
-		return new WP_REST_Response( [ 'sent' => (bool) $sent, 'to' => (string) $to ] );
+		remove_action( 'wp_mail_failed', $capture );
+		return new WP_REST_Response( [
+			'sent'  => (bool) $sent,
+			'to'    => (string) $to,
+			'error' => $error,
+			'smtp'  => Mailer::active(),
+		] );
 	}
 
 	private function payload(): array {
 		return [
 			'email_notifications'      => Notifications::enabled(),
 			'email_templates'          => Notifications::templates(),
+			'smtp'                     => Mailer::public_config(),
 			'delete_data_on_uninstall' => (bool) get_option( 'pp_delete_data_on_uninstall', false ),
 			'public_show_rates'        => (bool) get_option( 'pp_public_show_rates', false ),
 			'ical_url'                 => rest_url( self::REST_NAMESPACE . '/calendar.ics' ) . '?token=' . CalendarController::token(),

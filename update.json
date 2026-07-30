@@ -1,9 +1,9 @@
 {
-  "version": "0.123.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.123.0/project-prepper-0.123.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.123.0",
-  "published": "2026-07-26",
+  "version": "0.124.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.124.0/project-prepper-0.124.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.124.0",
+  "published": "2026-07-30",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "App-Look angeglichen: der Indigo-Kanten-Glow der Live-App liegt jetzt portal-weit auf allen Ansichten (Buttons, Links, Reiter, Chips, Karten in Projekten/Dashboard/Gruppen/öffentlichem Inventar), Light + Dark. Reine CSS-Änderung, kein Schema-/i18n-Change."
+  "changelog": "SMTP-Einstellungen unter Project Prepper → Einstellungen: alle Plugin-Mails (Einladungen, Leih-Anfragen, Buchungs-Freigaben, Login-Codes) können jetzt über ein echtes Postfach versendet werden statt über den PHP-Mailversand des Servers. Absender-Name und -Adresse konfigurierbar (ersetzt wordpress@…). Die Test-E-Mail zeigt bei Fehlschlag jetzt die konkrete Fehlermeldung des Mailservers."
 }

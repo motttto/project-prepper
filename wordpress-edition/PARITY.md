@@ -3,6 +3,23 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## ✉️ Release v0.124.0 2026-07-30 (SMTP-Einstellungen im Plugin, Schema UNVERÄNDERT 0.38.0)
+> **Ausgeliefert.** Pendant zur E-Mail-Konfiguration der alten App (org_email_config/SMTP), WP-nativ als Option
+> `pp_smtp` (kein Schema-Change, nur wp_options). Neue Klasse `includes/Email/Mailer.php`: hängt sich in
+> `phpmailer_init` und stellt `wp_mail` auf SMTP um, sobald aktiviert + Host gesetzt (enabled, host, port,
+> security none/ssl/tls, user, pass, from_email, from_name); Auth sobald Benutzername hinterlegt; gesetzter
+> Absender überschreibt via `wp_mail_from`/`wp_mail_from_name` die wordpress@…-Default-Adresse (SPF/Zustellbarkeit).
+> `SettingsController`: `smtp` in GET via `Mailer::public_config()` (OHNE Passwort, nur `pass_set`-Flag), PUT via
+> `Mailer::save()` (leeres Passwort-Feld behält gespeichertes Passwort — write-only), `test_email` fängt
+> `wp_mail_failed` und liefert die konkrete Mailer-Fehlermeldung im Feld `error`. `admin.js`: neue Karte
+> „Mailversand (SMTP)" auf der Einstellungs-Seite (Toggle, Host, Port, Verschlüsselungs-Select, Benutzername,
+> Passwort mit „Gespeichert"-Platzhalter, Absender-Name/-Adresse); Test-E-Mail-Button aus der Karte
+> „E-Mail-Benachrichtigungen" hierher umgezogen, zeigt bei Fehlschlag „Senden fehlgeschlagen: %s".
+> `Plugin.php`: `Email\Mailer::init()` verdrahtet. i18n: 16 neue Strings dt. übersetzt, .pot/.po/.mo/JSON gebaut.
+> In wp-env verifiziert (REST-Roundtrip, Passwort write-only, Bogus-Host → SMTP-Fehler statt PHP-mail,
+> From-Override, Fehlertext im UI). Plugin Check sauber (nur by-design hidden_files/plugin_updater_detected).
+> ZIP 1.3 MB, `update.json` auf 0.124.0. GitHub-Release `v0.124.0` mit ZIP-Asset.
+>
 > ## 🎨 Release v0.123.0 2026-07-26 (App-Look: Indigo-Kanten-Glow portal-weit, Schema UNVERÄNDERT 0.38.0)
 > **Ausgeliefert.** Reine CSS-Änderung in `assets/css/frontend.css` (Abschnitt „App-Look-Angleichung", vor dem
 > `@media print`-Block): der Signatur-Kanten-Glow der alten Supabase-App (Indigo inset-Ring + Halo beim Hover,

@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.123.0
+Stable tag: 0.124.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.124.0 =
+* New: SMTP settings under Project Prepper → Settings — all plugin emails (invitations, loan requests, booking approvals, login codes) can now be sent through a real mailbox instead of the server's PHP mail (better deliverability, less spam classification).
+* New: configurable sender name and address — replaces the wordpress@… default sender address.
+* Improved: on failure the test email now shows the mail server's actual error message (e.g. "SMTP login failed") instead of just "could not send".
 
 = 0.123.0 =
 * App look aligned: the indigo edge glow of the live app now applies portal-wide across all views (buttons, links, tabs, chips, cards in projects/dashboard/groups/public inventory), light and dark. Pure CSS change, no schema or i18n change.

@@ -916,9 +916,27 @@
 						body: JSON.stringify({
 							email_notifications: emailToggle.checked,
 							delete_data_on_uninstall: deleteToggle.checked,
-							public_show_rates: ratesToggle.checked
+							public_show_rates: ratesToggle.checked,
+							smtp: {
+								enabled: smtpToggle.checked,
+								host: smtpHost.value.trim(),
+								port: parseInt(smtpPort.value, 10) || 587,
+								security: smtpSecurity.value,
+								user: smtpUser.value.trim(),
+								pass: smtpPass.value,
+								from_name: smtpFromName.value.trim(),
+								from_email: smtpFromEmail.value.trim()
+							}
 						})
-					}).then(function () { toast(__("Settings saved.", "project-prepper")); }).catch(function (e) { toast(e.message, "error"); });
+					}).then(function () {
+						// Passwort ist write-only: nach dem Speichern Feld leeren,
+						// Platzhalter signalisiert den gespeicherten Zustand.
+						if (smtpPass.value) {
+							smtpPass.value = "";
+							smtpPass.placeholder = __("Saved — leave blank to keep", "project-prepper");
+						}
+						toast(__("Settings saved.", "project-prepper"));
+					}).catch(function (e) { toast(e.message, "error"); });
 				}
 			});
 
@@ -933,6 +951,9 @@
 						if (r.sent) {
 							/* translators: %s: recipient email address. */
 							mailTestResult.textContent = sprintf(__("Sent to %s — check your inbox.", "project-prepper"), r.to);
+						} else if (r.error) {
+							/* translators: %s: error message from the mailer. */
+							mailTestResult.textContent = sprintf(__("Sending failed: %s", "project-prepper"), r.error);
 						} else {
 							mailTestResult.textContent = __("WordPress could not send the email. Check your server mail / SMTP setup.", "project-prepper");
 						}
@@ -942,8 +963,53 @@
 			root.appendChild(el("div", { class: "pp-card" }, [
 				el("h2", { text: __("Email notifications", "project-prepper") }),
 				el("label", { class: "pp-toggle" }, [emailToggle, el("span", { text: __("Send notification emails (rentals, invitations, borrow requests, login codes)", "project-prepper") })]),
-				el("div", { style: "margin-top:8px" }, [el("a", { class: "pp-link", href: "admin.php?page=pp-email-templates", text: __("Edit email templates →", "project-prepper") })]),
-				el("div", { class: "pp-muted", style: "margin-top:8px", text: __("Deliverability check: send a test email to your own address.", "project-prepper") }),
+				el("div", { style: "margin-top:8px" }, [el("a", { class: "pp-link", href: "admin.php?page=pp-email-templates", text: __("Edit email templates →", "project-prepper") })])
+			]));
+
+			// SMTP: eigener Mailversand statt PHP mail() des Servers.
+			var smtp = settings.smtp || {};
+			var smtpToggle = el("input", { type: "checkbox" });
+			smtpToggle.checked = !!smtp.enabled;
+			var smtpHost = el("input", { type: "text", placeholder: "smtp.example.com", style: "min-width:220px" });
+			smtpHost.value = smtp.host || "";
+			var smtpPort = el("input", { type: "number", min: "1", max: "65535", style: "width:90px" });
+			smtpPort.value = smtp.port || 587;
+			var smtpSecurity = el("select", null, [
+				el("option", { value: "tls", text: __("STARTTLS (port 587)", "project-prepper") }),
+				el("option", { value: "ssl", text: __("SSL/TLS (port 465)", "project-prepper") }),
+				el("option", { value: "none", text: __("None", "project-prepper") })
+			]);
+			smtpSecurity.value = smtp.security || "tls";
+			var smtpUser = el("input", { type: "text", autocomplete: "off", style: "min-width:200px" });
+			smtpUser.value = smtp.user || "";
+			var smtpPass = el("input", {
+				type: "password", autocomplete: "new-password", style: "min-width:200px",
+				placeholder: smtp.pass_set ? __("Saved — leave blank to keep", "project-prepper") : ""
+			});
+			var smtpFromName = el("input", { type: "text", style: "min-width:200px" });
+			smtpFromName.value = smtp.from_name || "";
+			var smtpFromEmail = el("input", { type: "email", placeholder: "noreply@example.com", style: "min-width:220px" });
+			smtpFromEmail.value = smtp.from_email || "";
+
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Outgoing mail (SMTP)", "project-prepper") }),
+				el("div", { class: "pp-muted", style: "margin-bottom:8px", text: __("Recommended: send all emails through a real mailbox. Without SMTP, WordPress uses the server's PHP mail — messages often land in spam or are never delivered.", "project-prepper") }),
+				el("label", { class: "pp-toggle" }, [smtpToggle, el("span", { text: __("Send emails via SMTP", "project-prepper") })]),
+				el("div", { class: "pp-row", style: "margin-top:10px" }, [
+					field(__("SMTP host", "project-prepper"), smtpHost),
+					field(__("Port", "project-prepper"), smtpPort),
+					field(__("Encryption", "project-prepper"), smtpSecurity)
+				]),
+				el("div", { class: "pp-row" }, [
+					field(__("Username", "project-prepper"), smtpUser),
+					field(__("Password", "project-prepper"), smtpPass)
+				]),
+				el("div", { class: "pp-row" }, [
+					field(__("Sender name", "project-prepper"), smtpFromName),
+					field(__("Sender email address", "project-prepper"), smtpFromEmail)
+				]),
+				el("div", { class: "pp-muted", text: __("Usually the username is your email address. The sender address should belong to that mailbox, otherwise messages may be rejected.", "project-prepper") }),
+				el("div", { class: "pp-muted", style: "margin-top:8px", text: __("Deliverability check: save first, then send a test email to your own address.", "project-prepper") }),
 				el("div", { class: "pp-row", style: "margin-top:4px" }, [mailTestBtn, mailTestResult])
 			]));
 
