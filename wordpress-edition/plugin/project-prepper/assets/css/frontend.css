@@ -220,6 +220,7 @@
 .pp-front input[type="date"],
 .pp-front input[type="time"],
 .pp-front input[type="number"],
+.pp-front input[type="password"],
 .pp-front select,
 .pp-front textarea {
 	background: var(--pp-surface);
@@ -1698,7 +1699,7 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 	height: 34px;
 	border-radius: 999px;
 	background: var(--pp-primary-light);
-	color: #4f46e5;
+	color: var(--pp-primary-hover);
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -1863,14 +1864,14 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 }
 .pp-status--planned,
 .pp-status--open { background: var(--pp-info-light); color: #2563eb; }
-.pp-status--confirmed { background: var(--pp-primary-light); color: #4f46e5; }
+.pp-status--confirmed { background: var(--pp-primary-light); color: var(--pp-primary-hover); }
 .pp-status--running { background: var(--pp-success-light); color: #059669; }
 .pp-status--doing { background: var(--pp-warning-light); color: var(--pp-warning); }
 .pp-status--done { background: var(--pp-muted); color: var(--pp-muted-foreground); }
 .pp-status--cancelled { background: var(--pp-destructive-light); color: var(--pp-destructive); }
 /* Anfrage-Pipeline-Status */
 .pp-status--new { background: var(--pp-info-light); color: #2563eb; }
-.pp-status--contacted { background: var(--pp-primary-light); color: #4f46e5; }
+.pp-status--contacted { background: var(--pp-primary-light); color: var(--pp-primary-hover); }
 .pp-status--offer { background: var(--pp-warning-light); color: var(--pp-warning); }
 .pp-status--won { background: var(--pp-success-light); color: #059669; }
 .pp-status--lost { background: var(--pp-destructive-light); color: var(--pp-destructive); }
@@ -1896,7 +1897,7 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-kpi--warning.pp-kpi--static .pp-kpi__value { color: var(--pp-warning); }
 .pp-kpi--info.pp-kpi--static .pp-kpi__value { color: #2563eb; }
 .pp-kpi--success.pp-kpi--static .pp-kpi__value { color: #059669; }
-.pp-kpi--primary.pp-kpi--static .pp-kpi__value { color: #4f46e5; }
+.pp-kpi--primary.pp-kpi--static .pp-kpi__value { color: var(--pp-primary-hover); }
 .pp-portal__rental-lines { list-style: none; margin: .3rem 0; padding: 0; display: flex; flex-direction: column; gap: 2px; font-size: .88rem; }
 .pp-portal__rental-lines li { display: flex; gap: 8px; align-items: baseline; }
 .pp-portal__rental-bill { margin-top: .3rem; }
@@ -1939,7 +1940,7 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 
 /* Projekt-Detail */
 .pp-proj-back { margin: 0 0 12px; }
-.pp-proj-back a { color: #4f46e5; text-decoration: none; font-size: .875rem; }
+.pp-proj-back a { color: var(--pp-primary-hover); text-decoration: none; font-size: .875rem; }
 .pp-proj-back a:hover { text-decoration: underline; }
 .pp-proj-detail-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 
@@ -1979,7 +1980,7 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 }
 .pp-row:last-child { border-bottom: none; padding-bottom: 0; }
 .pp-row__main { font-weight: 500; }
-.pp-row__main[href] { color: #4f46e5; text-decoration: none; }
+.pp-row__main[href] { color: var(--pp-primary-hover); text-decoration: none; }
 .pp-row__main[href]:hover { text-decoration: underline; }
 .pp-row__meta { color: var(--pp-muted-foreground); font-size: .82rem; margin-left: auto; }
 .pp-row__meta + .pp-row__meta { margin-left: 0; }
@@ -1989,7 +1990,7 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 /* Anfragen (App: /inquiries): ganze Zeile als Link zur Detail-Ansicht,
    Angebotssumme + Wahrscheinlichkeits-Badge wie die App-Liste. */
 a.pp-row--link { color: inherit; text-decoration: none; }
-a.pp-row--link:hover .pp-row__main { color: #4f46e5; }
+a.pp-row--link:hover .pp-row__main { color: var(--pp-primary-hover); }
 .pp-inq-amount { font-weight: 600; font-variant-numeric: tabular-nums; }
 .pp-prob { border-radius: 999px; padding: .1rem .5rem; font-size: .78rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .pp-prob--hi { background: var(--pp-success-light); color: #059669; }
@@ -2005,7 +2006,7 @@ a.pp-row--link:hover .pp-row__main { color: #4f46e5; }
 
 /* Globale Kosten-Übersicht: Projekt-Link + Kategorie/Beschreibung als Unterzeile. */
 .pp-row--costs .pp-row__main { display: flex; flex-direction: column; gap: 2px; }
-.pp-row--costs .pp-row__link { color: #4f46e5; text-decoration: none; font-weight: 500; }
+.pp-row--costs .pp-row__link { color: var(--pp-primary-hover); text-decoration: none; font-weight: 500; }
 .pp-row--costs .pp-row__link:hover { text-decoration: underline; }
 .pp-row__sub { color: var(--pp-muted-foreground); font-size: .8rem; font-weight: 400; }
 
@@ -2019,7 +2020,7 @@ a.pp-row--link:hover .pp-row__main { color: #4f46e5; }
 
 /* iCal-Feed-Link unter dem Kalender. */
 .pp-cal__feed { margin-top: 10px; font-size: .82rem; display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
-.pp-cal__feed a { color: #4f46e5; text-decoration: none; }
+.pp-cal__feed a { color: var(--pp-primary-hover); text-decoration: none; }
 .pp-cal__feed a:hover { text-decoration: underline; }
 
 .pp-checklist + .pp-checklist { margin-top: 12px; }
@@ -2148,7 +2149,7 @@ button.pp-checkitem__box--on { background: var(--pp-success); }
 	border-bottom: 1px solid var(--pp-border);
 }
 .pp-net-inst__name { font-weight: 600; font-size: 1.05rem; color: var(--pp-foreground); text-decoration: none; }
-.pp-net-inst__name:hover { color: #4f46e5; }
+.pp-net-inst__name:hover { color: var(--pp-primary-hover); }
 .pp-net-inst__meta { font-size: .85rem; color: var(--pp-muted-foreground); }
 .pp-net-inst__count { margin-left: auto; font-size: .8rem; color: var(--pp-muted-foreground); }
 .pp-net-inst--down {
@@ -2166,7 +2167,7 @@ button.pp-checkitem__box--on { background: var(--pp-success); }
 /* Netzwerk-Artikelkarte mit „Anfragen"-Aufklapper (Slice 4 Run 2) */
 .pp-net-item { overflow: visible; }
 .pp-net-item__link { display: flex; flex-direction: column; flex: 1; color: inherit; text-decoration: none; }
-.pp-net-item__link:hover .pp-front-card-title { color: #4f46e5; }
+.pp-net-item__link:hover .pp-front-card-title { color: var(--pp-primary-hover); }
 .pp-net-item__ask { border-top: 1px solid #eef2f7; padding: 8px 12px 12px; }
 .pp-net-item__ask > summary { list-style: none; display: inline-block; cursor: pointer; }
 .pp-net-item__ask > summary::-webkit-details-marker { display: none; }
@@ -2872,4 +2873,51 @@ label.pp-swatch,
 
 	/* Farben/Hintergründe im Druck erzwingen (Kästchen-Haken). */
 	* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+}
+
+/* ============================================================
+ * Dark Mode — Nachbesserung Schriftfarben: hartcodierte dunkle
+ * Textfarben auf *-light-Flächen (Status-Chips, Notices, KPI-Werte,
+ * Kalender-Chips, Voting-Buttons) waren vor dunklem Hintergrund
+ * unlesbar. Bewusst am DATEIENDE, damit die Overrides die später
+ * definierten Regeln (Chips/Buttons unterhalb des Haupt-Dark-Blocks)
+ * sicher überstimmen.
+ * ============================================================ */
+@media (prefers-color-scheme: dark) {
+	/* Erfolgs-/Fehler-Notices: helle Signalfarbe als Text, dunkler Rahmen */
+	.pp-portal__notice--ok { color: var(--pp-success); border-color: #065f46; }
+	.pp-portal__notice--err { color: var(--pp-destructive); border-color: #7f1d1d; }
+	/* Dunkles Info-Blau (#2563eb/#1d4ed8) → helles Info-Blau */
+	.pp-portal__tag--info,
+	.pp-invite-card__chip--info,
+	.pp-status--planned,
+	.pp-status--open,
+	.pp-status--new,
+	.pp-status--reserved,
+	.pp-status--signing,
+	.pp-kpi--info.pp-kpi--static .pp-kpi__value,
+	.pp-cal__chip--schedule { color: var(--pp-info); }
+	/* Dunkles Grün (#059669/#047857) → helles Erfolgs-Grün */
+	.pp-portal__tag--ok,
+	.pp-status--running,
+	.pp-status--won,
+	.pp-status--returned,
+	.pp-status--signed,
+	.pp-prob--hi,
+	.pp-kpi--success.pp-kpi--static .pp-kpi__value,
+	.pp-vote-btn--approve.is-active,
+	.pp-poll-btn--yes.is-active,
+	.pp-cal__chip--borrow { color: var(--pp-success); }
+	/* Dunkles Indigo (#3730a3/#4338ca) → helles Indigo */
+	.pp-hiw__summary,
+	.pp-cal__chip--project,
+	.pp-cal__chip--event { color: var(--pp-primary-hover); }
+	/* Helle Strukturflächen/-rahmen → dunkle Pendants */
+	.pp-hiw { border-color: var(--pp-border); }
+	.pp-hiw__col { background: rgba(255, 255, 255, .07); }
+	.pp-agreement__terms { color: var(--pp-foreground); }
+	.pp-vote-btn:hover,
+	.pp-poll-btn:hover { background: var(--pp-muted); }
+	.pp-poll-opt { background: var(--pp-muted); border-color: var(--pp-border); }
+	.pp-net-item__ask { border-top-color: var(--pp-border); }
 }

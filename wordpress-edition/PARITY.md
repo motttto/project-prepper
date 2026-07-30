@@ -3,6 +3,23 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🌒 Release v0.124.1 2026-07-30 (Dark-Mode-Fix Schriftfarben, reiner CSS-Patch, Schema UNVERÄNDERT 0.38.0)
+> **Ausgeliefert.** Einzige geänderte Datei `assets/css/frontend.css`. Hartcodierte dunkle Textfarben auf
+> `*-light`-Flächen waren im Dark Mode unlesbar („einige Schriften schwarz"): (1) alle 13 `color: #4f46e5`
+> → `var(--pp-primary-hover)` (Light pixelgleich, Dark helles Indigo #a5b4fc) — Avatar, Status-Chips
+> confirmed/contacted, KPI-primary, Projekt-Zurück-Link, Zeilen-/Kosten-Links, iCal-Feed-Link, Netzwerk-Hover.
+> (2) Neuer `@media (prefers-color-scheme: dark)`-Block am DATEIENDE (überstimmt bewusst die nach dem
+> Haupt-Dark-Block definierten Regeln): Notices ok/err, Info-Blau `#2563eb`/`#1d4ed8` → `var(--pp-info)`
+> (Chips planned/open/new/reserved/signing, Tags, Invite-Chips, KPI-info, Kalender-Chip schedule), dunkles
+> Grün `#059669`/`#047857` → `var(--pp-success)` (running/won/returned/signed, prob--hi, KPI-success,
+> Vote-/Poll-Buttons aktiv, Kalender-Chip borrow), dunkles Indigo `#3730a3`/`#4338ca` → `var(--pp-primary-hover)`
+> (Plattform-Banner-Titel, Kalender-Chips project/event), Strukturflächen (.pp-hiw, .pp-poll-opt,
+> .pp-net-item__ask, .pp-agreement__terms → var(--pp-foreground)). (3) Bugfix: `input[type="password"]` fehlte
+> in der `.pp-front`-Formularfeld-Selektorliste → Login-Passwortfeld war im Dark Mode weiß, jetzt themed.
+> Kein PHP/JS/Schema/i18n-Change. Dark per Computed-Style-Probe + Screenshots (Dashboard/Projekte/Kalender/
+> Umfragen/Verleih) verifiziert, Light per Gegenprobe pixelgleich. Plugin Check sauber (nur by-design
+> hidden_files/plugin_updater_detected). ZIP 1.3 MB, `update.json` auf 0.124.1. GitHub-Release `v0.124.1` mit ZIP-Asset.
+>
 > ## ✉️ Release v0.124.0 2026-07-30 (SMTP-Einstellungen im Plugin, Schema UNVERÄNDERT 0.38.0)
 > **Ausgeliefert.** Pendant zur E-Mail-Konfiguration der alten App (org_email_config/SMTP), WP-nativ als Option
 > `pp_smtp` (kein Schema-Change, nur wp_options). Neue Klasse `includes/Email/Mailer.php`: hängt sich in

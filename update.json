@@ -1,9 +1,9 @@
 {
-  "version": "0.124.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.124.0/project-prepper-0.124.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.124.0",
+  "version": "0.124.1",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.124.1/project-prepper-0.124.1.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.124.1",
   "published": "2026-07-30",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "SMTP-Einstellungen unter Project Prepper → Einstellungen: alle Plugin-Mails (Einladungen, Leih-Anfragen, Buchungs-Freigaben, Login-Codes) können jetzt über ein echtes Postfach versendet werden statt über den PHP-Mailversand des Servers. Absender-Name und -Adresse konfigurierbar (ersetzt wordpress@…). Die Test-E-Mail zeigt bei Fehlschlag jetzt die konkrete Fehlermeldung des Mailservers."
+  "changelog": "Dark-Mode-Fix: dunkle Schriftfarben auf Status-Chips, Hinweis-Boxen, KPI-Werten, Kalender-Chips, Abstimm-Buttons und im Plattform-Banner waren vor dunklem Hintergrund unlesbar — jetzt überall helle, lesbare Farben (Light Mode unverändert). Außerdem: Passwort-Feld im Mitglieder-Login ist im Dark Mode jetzt dunkel statt weiß."
 }
