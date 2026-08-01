@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.124.1
+Stable tag: 0.125.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.125.0 =
+* New: invitation onboarding happens entirely in the member portal — invited people no longer need wp-admin to get their account.
+* The collective invitation email now contains a personal join link that opens a “Join the collective” card on the portal login page with the invited email pre-filled — just pick a name and password to create the account and accept the invitation.
+* After signing up, new members are logged in right away and either join directly (single-member collective) or see that the members now vote on their admission.
+* The login page also offers “Received an invitation? Create your account” for people without the link — entering exactly the invited email address works too, even while self-registration is switched off.
+* If an account with the invited address already exists, the join link points you to the normal sign-in instead.
 
 = 0.124.1 =
 * Fix: dark mode — dark text colors on status chips, notice boxes, KPI values, calendar chips, vote buttons and the platform banner were unreadable on the dark background; now bright, readable colors everywhere (light mode unchanged).

@@ -1404,6 +1404,8 @@ class MemberPortal {
 			'doc_failed'       => [ 'err', __( 'The document could not be uploaded. Please use a PDF or image file.', 'project-prepper' ) ],
 			'borrow_unavailable' => [ 'err', __( 'No units of this item are free in that period. Please pick other dates.', 'project-prepper' ) ],
 			'group_left'         => [ 'ok', __( 'You have left the group.', 'project-prepper' ) ],
+			'welcome_joined'     => [ 'ok', __( 'Welcome! Your account is ready and you are now a member of the collective.', 'project-prepper' ) ],
+			'welcome_voting'     => [ 'ok', __( 'Welcome! Your account is ready. The members of the collective now vote on your admission — you will be unlocked as soon as everyone approves.', 'project-prepper' ) ],
 			'leave_last_founder' => [ 'err', __( 'As the last founder you cannot leave. Appoint another founder or delete the group instead.', 'project-prepper' ) ],
 			'error'            => [ 'err', __( 'Something went wrong. Please try again.', 'project-prepper' ) ],
 		];
@@ -1612,14 +1614,37 @@ class MemberPortal {
 			'exists'   => __( 'An account with that email already exists. Please sign in.', 'project-prepper' ),
 			'weakpass' => __( 'Please choose a password with at least 8 characters.', 'project-prepper' ),
 			'closed'   => __( 'Self-registration is currently closed.', 'project-prepper' ),
+			'noinvite' => __( 'No open invitation was found for this email address. Please use exactly the address your invitation was sent to.', 'project-prepper' ),
 			'failed'   => __( 'Registration failed. Please try again.', 'project-prepper' ),
 		];
+
+		// Beitritts-Link aus der Einladungs-Mail (?pp_join=<id>&pp_key=<token>):
+		// öffnet die Registrierung mit verifizierter, vorausgefüllter Adresse.
+		$join_state = '';
+		$join_inv   = null;
+		$join_id    = isset( $_GET['pp_join'] ) ? absint( $_GET['pp_join'] ) : 0;
+		$join_key   = isset( $_GET['pp_key'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_key'] ) ) : '';
+		if ( $join_id ) {
+			$inv = Governance::get_by_token( $join_id, $join_key );
+			if ( ! $inv ) {
+				$join_state = 'invalid';
+			} elseif ( 'pending' !== $inv->status ) {
+				$join_state = 'resolved';
+			} elseif ( email_exists( (string) $inv->invited_email ) ) {
+				$join_state = 'has_account';
+			} else {
+				$join_state = 'register';
+				$join_inv   = $inv;
+			}
+		}
+		$join_group = $join_inv ? Groups::get( (int) $join_inv->group_id ) : null;
+		$join_by    = $join_inv && $join_inv->invited_by ? get_userdata( (int) $join_inv->invited_by ) : null;
 		// phpcs:enable WordPress.Security.NonceVerification.Recommended
 
 		ob_start();
 		?>
 		<div class="pp-front pp-portal pp-portal--login">
-			<h2 class="pp-portal__title"><?php esc_html_e( 'Member login', 'project-prepper' ); ?></h2>
+			<h2 class="pp-portal__title"><?php echo esc_html( 'register' === $join_state ? __( 'Join the collective', 'project-prepper' ) : __( 'Member login', 'project-prepper' ) ); ?></h2>
 
 			<?php if ( 'failed' === $login_msg ) : ?>
 				<div class="pp-portal__notice pp-portal__notice--err"><?php esc_html_e( 'Login failed. Please check your details and try again.', 'project-prepper' ); ?></div>
@@ -1633,6 +1658,44 @@ class MemberPortal {
 
 			<?php if ( '' !== $reg_msg && isset( $reg_errors[ $reg_msg ] ) ) : ?>
 				<div class="pp-portal__notice pp-portal__notice--err"><?php echo esc_html( $reg_errors[ $reg_msg ] ); ?></div>
+			<?php endif; ?>
+
+			<?php if ( 'invalid' === $join_state ) : ?>
+				<div class="pp-portal__notice pp-portal__notice--err"><?php esc_html_e( 'This invitation link is not valid. Please ask for a new invitation.', 'project-prepper' ); ?></div>
+			<?php elseif ( 'resolved' === $join_state ) : ?>
+				<div class="pp-portal__notice pp-portal__notice--err"><?php esc_html_e( 'This invitation has already been answered. You can sign in normally below.', 'project-prepper' ); ?></div>
+			<?php elseif ( 'has_account' === $join_state ) : ?>
+				<div class="pp-portal__notice pp-portal__notice--ok"><?php esc_html_e( 'You already have an account with the invited email address. Sign in to accept the invitation.', 'project-prepper' ); ?></div>
+			<?php elseif ( 'register' === $join_state ) : /* ---- Einladungs-Registrierung (Token-Link) ---- */ ?>
+				<p class="pp-portal__lead">
+					<?php
+					printf(
+						/* translators: 1: inviter name, 2: collective name. */
+						esc_html__( '%1$s has invited you to join the collective “%2$s”. Choose a password to create your account and accept the invitation.', 'project-prepper' ),
+						esc_html( $join_by ? $join_by->display_name : get_bloginfo( 'name' ) ),
+						esc_html( $join_group ? $join_group->name : '' )
+					);
+					?>
+				</p>
+				<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<input type="hidden" name="action" value="pp_member_register">
+					<?php wp_nonce_field( 'pp_member_register', 'pp_nonce' ); ?>
+					<input type="hidden" name="pp_invite" value="<?php echo (int) $join_inv->id; ?>">
+					<input type="hidden" name="pp_key" value="<?php echo esc_attr( $join_key ); ?>">
+					<label><?php esc_html_e( 'Email', 'project-prepper' ); ?>
+						<input type="email" value="<?php echo esc_attr( (string) $join_inv->invited_email ); ?>" readonly>
+					</label>
+					<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+						<input type="text" name="pp_name" required>
+					</label>
+					<label><?php esc_html_e( 'Password (min. 8 characters)', 'project-prepper' ); ?>
+						<input type="password" name="pp_password" minlength="8" required>
+					</label>
+					<input type="text" name="pp_website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;">
+					<button type="submit" class="pp-portal__btn"><?php esc_html_e( 'Create account', 'project-prepper' ); ?></button>
+				</form>
+				<hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--pp-border);">
+				<p class="pp-portal__note"><?php esc_html_e( 'Already have an account? Sign in below.', 'project-prepper' ); ?></p>
 			<?php endif; ?>
 
 			<?php if ( $pending ) : /* ---- Schritt 2: Code ---- */ ?>
@@ -1673,7 +1736,7 @@ class MemberPortal {
 				] );
 			endif; ?>
 
-			<?php if ( $can_register && ! $pending ) : /* ---- Selbst-Registrierung (Schalter an) ---- */ ?>
+			<?php if ( $can_register && ! $pending && 'register' !== $join_state ) : /* ---- Selbst-Registrierung (Schalter an) ---- */ ?>
 				<hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--pp-border);">
 				<details class="pp-portal__add"<?php echo '' !== $reg_msg ? ' open' : ''; ?>>
 					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'New here? Create an account', 'project-prepper' ); ?></summary>
@@ -1693,11 +1756,32 @@ class MemberPortal {
 						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create account', 'project-prepper' ); ?></button>
 					</form>
 				</details>
+			<?php elseif ( ! $can_register && ! $pending && 'register' !== $join_state ) : /* ---- Einladungs-Registrierung (manuell, invite-only) ---- */ ?>
+				<hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--pp-border);">
+				<details class="pp-portal__add"<?php echo '' !== $reg_msg ? ' open' : ''; ?>>
+					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Received an invitation? Create your account', 'project-prepper' ); ?></summary>
+					<p class="pp-portal__note" style="margin-top:.75rem;"><?php esc_html_e( 'Use exactly the email address your invitation was sent to.', 'project-prepper' ); ?></p>
+					<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:.75rem;">
+						<input type="hidden" name="action" value="pp_member_register">
+						<?php wp_nonce_field( 'pp_member_register', 'pp_nonce' ); ?>
+						<label><?php esc_html_e( 'Email', 'project-prepper' ); ?>
+							<input type="email" name="pp_email" required>
+						</label>
+						<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+							<input type="text" name="pp_name" required>
+						</label>
+						<label><?php esc_html_e( 'Password (min. 8 characters)', 'project-prepper' ); ?>
+							<input type="password" name="pp_password" minlength="8" required>
+						</label>
+						<input type="text" name="pp_website" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;">
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create account', 'project-prepper' ); ?></button>
+					</form>
+				</details>
 			<?php endif; ?>
 
 			<p class="pp-portal__note">
 				<?php if ( ! $can_register ) : ?>
-					<?php esc_html_e( 'Access is by invitation only. Ask the platform operators to set up an account for you.', 'project-prepper' ); ?>
+					<?php esc_html_e( 'Access is by invitation only.', 'project-prepper' ); ?>
 					<br>
 				<?php endif; ?>
 				<a href="<?php echo esc_url( wp_lostpassword_url( self::portal_url() ) ); ?>"><?php esc_html_e( 'Forgot your password?', 'project-prepper' ); ?></a>

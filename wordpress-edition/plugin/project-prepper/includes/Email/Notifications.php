@@ -67,7 +67,7 @@ class Notifications {
 				/* translators: Email subject. Keep the {{group_name}} and {{site_name}} placeholders unchanged. */
 				'subject' => __( 'You have been invited to {{group_name}} — {{site_name}}', 'project-prepper' ),
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. {{message}} expands to the optional personal note (or nothing). */
-				'body'    => __( "Hello,\n\n{{inviter_name}} has invited you to join the collective \"{{group_name}}\".{{message}}\n\nSign in to accept the invitation:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+				'body'    => __( "Hello,\n\n{{inviter_name}} has invited you to join the collective \"{{group_name}}\".{{message}}\n\nCreate your account (or sign in) here to accept the invitation:\n{{join_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
 			'group_vote_reminder' => [
 				/* translators: Email subject. Keep the {{group_name}} and {{site_name}} placeholders unchanged. */
@@ -242,6 +242,12 @@ class Notifications {
 			'inviter_name' => $inviter ? $inviter->display_name : get_bloginfo( 'name' ),
 			'message'      => '' !== $note ? "\n\n" . __( 'Personal note:', 'project-prepper' ) . "\n" . $note : '',
 			'portal_url'   => MemberPortal::portal_url(),
+			// Persönlicher Beitritts-Link: öffnet im Portal die Registrierung mit
+			// vorausgefüllter (per Token verifizierter) E-Mail-Adresse.
+			'join_url'     => add_query_arg(
+				[ 'pp_join' => (int) $inv->id, 'pp_key' => GroupGovernance::invite_token( $inv ) ],
+				MemberPortal::portal_url()
+			),
 			'site_name'    => get_bloginfo( 'name' ),
 		];
 		wp_mail( $inv->invited_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );

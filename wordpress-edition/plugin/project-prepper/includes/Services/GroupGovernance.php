@@ -525,6 +525,45 @@ class GroupGovernance {
 	/* ===================== Registrierungs-Verknüpfung ===================== */
 
 	/**
+	 * Deterministischer Beitritts-Token für den persönlichen Registrierungs-Link
+	 * in der Einladungs-Mail. Wer den Token vorweist, hat die Einladungs-Mail
+	 * erhalten — die E-Mail-Adresse gilt damit als verifiziert. Kein Schema-
+	 * Change nötig: HMAC über ID + Adresse mit dem WP-Auth-Salt.
+	 */
+	public static function invite_token( object $inv ): string {
+		return substr( wp_hash( 'pp_invite|' . (int) $inv->id . '|' . strtolower( (string) $inv->invited_email ), 'auth' ), 0, 20 );
+	}
+
+	/** Einladung per ID + Token holen — nur bei gültigem Token, sonst null. */
+	public static function get_by_token( int $invitation_id, string $token ): ?object {
+		$inv = self::get( $invitation_id );
+		if ( ! $inv || '' === $token || ! hash_equals( self::invite_token( $inv ), $token ) ) {
+			return null;
+		}
+		return $inv;
+	}
+
+	/**
+	 * Offene (pending) Einladungen für eine E-Mail-Adresse — Gate für die
+	 * Einladungs-Registrierung im Portal (auch ohne Token-Link nutzbar).
+	 *
+	 * @return array<object>
+	 */
+	public static function pending_for_email( string $email ): array {
+		global $wpdb;
+		$email = sanitize_email( $email );
+		if ( ! is_email( $email ) ) {
+			return [];
+		}
+		return $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM %i WHERE invited_email = %s AND status = %s ORDER BY created_at DESC',
+			Schema::table( 'group_invitations' ),
+			$email,
+			'pending'
+		) ) ?: [];
+	}
+
+	/**
 	 * Bei Registrierung offene E-Mail-Einladungen mit dem neuen User verknüpfen
 	 * (Pendant zum link-on-signup-Trigger der App).
 	 */

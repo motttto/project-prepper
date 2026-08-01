@@ -1,9 +1,9 @@
 {
-  "version": "0.124.1",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.124.1/project-prepper-0.124.1.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.124.1",
-  "published": "2026-07-30",
+  "version": "0.125.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.125.0/project-prepper-0.125.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.125.0",
+  "published": "2026-08-01",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Dark-Mode-Fix: dunkle Schriftfarben auf Status-Chips, Hinweis-Boxen, KPI-Werten, Kalender-Chips, Abstimm-Buttons und im Plattform-Banner waren vor dunklem Hintergrund unlesbar — jetzt überall helle, lesbare Farben (Light Mode unverändert). Außerdem: Passwort-Feld im Mitglieder-Login ist im Dark Mode jetzt dunkel statt weiß."
+  "changelog": "Einladungs-Onboarding komplett im Mitglieder-Portal: Die Einladungs-Mail enthält jetzt einen persönlichen Beitritts-Link, der auf der Portal-Login-Seite eine Karte „Dem Kollektiv beitreten\" mit vorausgefüllter E-Mail öffnet — nur Name und Passwort wählen, Konto wird angelegt und die Einladung direkt angenommen (Sofort-Beitritt oder Mitglieder-Voting). Ohne Link geht es auch: „Einladung erhalten? Erstelle dein Konto\" auf der Login-Seite mit genau der eingeladenen Adresse — auch bei ausgeschalteter Selbst-Registrierung. Eingeladene brauchen kein wp-admin mehr."
 }

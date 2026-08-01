@@ -4,6 +4,7 @@ namespace ProjectPrepper\Frontend;
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Security;
 use ProjectPrepper\Email\Notifications;
+use ProjectPrepper\Services\GroupGovernance;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -42,18 +43,19 @@ class MemberAuth {
 	/* ===================== Selbst-Registrierung ===================== */
 
 	/**
-	 * Frontend-Registrierung — nur wenn der Betreiber „Selbst-Registrierung"
-	 * aktiviert hat (Security::on('allow_self_registration')). Sonst bleibt es
-	 * invite-only und dieser Handler weist ab. Legt einen pp_member-User an und
-	 * loggt ihn ein; offene E-Mail-Einladungen werden über den user_register-Hook
-	 * automatisch verknüpft.
+	 * Frontend-Registrierung. Zwei Zugangswege:
+	 *  1. Offene Selbst-Registrierung (Security::on('allow_self_registration')).
+	 *  2. Einladungs-Registrierung (immer): wer eine offene Kollektiv-Einladung
+	 *     für seine E-Mail-Adresse hat, legt den Account selbst im Portal an —
+	 *     per Token-Link aus der Einladungs-Mail (Adresse verifiziert) oder durch
+	 *     Eingabe genau der eingeladenen Adresse.
+	 * Legt einen pp_member-User an (eigener Solo-Bereich), loggt ihn ein und
+	 * nimmt offene Einladungen direkt an → Auto-Join (1 aktives Mitglied) oder
+	 * Freischaltung per Mitglieder-Voting.
 	 */
 	public static function handle_register(): void {
 		$portal = MemberPortal::portal_url();
 
-		if ( ! Security::on( 'allow_self_registration' ) ) {
-			self::redirect( $portal, [ 'pp_reg' => 'closed' ] );
-		}
 		if ( ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_member_register' ) ) {
 			self::redirect( $portal, [ 'pp_reg' => 'failed' ] );
 		}
@@ -66,6 +68,16 @@ class MemberAuth {
 		$email    = sanitize_email( wp_unslash( (string) ( $_POST['pp_email'] ?? '' ) ) );
 		$password = (string) ( $_POST['pp_password'] ?? '' );
 
+		// Token-Pfad: die Einladung bestimmt die Adresse (per Mail-Link verifiziert).
+		$invite_id  = absint( $_POST['pp_invite'] ?? 0 );
+		$invite_key = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_key'] ?? '' ) ) );
+		$token_inv  = $invite_id ? GroupGovernance::get_by_token( $invite_id, $invite_key ) : null;
+		if ( $token_inv && 'pending' === $token_inv->status ) {
+			$email = (string) $token_inv->invited_email;
+		} else {
+			$token_inv = null;
+		}
+
 		if ( ! is_email( $email ) ) {
 			self::redirect( $portal, [ 'pp_reg' => 'invalid' ] );
 		}
@@ -74,6 +86,12 @@ class MemberAuth {
 		}
 		if ( strlen( $password ) < 8 ) {
 			self::redirect( $portal, [ 'pp_reg' => 'weakpass' ] );
+		}
+
+		// Zugangs-Gate: offene Selbst-Registrierung ODER Einladung für diese Adresse.
+		$invitations = $token_inv ? [ $token_inv ] : GroupGovernance::pending_for_email( $email );
+		if ( ! $invitations && ! Security::on( 'allow_self_registration' ) ) {
+			self::redirect( $portal, [ 'pp_reg' => 'noinvite' ] );
 		}
 
 		// Eindeutigen Benutzernamen aus der E-Mail ableiten.
@@ -96,8 +114,34 @@ class MemberAuth {
 			self::redirect( $portal, [ 'pp_reg' => 'failed' ] );
 		}
 
-		// Direkt einloggen (Registrierung impliziert Passwort-Besitz).
+		// Direkt einloggen (Registrierung impliziert Passwort-Besitz). Der
+		// user_register-Hook hat offene Einladungen bereits mit dem neuen User
+		// verknüpft; wp_set_current_user, damit accept() den User als
+		// Eingeladene/n erkennt.
+		wp_set_current_user( (int) $user_id );
 		wp_set_auth_cookie( (int) $user_id );
+
+		// Einladungen direkt annehmen → Auto-Join oder Mitglieder-Voting.
+		$joined = false;
+		$voting = false;
+		foreach ( $invitations as $inv ) {
+			$res = GroupGovernance::accept( (int) $inv->id );
+			if ( is_wp_error( $res ) ) {
+				continue;
+			}
+			$after = GroupGovernance::get( (int) $inv->id );
+			if ( $after && 'approved' === $after->status ) {
+				$joined = true;
+			} else {
+				$voting = true;
+			}
+		}
+		if ( $voting ) {
+			self::redirect( $portal, [ 'pp_msg' => 'welcome_voting' ] );
+		}
+		if ( $joined ) {
+			self::redirect( $portal, [ 'pp_msg' => 'welcome_joined' ] );
+		}
 		self::redirect( $portal, [] );
 	}
 

@@ -3,6 +3,27 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔗 Release v0.125.0 2026-08-01 (Einladungs-Onboarding komplett im Portal, Schema UNVERÄNDERT 0.38.0)
+> **Ausgeliefert.** Eingeladene brauchen kein wp-admin mehr: Die Kollektiv-Einladungs-Mail enthält jetzt einen
+> persönlichen Beitritts-Link (`{{join_url}}` = Portal-URL mit `pp_join=<id>&pp_key=<HMAC-Token>`;
+> Token = `substr(wp_hash('pp_invite|id|email','auth'),0,20)` — wer den Link hat, hat die Mail erhalten →
+> Adresse verifiziert, KEIN Schema-Change). Default-Template `group_invitation` umgestellt, `{{portal_url}}`
+> bleibt als Variable erhalten (Fallback für gespeicherte Custom-Templates). Login-Seite: Beitritts-Link öffnet
+> Registrierungs-Karte „Dem Kollektiv beitreten" mit vorausgefüllter (readonly) E-Mail — nur Name + Passwort;
+> Zustände gültig+neu → Registrierung / Konto existiert → „anmelden, um anzunehmen" / schon beantwortet →
+> Hinweis / Token ungültig → Fehlerhinweis. Zusätzlich manuelle Karte „Einladung erhalten? Erstelle dein Konto"
+> (bei invite-only): Einladungs-E-Mail + Name + Passwort. `MemberAuth::handle_register` ist bei invite-only
+> offen, sofern eine pending-Einladung zur Adresse existiert (Token-Pfad übersteuert die E-Mail); neuer User =
+> `pp_member` (eigener Solo-Bereich), wird direkt eingeloggt, offene Einladungen werden automatisch angenommen
+> → Auto-Join (1 aktives Mitglied) oder Freischaltung per Mitglieder-Voting. Neue Helper
+> `GroupGovernance::invite_token()/get_by_token()/pending_for_email()`; neue Meldungen `noinvite`,
+> `welcome_joined`, `welcome_voting`; „Ask the platform operators…" ersetzt durch „Zugang nur auf Einladung.".
+> i18n: 13 Strings dt. übersetzt, pot/po/mo/JSON gebaut (⚠️ make-json-Gotcha erneut: frische admin.js-Datei
+> kam als `…-cb151ef6….json` mit `source: admin/js/a.js` — Inhalt nach `…-b41de59f….json` kopiert, source-Feld
+> auf `admin/js/admin.js` gefixt, Überzählige gelöscht). End-to-end in wp-env verifiziert. Plugin Check sauber
+> (nur by-design hidden_files/plugin_updater_detected). ZIP 1.3 MB, `update.json` auf 0.125.0.
+> GitHub-Release `v0.125.0` mit ZIP-Asset.
+>
 > ## 🌒 Release v0.124.1 2026-07-30 (Dark-Mode-Fix Schriftfarben, reiner CSS-Patch, Schema UNVERÄNDERT 0.38.0)
 > **Ausgeliefert.** Einzige geänderte Datei `assets/css/frontend.css`. Hartcodierte dunkle Textfarben auf
 > `*-light`-Flächen waren im Dark Mode unlesbar („einige Schriften schwarz"): (1) alle 13 `color: #4f46e5`
