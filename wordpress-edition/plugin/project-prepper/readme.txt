@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 0.125.0
+Stable tag: 0.126.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.126.0 =
+* New: delivery performance — the plugin now manages its own rule block in the site's .htaccess (on Apache/LiteSpeed hosts): compression for HTML/CSS/JS and one-month browser caching for static assets. Pages and stylesheets that used to travel uncompressed on shared hosting now arrive a fraction of the size, making portal page changes noticeably faster.
+* The rules are written on activation and refreshed automatically after each plugin update; deactivating the plugin removes them again. The WordPress block and any other rules in .htaccess stay untouched, and every directive is guarded so nothing breaks if a server module is missing.
+* New: hover prefetch in the member portal — links are preloaded the moment you point at (or touch) them, so the next page is often already in the browser cache when you click. Only safe same-origin pages are prefetched; actions, exports and login/logout links are never preloaded, and data-saver mode is respected.
 
 = 0.125.0 =
 * New: invitation onboarding happens entirely in the member portal — invited people no longer need wp-admin to get their account.

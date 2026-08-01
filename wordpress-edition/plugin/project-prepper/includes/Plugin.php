@@ -27,6 +27,7 @@ class Plugin {
 
 		Email\Notifications::init();
 		Email\Mailer::init();
+		Performance::init();
 		Services\Telegram::init();
 		Privacy::init();
 		Security::init();

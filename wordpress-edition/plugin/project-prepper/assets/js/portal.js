@@ -150,4 +150,54 @@
 			}
 		} );
 	} )();
+
+	/* Hover-Prefetch: lädt Portal-Seiten schon beim Draufzeigen im Hintergrund,
+	 * damit sich die Vollreload-Navigation wie eine App anfühlt. Bewusst eng
+	 * gefasst: nur same-origin Seiten-Links — niemals Aktions-/Auth-URLs
+	 * (admin-post/wp-login/wp-admin oder Links mit Nonce/action), die beim
+	 * Vorladen etwas ausführen würden. Ohne JS oder in Browsern ohne
+	 * rel=prefetch (Safari) ändert sich nichts. */
+	( function () {
+		if ( navigator.connection && navigator.connection.saveData ) {
+			return; // Daten-Sparmodus respektieren.
+		}
+		var done  = {};
+		var timer = null;
+
+		function safe( a ) {
+			if ( ! a || ! a.href || a.origin !== window.location.origin ) { return false; }
+			if ( a.hasAttribute( 'download' ) || a.hasAttribute( 'data-no-prefetch' ) || '_blank' === a.target ) { return false; }
+			var url = a.href;
+			if ( -1 !== url.indexOf( 'admin-post.php' ) || -1 !== url.indexOf( 'wp-login.php' ) || -1 !== url.indexOf( '/wp-admin' ) ) { return false; }
+			if ( /[?&](_wpnonce|pp_nonce|action|pp_export)=/.test( url ) ) { return false; }
+			return true;
+		}
+
+		function prefetch( a ) {
+			var key = a.href.split( '#' )[ 0 ];
+			if ( done[ key ] || key === window.location.href.split( '#' )[ 0 ] ) { return; }
+			done[ key ] = true;
+			var link = document.createElement( 'link' );
+			link.rel  = 'prefetch';
+			link.href = key;
+			document.head.appendChild( link );
+		}
+
+		document.addEventListener( 'mouseover', function ( e ) {
+			var a = e.target.closest ? e.target.closest( 'a[href]' ) : null;
+			if ( ! a || ! safe( a ) ) { return; }
+			// Kurze Verweil-Schwelle, damit bloßes Überstreichen nicht lädt.
+			window.clearTimeout( timer );
+			timer = window.setTimeout( function () { prefetch( a ); }, 65 );
+		} );
+		document.addEventListener( 'mouseout', function () {
+			window.clearTimeout( timer );
+		} );
+		// Touch: beim Antippen sofort vorladen — der Tap selbst dauert ~100 ms,
+		// die der Seitenaufbau dann schon voraus ist.
+		document.addEventListener( 'touchstart', function ( e ) {
+			var a = e.target.closest ? e.target.closest( 'a[href]' ) : null;
+			if ( a && safe( a ) ) { prefetch( a ); }
+		}, { passive: true } );
+	} )();
 } )();

@@ -3,6 +3,23 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## ⚡ Release v0.126.0 2026-08-02 (Auslieferungs-Performance, Schema UNVERÄNDERT 0.38.0, KEINE neuen i18n-Strings)
+> **Ausgeliefert.** Anlass: Live-Instanz lieferte HTML + 99-KB-CSS unkomprimiert ohne Cache-Header über
+> HTTP/1.1 aus — gemessene Ursache der gefühlt langsamen Seitenwechsel (Plugin-Rendering selbst 3–12 ms/View).
+> (1) Neue Klasse `includes/Performance.php`: eigener Regel-Block „# BEGIN/END Project Prepper Performance"
+> in der .htaccess des WP-Roots via `insert_with_markers()` — mod_deflate (HTML/CSS/JS/JSON/SVG) +
+> mod_expires 1 Monat NUR für statische Assets (bewusst kein text/html; Cache-Busting via `?ver=<PP_VERSION>`
+> vorhanden). Geschrieben bei Aktivierung + nach jedem Update (Option `pp_perf_htaccess_version` vs.
+> PP_VERSION, unabhängig vom Schema-Check), bei Deaktivierung geleert. Guards: nur Apache/LiteSpeed
+> (SERVER_SOFTWARE), alles in IfModule, nur wenn .htaccess beschreibbar; WordPress-Block bleibt unangetastet.
+> Gemessen in wp-env: frontend.css 99 KB → 20,6 KB übertragen + `Cache-Control max-age=2592000`, HTML gzipped.
+> (2) Hover-Prefetch in `assets/js/portal.js`: Portal-Links werden beim Draufzeigen (65-ms-Schwelle) bzw.
+> Antippen per `<link rel=prefetch>` vorgeladen. Streng gefiltert: nur same-origin, nie admin-post.php/
+> wp-login.php/wp-admin oder URLs mit _wpnonce/pp_nonce/action/pp_export, kein download/target=_blank/
+> data-no-prefetch, respektiert `navigator.connection.saveData`. Verifiziert: Nav-Links geprefetcht,
+> Logout-Link nicht. Plugin Check sauber (nur by-design hidden_files/plugin_updater_detected).
+> `update.json` auf 0.126.0. GitHub-Release `v0.126.0` mit ZIP-Asset.
+>
 > ## 🔗 Release v0.125.0 2026-08-01 (Einladungs-Onboarding komplett im Portal, Schema UNVERÄNDERT 0.38.0)
 > **Ausgeliefert.** Eingeladene brauchen kein wp-admin mehr: Die Kollektiv-Einladungs-Mail enthält jetzt einen
 > persönlichen Beitritts-Link (`{{join_url}}` = Portal-URL mit `pp_join=<id>&pp_key=<HMAC-Token>`;
