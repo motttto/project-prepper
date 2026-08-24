@@ -7237,3 +7237,19 @@ msgstr "Verwende genau die E-Mail-Adresse, an die deine Einladung geschickt wurd
 #: includes/Frontend/MemberPortal.php:1784
 msgid "Access is by invitation only."
 msgstr "Zugang nur auf Einladung."
+
+#: includes/Admin/Menu.php:149
+msgid "Download all feedback (CSV)"
+msgstr "Gesamtes Feedback herunterladen (CSV)"
+
+#: includes/Admin/Menu.php:151
+msgid "Contains all entries including status — without email addresses."
+msgstr "Enthält alle Einträge samt Status — ohne E-Mail-Adressen."
+
+#: includes/Admin/Menu.php:194
+msgid "ID"
+msgstr "ID"
+
+#: includes/Admin/Menu.php:199
+msgid "Page"
+msgstr "Seite"

@@ -2,14 +2,14 @@
 # This file is distributed under the GPL-2.0-or-later.
 msgid ""
 msgstr ""
-"Project-Id-Version: Project Prepper 0.125.0\n"
+"Project-Id-Version: Project Prepper 0.127.0\n"
 "Report-Msgid-Bugs-To: https://wordpress.org/support/plugin/project-prepper\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-01T11:56:39+00:00\n"
+"POT-Creation-Date: 2026-08-24T20:38:38+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: project-prepper\n"
@@ -34,81 +34,91 @@ msgstr ""
 msgid "motttto"
 msgstr ""
 
-#: includes/Admin/Menu.php:36
 #: includes/Admin/Menu.php:37
+#: includes/Admin/Menu.php:38
 #: includes/Frontend/MemberPortal.php:1921
 msgid "Dashboard"
 msgstr ""
 
-#: includes/Admin/Menu.php:48
 #: includes/Admin/Menu.php:49
-#: includes/Admin/Menu.php:242
+#: includes/Admin/Menu.php:50
+#: includes/Admin/Menu.php:299
 #: includes/Frontend/MemberPortal.php:2391
 #: includes/Frontend/MemberPortal.php:7856
 msgid "Manage"
 msgstr ""
 
-#: includes/Admin/Menu.php:60
 #: includes/Admin/Menu.php:61
-#: includes/Admin/Menu.php:312
+#: includes/Admin/Menu.php:62
+#: includes/Admin/Menu.php:369
 #: admin/js/admin.js:1808
 #: admin/js/admin.js:1830
 msgid "Instance"
 msgstr ""
 
-#: includes/Admin/Menu.php:70
 #: includes/Admin/Menu.php:71
-#: includes/Admin/Menu.php:316
+#: includes/Admin/Menu.php:72
+#: includes/Admin/Menu.php:373
 msgid "Platform"
 msgstr ""
 
-#: includes/Admin/Menu.php:80
 #: includes/Admin/Menu.php:81
-#: includes/Admin/Menu.php:300
+#: includes/Admin/Menu.php:82
+#: includes/Admin/Menu.php:357
 msgid "Users & permissions"
 msgstr ""
 
-#: includes/Admin/Menu.php:89
 #: includes/Admin/Menu.php:90
-#: includes/Admin/Menu.php:259
+#: includes/Admin/Menu.php:91
+#: includes/Admin/Menu.php:316
 #: includes/Frontend/MemberPortal.php:7350
 #: includes/Frontend/MemberPortal.php:7581
 #: admin/js/blocks-editor.js:18
 msgid "Settings"
 msgstr ""
 
-#: includes/Admin/Menu.php:99
 #: includes/Admin/Menu.php:100
-#: includes/Admin/Menu.php:304
+#: includes/Admin/Menu.php:101
+#: includes/Admin/Menu.php:361
 msgid "Email templates"
 msgstr ""
 
-#: includes/Admin/Menu.php:109
 #: includes/Admin/Menu.php:110
-#: includes/Admin/Menu.php:320
+#: includes/Admin/Menu.php:111
+#: includes/Admin/Menu.php:377
 msgid "Security"
 msgstr ""
 
-#: includes/Admin/Menu.php:118
-#: includes/Admin/Menu.php:121
+#: includes/Admin/Menu.php:119
+#: includes/Admin/Menu.php:122
 #: includes/Frontend/MemberPortal.php:2063
 msgid "Feedback"
 msgstr ""
 
-#: includes/Admin/Menu.php:136
+#: includes/Admin/Menu.php:137
 msgid "Member feedback"
 msgstr ""
 
-#: includes/Admin/Menu.php:138
+#: includes/Admin/Menu.php:139
 msgid "No feedback yet."
 msgstr ""
 
-#: includes/Admin/Menu.php:142
+#: includes/Admin/Menu.php:149
+msgid "Download all feedback (CSV)"
+msgstr ""
+
+#: includes/Admin/Menu.php:151
+msgid "Contains all entries including status — without email addresses."
+msgstr ""
+
+#: includes/Admin/Menu.php:154
+#: includes/Admin/Menu.php:195
 #: admin/js/admin.js:1661
 msgid "When"
 msgstr ""
 
-#: includes/Admin/Menu.php:142
+#: includes/Admin/Menu.php:154
+#: includes/Admin/Menu.php:196
 #: includes/Frontend/MemberPortal.php:2937
 #: includes/Frontend/MemberPortal.php:3676
 #: includes/Frontend/MemberPortal.php:4138
@@ -126,20 +136,23 @@ msgstr ""
 msgid "From"
 msgstr ""
 
-#: includes/Admin/Menu.php:142
+#: includes/Admin/Menu.php:154
+#: includes/Admin/Menu.php:197
 #: includes/Frontend/MemberPortal.php:1889
 #: admin/js/admin.js:1457
 msgid "Type"
 msgstr ""
 
-#: includes/Admin/Menu.php:142
+#: includes/Admin/Menu.php:154
+#: includes/Admin/Menu.php:198
 #: templates/request-form.php:65
 #: admin/js/admin.js:837
 #: admin/js/admin.js:872
 msgid "Message"
 msgstr ""
 
-#: includes/Admin/Menu.php:142
+#: includes/Admin/Menu.php:154
+#: includes/Admin/Menu.php:200
 #: includes/Frontend/MemberPortal.php:4131
 #: includes/Frontend/MemberPortal.php:5043
 #: includes/Privacy.php:61
@@ -153,49 +166,66 @@ msgid "Status"
 msgstr ""
 
 #. translators: %s = next status (read/done/new).
-#: includes/Admin/Menu.php:156
+#: includes/Admin/Menu.php:168
 #, php-format
 msgid "Mark as %s"
 msgstr ""
 
+#: includes/Admin/Menu.php:180
+#: includes/Frontend/MemberPortal.php:1311
+#: includes/Services/MemberInventory.php:461
+#: includes/Services/Telegram.php:208
+#: includes/Updater.php:55
+#: includes/Updater.php:80
+msgid "You are not allowed to do this."
+msgstr ""
+
+#: includes/Admin/Menu.php:194
+msgid "ID"
+msgstr ""
+
+#: includes/Admin/Menu.php:199
+msgid "Page"
+msgstr ""
+
 #. translators: %s = display name of the current user.
 #. translators: %s: member display name.
-#: includes/Admin/Menu.php:199
+#: includes/Admin/Menu.php:256
 #: includes/Frontend/MemberPortal.php:2285
 #, php-format
 msgid "Hello %s"
 msgstr ""
 
-#: includes/Admin/Menu.php:213
+#: includes/Admin/Menu.php:270
 #: includes/Frontend/MemberPortal.php:1922
 #: includes/Frontend/MemberPortal.php:6347
 msgid "Inventory"
 msgstr ""
 
-#: includes/Admin/Menu.php:214
+#: includes/Admin/Menu.php:271
 #: includes/Frontend/MemberPortal.php:1924
 #: includes/Frontend/MemberPortal.php:2315
 #: includes/Frontend/MemberPortal.php:6136
 msgid "Projects"
 msgstr ""
 
-#: includes/Admin/Menu.php:215
+#: includes/Admin/Menu.php:272
 msgid "Groups"
 msgstr ""
 
-#: includes/Admin/Menu.php:216
+#: includes/Admin/Menu.php:273
 #: includes/Rest/CalendarController.php:118
 msgid "Rentals"
 msgstr ""
 
-#: includes/Admin/Menu.php:217
+#: includes/Admin/Menu.php:274
 #: includes/Frontend/MemberPortal.php:1925
 #: includes/Frontend/MemberPortal.php:2316
 #: includes/Frontend/MemberPortal.php:3241
 msgid "Inquiries"
 msgstr ""
 
-#: includes/Admin/Menu.php:218
+#: includes/Admin/Menu.php:275
 #: includes/Frontend/MemberPortal.php:1926
 #: includes/Frontend/MemberPortal.php:6382
 #: includes/Frontend/MemberPortal.php:6454
@@ -203,24 +233,24 @@ msgstr ""
 msgid "Calendar"
 msgstr ""
 
-#: includes/Admin/Menu.php:219
+#: includes/Admin/Menu.php:276
 msgid "Categories"
 msgstr ""
 
-#: includes/Admin/Menu.php:220
+#: includes/Admin/Menu.php:277
 msgid "Federation"
 msgstr ""
 
-#: includes/Admin/Menu.php:233
+#: includes/Admin/Menu.php:290
 msgid "You are not allowed to access this page."
 msgstr ""
 
-#: includes/Admin/Menu.php:276
+#: includes/Admin/Menu.php:333
 msgid "Telegram notifications"
 msgstr ""
 
-#: includes/Admin/Menu.php:278
-#: includes/Admin/Menu.php:354
+#: includes/Admin/Menu.php:335
+#: includes/Admin/Menu.php:411
 #: admin/js/admin.js:391
 #: admin/js/admin.js:683
 #: admin/js/admin.js:1167
@@ -229,90 +259,90 @@ msgstr ""
 msgid "Saved."
 msgstr ""
 
-#: includes/Admin/Menu.php:280
+#: includes/Admin/Menu.php:337
 msgid "Optional. Set one bot token for this instance to send short notifications (new inquiries, bookings, availability) to a collective’s Telegram group. Each collective’s founders set their own chat ID in the portal under “Edit collective”."
 msgstr ""
 
-#: includes/Admin/Menu.php:281
-#: includes/Admin/Menu.php:357
+#: includes/Admin/Menu.php:338
+#: includes/Admin/Menu.php:414
 msgid "Status:"
 msgstr ""
 
-#: includes/Admin/Menu.php:281
+#: includes/Admin/Menu.php:338
 msgid "bot token active"
 msgstr ""
 
-#: includes/Admin/Menu.php:281
+#: includes/Admin/Menu.php:338
 msgid "no bot token (notifications off)"
 msgstr ""
 
-#: includes/Admin/Menu.php:283
+#: includes/Admin/Menu.php:340
 msgid "The token is set via the PP_TELEGRAM_BOT_TOKEN constant in wp-config.php (the most secure option). The field below is therefore disabled."
 msgstr ""
 
-#: includes/Admin/Menu.php:288
+#: includes/Admin/Menu.php:345
 msgid "Telegram bot token"
 msgstr ""
 
-#: includes/Admin/Menu.php:289
-#: includes/Admin/Menu.php:365
+#: includes/Admin/Menu.php:346
+#: includes/Admin/Menu.php:422
 msgid "Save token"
 msgstr ""
 
-#: includes/Admin/Menu.php:291
-#: includes/Admin/Menu.php:367
+#: includes/Admin/Menu.php:348
+#: includes/Admin/Menu.php:424
 msgid "Remove token"
 msgstr ""
 
-#: includes/Admin/Menu.php:295
+#: includes/Admin/Menu.php:352
 msgid "Create a bot with @BotFather in Telegram, then add the bot to the group and use that group’s chat ID."
 msgstr ""
 
-#: includes/Admin/Menu.php:331
+#: includes/Admin/Menu.php:388
 msgid "Plugin updates"
 msgstr ""
 
-#: includes/Admin/Menu.php:333
+#: includes/Admin/Menu.php:390
 msgid "You are on the latest version."
 msgstr ""
 
-#: includes/Admin/Menu.php:335
+#: includes/Admin/Menu.php:392
 msgid "Installed version:"
 msgstr ""
 
-#: includes/Admin/Menu.php:336
+#: includes/Admin/Menu.php:393
 msgid "Checks GitHub right now (bypassing the 6-hour cache) and, if a new version is available, takes you straight to the WordPress update screen."
 msgstr ""
 
-#: includes/Admin/Menu.php:340
+#: includes/Admin/Menu.php:397
 msgid "Check for updates now"
 msgstr ""
 
-#: includes/Admin/Menu.php:352
+#: includes/Admin/Menu.php:409
 msgid "Update token (GitHub)"
 msgstr ""
 
-#: includes/Admin/Menu.php:356
+#: includes/Admin/Menu.php:413
 msgid "Optional. Authenticated update checks raise GitHub’s rate limit from 60 to 5000 requests per hour — recommended on shared hosting, where the auto-updater otherwise fails intermittently. A token WITHOUT any scopes is enough for a public repository."
 msgstr ""
 
-#: includes/Admin/Menu.php:357
+#: includes/Admin/Menu.php:414
 msgid "token active"
 msgstr ""
 
-#: includes/Admin/Menu.php:357
+#: includes/Admin/Menu.php:414
 msgid "no token (unauthenticated, 60/h)"
 msgstr ""
 
-#: includes/Admin/Menu.php:359
+#: includes/Admin/Menu.php:416
 msgid "The token is set via the PP_UPDATE_TOKEN constant in wp-config.php (the most secure option). The field below is therefore disabled."
 msgstr ""
 
-#: includes/Admin/Menu.php:364
+#: includes/Admin/Menu.php:421
 msgid "GitHub token"
 msgstr ""
 
-#: includes/Admin/Menu.php:371
+#: includes/Admin/Menu.php:428
 msgid "Create a fine-grained token on GitHub (Read-only, no scopes needed) →"
 msgstr ""
 
@@ -727,14 +757,6 @@ msgstr ""
 #: includes/Frontend/MemberPortal.php:1310
 #: includes/Services/GroupGovernance.php:71
 msgid "Only members of this collective can invite others."
-msgstr ""
-
-#: includes/Frontend/MemberPortal.php:1311
-#: includes/Services/MemberInventory.php:461
-#: includes/Services/Telegram.php:208
-#: includes/Updater.php:55
-#: includes/Updater.php:80
-msgid "You are not allowed to do this."
 msgstr ""
 
 #: includes/Frontend/MemberPortal.php:1312

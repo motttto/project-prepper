@@ -2,9 +2,9 @@
 Contributors: motttto
 Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
-Tested up to: 7.0
+Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.126.0
+Stable tag: 0.127.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.127.0 =
+* New: “Download all feedback (CSV)” button on the Feedback screen — every entry submitted from the member portal in one file, ready to open in Excel or hand to someone else.
+* The file contains time, sender name, type, message, the portal page it came from and the current status; email addresses are deliberately left out, since the export is usually passed on.
 
 = 0.126.0 =
 * New: delivery performance — the plugin now manages its own rule block in the site's .htaccess (on Apache/LiteSpeed hosts): compression for HTML/CSS/JS and one-month browser caching for static assets. Pages and stylesheets that used to travel uncompressed on shared hosting now arrive a fraction of the size, making portal page changes noticeably faster.

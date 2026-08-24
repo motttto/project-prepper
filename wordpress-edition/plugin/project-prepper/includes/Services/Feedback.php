@@ -61,6 +61,19 @@ class Feedback {
 		) ) ?: [];
 	}
 
+	/**
+	 * Alle Einträge, älteste zuletzt — Grundlage für den CSV-Export im Backend.
+	 *
+	 * @return array<object>
+	 */
+	public static function all(): array {
+		global $wpdb;
+		return $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM %i ORDER BY created_at DESC',
+			Schema::table( 'app_feedback' )
+		) ) ?: [];
+	}
+
 	/** Anzahl ungelesener (status = new) — für ein Badge im Backend. */
 	public static function new_count(): int {
 		global $wpdb;

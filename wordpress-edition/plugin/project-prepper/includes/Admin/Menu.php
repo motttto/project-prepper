@@ -16,6 +16,7 @@ class Menu {
 	public static function init(): void {
 		add_action( 'admin_menu', [ self::class, 'register_menu' ] );
 		add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_assets' ] );
+		add_action( 'admin_post_pp_export_feedback', [ self::class, 'handle_feedback_export' ] );
 	}
 
 	public static function register_menu(): void {
@@ -138,6 +139,17 @@ class Menu {
 			echo '<p>' . esc_html__( 'No feedback yet.', 'project-prepper' ) . '</p></div>';
 			return;
 		}
+		// Sammel-Download aller Einträge als CSV (ohne E-Mail-Adressen — die Datei
+		// wird typischerweise weitergegeben).
+		$export_url = wp_nonce_url(
+			admin_url( 'admin-post.php?action=pp_export_feedback' ),
+			'pp_export_feedback'
+		);
+		echo '<p><a class="button button-secondary" href="' . esc_url( $export_url ) . '">'
+			. esc_html__( 'Download all feedback (CSV)', 'project-prepper' ) . '</a> '
+			. '<span class="description">'
+			. esc_html__( 'Contains all entries including status — without email addresses.', 'project-prepper' )
+			. '</span></p>';
 		echo '<table class="wp-list-table widefat fixed striped"><thead><tr>';
 		echo '<th>' . esc_html__( 'When', 'project-prepper' ) . '</th><th>' . esc_html__( 'From', 'project-prepper' ) . '</th><th>' . esc_html__( 'Type', 'project-prepper' ) . '</th><th>' . esc_html__( 'Message', 'project-prepper' ) . '</th><th>' . esc_html__( 'Status', 'project-prepper' ) . '</th><th></th></tr></thead><tbody>';
 		foreach ( $rows as $r ) {
@@ -157,6 +169,51 @@ class Menu {
 			echo '</form></td></tr>';
 		}
 		echo '</tbody></table></div>';
+	}
+
+	/**
+	 * CSV-Download aller Feedback-Einträge (Semikolon + BOM → deutsches Excel).
+	 * Bewusst OHNE E-Mail-Adressen: die Datei wird erfahrungsgemäß weitergereicht.
+	 */
+	public static function handle_feedback_export(): void {
+		if ( ! current_user_can( Capabilities::OPERATE ) ) {
+			wp_die( esc_html__( 'You are not allowed to do this.', 'project-prepper' ), '', [ 'response' => 403 ] );
+		}
+		check_admin_referer( 'pp_export_feedback' );
+
+		$rows  = \ProjectPrepper\Services\Feedback::all();
+		$types = \ProjectPrepper\Services\Feedback::types();
+
+		nocache_headers();
+		header( 'Content-Type: text/csv; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="project-prepper-feedback-' . gmdate( 'Y-m-d' ) . '.csv"' );
+		echo "\xEF\xBB\xBF"; // UTF-8-BOM für Excel.
+
+		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- CSV-Streaming an die Ausgabe; WP_Filesystem ist dafür nicht vorgesehen.
+		fputcsv( $out, [
+			__( 'ID', 'project-prepper' ),
+			__( 'When', 'project-prepper' ),
+			__( 'From', 'project-prepper' ),
+			__( 'Type', 'project-prepper' ),
+			__( 'Message', 'project-prepper' ),
+			__( 'Page', 'project-prepper' ),
+			__( 'Status', 'project-prepper' ),
+		], ';' );
+		foreach ( $rows as $r ) {
+			$u   = $r->user_id ? get_userdata( (int) $r->user_id ) : null;
+			$row = [
+				(string) $r->id,
+				(string) $r->created_at,
+				$u ? $u->display_name : '—',
+				$types[ $r->feedback_type ] ?? $r->feedback_type,
+				(string) $r->message,
+				(string) $r->route,
+				(string) $r->status,
+			];
+			// CSV-/Formula-Injection abwehren (gemeinsamer Helfer).
+			fputcsv( $out, array_map( [ \ProjectPrepper\Rest\ImportExportController::class, 'csv_safe' ], $row ), ';' );
+		}
+		exit; // php://output wird beim Exit geschlossen.
 	}
 
 	public static function enqueue_assets( string $hook ): void {

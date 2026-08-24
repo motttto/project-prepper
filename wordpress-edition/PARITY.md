@@ -3,6 +3,24 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 📥 Release v0.127.0 2026-08-24 (Feedback-Export im Backend, Schema UNVERÄNDERT 0.38.0)
+> **Ausgeliefert.** Anlass: Betreiber:in wollte das Mitglieder-Feedback gesammelt herausgeben können
+> (bislang nur einzeln in der Backend-Tabelle lesbar). Neuer Knopf „Gesamtes Feedback herunterladen (CSV)"
+> auf `wp-admin → Project Prepper → Feedback`, direkt über der Tabelle. Neu:
+> `Services\Feedback::all()` (alle Einträge, `created_at DESC` — Pendant zu `recent()` ohne LIMIT) und
+> `Admin\Menu::handle_feedback_export()` an `admin_post_pp_export_feedback`. Spalten: ID; Wann; Von
+> (Anzeigename, verwaiste User → „—"); Typ; Nachricht; Seite (`route`); Status. Semikolon + UTF-8-BOM
+> (deutsches Excel), mehrzeilige Nachrichten bleiben in einer Zelle. **Bewusst OHNE E-Mail-Adressen** —
+> die Datei wird erfahrungsgemäß weitergereicht. Absicherung wie bei den übrigen Exporten:
+> `Capabilities::OPERATE` + `check_admin_referer`, CSV-/Formel-Injection über den gemeinsamen Helfer
+> `ImportExportController::csv_safe()` neutralisiert. Verifiziert in wp-env mit drei Testeinträgen
+> (Umlaute, Semikolon + Anführungszeichen im Text, mehrzeilig, `=HYPERLINK(...)`-Angriffsstring):
+> Download korrekt, ohne Nonce 403, ohne Login kein Zugriff. i18n: 4 neue Strings dt. übersetzt
+> (pot/po/mo gebaut, keine JS-Strings → JSON unverändert). Nebenbei `Tested up to` auf 7.1 gezogen
+> (wp-env läuft auf 7.1) — damit ist der dritte Plugin-Check-ERROR `outdated_tested_upto_header` weg,
+> Plugin Check jetzt sauber (nur by-design hidden_files/plugin_updater_detected).
+> `update.json` auf 0.127.0. GitHub-Release `v0.127.0` mit ZIP-Asset.
+>
 > ## ⚡ Release v0.126.0 2026-08-02 (Auslieferungs-Performance, Schema UNVERÄNDERT 0.38.0, KEINE neuen i18n-Strings)
 > **Ausgeliefert.** Anlass: Live-Instanz lieferte HTML + 99-KB-CSS unkomprimiert ohne Cache-Header über
 > HTTP/1.1 aus — gemessene Ursache der gefühlt langsamen Seitenwechsel (Plugin-Rendering selbst 3–12 ms/View).

@@ -1,9 +1,9 @@
 {
-  "version": "0.126.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.126.0/project-prepper-0.126.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.126.0",
-  "published": "2026-08-02",
+  "version": "0.127.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.127.0/project-prepper-0.127.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.127.0",
+  "published": "2026-08-24",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "Auslieferungs-Performance: Das Plugin pflegt jetzt einen eigenen Regel-Block in der .htaccess (Apache/LiteSpeed) — Kompression für HTML/CSS/JS plus 1 Monat Browser-Caching für statische Assets. Seiten und Stylesheets, die bisher unkomprimiert übertragen wurden, kommen nur noch mit einem Bruchteil der Größe an; Seitenwechsel im Portal fühlen sich spürbar schneller an. Die Regeln werden bei Aktivierung geschrieben und nach jedem Update aufgefrischt, bei Deaktivierung wieder entfernt — der WordPress-Block bleibt unangetastet. Außerdem neu: Hover-Prefetch im Mitglieder-Portal — Links werden schon beim Draufzeigen vorgeladen, der Klick landet oft direkt im Browser-Cache. Nur sichere Seiten werden vorgeladen (keine Aktionen, Exporte oder Login/Logout), Datensparmodus wird respektiert."
+  "changelog": "Neuer Knopf „Gesamtes Feedback herunterladen (CSV)“ auf der Feedback-Seite im Backend: alle Rückmeldungen aus dem Mitglieder-Portal in einer Datei — mit Zeitpunkt, Absender, Typ, Nachricht, Herkunftsseite und Status, direkt in Excel zu öffnen oder weiterzugeben. E-Mail-Adressen bleiben bewusst außen vor, da die Datei üblicherweise weitergereicht wird."
 }
