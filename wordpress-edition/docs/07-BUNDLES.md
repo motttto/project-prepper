@@ -1,6 +1,6 @@
 # 07 — Konzept: Gebündelte Artikel (Sets)
 
-> Stand: 2026-08-26 · Status: **Konzept, noch nicht gebaut** · Zielversion: v0.130.0, Schema 0.38.0 → 0.39.0
+> Stand: 2026-08-26 · Status: **UMGESETZT wie beschrieben** (Commit `612eb46`, alle drei Entscheidungen mit „ja" beantwortet) · v0.130.0, Schema 0.38.0 → 0.39.0
 > Anlass: Mitglieder-Feedback (Jan, 24.08.): „gebündelte Artikel (Lichterkette hat 10m Glieder steckbar und Einspeiser) — Möglichkeit, Teile zusammenzustückeln eines gebündelten Artikels"
 
 ## 1. Ausgangspunkt
