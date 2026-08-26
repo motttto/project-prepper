@@ -2959,3 +2959,40 @@ label.pp-swatch,
 .pp-approval__decide label:has( input[value="reject"]:checked ) { background: var(--pp-destructive); border-color: var(--pp-destructive); color: #fff; }
 .pp-approval__decide label:has( input[value=""]:checked ) { background: var(--pp-muted); color: var(--pp-foreground); }
 .pp-approvals-form__submit { margin-top: 1rem; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+
+/* ==========================================================================
+   Sets/Bundles (v0.130.0, docs/07): Set-Chip, Set-Gruppen im Equipment-Tab,
+   „Set-Inhalt"-Abschnitt im Artikel-Formular, Set-Meta im Technik-Picker
+   ========================================================================== */
+
+/* Kennzeichnung „Set" — überall, wo Artikel gelistet werden. */
+.pp-bundle-chip {
+	display: inline-flex; align-items: center;
+	font-size: .68rem; font-weight: 600; letter-spacing: .02em;
+	padding: .1rem .5rem; border-radius: 999px; white-space: nowrap;
+	background: var(--pp-primary-light); color: var(--pp-primary-hover);
+}
+
+/* Equipment-Tab: gebuchtes Set als Gruppe — Teil-Zeilen unter dem Kopf. */
+.pp-bundle-group { flex-wrap: wrap; }
+.pp-bundle-group__parts {
+	flex-basis: 100%; display: flex; flex-wrap: wrap; gap: .3rem .5rem;
+	margin-top: .35rem;
+}
+.pp-bundle-group__part {
+	font-size: .8rem; color: var(--pp-muted-foreground);
+	background: var(--pp-muted); border-radius: 6px; padding: .12rem .55rem;
+}
+
+/* „Set-Inhalt" im vereinten Artikel-Formular (Anlegen + Verwalten-Modal). */
+.pp-modal-body > .pp-portal__form > .pp-bundle-edit { grid-column: 1 / -1; }
+.pp-bundle-edit { border-top: 1px solid var(--pp-muted); padding-top: .85rem; }
+.pp-bundle-edit__head { cursor: pointer; font-weight: 600; font-size: .9rem; list-style: none; }
+.pp-bundle-edit__head::-webkit-details-marker { display: none; }
+.pp-bundle-edit__list { display: grid; gap: .35rem; margin-top: .5rem; max-height: 16rem; overflow-y: auto; }
+.pp-portal__form label.pp-bundle-edit__row { flex-direction: row; align-items: center; gap: .6rem; font-weight: 400; }
+.pp-bundle-edit__row input[type="number"] { width: 72px; flex: none; }
+.pp-bundle-edit__name small { color: var(--pp-muted-foreground); }
+
+/* Technik-Picker: Stücklisten-Zeile unter der Set-Position. */
+.pp-book-item__meta--set { color: var(--pp-primary-hover); }

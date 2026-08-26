@@ -175,6 +175,12 @@ class Inventory {
 			$where[]        = 'i.category_id = %d';
 			$where_params[] = (int) $args['category_id'];
 		}
+		if ( ! empty( $args['ids'] ) ) {
+			// Gezielte Artikel-Menge (z.B. Set-Teile) — inkl. out_now-Berechnung.
+			$ids          = array_map( 'intval', (array) $args['ids'] );
+			$where[]      = 'i.id IN (' . implode( ',', array_fill( 0, count( $ids ), '%d' ) ) . ')';
+			$where_params = array_merge( $where_params, $ids );
+		}
 		if ( ! empty( $args['owner_user_id'] ) ) {
 			// Member-Portal: nur das persönliche Inventar dieses Users.
 			$where[]        = 'i.owner_user_id = %d';

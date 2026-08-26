@@ -43,16 +43,19 @@ class BookingApprovals {
 			        COALESCE(pi.date_to, p.date_end) AS date_to_eff,
 			        i.id AS item_id, i.name AS item_name, i.inventory_number,
 			        p.id AS project_id, p.name AS project_name, p.owner_group_id,
+			        b.name AS bundle_name,
 			        s.daily_rate AS share_daily_rate, s.conditions_tags, s.conditions
 			 FROM %i pi
 			 JOIN %i i ON i.id = pi.item_id
 			 JOIN %i p ON p.id = pi.project_id
+			 LEFT JOIN %i b ON b.id = pi.bundle_item_id
 			 LEFT JOIN %i s ON s.item_id = pi.item_id AND s.group_id = p.owner_group_id
 			 WHERE pi.approval_status = 'pending' AND i.owner_user_id = %d
 			 ORDER BY pi.id DESC",
 			Schema::table( 'project_items' ),
 			Schema::table( 'items' ),
 			Schema::table( 'projects' ),
+			Schema::table( 'items' ),
 			Schema::table( 'item_group_shares' ),
 			$owner_id
 		) ) ?: [];

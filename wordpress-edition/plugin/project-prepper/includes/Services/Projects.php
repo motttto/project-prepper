@@ -448,6 +448,8 @@ class Projects {
 			'notes'           => $line['notes'] ?? '',
 			'approval_status' => $approval,
 			'requested_by'    => $requested_by,
+			// Set-Herkunft (docs/07): aus welchem Set wurde die Zeile expandiert?
+			'bundle_item_id'  => ! empty( $line['bundle_item_id'] ) ? (int) $line['bundle_item_id'] : null,
 		] );
 		$line_id = (int) $wpdb->insert_id;
 

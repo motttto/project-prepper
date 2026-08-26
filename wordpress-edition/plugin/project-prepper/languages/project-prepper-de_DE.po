@@ -7375,3 +7375,82 @@ msgstr "Foto ersetzen"
 #: includes/Frontend/MemberPortal.php:4439
 msgid "Send decisions"
 msgstr "Entscheidungen senden"
+
+#. translators: 1: quantity, 2: item name.
+#: includes/Frontend/MemberPortal.php:5107
+msgid "%1$d× %2$s"
+msgstr "%1$d× %2$s"
+
+#. translators: %d: number of complete sets available.
+#: includes/Frontend/MemberPortal.php:5157
+msgid "%d sets free"
+msgstr "%d Sets frei"
+
+#. translators: %d: number of sets booked.
+#: includes/Frontend/MemberPortal.php:5040
+msgid "%d× set"
+msgstr "%d× Set"
+
+#: includes/Services/Bundles.php:128
+msgid "A set cannot contain another set."
+msgstr "Ein Set kann kein anderes Set enthalten."
+
+#: includes/Frontend/MemberPortal.php:5078
+msgid "Changes apply to all items of this set."
+msgstr "Änderungen gelten für alle Artikel dieses Sets."
+
+#: includes/Frontend/MemberPortal.php:8480
+msgid "Pick quantities to turn this item into a set — bookings then automatically book its parts. 0 removes a part."
+msgstr "Wähle Stückzahlen, um diesen Artikel zum Set zu machen — Buchungen buchen dann automatisch seine Teile. 0 entfernt ein Teil."
+
+#: includes/Frontend/MemberPortal.php:5090
+msgid "Remove this set booking? All its items will be removed."
+msgstr "Diese Set-Buchung entfernen? Alle zugehörigen Artikel werden entfernt."
+
+#: includes/Frontend/MemberPortal.php:5031
+msgid "Set"
+msgstr "Set"
+
+#: includes/Frontend/MemberPortal.php:8478
+msgid "Set contents"
+msgstr "Set-Inhalt"
+
+#. translators: %s: list of set parts, e.g. "3× link · 1× feed".
+#: includes/Frontend/MemberPortal.php:5006
+msgid "Set of %s"
+msgstr "Set aus %s"
+
+#. translators: %s: name of the set this booking line belongs to.
+#: includes/Frontend/MemberPortal.php:4494
+msgid "Set “%s”"
+msgstr "Set „%s“"
+
+#: includes/Frontend/MemberPortal.php:5060
+msgid "Sets"
+msgstr "Sets"
+
+#: includes/Services/Bundles.php:124
+msgid "Sets can only contain your own items."
+msgstr "Sets können nur deine eigenen Artikel enthalten."
+
+#: includes/Frontend/MemberPortal.php:1478
+msgid "Sets cannot contain other sets."
+msgstr "Sets können keine anderen Sets enthalten."
+
+#: includes/Services/Bundles.php:113
+msgid "This item is part of another set and cannot be a set itself."
+msgstr "Dieser Artikel ist Teil eines anderen Sets und kann selbst kein Set sein."
+
+#. translators: %s: names of the sets this item is part of.
+#: includes/Frontend/MemberPortal.php:8462
+msgid "This item is part of the set “%s” and cannot be a set itself."
+msgstr "Dieser Artikel ist Teil des Sets „%s“ und kann selbst kein Set sein."
+
+#: includes/Frontend/MemberPortal.php:4046
+msgid "This line belongs to a set. Change or remove the whole set instead."
+msgstr "Diese Position gehört zu einem Set. Ändere oder entferne stattdessen das ganze Set."
+
+#. translators: %s: name of the set this line was booked from.
+#: includes/Frontend/MemberPortal.php:5390
+msgid "from set “%s”"
+msgstr "aus Set „%s“"

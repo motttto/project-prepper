@@ -16,6 +16,7 @@ use ProjectPrepper\Services\Inquiries;
 use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\BookingApprovals;
+use ProjectPrepper\Services\Bundles;
 use ProjectPrepper\Services\Availability;
 use ProjectPrepper\Services\Costs;
 use ProjectPrepper\Services\Schedule;
@@ -569,14 +570,18 @@ class MemberPortal {
 				$ok_msg = 'profile_saved';
 				break;
 			case 'item_create':
-				// Anlegen in EINEM Schritt: Stammdaten + optionales Foto + Kollektiv-
-				// Freigaben aus demselben Formular (Feedback: nicht erst anlegen und
-				// dann über „Verwalten" nachpflegen).
+				// Anlegen in EINEM Schritt: Stammdaten + optionales Foto + Set-Inhalt
+				// + Kollektiv-Freigaben aus demselben Formular (Feedback: nicht erst
+				// anlegen und dann über „Verwalten" nachpflegen).
 				$result = MemberInventory::create( get_current_user_id(), self::item_input() );
 				if ( ! is_wp_error( $result ) ) {
 					self::apply_share_input( get_current_user_id(), (int) $result );
-					$pp_photo_res = self::process_item_photo_input( get_current_user_id(), (int) $result );
-					if ( is_wp_error( $pp_photo_res ) ) {
+					$pp_bundle_res = self::apply_bundle_input( get_current_user_id(), (int) $result );
+					$pp_photo_res  = self::process_item_photo_input( get_current_user_id(), (int) $result );
+					if ( is_wp_error( $pp_bundle_res ) ) {
+						// Artikel + Freigaben sind gespeichert — nur die Stückliste nicht.
+						$result = $pp_bundle_res;
+					} elseif ( is_wp_error( $pp_photo_res ) ) {
 						// Artikel + Freigaben sind gespeichert — nur das Foto schlug fehl.
 						$result = $pp_photo_res;
 					}
@@ -588,15 +593,18 @@ class MemberPortal {
 				$ok_msg = 'item_saved';
 				break;
 			case 'item_save_all':
-				// Verwalten-Modal: EIN Speichern für Stammdaten, Foto und alle
-				// Kollektiv-Freigaben zusammen (Feedback: kein eigener Button pro
+				// Verwalten-Modal: EIN Speichern für Stammdaten, Foto, Set-Inhalt und
+				// alle Kollektiv-Freigaben zusammen (Feedback: kein eigener Button pro
 				// Abschnitt; Änderungen werden beim Schließen übernommen).
 				$pp_item = (int) ( $_POST['pp_item'] ?? 0 );
 				$result  = MemberInventory::update( get_current_user_id(), $pp_item, self::item_input() );
 				if ( ! is_wp_error( $result ) ) {
 					self::apply_share_input( get_current_user_id(), $pp_item );
-					$pp_photo_res = self::process_item_photo_input( get_current_user_id(), $pp_item );
-					if ( is_wp_error( $pp_photo_res ) ) {
+					$pp_bundle_res = self::apply_bundle_input( get_current_user_id(), $pp_item );
+					$pp_photo_res  = self::process_item_photo_input( get_current_user_id(), $pp_item );
+					if ( is_wp_error( $pp_bundle_res ) ) {
+						$result = $pp_bundle_res;
+					} elseif ( is_wp_error( $pp_photo_res ) ) {
 						$result = $pp_photo_res;
 					}
 				}
@@ -751,6 +759,20 @@ class MemberPortal {
 				break;
 			case 'project_item_remove':
 				$result = self::member_remove_booking( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ) );
+				$ok_msg = 'booking_removed';
+				break;
+			case 'project_bundle_update':
+				$result = self::member_update_bundle( $proj_id, (int) ( $_POST['pp_bundle'] ?? 0 ) );
+				// String-Rückgabe = eigener Erfolgs-Meldungscode (Re-Approval).
+				if ( is_string( $result ) ) {
+					$ok_msg = $result;
+					$result = true;
+				} else {
+					$ok_msg = 'booking_saved';
+				}
+				break;
+			case 'project_bundle_remove':
+				$result = self::member_remove_bundle( $proj_id, (int) ( $_POST['pp_bundle'] ?? 0 ) );
 				$ok_msg = 'booking_removed';
 				break;
 			case 'project_item_pack':
@@ -1221,6 +1243,10 @@ class MemberPortal {
 				$msg = 'booking_bulk_none';
 			} elseif ( 'pp_photo_failed' === $code ) {
 				$msg = 'photo_failed';
+			} elseif ( 'pp_bundle_line' === $code ) {
+				$msg = 'bundle_line_locked';
+			} elseif ( 'pp_bundle_nested' === $code ) {
+				$msg = 'bundle_nested';
 			} elseif ( 'pp_not_pending' === $code ) {
 				$msg = 'booking_decided_already';
 			} elseif ( 'pp_telegram_not_configured' === $code ) {
@@ -1423,6 +1449,8 @@ class MemberPortal {
 			'booking_decided_already' => [ 'err', __( 'This request has already been decided.', 'project-prepper' ) ],
 			'booking_bulk_saved' => [ 'ok', __( 'Decisions saved. Each requester was notified with one email.', 'project-prepper' ) ],
 			'booking_bulk_none'  => [ 'err', __( 'Please choose Approve or Reject for at least one request.', 'project-prepper' ) ],
+			'bundle_line_locked' => [ 'err', __( 'This line belongs to a set. Change or remove the whole set instead.', 'project-prepper' ) ],
+			'bundle_nested'      => [ 'err', __( 'Sets cannot contain other sets.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
 			'borrow_decided'   => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'borrow_cancelled' => [ 'ok', __( 'Request cancelled.', 'project-prepper' ) ],
@@ -2720,6 +2748,21 @@ class MemberPortal {
 		$items = $cat ? array_values( array_filter( $all_items, static function ( $it ) use ( $cat ) {
 			return (int) ( $it->category_id ?? 0 ) === $cat;
 		} ) ) : $all_items;
+		// Sets (docs/07): Stücklisten + Teil-Bestände (inkl. out_now) für die
+		// berechneten Set-Zahlen — Teile sind hier nicht zwingend selbst geteilt.
+		$pp_bundles  = Bundles::for_items( array_map( static fn( $it ) => (int) $it->id, $all_items ) );
+		$pp_part_ids = [];
+		foreach ( $pp_bundles as $pp_bparts ) {
+			foreach ( $pp_bparts as $pp_bp ) {
+				$pp_part_ids[] = (int) $pp_bp->part_item_id;
+			}
+		}
+		$pp_part_by_id = [];
+		if ( $pp_part_ids ) {
+			foreach ( Inventory::items( [ 'ids' => array_values( array_unique( $pp_part_ids ) ) ] ) as $pp_pi ) {
+				$pp_part_by_id[ (int) $pp_pi->id ] = $pp_pi;
+			}
+		}
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title">
@@ -2771,19 +2814,38 @@ class MemberPortal {
 					foreach ( $items as $item ) :
 						$is_mine  = ( (int) ( $item->owner_user_id ?? 0 ) === $uid );
 						$owner    = $is_mine ? null : get_userdata( (int) ( $item->owner_user_id ?? 0 ) );
-						$avail    = (int) max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) );
 						$owner_lb = $is_mine ? __( 'You', 'project-prepper' ) : ( $owner ? $owner->display_name : '—' );
-						$pp_sub   = $item->model ?: ( $item->description ?? '' );
+						// Set (docs/07): Menge/Verfügbar = berechnete Set-Zahlen aus den Teilen.
+						$pp_parts = $pp_bundles[ (int) $item->id ] ?? [];
+						if ( $pp_parts ) {
+							$pp_qty_col = PHP_INT_MAX;
+							$pp_avail   = PHP_INT_MAX;
+							foreach ( $pp_parts as $pp_p ) {
+								$pp_need    = max( 1, (int) $pp_p->quantity );
+								$pp_pi      = $pp_part_by_id[ (int) $pp_p->part_item_id ] ?? null;
+								$pp_pqty    = $pp_pi ? (int) $pp_pi->quantity : (int) ( $pp_p->part_total ?? 0 );
+								$pp_pout    = $pp_pi ? (int) ( $pp_pi->out_now ?? 0 ) : 0;
+								$pp_qty_col = min( $pp_qty_col, (int) floor( $pp_pqty / $pp_need ) );
+								$pp_avail   = min( $pp_avail, (int) floor( max( 0, $pp_pqty - $pp_pout ) / $pp_need ) );
+							}
+							$pp_qty_col = PHP_INT_MAX === $pp_qty_col ? 0 : $pp_qty_col;
+							$pp_avail   = PHP_INT_MAX === $pp_avail ? 0 : $pp_avail;
+							$pp_sub     = Bundles::parts_label( $pp_parts );
+						} else {
+							$pp_qty_col = (int) $item->quantity;
+							$pp_avail   = (int) max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) );
+							$pp_sub     = $item->model ?: ( $item->description ?? '' );
+						}
 						?>
 						<div class="pp-inv-row pp-ginv__row">
 							<span class="pp-col pp-col--name">
 								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php else : ?><span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span><?php endif; ?>
-								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
+								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <?php if ( $pp_parts ) : ?><span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span> <?php endif; ?><small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
 							</span>
 							<span class="pp-col pp-col--cat" data-label="<?php esc_attr_e( 'Category', 'project-prepper' ); ?>"><?php echo $item->category_name ? esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) : '—'; ?></span>
 							<span class="pp-col pp-col--owner" data-label="<?php esc_attr_e( 'Owner', 'project-prepper' ); ?>"><?php echo esc_html( $owner_lb ); ?></span>
-							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) $item->quantity; ?></span>
-							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo (int) $avail; ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) $pp_qty_col; ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo (int) $pp_avail; ?></span>
 							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php echo esc_html( $conditions[ $item->item_condition ] ?? $item->item_condition ); ?></span>
 							<span class="pp-col pp-col--r" data-label="€/<?php echo esc_attr__( 'day', 'project-prepper' ); ?>"><?php echo ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) ? esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) . ' €' ) : '—'; ?></span>
 							<span class="pp-col pp-col--loc" data-label="<?php esc_attr_e( 'Location', 'project-prepper' ); ?>"><?php echo ! empty( $item->location ) ? esc_html( (string) $item->location ) : '—'; ?></span>
@@ -2928,6 +2990,12 @@ class MemberPortal {
 		$rentals  = MemberRentals::for_owner( $uid );
 		$kpis     = MemberRentals::kpis( $uid );
 		$lendable = MemberRentals::lendable_items( $uid );
+		// Sets sind in V1 nur über Projekt-Buchungen nutzbar — im externen Verleih
+		// ausblenden, damit der Set-Artikel nicht als Einzelposition verliehen
+		// wird (docs/07 §6, Verleih-Expansion = Phase 2).
+		if ( $lendable ) {
+			$lendable = array_diff_key( $lendable, Bundles::for_items( array_keys( $lendable ) ) );
+		}
 		?>
 		<section class="pp-portal__section">
 			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'External lending', 'project-prepper' ); ?></h3>
@@ -4028,6 +4096,14 @@ class MemberPortal {
 		// Freigabepflichtige Zeilen PRO EIGENTÜMER sammeln — nach der Schleife gibt
 		// es je Eigentümer EINE Sammel-Anfrage (statt einer Mail pro Gerät).
 		$pending_by_owner = [];
+		// Stücklisten der angehakten Artikel: Set-Positionen werden serverseitig in
+		// Teil-Zeilen expandiert (Buchungs-Makro, docs/07 §2).
+		$bundle_parts = Bundles::for_items( $item_ids );
+		// Effektiver Prüf-Zeitraum für die Set-Verfügbarkeit: expliziter Zeitraum,
+		// sonst der geerbte Projektzeitraum (normalize_booking_dates hat „gleich"
+		// bereits geleert).
+		$eff_from = '' !== $shared['date_from'] ? $shared['date_from'] : substr( (string) $p->date_start, 0, 10 );
+		$eff_to   = '' !== $shared['date_to'] ? $shared['date_to'] : substr( (string) $p->date_end, 0, 10 );
 		foreach ( $item_ids as $item_id ) {
 			if ( ! isset( $pool[ $item_id ] ) ) {
 				// Nicht aus dem Pool — harte Grenze (IDOR), sofort abbrechen.
@@ -4037,10 +4113,58 @@ class MemberPortal {
 			$owner_id  = (int) ( $pool_item->shared_by ?? 0 );
 			// Freigabe nötig, wenn der Artikel jemand ANDEREM gehört UND die Freigabe
 			// die Bedingung „requires_approval" trägt. Eigene Artikel + freie Freigaben
-			// werden sofort gebucht (auto-approved).
+			// werden sofort gebucht (auto-approved). Bei Sets folgt die Pflicht dem
+			// SET-Share — die Teile selbst müssen nicht geteilt sein (docs/07 §4.4).
 			$needs = $owner_id > 0 && $owner_id !== $uid && ! empty( $pool_item->requires_approval );
 
 			$qty  = max( 1, (int) ( $qty_raw[ $item_id ] ?? 1 ) );
+			$parts = $bundle_parts[ $item_id ] ?? [];
+			if ( $parts ) {
+				// SET: alles-oder-nichts (docs/07 §4.3). Erst die Set-Verfügbarkeit
+				// prüfen, dann ALLE Teil-Zeilen anlegen; schlägt eine an (Race),
+				// werden die bereits angelegten wieder entfernt.
+				if ( Bundles::available_sets( $parts, $eff_from, $eff_to, $pid ) < $qty ) {
+					$failed++;
+					$last_err = new \WP_Error( 'pp_not_available', __( 'One of the items is not available in that period. Please adjust the dates or quantity.', 'project-prepper' ) );
+					continue;
+				}
+				$created = [];
+				$set_err = null;
+				foreach ( $parts as $part ) {
+					$line = [
+						'item_id'        => (int) $part->part_item_id,
+						'quantity'       => max( 1, (int) $part->quantity ) * $qty,
+						'bundle_item_id' => $item_id,
+					] + $shared;
+					if ( $needs ) {
+						$line['approval_status'] = 'pending';
+						$line['requested_by']    = $uid;
+					}
+					$res = Projects::add_item( $pid, $line );
+					if ( is_wp_error( $res ) ) {
+						$set_err = $res;
+						break;
+					}
+					$created[] = (int) $res;
+				}
+				if ( $set_err ) {
+					foreach ( $created as $cid ) {
+						Projects::remove_item( $pid, $cid );
+					}
+					$failed++;
+					$last_err = $set_err;
+					continue;
+				}
+				$booked++;
+				if ( $needs ) {
+					$pending++;
+					foreach ( $created as $cid ) {
+						$pending_by_owner[ $owner_id ][] = $cid;
+					}
+				}
+				continue;
+			}
+
 			$line = [ 'item_id' => $item_id, 'quantity' => $qty ] + $shared;
 			if ( $needs ) {
 				$line['approval_status'] = 'pending';
@@ -4095,6 +4219,11 @@ class MemberPortal {
 		if ( ! $existing ) {
 			return new \WP_Error( 'pp_not_found', __( 'Line item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
+		if ( ! empty( $existing->bundle_item_id ) ) {
+			// Set-Teil-Zeilen nur über die Set-Aktionen — Einzel-Änderungen würden
+			// halbe Sets erzeugen und die Set-Freigabelogik umgehen (docs/07 §4).
+			return new \WP_Error( 'pp_bundle_line', __( 'This line belongs to a set. Change or remove the whole set instead.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
 		$input = self::normalize_booking_dates( self::booking_input(), $p );
 
 		// Braucht der Artikel eine Freigabe (fremd + requires_approval)? Owner aus
@@ -4105,6 +4234,27 @@ class MemberPortal {
 		$owner_id  = $pool_item ? (int) ( $pool_item->shared_by ?? 0 ) : 0;
 		$needs     = $pool_item && $owner_id > 0 && $owner_id !== $uid && ! empty( $pool_item->requires_approval );
 
+		$applied = self::apply_line_update( $pid, $existing, $input, $needs, $uid );
+		if ( is_wp_error( $applied['res'] ) ) {
+			return $applied['res'];
+		}
+		if ( $applied['reapproved'] ) {
+			do_action( 'pp_booking_approval_requested', $line_id, $owner_id, $uid );
+			return 'booking_reapproval';
+		}
+		return true;
+	}
+
+	/**
+	 * Kern des Zeilen-Updates (Einzel-Buchung UND Set-Teil-Zeile): eine MATERIELLE
+	 * Änderung (Menge erhöht ODER Zeitraum geändert) an einer bereits freigegebenen
+	 * Zeile eines freigabepflichtigen Artikels setzt den Status zurück auf pending.
+	 * pending-Zeilen behalten ihren Status (keine zweite Mail); ohne Freigabepflicht
+	 * bleibt approved. Der Aufrufer verschickt die Anfrage-Mail(s).
+	 *
+	 * @return array{res: true|\WP_Error, reapproved: bool}
+	 */
+	private static function apply_line_update( int $pid, object $existing, array $input, bool $needs, int $uid ): array {
 		$reapprove = false;
 		if ( $needs && 'approved' === (string) $existing->approval_status ) {
 			$material = BookingApprovals::is_material_change(
@@ -4116,29 +4266,110 @@ class MemberPortal {
 				(string) $input['date_to']
 			);
 			if ( $material ) {
-				// Zurück auf pending + Eigentümer erneut anfragen.
 				$input['approval_status'] = 'pending';
 				$input['requested_by']    = $uid;
 				$input['decided_at']      = null;
 				$reapprove                = true;
 			}
 		}
-		// pending-Zeilen: Werte werden aktualisiert, Status bleibt pending (kein
-		// approval-Feld übergeben) — keine zweite Mail. Eigener Artikel / keine
-		// Freigabepflicht: Status bleibt approved.
-
-		$res = Projects::update_item( $pid, $line_id, $input );
-		if ( ! is_wp_error( $res ) && $reapprove ) {
-			do_action( 'pp_booking_approval_requested', $line_id, $owner_id, $uid );
-			return 'booking_reapproval';
-		}
-		return $res;
+		$res = Projects::update_item( $pid, (int) $existing->id, $input );
+		return [
+			'res'        => is_wp_error( $res ) ? $res : true,
+			'reapproved' => $reapprove,
+		];
 	}
 
-	/** Buchungszeile entfernen. */
+	/**
+	 * Set-Buchung ändern — Menge (in SETS), Zeitraum und Notiz werden auf ALLE
+	 * Teil-Zeilen des Sets angewendet (Teil-Menge = Bedarf × Set-Anzahl).
+	 * Re-Approval-Logik je Zeile wie bei Einzel-Buchungen; die erneuten
+	 * Freigabe-Anfragen gehen als EINE Sammel-Mail an den Eigentümer.
+	 *
+	 * @return true|string|\WP_Error 'booking_reapproval' = erneut freigabepflichtig.
+	 */
+	private static function member_update_bundle( int $pid, int $bundle_id ) {
+		$p = self::member_owned_project( $pid );
+		if ( ! $p ) {
+			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$lines = array_values( array_filter( (array) ( $p->items ?? [] ), static function ( $l ) use ( $bundle_id ) {
+			return (int) ( $l->bundle_item_id ?? 0 ) === $bundle_id;
+		} ) );
+		if ( ! $lines ) {
+			return new \WP_Error( 'pp_not_found', __( 'Line item not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$parts = Bundles::parts( $bundle_id );
+		if ( ! $parts ) {
+			return new \WP_Error( 'pp_not_found', __( 'Line item not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$need_map = [];
+		foreach ( $parts as $part ) {
+			$need_map[ (int) $part->part_item_id ] = max( 1, (int) $part->quantity );
+		}
+		$input_base = self::normalize_booking_dates( self::booking_input(), $p );
+		$sets       = max( 1, (int) $input_base['quantity'] );
+
+		// Alles-oder-nichts-Vorprüfung (docs/07 §4.3): reicht der Bestand für die
+		// neue Set-Anzahl im neuen Zeitraum? Eigene Projekt-Zeilen sind über
+		// exclude_project ausgeklammert (wie beim Einzel-Update).
+		$eff_from = '' !== $input_base['date_from'] ? $input_base['date_from'] : substr( (string) $p->date_start, 0, 10 );
+		$eff_to   = '' !== $input_base['date_to'] ? $input_base['date_to'] : substr( (string) $p->date_end, 0, 10 );
+		if ( Bundles::available_sets( $parts, $eff_from, $eff_to, $pid ) < $sets ) {
+			return new \WP_Error( 'pp_not_available', __( 'One of the items is not available in that period. Please adjust the dates or quantity.', 'project-prepper' ) );
+		}
+
+		// Freigabepflicht folgt dem SET-Share (docs/07 §4.4).
+		$uid       = get_current_user_id();
+		$pool      = self::bookable_pool( $p );
+		$pool_item = $pool[ $bundle_id ] ?? null;
+		$owner_id  = $pool_item ? (int) ( $pool_item->shared_by ?? 0 ) : 0;
+		$needs     = $pool_item && $owner_id > 0 && $owner_id !== $uid && ! empty( $pool_item->requires_approval );
+
+		$reapproved = [];
+		foreach ( $lines as $line ) {
+			$input             = $input_base;
+			$input['quantity'] = ( $need_map[ (int) $line->item_id ] ?? 1 ) * $sets;
+			$applied           = self::apply_line_update( $pid, $line, $input, $needs, $uid );
+			if ( is_wp_error( $applied['res'] ) ) {
+				return $applied['res'];
+			}
+			if ( $applied['reapproved'] ) {
+				$reapproved[] = (int) $line->id;
+			}
+		}
+		if ( $reapproved && $owner_id > 0 ) {
+			do_action( 'pp_booking_approvals_requested', $reapproved, $owner_id, $uid );
+			return 'booking_reapproval';
+		}
+		return true;
+	}
+
+	/** Set-Buchung komplett entfernen — alle Teil-Zeilen des Sets in diesem Projekt. */
+	private static function member_remove_bundle( int $pid, int $bundle_id ) {
+		$p = self::member_owned_project( $pid );
+		if ( ! $p ) {
+			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$removed = 0;
+		foreach ( (array) ( $p->items ?? [] ) as $line ) {
+			if ( (int) ( $line->bundle_item_id ?? 0 ) === $bundle_id ) {
+				$res = Projects::remove_item( $pid, (int) $line->id );
+				if ( ! is_wp_error( $res ) ) {
+					$removed++;
+				}
+			}
+		}
+		return $removed > 0 ? true : new \WP_Error( 'pp_not_found', __( 'Line item not found.', 'project-prepper' ), [ 'status' => 404 ] );
+	}
+
+	/** Buchungszeile entfernen (Set-Teil-Zeilen nur über die Set-Aktion). */
 	private static function member_remove_booking( int $pid, int $line_id ) {
 		if ( ! self::member_owned_project( $pid ) ) {
 			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$existing = Projects::get_item_line( $pid, $line_id );
+		if ( $existing && ! empty( $existing->bundle_item_id ) ) {
+			return new \WP_Error( 'pp_bundle_line', __( 'This line belongs to a set. Change or remove the whole set instead.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		return Projects::remove_item( $pid, $line_id );
 	}
@@ -4400,6 +4631,12 @@ class MemberPortal {
 							<?php if ( ! empty( $r->inventory_number ) ) : ?>
 								<span class="pp-portal__item-num"><?php echo esc_html( (string) $r->inventory_number ); ?></span>
 							<?php endif; ?>
+							<?php if ( ! empty( $r->bundle_name ) ) : ?>
+								<span class="pp-bundle-chip"><?php
+									/* translators: %s: name of the set this booking line belongs to. */
+									printf( esc_html__( 'Set “%s”', 'project-prepper' ), esc_html( (string) $r->bundle_name ) );
+								?></span>
+							<?php endif; ?>
 							<span class="pp-appr-chip pp-appr--pending"><?php esc_html_e( 'Pending', 'project-prepper' ); ?></span>
 						</div>
 						<div class="pp-approval__meta">
@@ -4652,9 +4889,32 @@ class MemberPortal {
 		if ( 'equipment' === $tab && ( ! empty( $p->items ) || $can_book ) ) :
 			$has_period = '' !== (string) $p->date_start && '' !== (string) $p->date_end;
 			// Im Projekt bereits gebuchte Stückzahl je Artikel — für „noch frei".
-			$booked_qty = [];
+			// Set-Zeilen (bundle_item_id) zählen über ihre TEILE mit und werden
+			// zusätzlich je Set gesammelt (gruppierte Anzeige + „Sets gebucht").
+			$booked_qty    = [];
+			$single_lines  = [];
+			$bundle_lines  = [];
 			foreach ( (array) $p->items as $line ) {
 				$booked_qty[ (int) $line->item_id ] = ( $booked_qty[ (int) $line->item_id ] ?? 0 ) + (int) $line->quantity;
+				if ( ! empty( $line->bundle_item_id ) ) {
+					$bundle_lines[ (int) $line->bundle_item_id ][] = $line;
+				} else {
+					$single_lines[] = $line;
+				}
+			}
+			$booked_bundle_parts = $bundle_lines ? Bundles::for_items( array_keys( $bundle_lines ) ) : [];
+			// Gebuchte SET-Anzahl je Set = min über Teil-Zeilen floor(Menge/Bedarf).
+			$booked_sets = [];
+			foreach ( $bundle_lines as $pp_bid => $pp_blines ) {
+				$pp_need = [];
+				foreach ( $booked_bundle_parts[ $pp_bid ] ?? [] as $pp_part ) {
+					$pp_need[ (int) $pp_part->part_item_id ] = max( 1, (int) $pp_part->quantity );
+				}
+				$pp_min = PHP_INT_MAX;
+				foreach ( $pp_blines as $pp_l ) {
+					$pp_min = min( $pp_min, (int) floor( (int) $pp_l->quantity / ( $pp_need[ (int) $pp_l->item_id ] ?? 1 ) ) );
+				}
+				$booked_sets[ $pp_bid ] = PHP_INT_MAX === $pp_min ? 0 : max( 0, $pp_min );
 			}
 			?>
 			<section class="pp-card">
@@ -4663,7 +4923,7 @@ class MemberPortal {
 					<p class="pp-portal__empty"><?php esc_html_e( 'No equipment booked yet.', 'project-prepper' ); ?></p>
 				<?php else : ?>
 					<div class="pp-rows">
-						<?php foreach ( $p->items as $line ) :
+						<?php foreach ( $single_lines as $line ) :
 							$lrange = self::fmt_range( $line->date_from, $line->date_to ); ?>
 							<div class="pp-row">
 								<span class="pp-row__main"><?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?></span>
@@ -4717,6 +4977,81 @@ class MemberPortal {
 								<?php endif; ?>
 							</div>
 						<?php endforeach; ?>
+
+						<?php // Gebuchte SETS: eine Gruppe je Set — die Teil-Zeilen darunter,
+						// Aktionen (Ändern/Entfernen) nur auf Set-Ebene (docs/07 §5).
+						foreach ( $bundle_lines as $pp_bid => $pp_blines ) :
+							$pp_first  = $pp_blines[0];
+							$pp_binfo  = Inventory::get_item( (int) $pp_bid );
+							$pp_bname  = $pp_binfo ? (string) $pp_binfo->name : ( '#' . (int) $pp_bid );
+							$pp_sets_n = $booked_sets[ $pp_bid ] ?? 1;
+							$pp_range  = self::fmt_range( $pp_first->date_from, $pp_first->date_to );
+							$pp_pend   = (bool) count( array_filter( $pp_blines, static fn( $l ) => 'pending' === (string) $l->approval_status ) );
+							?>
+							<div class="pp-row pp-bundle-group">
+								<span class="pp-row__main"><?php echo esc_html( $pp_bname ); ?></span>
+								<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
+								<?php if ( $pp_pend ) : ?>
+									<span class="pp-appr-chip pp-appr--pending"><?php esc_html_e( 'Pending', 'project-prepper' ); ?></span>
+								<?php else : ?>
+									<?php self::approval_chip( $pp_first ); ?>
+								<?php endif; ?>
+								<span class="pp-row__meta">
+									<?php
+									/* translators: %d: number of sets booked. */
+									printf( esc_html__( '%d× set', 'project-prepper' ), (int) $pp_sets_n );
+									if ( '' !== $pp_range ) {
+										echo ' · ' . esc_html( $pp_range );
+									}
+									if ( '' !== trim( (string) $pp_first->notes ) ) {
+										echo ' · ' . esc_html( $pp_first->notes );
+									}
+									?>
+								</span>
+								<?php if ( $can_book ) : ?>
+									<details class="pp-portal__edit">
+										<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
+										<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+											<?php self::action_fields( 'project_bundle_update' ); ?>
+											<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+											<input type="hidden" name="pp_bundle" value="<?php echo (int) $pp_bid; ?>">
+											<div class="pp-portal__form-row">
+												<label><?php esc_html_e( 'Sets', 'project-prepper' ); ?>
+													<input type="number" name="pp_quantity" min="1" value="<?php echo (int) max( 1, $pp_sets_n ); ?>">
+												</label>
+												<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+													<input type="date" name="pp_from" value="<?php echo esc_attr( '' !== (string) $pp_first->date_from ? (string) $pp_first->date_from : substr( (string) $p->date_start, 0, 10 ) ); ?>">
+												</label>
+												<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+													<input type="date" name="pp_to" value="<?php echo esc_attr( '' !== (string) $pp_first->date_to ? (string) $pp_first->date_to : substr( (string) $p->date_end, 0, 10 ) ); ?>">
+												</label>
+											</div>
+											<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
+												<input type="text" name="pp_notes" value="<?php echo esc_attr( (string) $pp_first->notes ); ?>">
+											</label>
+											<p class="pp-portal__hint"><?php esc_html_e( 'Changes apply to all items of this set.', 'project-prepper' ); ?></p>
+											<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+										</form>
+									</details>
+									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Remove this set booking? All its items will be removed.', 'project-prepper' ) ); ?>');">
+										<?php self::action_fields( 'project_bundle_remove' ); ?>
+										<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+										<input type="hidden" name="pp_bundle" value="<?php echo (int) $pp_bid; ?>">
+										<button type="submit" class="pp-portal__chip"><?php esc_html_e( 'Remove', 'project-prepper' ); ?></button>
+									</form>
+								<?php endif; ?>
+								<div class="pp-bundle-group__parts">
+									<?php foreach ( $pp_blines as $pp_l ) : ?>
+										<span class="pp-bundle-group__part">
+											<?php
+											/* translators: 1: quantity, 2: item name. */
+											echo esc_html( sprintf( __( '%1$d× %2$s', 'project-prepper' ), (int) $pp_l->quantity, (string) ( $pp_l->item_name ?: ( '#' . (int) $pp_l->item_id ) ) ) );
+											?>
+										</span>
+									<?php endforeach; ?>
+								</div>
+							</div>
+						<?php endforeach; ?>
 					</div>
 				<?php endif; ?>
 
@@ -4732,6 +5067,7 @@ class MemberPortal {
 						<input type="search" class="pp-book-search" placeholder="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>">
 						<div class="pp-book-list">
 							<?php $presets = MemberInventory::condition_presets(); ?>
+							<?php $pool_bundles = Bundles::for_items( array_keys( $pool ) ); ?>
 							<?php foreach ( $pool as $item ) :
 								$bits = [];
 								if ( '' !== (string) ( $item->inventory_number ?? '' ) ) {
@@ -4741,7 +5077,20 @@ class MemberPortal {
 									/* translators: %s: owner name of the shared item. */
 									$bits[] = sprintf( __( 'by %s', 'project-prepper' ), $item->owner_name );
 								}
-								if ( $has_period ) {
+								$pp_parts = $pool_bundles[ (int) $item->id ] ?? [];
+								if ( $pp_parts ) {
+									// SET (docs/07 §3): verfügbare Set-Anzahl aus den Teilen —
+									// min über floor(frei(Teil)/Bedarf), minus bereits gebuchte Sets.
+									$free = Bundles::available_sets(
+										$pp_parts,
+										$has_period ? substr( (string) $p->date_start, 0, 10 ) : '',
+										$has_period ? substr( (string) $p->date_end, 0, 10 ) : '',
+										(int) $p->id
+									);
+									$free = max( 0, $free - (int) ( $booked_sets[ (int) $item->id ] ?? 0 ) );
+									/* translators: %d: number of complete sets available. */
+									$bits[] = sprintf( __( '%d sets free', 'project-prepper' ), $free );
+								} elseif ( $has_period ) {
 									$free = Availability::available_quantity( (int) $item->id, (string) $p->date_start, (string) $p->date_end, 0, (int) $p->id );
 									$free = max( 0, $free - ( $booked_qty[ (int) $item->id ] ?? 0 ) );
 									/* translators: %d: available quantity in the project period. */
@@ -4755,10 +5104,11 @@ class MemberPortal {
 									/* translators: %s: daily rate in euros. */
 									$bits[] = sprintf( __( '%s €/day', 'project-prepper' ), number_format_i18n( (float) $rate, 2 ) );
 								}
-								// Ist dieser Artikel für dieses Projekt bereits gebucht?
-								$already = (int) ( $booked_qty[ (int) $item->id ] ?? 0 );
-								// Noch buchbare Menge: im Zeitraum frei bzw. Gesamtbestand minus schon gebucht.
-								$avail = $has_period ? (int) $free : max( 0, (int) $item->quantity - $already );
+								// Ist dieser Artikel für dieses Projekt bereits gebucht? (Sets: in SETS gezählt.)
+								$already = $pp_parts ? (int) ( $booked_sets[ (int) $item->id ] ?? 0 ) : (int) ( $booked_qty[ (int) $item->id ] ?? 0 );
+								// Noch buchbare Menge: Sets immer berechnet; sonst im Zeitraum
+								// frei bzw. Gesamtbestand minus schon gebucht.
+								$avail = ( $pp_parts || $has_period ) ? (int) $free : max( 0, (int) $item->quantity - $already );
 								?>
 								<div class="pp-book-item<?php echo $already > 0 ? ' pp-book-item--booked' : ''; ?><?php echo $avail <= 0 ? ' pp-book-item--unavailable' : ''; ?>">
 									<label class="pp-book-item__pick">
@@ -4771,6 +5121,9 @@ class MemberPortal {
 										<span class="pp-book-item__text">
 											<span class="pp-book-item__name">
 												<?php echo esc_html( $item->name ); ?>
+												<?php if ( $pp_parts ) : ?>
+													<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
+												<?php endif; ?>
 												<?php if ( $already > 0 ) : ?>
 													<span class="pp-book-item__badge"><?php
 														/* translators: %d: quantity already booked for this project. */
@@ -4779,6 +5132,12 @@ class MemberPortal {
 												<?php endif; ?>
 											</span>
 											<span class="pp-book-item__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></span>
+											<?php if ( $pp_parts ) : ?>
+												<span class="pp-book-item__meta pp-book-item__meta--set"><?php
+													/* translators: %s: list of set parts, e.g. "3× link · 1× feed". */
+													printf( esc_html__( 'Set of %s', 'project-prepper' ), esc_html( Bundles::parts_label( $pp_parts ) ) );
+												?></span>
+											<?php endif; ?>
 											<?php
 											// Freigabe-Bedingungen des Eigentümers sichtbar machen (Pendant
 											// zum App-Leih-Modal): Bedingungs-Chips, Freitext, Freigabe-Hinweis.
@@ -4954,6 +5313,14 @@ class MemberPortal {
 	private static function render_project_packlist( object $p, bool $can_edit ): void {
 		$lines        = (array) ( $p->items ?? [] );
 		$conditions   = Shortcodes::condition_labels();
+		// Set-Herkunft als Vermerk (docs/07 §5): Namen der Sets, aus denen Zeilen
+		// expandiert wurden — gepackt/getestet werden die Teile einzeln.
+		$pp_bundle_ids   = array_values( array_unique( array_filter( array_map( static fn( $l ) => (int) ( $l->bundle_item_id ?? 0 ), $lines ) ) ) );
+		$pp_bundle_names = [];
+		foreach ( $pp_bundle_ids as $pp_bid ) {
+			$pp_b = Inventory::get_item( $pp_bid );
+			$pp_bundle_names[ $pp_bid ] = $pp_b ? (string) $pp_b->name : ( '#' . $pp_bid );
+		}
 		$packed_lines = 0;
 		$tested_lines = 0;
 		foreach ( $lines as $l ) {
@@ -5018,6 +5385,12 @@ class MemberPortal {
 								<span class="pp-pack-name"><?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?></span>
 								<?php if ( ! empty( $line->inventory_number ) ) : ?>
 									<span class="pp-pack-num"><?php echo esc_html( $line->inventory_number ); ?></span>
+								<?php endif; ?>
+								<?php if ( ! empty( $line->bundle_item_id ) && isset( $pp_bundle_names[ (int) $line->bundle_item_id ] ) ) : ?>
+									<span class="pp-pack-desc"><?php
+										/* translators: %s: name of the set this line was booked from. */
+										printf( esc_html__( 'from set “%s”', 'project-prepper' ), esc_html( $pp_bundle_names[ (int) $line->bundle_item_id ] ) );
+									?></span>
 								<?php endif; ?>
 								<?php if ( '' !== $desc ) : ?>
 									<span class="pp-pack-desc"><?php echo esc_html( $desc ); ?></span>
@@ -8004,13 +8377,27 @@ class MemberPortal {
 		$tpl_cats   = MemberInventory::template_categories();
 		$categories = [ 'own' => $own_cats, 'templates' => $tpl_cats ];
 		$conditions = Shortcodes::condition_labels();
+		// Sets (docs/07): Stücklisten + Teile-Kandidaten IMMER über den UNGEFILTERTEN
+		// Bestand — die „Set-Inhalt"-Formulare ersetzen die Stückliste komplett und
+		// müssen deshalb jeden möglichen Teil-Artikel enthalten (sonst würden bei
+		// aktiver Suche nicht gelistete Teile beim Speichern verloren gehen).
+		$pp_all_own  = '' === $q ? $all_items : MemberInventory::my_items( (int) $user->ID );
+		$pp_by_id    = [];
+		foreach ( $pp_all_own as $pp_it ) {
+			$pp_by_id[ (int) $pp_it->id ] = $pp_it;
+		}
+		$bundles_map = Bundles::for_items( array_keys( $pp_by_id ) );
+		// Kandidaten für den Set-Inhalt: eigene Artikel, die selbst kein Set sind.
+		$bundle_candidates = array_values( array_filter( $pp_all_own, static function ( $it ) use ( $bundles_map ) {
+			return ! isset( $bundles_map[ (int) $it->id ] );
+		} ) );
 		?>
 		<section class="pp-portal__section">
 			<?php if ( $heading ) : ?>
 				<h3 class="pp-portal__subtitle"><?php esc_html_e( 'My inventory', 'project-prepper' ); ?></h3>
 			<?php endif; ?>
 
-			<?php self::render_inventory_tools( $categories, $conditions, $own_cats, $tpl_cats, $user, $groups ); ?>
+			<?php self::render_inventory_tools( $categories, $conditions, $own_cats, $tpl_cats, $user, $groups, $bundle_candidates ); ?>
 
 			<?php if ( $all_items || '' !== $q ) : ?>
 				<form class="pp-inv-search" method="get">
@@ -8049,16 +8436,41 @@ class MemberPortal {
 					<span class="pp-col pp-col--manage"></span>
 				</div>
 				<?php foreach ( $items as $item ) : ?>
-					<?php $shared = $groups ? MemberInventory::shared_group_ids( (int) $item->id ) : []; $shared_names = []; foreach ( $groups as $pp_g ) { if ( in_array( (int) $pp_g->id, $shared, true ) ) { $shared_names[] = $pp_g->name; } } ?>
+					<?php
+					$shared = $groups ? MemberInventory::shared_group_ids( (int) $item->id ) : [];
+					$shared_names = [];
+					foreach ( $groups as $pp_g ) {
+						if ( in_array( (int) $pp_g->id, $shared, true ) ) {
+							$shared_names[] = $pp_g->name;
+						}
+					}
+					// Set (docs/07): Menge = komplette Sets aus dem Teil-Bestand,
+					// Verfügbar = Sets aus dem, was von den Teilen JETZT da ist.
+					$pp_parts     = $bundles_map[ (int) $item->id ] ?? [];
+					$pp_set_total = 0;
+					$pp_set_free  = 0;
+					if ( $pp_parts ) {
+						$pp_set_total = PHP_INT_MAX;
+						$pp_set_free  = PHP_INT_MAX;
+						foreach ( $pp_parts as $pp_p ) {
+							$pp_need      = max( 1, (int) $pp_p->quantity );
+							$pp_part_item = $pp_by_id[ (int) $pp_p->part_item_id ] ?? null;
+							$pp_qty       = $pp_part_item ? (int) $pp_part_item->quantity : (int) ( $pp_p->part_total ?? 0 );
+							$pp_out       = $pp_part_item ? (int) ( $pp_part_item->out_now ?? 0 ) : 0;
+							$pp_set_total = min( $pp_set_total, (int) floor( $pp_qty / $pp_need ) );
+							$pp_set_free  = min( $pp_set_free, (int) floor( max( 0, $pp_qty - $pp_out ) / $pp_need ) );
+						}
+					}
+					?>
 					<div class="pp-portal__item pp-portal__item--row">
 						<div class="pp-inv-row pp-portal__item-head pp-inv-row--click" role="button" tabindex="0" data-pp-modal="pp-item-<?php echo (int) $item->id; ?>">
 							<span class="pp-col pp-col--name">
 								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php else : ?><span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span><?php endif; ?>
-								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php $pp_sub = $item->model ?: ( $item->description ?? '' ); if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
+								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <?php if ( $pp_parts ) : ?><span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span> <?php endif; ?><small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php $pp_sub = $pp_parts ? Bundles::parts_label( $pp_parts ) : ( $item->model ?: ( $item->description ?? '' ) ); if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
 							</span>
 							<span class="pp-col pp-col--cat" data-label="<?php esc_attr_e( 'Category', 'project-prepper' ); ?>"><?php echo $item->category_name ? esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) : '—'; ?></span>
-							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) $item->quantity; ?></span>
-							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo (int) max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) ); ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) ( $pp_parts ? $pp_set_total : $item->quantity ); ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo (int) ( $pp_parts ? $pp_set_free : max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) ) ); ?></span>
 							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php echo esc_html( $conditions[ $item->condition ] ?? $item->condition ); ?></span>
 							<span class="pp-col pp-col--r" data-label="€/<?php echo esc_attr__( 'day', 'project-prepper' ); ?>"><?php echo ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) ? esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) . ' €' ) : '—'; ?></span>
 							<span class="pp-col pp-col--shared" data-label="<?php esc_attr_e( 'Shared', 'project-prepper' ); ?>"><?php echo $shared_names ? esc_html( implode( ', ', $shared_names ) ) : '<span class="pp-muted">' . esc_html__( 'Not shared', 'project-prepper' ) . '</span>'; ?></span>
@@ -8091,6 +8503,7 @@ class MemberPortal {
 									<?php endif; ?>
 								</div>
 								<?php self::item_fields( $categories, $conditions, $item ); ?>
+								<?php self::item_bundle_fields( $bundle_candidates, $bundles_map[ (int) $item->id ] ?? [], $item ); ?>
 								<?php self::item_share_fields( $groups, $groups ? MemberInventory::share_settings( (int) $item->id ) : [] ); ?>
 								<div class="pp-item-form__save">
 									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
@@ -8239,7 +8652,7 @@ class MemberPortal {
 	 * optionales Foto und die Kollektiv-Freigaben (Feedback: nicht erst anlegen
 	 * und dann über „Verwalten" nachpflegen). Multipart wegen des Foto-Felds.
 	 */
-	private static function item_form( string $do, array $categories, array $conditions, ?object $item, array $groups = [] ): void {
+	private static function item_form( string $do, array $categories, array $conditions, ?object $item, array $groups = [], array $bundle_candidates = [] ): void {
 		?>
 		<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<?php self::action_fields( $do ); ?>
@@ -8250,6 +8663,7 @@ class MemberPortal {
 			<label><?php esc_html_e( 'Photo (optional)', 'project-prepper' ); ?>
 				<input type="file" name="pp_photo" accept="image/*">
 			</label>
+			<?php self::item_bundle_fields( $bundle_candidates, [], $item ); ?>
 			<?php self::item_share_fields( $groups, [] ); ?>
 			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save item', 'project-prepper' ); ?></button>
 		</form>
@@ -8369,10 +8783,81 @@ class MemberPortal {
 		<?php
 	}
 
+	/**
+	 * Abschnitt „Set-Inhalt" des vereinten Artikel-Formulars (docs/07 §5): eigene
+	 * Nicht-Set-Artikel mit Stückzahl-Feld (0 = nicht enthalten). Sobald Teile
+	 * gewählt sind, ist der Artikel ein Set und wird bei Buchungen automatisch in
+	 * seine Teile aufgelöst. Artikel, die selbst TEIL eines Sets sind, können kein
+	 * Set werden (kein Set im Set) — dann nur ein Hinweis.
+	 *
+	 * @param array<object>     $candidates Eigene Nicht-Set-Artikel.
+	 * @param array<object>     $current    Bestehende Stückliste (aus Bundles).
+	 * @param object|null       $item       Der Artikel (null = Anlegen).
+	 */
+	private static function item_bundle_fields( array $candidates, array $current, ?object $item ): void {
+		if ( $item ) {
+			$pp_in = Bundles::part_of_bundle_names( (int) $item->id );
+			if ( $pp_in ) {
+				?>
+				<p class="pp-portal__hint pp-bundle-edit__blocked"><?php
+					/* translators: %s: names of the sets this item is part of. */
+					printf( esc_html__( 'This item is part of the set “%s” and cannot be a set itself.', 'project-prepper' ), esc_html( implode( '”, “', $pp_in ) ) );
+				?></p>
+				<?php
+				return;
+			}
+		}
+		$item_id    = $item ? (int) $item->id : 0;
+		$candidates = array_values( array_filter( $candidates, static fn( $c ) => (int) $c->id !== $item_id ) );
+		if ( ! $candidates ) {
+			return;
+		}
+		$current_map = [];
+		foreach ( $current as $part ) {
+			$current_map[ (int) $part->part_item_id ] = (int) $part->quantity;
+		}
+		?>
+		<details class="pp-bundle-edit" <?php echo $current_map ? 'open' : ''; ?>>
+			<summary class="pp-bundle-edit__head"><?php esc_html_e( 'Set contents', 'project-prepper' ); ?><?php if ( $current_map ) : ?> (<?php echo (int) count( $current_map ); ?>)<?php endif; ?></summary>
+			<input type="hidden" name="pp_bundle_present" value="1">
+			<p class="pp-portal__hint"><?php esc_html_e( 'Pick quantities to turn this item into a set — bookings then automatically book its parts. 0 removes a part.', 'project-prepper' ); ?></p>
+			<div class="pp-bundle-edit__list">
+				<?php foreach ( $candidates as $cand ) : ?>
+					<label class="pp-bundle-edit__row">
+						<input type="number" name="pp_bundle_qty[<?php echo (int) $cand->id; ?>]" min="0" value="<?php echo (int) ( $current_map[ (int) $cand->id ] ?? 0 ); ?>">
+						<span class="pp-bundle-edit__name"><?php echo esc_html( $cand->name ); ?> <small class="pp-portal__item-num"><?php echo esc_html( (string) $cand->inventory_number ); ?></small></span>
+					</label>
+				<?php endforeach; ?>
+			</div>
+		</details>
+		<?php
+	}
+
+	/**
+	 * „Set-Inhalt"-Eingaben des vereinten Artikel-Formulars anwenden. Fehlt der
+	 * Sektions-Marker (pp_bundle_present), bleibt die Stückliste unangetastet —
+	 * das Formular hatte den Abschnitt nicht (z.B. Artikel ist Teil eines Sets).
+	 *
+	 * @return true|\WP_Error
+	 */
+	private static function apply_bundle_input( int $user_id, int $item_id ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		if ( empty( $_POST['pp_bundle_present'] ) ) {
+			return true;
+		}
+		$raw = is_array( $_POST['pp_bundle_qty'] ?? null ) ? wp_unslash( $_POST['pp_bundle_qty'] ) : [];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		$parts = [];
+		foreach ( $raw as $pid => $qty ) {
+			$parts[ (int) $pid ] = (int) $qty;
+		}
+		return Bundles::set_parts( $user_id, $item_id, $parts );
+	}
+
 	/* ---------- Mein Inventar: CSV-Export / -Import ---------- */
 
 	/** Werkzeugleiste über dem eigenen Inventar: Export-Link + Import-Formular. */
-	private static function render_inventory_tools( array $categories, array $conditions, array $own_cats, array $tpl_cats, ?WP_User $user = null, array $groups = [] ): void {
+	private static function render_inventory_tools( array $categories, array $conditions, array $own_cats, array $tpl_cats, ?WP_User $user = null, array $groups = [], array $bundle_candidates = [] ): void {
 		$export_url = wp_nonce_url( admin_url( 'admin-post.php?action=pp_member_export' ), 'pp_member_export', 'pp_nonce' );
 		?>
 		<div class="pp-inv-tools">
@@ -8400,7 +8885,7 @@ class MemberPortal {
 			<span class="pp-inv-tools__spacer"></span>
 			<details class="pp-portal__add pp-inv-tools__new">
 				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Add item', 'project-prepper' ); ?></summary>
-				<?php self::item_form( 'item_create', $categories, $conditions, null, $groups ); ?>
+				<?php self::item_form( 'item_create', $categories, $conditions, null, $groups, $bundle_candidates ); ?>
 			</details>
 		</div>
 		<?php
@@ -9134,6 +9619,12 @@ class MemberPortal {
 		ob_start();
 		foreach ( $groups as $group ) {
 			$items = Borrowing::browse( (int) $group->id );
+			// Sets sind in V1 nur über Projekt-Buchungen nutzbar — beim Stöbern/
+			// Leihen ausblenden (docs/07 §6, Leih-Expansion = Phase 2).
+			if ( $items ) {
+				$pp_set_map = Bundles::for_items( array_map( static fn( $i ) => (int) $i->id, $items ) );
+				$items      = array_values( array_filter( $items, static fn( $i ) => ! isset( $pp_set_map[ (int) $i->id ] ) ) );
+			}
 			if ( ! $items ) {
 				continue;
 			}

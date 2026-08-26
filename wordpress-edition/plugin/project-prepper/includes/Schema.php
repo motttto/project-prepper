@@ -11,10 +11,11 @@ defined( 'ABSPATH' ) || exit;
  */
 class Schema {
 
-	// v0.38.0: keine Tabellen-Änderung — der Bump erzwingt nur, dass Plugin::init()
-	// Capabilities::install() erneut ausführt (entzieht pp_member die VIEW_*-Caps,
-	// Security-Fix v0.122.0). dbDelta läuft idempotent durch.
-	const VERSION    = '0.38.0';
+	// v0.39.0: Sets/Bundles (docs/07) — neue Tabelle item_bundle_parts (Stückliste
+	// je Set-Artikel) + additive Spalte project_items.bundle_item_id (markiert,
+	// aus welchem Set eine Buchungszeile expandiert wurde). Beides via dbDelta,
+	// keine Datenmigration.
+	const VERSION    = '0.39.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -63,6 +64,7 @@ class Schema {
 		$g_invites  = self::table( 'group_invitations' );
 		$g_inv_v    = self::table( 'group_invitation_votes' );
 		$item_share = self::table( 'item_group_shares' );
+		$bundle_p   = self::table( 'item_bundle_parts' );
 		$borrows    = self::table( 'borrow_requests' );
 		$fed_in     = self::table( 'fed_borrow_in' );
 		$fed_out    = self::table( 'fed_borrow_out' );
@@ -258,6 +260,10 @@ class Schema {
 		// packed_at (v0.36.0) — Packlisten-Status: NULL = noch nicht gepackt,
 		// datetime = als „gepackt" markiert. Additiv via dbDelta, keine Migration.
 		// tested_at (v0.37.0) — analog: NULL = noch nicht getestet, datetime = getestet.
+		// bundle_item_id (v0.39.0) — Set-Herkunft: die Zeile wurde beim Buchen eines
+		// Sets (docs/07) aus dessen Stückliste expandiert. NULL = normale Einzel-
+		// Buchung. Nur für die gruppierte Anzeige; Verfügbarkeit/Freigaben zählen
+		// weiterhin rein über item_id.
 		dbDelta( "CREATE TABLE {$p_items} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			project_id bigint(20) unsigned NOT NULL,
@@ -271,10 +277,29 @@ class Schema {
 			decided_at datetime DEFAULT NULL,
 			packed_at datetime DEFAULT NULL,
 			tested_at datetime DEFAULT NULL,
+			bundle_item_id bigint(20) unsigned DEFAULT NULL,
 			PRIMARY KEY  (id),
 			KEY project_id (project_id),
 			KEY item_id (item_id),
-			KEY approval_status (approval_status)
+			KEY approval_status (approval_status),
+			KEY bundle_item_id (bundle_item_id)
+		) {$charset};" );
+
+		// Sets/Bundles (v0.39.0, docs/07): Stückliste eines Set-Artikels — ein
+		// Artikel IST ein Set, sobald er hier Zeilen hat. part_item_id = normaler
+		// eigener Artikel desselben Eigentümers (Gates im Bundles-Service), quantity
+		// = benötigte Stückzahl pro Set. Beim Buchen wird das Set serverseitig in
+		// Teil-Buchungszeilen expandiert (Buchungs-Makro) — das Set selbst wird nie
+		// als project_items-Zeile gebucht.
+		dbDelta( "CREATE TABLE {$bundle_p} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			bundle_item_id bigint(20) unsigned NOT NULL,
+			part_item_id bigint(20) unsigned NOT NULL,
+			quantity int(11) NOT NULL DEFAULT 1,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			UNIQUE KEY bundle_part (bundle_item_id,part_item_id),
+			KEY part_item_id (part_item_id)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$p_lists} (
