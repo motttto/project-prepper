@@ -2996,3 +2996,12 @@ label.pp-swatch,
 
 /* Technik-Picker: Stücklisten-Zeile unter der Set-Position. */
 .pp-book-item__meta--set { color: var(--pp-primary-hover); }
+
+/* ==========================================================================
+   Live-Suche (v0.131.0): [hidden] muss die display-Regeln der gefilterten
+   Zeilen schlagen — .pp-inv-row ist grid, .pp-net-inst/.pp-book-item sind
+   flex, und eine Klassen-Regel gewinnt sonst gegen das hidden-Attribut.
+   ========================================================================== */
+[data-pp-searchable][hidden],
+[data-pp-search-row][hidden],
+[data-pp-search-none][hidden] { display: none !important; }

@@ -12,9 +12,9 @@
 
 defined( 'ABSPATH' ) || exit;
 ?>
-<div class="pp-front">
+<div class="pp-front" data-pp-live-scope>
 	<?php if ( $show_search ) : ?>
-		<form class="pp-front-search" method="get" action="">
+		<form class="pp-front-search" method="get" action="" data-pp-live>
 			<input type="search" name="pp_q" value="<?php echo esc_attr( $search_value ); ?>" placeholder="<?php esc_attr_e( 'Search equipment …', 'project-prepper' ); ?>">
 			<button type="submit" class="pp-front-btn"><?php esc_html_e( 'Search', 'project-prepper' ); ?></button>
 		</form>
@@ -23,9 +23,10 @@ defined( 'ABSPATH' ) || exit;
 	<?php if ( ! $items ) : ?>
 		<p class="pp-front-empty"><?php esc_html_e( 'No equipment found.', 'project-prepper' ); ?></p>
 	<?php else : ?>
+		<p class="pp-front-empty" data-pp-search-none hidden><?php esc_html_e( 'No equipment found.', 'project-prepper' ); ?></p>
 		<div class="pp-front-grid">
 			<?php foreach ( $items as $item ) : // phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals -- Template läuft im Methoden-Scope, keine echte Globale. ?>
-				<div class="pp-front-card">
+				<div class="pp-front-card" data-pp-searchable>
 					<a class="pp-front-card-media" href="<?php echo esc_url( $item['detail_url'] ); ?>">
 						<?php if ( $item['image_url'] ) : ?>
 							<img src="<?php echo esc_url( $item['image_url'] ); ?>" alt="<?php echo esc_attr( $item['name'] ); ?>" loading="lazy">

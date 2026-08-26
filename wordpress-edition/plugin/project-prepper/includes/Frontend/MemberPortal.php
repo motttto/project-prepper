@@ -179,6 +179,8 @@ class MemberPortal {
 		wp_register_style( 'pp-frontend', PP_PLUGIN_URL . 'assets/css/frontend.css', [], PP_VERSION );
 		// Kleine progressive Erweiterung (z. B. „+ Option" beim Umfrage-Anlegen).
 		wp_register_script( 'pp-portal', PP_PLUGIN_URL . 'assets/js/portal.js', [], PP_VERSION, true );
+		// Live-Suche für alle Suchmasken (auch im öffentlichen Inventar nutzbar).
+		wp_register_script( 'pp-live-search', PP_PLUGIN_URL . 'assets/js/live-search.js', [], PP_VERSION, true );
 		// SheetJS (gebündelt) + Inventar-Excel-Logik — nur auf der Inventar-View geladen.
 		wp_register_script( 'pp-xlsx', PP_PLUGIN_URL . 'admin/js/vendor/xlsx.full.min.js', [], '0.20.3', true );
 		wp_register_script( 'pp-portal-inv', PP_PLUGIN_URL . 'assets/js/portal-inventory.js', [ 'pp-xlsx' ], PP_VERSION, true );
@@ -188,6 +190,7 @@ class MemberPortal {
 		if ( self::is_portal_page() ) {
 			wp_enqueue_style( 'pp-frontend' );
 			wp_enqueue_script( 'pp-portal' );
+			wp_enqueue_script( 'pp-live-search' );
 			// Presence-Heartbeat: das Portal-JS pingt regelmäßig diese Route, damit
 			// der eigene „zuletzt gesehen"-Stempel frisch bleibt (nur eingeloggt).
 			if ( is_user_logged_in() ) {
@@ -2771,13 +2774,13 @@ class MemberPortal {
 			<p class="pp-app__page-sub"><?php esc_html_e( 'Equipment that members have shared with this group.', 'project-prepper' ); ?></p>
 		</header>
 
-		<section class="pp-portal__section pp-ginv">
+		<section class="pp-portal__section pp-ginv" data-pp-live-scope>
 			<?php if ( ! $all_items && '' === $q ) : ?>
 				<p class="pp-portal__empty">
 					<?php esc_html_e( 'Nothing shared with this group yet. Members add equipment from their own inventory: switch your workspace to “Solo”, open “My inventory”, and use the share buttons on an item.', 'project-prepper' ); ?>
 				</p>
 			<?php else : ?>
-				<form class="pp-inv-search" method="get">
+				<form class="pp-inv-search" method="get" data-pp-live>
 					<input type="hidden" name="pp_view" value="inventory">
 					<input type="search" name="pp_q" value="<?php echo esc_attr( $q ); ?>" placeholder="<?php esc_attr_e( 'Search this group’s inventory …', 'project-prepper' ); ?>">
 					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Search', 'project-prepper' ); ?></button>
@@ -2837,7 +2840,7 @@ class MemberPortal {
 							$pp_sub     = $item->model ?: ( $item->description ?? '' );
 						}
 						?>
-						<div class="pp-inv-row pp-ginv__row">
+						<div class="pp-inv-row pp-ginv__row" data-pp-searchable>
 							<span class="pp-col pp-col--name">
 								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php else : ?><span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span><?php endif; ?>
 								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <?php if ( $pp_parts ) : ?><span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span> <?php endif; ?><small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
@@ -2851,6 +2854,7 @@ class MemberPortal {
 							<span class="pp-col pp-col--loc" data-label="<?php esc_attr_e( 'Location', 'project-prepper' ); ?>"><?php echo ! empty( $item->location ) ? esc_html( (string) $item->location ) : '—'; ?></span>
 						</div>
 					<?php endforeach; ?>
+					<p class="pp-portal__empty" data-pp-search-none hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
 				<?php else : ?>
 					<p class="pp-portal__empty"><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
 				<?php endif; ?>
@@ -5061,7 +5065,7 @@ class MemberPortal {
 				<section class="pp-card">
 					<h3 class="pp-card__title"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></h3>
 					<p class="pp-portal__hint"><?php esc_html_e( 'Tick every item you want and set its quantity — you can book several at once.', 'project-prepper' ); ?></p>
-					<form class="pp-portal__form pp-book-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<form class="pp-portal__form pp-book-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-live data-pp-live-scope>
 						<?php self::action_fields( 'project_item_add' ); ?>
 						<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
 						<input type="search" class="pp-book-search" placeholder="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>">
@@ -5110,7 +5114,7 @@ class MemberPortal {
 								// frei bzw. Gesamtbestand minus schon gebucht.
 								$avail = ( $pp_parts || $has_period ) ? (int) $free : max( 0, (int) $item->quantity - $already );
 								?>
-								<div class="pp-book-item<?php echo $already > 0 ? ' pp-book-item--booked' : ''; ?><?php echo $avail <= 0 ? ' pp-book-item--unavailable' : ''; ?>">
+								<div class="pp-book-item<?php echo $already > 0 ? ' pp-book-item--booked' : ''; ?><?php echo $avail <= 0 ? ' pp-book-item--unavailable' : ''; ?>" data-pp-searchable>
 									<label class="pp-book-item__pick">
 										<input type="checkbox" name="pp_items[]" value="<?php echo (int) $item->id; ?>"<?php disabled( $avail <= 0 ); ?>>
 										<?php if ( ! empty( $item->image_url ) ) : ?>
@@ -5165,7 +5169,7 @@ class MemberPortal {
 								</div>
 							<?php endforeach; ?>
 						</div>
-						<p class="pp-book-none pp-portal__hint" hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
+						<p class="pp-book-none pp-portal__hint" data-pp-search-none hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
 						<div class="pp-portal__form-row">
 							<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
 								<input type="date" name="pp_from" value="<?php echo esc_attr( substr( (string) $p->date_start, 0, 10 ) ); ?>">
@@ -7629,12 +7633,15 @@ class MemberPortal {
 		endif;
 		?>
 
-		<form class="pp-net-search" method="get">
+		<?php // Live-Suche: der Scope umschließt Formular UND Instanz-Liste. ?>
+		<div class="pp-net-live" data-pp-live-scope>
+		<form class="pp-net-search" method="get" data-pp-live>
 			<input type="hidden" name="pp_view" value="network">
 			<input type="search" name="pp_q" value="<?php echo esc_attr( $q ); ?>" placeholder="<?php esc_attr_e( 'Filter by item, postal code or topic …', 'project-prepper' ); ?>">
 			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Filter', 'project-prepper' ); ?></button>
 		</form>
 
+		<div class="pp-net-list">
 		<?php
 		$needle    = mb_strtolower( $q );
 		$any_shown = false;
@@ -7667,7 +7674,7 @@ class MemberPortal {
 			$any_shown = true;
 			$inst_url  = (string) ( $profile['url'] ?? $url );
 			?>
-			<section class="pp-net-inst">
+			<section class="pp-net-inst" data-pp-searchable>
 				<div class="pp-net-inst__head">
 					<a class="pp-net-inst__name" href="<?php echo esc_url( $inst_url ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $profile['name'] ?? self::pretty_host( $url ) ); ?></a>
 					<span class="pp-net-inst__meta"><?php echo esc_html( implode( ' · ', array_filter( [ (string) ( $profile['postal_code'] ?? '' ), (string) ( $profile['topic'] ?? '' ) ] ) ) ); ?></span>
@@ -7741,6 +7748,9 @@ class MemberPortal {
 			echo '<p class="pp-portal__empty">' . esc_html__( 'Nothing matched your filter.', 'project-prepper' ) . '</p>';
 		}
 		?>
+			<p class="pp-portal__empty" data-pp-search-none hidden><?php esc_html_e( 'Nothing matched your filter.', 'project-prepper' ); ?></p>
+		</div>
+		</div>
 		<p class="pp-net-note"><?php esc_html_e( 'Borrowing across instances isn’t available yet — open an item to view it on the partner instance.', 'project-prepper' ); ?></p>
 		<?php
 	}
@@ -8392,7 +8402,7 @@ class MemberPortal {
 			return ! isset( $bundles_map[ (int) $it->id ] );
 		} ) );
 		?>
-		<section class="pp-portal__section">
+		<section class="pp-portal__section" data-pp-live-scope>
 			<?php if ( $heading ) : ?>
 				<h3 class="pp-portal__subtitle"><?php esc_html_e( 'My inventory', 'project-prepper' ); ?></h3>
 			<?php endif; ?>
@@ -8400,7 +8410,7 @@ class MemberPortal {
 			<?php self::render_inventory_tools( $categories, $conditions, $own_cats, $tpl_cats, $user, $groups, $bundle_candidates ); ?>
 
 			<?php if ( $all_items || '' !== $q ) : ?>
-				<form class="pp-inv-search" method="get">
+				<form class="pp-inv-search" method="get" data-pp-live>
 					<input type="hidden" name="pp_view" value="inventory">
 					<input type="search" name="pp_q" value="<?php echo esc_attr( $q ); ?>" placeholder="<?php esc_attr_e( 'Search your inventory …', 'project-prepper' ); ?>">
 					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Search', 'project-prepper' ); ?></button>
@@ -8462,8 +8472,8 @@ class MemberPortal {
 						}
 					}
 					?>
-					<div class="pp-portal__item pp-portal__item--row">
-						<div class="pp-inv-row pp-portal__item-head pp-inv-row--click" role="button" tabindex="0" data-pp-modal="pp-item-<?php echo (int) $item->id; ?>">
+					<div class="pp-portal__item pp-portal__item--row" data-pp-search-row>
+						<div class="pp-inv-row pp-portal__item-head pp-inv-row--click" role="button" tabindex="0" data-pp-modal="pp-item-<?php echo (int) $item->id; ?>" data-pp-searchable>
 							<span class="pp-col pp-col--name">
 								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php else : ?><span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span><?php endif; ?>
 								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <?php if ( $pp_parts ) : ?><span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span> <?php endif; ?><small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php $pp_sub = $pp_parts ? Bundles::parts_label( $pp_parts ) : ( $item->model ?: ( $item->description ?? '' ) ); if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
@@ -8551,6 +8561,7 @@ class MemberPortal {
 						</dialog>
 					</div>
 				<?php endforeach; ?>
+				<p class="pp-portal__empty" data-pp-search-none hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
 			<?php else : ?>
 				<?php if ( '' !== $q ) : ?>
 					<p class="pp-portal__empty"><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>

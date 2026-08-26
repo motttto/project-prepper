@@ -49,6 +49,8 @@ class Shortcodes {
 
 	public static function register_assets(): void {
 		wp_register_style( 'pp-frontend', PP_PLUGIN_URL . 'assets/css/frontend.css', [], PP_VERSION );
+		// Live-Suche der öffentlichen Inventarliste (gemeinsames Script mit dem Portal).
+		wp_register_script( 'pp-live-search', PP_PLUGIN_URL . 'assets/js/live-search.js', [], PP_VERSION, true );
 	}
 
 	/**
@@ -61,6 +63,7 @@ class Shortcodes {
 			return '';
 		}
 		wp_enqueue_style( 'pp-frontend' );
+		wp_enqueue_script( 'pp-live-search' );
 		extract( $vars, EXTR_SKIP ); // phpcs:ignore WordPress.PHP.DontExtract
 		ob_start();
 		include $template;

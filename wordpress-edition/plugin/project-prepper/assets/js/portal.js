@@ -111,24 +111,10 @@
 		}
 	}, true );
 
-	/* Technik buchen: Live-Suche filtert die Artikel-Liste im Modal.
-	 * Ohne JS bleibt die volle Liste sichtbar und buchbar. */
-	document.addEventListener( 'input', function ( e ) {
-		if ( ! e.target.classList || ! e.target.classList.contains( 'pp-book-search' ) ) { return; }
-		var form = e.target.closest( 'form' );
-		if ( ! form ) { return; }
-		var q = e.target.value.toLowerCase().trim();
-		var any = false;
-		form.querySelectorAll( '.pp-book-item' ).forEach( function ( row ) {
-			var hit = '' === q || -1 !== row.textContent.toLowerCase().indexOf( q );
-			row.hidden = ! hit;
-			if ( hit ) { any = true; }
-			// Ausgefilterte, aber angehakte Artikel bleiben ausgewählt (Checkbox
-			// submittet auch verborgen) — Mehrfachauswahl über mehrere Suchen hinweg.
-		} );
-		var none = form.querySelector( '.pp-book-none' );
-		if ( none ) { none.hidden = any; }
-	} );
+	/* Die Live-Suche des Technik-Pickers läuft seit v0.131.0 über das gemeinsame
+	 * live-search.js (data-pp-live / data-pp-searchable am Buchungsformular) —
+	 * inklusive „leeres Feld zeigt wieder alles". Ausgefilterte, aber angehakte
+	 * Artikel bleiben dabei ausgewählt (versteckte Checkboxen submitten mit). */
 
 	/* Kopieren-Button (z.B. iCal-Feed-URL): kopiert den Wert des per
 	 * data-pp-copy referenzierten Feldes. Ohne JS bleibt das Feld selektierbar
