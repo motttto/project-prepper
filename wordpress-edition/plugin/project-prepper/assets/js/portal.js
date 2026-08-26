@@ -39,18 +39,46 @@
 		}
 	}
 
+	/* Verwalten-Modal: EIN Formular (data-pp-autosave) für Foto, Stammdaten und
+	 * Freigaben. Geänderte Felder werden beim SCHLIESSEN (✕, Backdrop, Esc)
+	 * automatisch gespeichert — der Submit lädt die Seite neu, das Modal ist
+	 * danach zu. Unverändert schließt sofort ohne Request. */
+	function autosaveForm( dlg ) {
+		return dlg ? dlg.querySelector( 'form[data-pp-autosave]' ) : null;
+	}
+
+	document.addEventListener( 'input', function ( e ) {
+		var form = e.target.closest ? e.target.closest( 'form[data-pp-autosave]' ) : null;
+		if ( form ) { form.setAttribute( 'data-pp-dirty', '1' ); }
+	} );
+	document.addEventListener( 'change', function ( e ) {
+		var form = e.target.closest ? e.target.closest( 'form[data-pp-autosave]' ) : null;
+		if ( form ) { form.setAttribute( 'data-pp-dirty', '1' ); }
+	} );
+
+	/* Dialog schließen — mit ungespeicherten Änderungen erst speichern (Submit
+	 * mit HTML-Validierung: ein leerer Pflicht-Name hält das Modal offen). */
+	function closeDialog( dlg ) {
+		var form = autosaveForm( dlg );
+		if ( form && form.hasAttribute( 'data-pp-dirty' ) ) {
+			if ( typeof form.requestSubmit === 'function' ) { form.requestSubmit(); } else { form.submit(); }
+			return;
+		}
+		dlg.close();
+	}
+
 	document.addEventListener( 'click', function ( e ) {
 		var closeBtn = e.target.closest( '[data-pp-modal-close]' );
 		if ( closeBtn ) {
 			var ownDlg = closeBtn.closest( 'dialog' );
-			if ( ownDlg ) { ownDlg.close(); }
+			if ( ownDlg ) { closeDialog( ownDlg ); }
 			return;
 		}
 		// Klick auf den Backdrop (außerhalb der Modal-Box) schließt.
 		if ( 'DIALOG' === e.target.tagName && e.target.classList.contains( 'pp-modal' ) ) {
 			var r = e.target.getBoundingClientRect();
 			var inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
-			if ( ! inside ) { e.target.close(); }
+			if ( ! inside ) { closeDialog( e.target ); }
 			return;
 		}
 		var trigger = e.target.closest( '[data-pp-modal]' );
@@ -71,6 +99,17 @@
 		e.preventDefault();
 		openModal( trigger.getAttribute( 'data-pp-modal' ) );
 	} );
+
+	// Esc im <dialog> feuert 'cancel' — mit ungespeicherten Änderungen erst
+	// speichern statt zu schließen (gleiches Verhalten wie ✕/Backdrop).
+	document.addEventListener( 'cancel', function ( e ) {
+		var dlg  = e.target;
+		var form = 'DIALOG' === dlg.tagName ? autosaveForm( dlg ) : null;
+		if ( form && form.hasAttribute( 'data-pp-dirty' ) ) {
+			e.preventDefault();
+			if ( typeof form.requestSubmit === 'function' ) { form.requestSubmit(); } else { form.submit(); }
+		}
+	}, true );
 
 	/* Technik buchen: Live-Suche filtert die Artikel-Liste im Modal.
 	 * Ohne JS bleibt die volle Liste sichtbar und buchbar. */

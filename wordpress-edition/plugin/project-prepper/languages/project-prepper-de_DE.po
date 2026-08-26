@@ -7253,3 +7253,125 @@ msgstr "ID"
 #: includes/Admin/Menu.php:199
 msgid "Page"
 msgstr "Seite"
+
+#. translators: List line in the approval email. 1: quantity, 2: item name, 3: start date, 4: end date.
+#: includes/Email/Notifications.php:437
+msgid "- %1$d× %2$s (%3$s to %4$s)"
+msgstr "- %1$d× %2$s (%3$s bis %4$s)"
+
+#. translators: List line in the decisions email. 1: item name, 2: project name, 3: decision (approved/rejected).
+#: includes/Email/Notifications.php:486
+msgid "- %1$s (%2$s): %3$s"
+msgstr "- %1$s (%2$s): %3$s"
+
+#. translators: Email subject. Keep the {{count}} and {{site_name}} placeholders unchanged.
+#: includes/Email/Notifications.php:110
+msgid "Approval needed: {{count}} bookings — {{site_name}}"
+msgstr "Freigabe nötig: {{count}} Buchungen — {{site_name}}"
+
+#: includes/Frontend/MemberPortal.php:8194
+msgid "Changes are also saved automatically when you close this window."
+msgstr "Änderungen werden beim Schließen dieses Fensters auch automatisch gespeichert."
+
+#: includes/Frontend/MemberPortal.php:4433
+msgid "Decide later"
+msgstr "Später entscheiden"
+
+#. translators: Email subject. Keep the {{site_name}} placeholder unchanged.
+#: includes/Email/Notifications.php:116
+msgid "Decisions on your equipment bookings — {{site_name}}"
+msgstr "Entscheidungen zu deinen Technik-Buchungen — {{site_name}}"
+
+#: includes/Frontend/MemberPortal.php:1467
+msgid "Decisions saved. Each requester was notified with one email."
+msgstr "Entscheidungen gespeichert. Alle Anfragenden wurden mit je einer E-Mail benachrichtigt."
+
+#: includes/Frontend/MemberPortal.php:4440
+msgid "Each requester gets one email listing all your decisions."
+msgstr "Alle Anfragenden erhalten je eine E-Mail mit deinen gesammelten Entscheidungen."
+
+#: includes/Email/Notifications.php:160
+msgid "Equipment approval decisions — several in one email (to requester)"
+msgstr "Technik-Freigabe-Entscheidungen — mehrere in einer E-Mail (an Anfragende)"
+
+#: includes/Email/Notifications.php:159
+msgid "Equipment approval request — several items in one email (to owner)"
+msgstr "Technik-Freigabe-Anfrage — mehrere Artikel in einer E-Mail (an Eigentümer)"
+
+#. translators: Email body. Keep all {{…}} placeholders unchanged.
+#: includes/Email/Notifications.php:118
+msgid ""
+"Hello,\n"
+"\n"
+"the owner has decided on your booking requests:\n"
+"\n"
+"{{items}}\n"
+"\n"
+"Details:\n"
+"{{portal_url}}\n"
+"\n"
+"Best regards\n"
+"{{site_name}}"
+msgstr ""
+"Hallo,\n"
+"\n"
+"über deine Buchungsanfragen wurde entschieden:\n"
+"\n"
+"{{items}}\n"
+"\n"
+"Details:\n"
+"{{portal_url}}\n"
+"\n"
+"Viele Grüße\n"
+"{{site_name}}"
+
+#. translators: Email body. Keep all {{…}} placeholders unchanged.
+#: includes/Email/Notifications.php:112
+msgid ""
+"Hello,\n"
+"\n"
+"{{requester_name}} would like to use your equipment for the project \"{{project_name}}\":\n"
+"\n"
+"{{items}}\n"
+"\n"
+"Approve or reject each request on your own terms in the portal:\n"
+"{{portal_url}}\n"
+"\n"
+"Best regards\n"
+"{{site_name}}"
+msgstr ""
+"Hallo,\n"
+"\n"
+"{{requester_name}} möchte deine Technik für das Projekt \"{{project_name}}\" nutzen:\n"
+"\n"
+"{{items}}\n"
+"\n"
+"Gib jede Anfrage zu deinen eigenen Bedingungen im Portal frei oder lehne sie ab:\n"
+"{{portal_url}}\n"
+"\n"
+"Viele Grüße\n"
+"{{site_name}}"
+
+#: includes/Frontend/MemberPortal.php:8137
+msgid "Photo (optional)"
+msgstr "Foto (optional)"
+
+#: includes/Frontend/MemberPortal.php:1468
+msgid "Please choose Approve or Reject for at least one request."
+msgstr "Bitte wähle bei mindestens einer Anfrage Zustimmen oder Ablehnen."
+
+#: includes/Frontend/MemberPortal.php:4787
+msgid "Prefilled with the project period — only change this if these items are needed for a different period."
+msgstr "Mit dem Projektzeitraum vorbelegt — nur ändern, wenn diese Artikel für einen anderen Zeitraum gebraucht werden."
+
+#: includes/Frontend/MemberPortal.php:4414
+msgid "Reject the selected requests? Those bookings will be removed."
+msgstr "Ausgewählte Anfragen ablehnen? Diese Buchungen werden entfernt."
+
+#: includes/Frontend/MemberPortal.php:8137
+msgid "Replace photo"
+msgstr "Foto ersetzen"
+
+#: includes/Frontend/MemberPortal.php:4439
+msgid "Send decisions"
+msgstr "Entscheidungen senden"

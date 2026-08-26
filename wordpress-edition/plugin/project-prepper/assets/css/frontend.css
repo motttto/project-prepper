@@ -2921,3 +2921,41 @@ label.pp-swatch,
 	.pp-poll-opt { background: var(--pp-muted); border-color: var(--pp-border); }
 	.pp-net-item__ask { border-top-color: var(--pp-border); }
 }
+
+/* ==========================================================================
+   Feedback-Runde 2026-08: vereintes Artikel-Formular (Anlegen + Verwalten in
+   einem Schritt), Sammel-Freigaben mit einer Mail (v0.128.0)
+   ========================================================================== */
+
+/* Verwalten-Modal: das EINE Formular spannt Foto-, Freigabe- und Speicher-
+ * Bereich über beide Grid-Spalten; die Stammdaten-Felder bleiben 2-spaltig. */
+.pp-modal-body > .pp-portal__form > .pp-modal-photo,
+.pp-modal-body > .pp-portal__form > .pp-share,
+.pp-modal-body > .pp-portal__form > .pp-item-form__save { grid-column: 1 / -1; }
+
+/* Foto-Bereich im vereinten Formular: Datei-Auswahl als Feld-Label, die
+ * „Foto entfernen"-Checkbox als Zeile daneben. */
+.pp-portal__form label.pp-modal-photo__pick { display: flex; flex-direction: column; gap: .25rem; font-size: .78rem; color: var(--pp-muted-foreground); }
+.pp-portal__form label.pp-modal-photo__removecb { flex-direction: row; align-items: center; gap: .35rem; font-size: .82rem; margin-top: .4rem; color: var(--pp-muted-foreground); }
+
+/* Share-Blöcke im vereinten Formular: Zeilen-Labels gegen das generische
+ * flex-column von `.pp-portal__form label` behaupten (bekanntes Gotcha:
+ * label.-Spezifität nötig). */
+.pp-portal__form label.pp-share__head { flex-direction: row; align-items: center; }
+.pp-portal__form label.pp-share__approval { display: inline-flex; flex-direction: row; align-items: center; }
+.pp-portal__form .pp-share__conds label.pp-portal__chip { display: inline-flex; flex-direction: row; }
+.pp-portal__form .pp-share { border-top: 1px solid var(--pp-muted); padding-top: .85rem; }
+.pp-portal__form .pp-share__title { margin-top: 0; }
+
+/* Speichern-Zeile im Modal: Button + Hinweis auf das Auto-Speichern beim
+ * Schließen in einer Reihe. */
+.pp-item-form__save { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+.pp-item-form__save .pp-portal__btn { margin-top: 0; }
+
+/* Freigaben-Ansicht: Entscheidung je Anfrage als Chip-Radios (Freigeben grün,
+ * Ablehnen rot, „Später" neutral markiert), EIN Absenden für alles. */
+.pp-approval__decide label.pp-portal__chip { display: inline-flex; align-items: center; }
+.pp-approval__decide label:has( input[value="approve"]:checked ) { background: var(--pp-success); border-color: var(--pp-success); color: #fff; }
+.pp-approval__decide label:has( input[value="reject"]:checked ) { background: var(--pp-destructive); border-color: var(--pp-destructive); color: #fff; }
+.pp-approval__decide label:has( input[value=""]:checked ) { background: var(--pp-muted); color: var(--pp-foreground); }
+.pp-approvals-form__submit { margin-top: 1rem; display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }

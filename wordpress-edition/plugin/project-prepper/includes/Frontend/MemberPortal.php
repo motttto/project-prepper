@@ -419,7 +419,7 @@ class MemberPortal {
 		}
 		// Inventar-, Kategorie- und Gesamt-Freigabe-Aktionen kehren zur Inventar-
 		// Ansicht zurück (statt aufs Dashboard) — inkl. Artikel anlegen/bearbeiten/löschen.
-		if ( in_array( $do, [ 'item_create', 'item_update', 'item_delete', 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all', 'item_share', 'item_unshare', 'item_share_set' ], true ) ) {
+		if ( in_array( $do, [ 'item_create', 'item_update', 'item_save_all', 'item_delete', 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all', 'item_share', 'item_unshare', 'item_share_set' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		}
 		// Anfragen-Aktionen kehren zur Anfragen-Ansicht zurück — Bearbeiten und
@@ -447,7 +447,7 @@ class MemberPortal {
 			$back = add_query_arg( 'pp_view', 'projects', self::portal_url() );
 		}
 		// Freigabe-Entscheidungen kehren zur Freigaben-Ansicht zurück.
-		if ( in_array( $do, [ 'booking_approve', 'booking_reject' ], true ) ) {
+		if ( in_array( $do, [ 'booking_approve', 'booking_reject', 'booking_decide_bulk' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'approvals', self::portal_url() );
 		}
 		// Reiter-Erhalt für ALLE View-Redirects: die Umbauten oben starten von
@@ -569,11 +569,37 @@ class MemberPortal {
 				$ok_msg = 'profile_saved';
 				break;
 			case 'item_create':
+				// Anlegen in EINEM Schritt: Stammdaten + optionales Foto + Kollektiv-
+				// Freigaben aus demselben Formular (Feedback: nicht erst anlegen und
+				// dann über „Verwalten" nachpflegen).
 				$result = MemberInventory::create( get_current_user_id(), self::item_input() );
+				if ( ! is_wp_error( $result ) ) {
+					self::apply_share_input( get_current_user_id(), (int) $result );
+					$pp_photo_res = self::process_item_photo_input( get_current_user_id(), (int) $result );
+					if ( is_wp_error( $pp_photo_res ) ) {
+						// Artikel + Freigaben sind gespeichert — nur das Foto schlug fehl.
+						$result = $pp_photo_res;
+					}
+				}
 				$ok_msg = 'item_saved';
 				break;
 			case 'item_update':
 				$result = MemberInventory::update( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ), self::item_input() );
+				$ok_msg = 'item_saved';
+				break;
+			case 'item_save_all':
+				// Verwalten-Modal: EIN Speichern für Stammdaten, Foto und alle
+				// Kollektiv-Freigaben zusammen (Feedback: kein eigener Button pro
+				// Abschnitt; Änderungen werden beim Schließen übernommen).
+				$pp_item = (int) ( $_POST['pp_item'] ?? 0 );
+				$result  = MemberInventory::update( get_current_user_id(), $pp_item, self::item_input() );
+				if ( ! is_wp_error( $result ) ) {
+					self::apply_share_input( get_current_user_id(), $pp_item );
+					$pp_photo_res = self::process_item_photo_input( get_current_user_id(), $pp_item );
+					if ( is_wp_error( $pp_photo_res ) ) {
+						$result = $pp_photo_res;
+					}
+				}
 				$ok_msg = 'item_saved';
 				break;
 			case 'item_delete':
@@ -755,6 +781,34 @@ class MemberPortal {
 					$result = true;
 				}
 				$ok_msg = 'booking_rejected';
+				break;
+			case 'booking_decide_bulk':
+				// Sammel-Entscheidung aus der Freigaben-Ansicht: je Zeile approve/
+				// reject/leer („später"). Entscheidungen werden PRO ANFRAGER
+				// gebündelt — jeder bekommt EINE Mail mit seiner Ergebnis-Liste.
+				// Jede Zeile läuft durch dieselben Owner-Gates wie die Einzel-Aktion.
+				$raw_decide = is_array( $_POST['pp_decide'] ?? null ) ? wp_unslash( $_POST['pp_decide'] ) : [];
+				$decided    = 0;
+				$by_requester = [];
+				foreach ( $raw_decide as $bulk_line => $bulk_choice ) {
+					$bulk_choice = sanitize_key( (string) $bulk_choice );
+					if ( ! in_array( $bulk_choice, [ 'approve', 'reject' ], true ) ) {
+						continue;
+					}
+					$ctx = 'approve' === $bulk_choice
+						? BookingApprovals::approve( get_current_user_id(), (int) $bulk_line )
+						: BookingApprovals::reject( get_current_user_id(), (int) $bulk_line );
+					if ( is_array( $ctx ) ) {
+						$decided++;
+						$ctx['status'] = 'approve' === $bulk_choice ? 'approved' : 'rejected';
+						$by_requester[ (int) $ctx['requester_id'] ][] = $ctx;
+					}
+				}
+				foreach ( $by_requester as $bulk_req => $bulk_decisions ) {
+					do_action( 'pp_booking_approvals_decided', (int) $bulk_req, $bulk_decisions );
+				}
+				$result = $decided > 0 ? true : new \WP_Error( 'pp_bulk_none', 'nothing chosen' );
+				$ok_msg = 'booking_bulk_saved';
 				break;
 			// --- Projekt-Unterlisten (Gate: project_sub_actions oben) ---
 			case 'sched_add':
@@ -1163,6 +1217,10 @@ class MemberPortal {
 				$msg = 'missing_required';
 			} elseif ( 'pp_no_selection' === $code ) {
 				$msg = 'booking_none_selected';
+			} elseif ( 'pp_bulk_none' === $code ) {
+				$msg = 'booking_bulk_none';
+			} elseif ( 'pp_photo_failed' === $code ) {
+				$msg = 'photo_failed';
 			} elseif ( 'pp_not_pending' === $code ) {
 				$msg = 'booking_decided_already';
 			} elseif ( 'pp_telegram_not_configured' === $code ) {
@@ -1363,6 +1421,8 @@ class MemberPortal {
 			'booking_approved' => [ 'ok', __( 'Booking approved.', 'project-prepper' ) ],
 			'booking_rejected' => [ 'ok', __( 'Booking rejected and removed.', 'project-prepper' ) ],
 			'booking_decided_already' => [ 'err', __( 'This request has already been decided.', 'project-prepper' ) ],
+			'booking_bulk_saved' => [ 'ok', __( 'Decisions saved. Each requester was notified with one email.', 'project-prepper' ) ],
+			'booking_bulk_none'  => [ 'err', __( 'Please choose Approve or Reject for at least one request.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
 			'borrow_decided'   => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'borrow_cancelled' => [ 'ok', __( 'Request cancelled.', 'project-prepper' ) ],
@@ -1431,6 +1491,100 @@ class MemberPortal {
 			'description'   => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
 		];
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
+	}
+
+	/**
+	 * Kollektiv-Freigaben aus dem vereinten Artikel-Formular anwenden: je Gruppe
+	 * des Users teilen/aktualisieren (Checkbox an) oder die Freigabe zurückziehen
+	 * (Checkbox aus, war aber geteilt). Feldnamen siehe item_share_fields();
+	 * Eigentums-/Mitgliedschafts-Gates liegen in set_share()/unshare().
+	 */
+	private static function apply_share_input( int $user_id, int $item_id ): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		$on    = is_array( $_POST['pp_share_on'] ?? null ) ? $_POST['pp_share_on'] : [];
+		$rate  = is_array( $_POST['pp_share_rate'] ?? null ) ? wp_unslash( $_POST['pp_share_rate'] ) : [];
+		$appr  = is_array( $_POST['pp_share_approval'] ?? null ) ? $_POST['pp_share_approval'] : [];
+		$cond  = is_array( $_POST['pp_share_cond'] ?? null ) ? wp_unslash( $_POST['pp_share_cond'] ) : [];
+		$notes = is_array( $_POST['pp_share_notes'] ?? null ) ? wp_unslash( $_POST['pp_share_notes'] ) : [];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		$shared_now = MemberInventory::shared_group_ids( $item_id );
+		foreach ( Groups::user_groups( $user_id ) as $g ) {
+			$gid = (int) $g->id;
+			if ( ! empty( $on[ $gid ] ) ) {
+				MemberInventory::set_share( $user_id, $item_id, $gid, [
+					'daily_rate'        => isset( $rate[ $gid ] ) ? (string) $rate[ $gid ] : null,
+					'requires_approval' => ! empty( $appr[ $gid ] ),
+					'conditions_tags'   => array_map( 'sanitize_key', (array) ( $cond[ $gid ] ?? [] ) ),
+					'conditions'        => (string) ( $notes[ $gid ] ?? '' ),
+				] );
+			} elseif ( in_array( $gid, $shared_now, true ) ) {
+				MemberInventory::unshare( $user_id, $item_id, $gid );
+			}
+		}
+	}
+
+	/**
+	 * Foto-Feld des vereinten Artikel-Formulars verarbeiten: „Foto entfernen"-
+	 * Checkbox und/oder neuer Upload (ersetzt das bisherige Bild). Nichts
+	 * angegeben → true ohne Änderung. Upload-Fehler → WP_Error pp_photo_failed
+	 * (die übrigen Formulardaten sind zu diesem Zeitpunkt bereits gespeichert).
+	 *
+	 * @return true|\WP_Error
+	 */
+	private static function process_item_photo_input( int $user_id, int $item_id ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		if ( ! empty( $_POST['pp_photo_remove'] ) ) {
+			MemberInventory::set_image( $user_id, $item_id, null );
+		}
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		if ( empty( $_FILES['pp_photo']['tmp_name'] ) || ! is_uploaded_file( $_FILES['pp_photo']['tmp_name'] ) ) {
+			return true;
+		}
+		$attach_id = self::create_photo_attachment();
+		if ( is_wp_error( $attach_id ) ) {
+			return $attach_id;
+		}
+		MemberInventory::set_image( $user_id, $item_id, (int) $attach_id );
+		return true;
+	}
+
+	/**
+	 * Hochgeladenes pp_photo als Attachment ablegen (Bild-MIME-Whitelist).
+	 * Gemeinsame Kernlogik für handle_inventory_photo() und das vereinte
+	 * Artikel-Formular (item_create / item_save_all).
+	 *
+	 * @return int|\WP_Error Attachment-ID.
+	 */
+	private static function create_photo_attachment() {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+
+		// Nur Bild-MIME-Typen zulassen (kein test_form, da kein klassisches Admin-Formular).
+		$overrides = [
+			'test_form' => false,
+			'mimes'     => [
+				'jpg|jpeg|jpe' => 'image/jpeg',
+				'png'          => 'image/png',
+				'gif'          => 'image/gif',
+				'webp'         => 'image/webp',
+			],
+		];
+		$failed = new \WP_Error( 'pp_photo_failed', __( 'The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file.', 'project-prepper' ) );
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- $_FILES wird von wp_handle_upload validiert (mimes-Whitelist).
+		$moved = wp_handle_upload( $_FILES['pp_photo'], $overrides );
+		if ( ! is_array( $moved ) || isset( $moved['error'] ) ) {
+			return $failed;
+		}
+		$attach_id = wp_insert_attachment( [
+			'post_mime_type' => $moved['type'],
+			'post_title'     => sanitize_file_name( wp_basename( $moved['file'] ) ),
+			'post_status'    => 'inherit',
+		], $moved['file'] );
+		if ( ! $attach_id || is_wp_error( $attach_id ) ) {
+			return $failed;
+		}
+		wp_update_attachment_metadata( $attach_id, wp_generate_attachment_metadata( (int) $attach_id, $moved['file'] ) );
+		return (int) $attach_id;
 	}
 
 	/**
@@ -3796,6 +3950,26 @@ class MemberPortal {
 	}
 
 	/**
+	 * Buchungs-Zeitraum gegen den Projektzeitraum normalisieren: entspricht die
+	 * Eingabe exakt dem Projektzeitraum, wird LEER gespeichert (= erbt weiter den
+	 * Projektzeitraum, COALESCE in den Abfragen). Die Formulare belegen die Felder
+	 * sichtbar mit dem Projektzeitraum vor — ohne diese Normalisierung würde jeder
+	 * unveränderte Submit den Zeitraum „festnageln" und spätere Projekt-
+	 * Verschiebungen nicht mehr mitmachen.
+	 *
+	 * @param array $input Buchungs-Eingaben (date_from/date_to werden ggf. geleert).
+	 */
+	private static function normalize_booking_dates( array $input, object $p ): array {
+		$p_start = substr( (string) $p->date_start, 0, 10 );
+		$p_end   = substr( (string) $p->date_end, 0, 10 );
+		if ( '' !== $p_start && $input['date_from'] === $p_start && $input['date_to'] === $p_end ) {
+			$input['date_from'] = '';
+			$input['date_to']   = '';
+		}
+		return $input;
+	}
+
+	/**
 	 * Technik für ein Projekt buchen — Mehrfachauswahl: alle angehakten Artikel
 	 * aus dem Gruppen-Pool, je mit eigener Menge, gemeinsamer Zeitraum/Notiz.
 	 *
@@ -3816,6 +3990,7 @@ class MemberPortal {
 			'notes'     => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_notes'] ?? '' ) ) ),
 		];
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		$shared = self::normalize_booking_dates( $shared, $p );
 
 		if ( ! $item_ids ) {
 			return new \WP_Error( 'pp_no_selection', __( 'Please tick at least one item to book.', 'project-prepper' ) );
@@ -3827,6 +4002,9 @@ class MemberPortal {
 		$failed   = 0;
 		$pending  = 0;
 		$last_err = null;
+		// Freigabepflichtige Zeilen PRO EIGENTÜMER sammeln — nach der Schleife gibt
+		// es je Eigentümer EINE Sammel-Anfrage (statt einer Mail pro Gerät).
+		$pending_by_owner = [];
 		foreach ( $item_ids as $item_id ) {
 			if ( ! isset( $pool[ $item_id ] ) ) {
 				// Nicht aus dem Pool — harte Grenze (IDOR), sofort abbrechen.
@@ -3853,12 +4031,16 @@ class MemberPortal {
 				$booked++;
 				if ( $needs ) {
 					$pending++;
-					// Freigabe-Anfrage an den Eigentümer (E-Mail + Portal-Eintrag,
-					// der über den DB-Status geführt wird). Fehler beim Mailversand
-					// bleiben folgenlos.
-					do_action( 'pp_booking_approval_requested', (int) $res, $owner_id, $uid );
+					$pending_by_owner[ $owner_id ][] = (int) $res;
 				}
 			}
+		}
+
+		// Freigabe-Anfragen an die Eigentümer (E-Mail + Portal-Eintrag, der über
+		// den DB-Status geführt wird) — eine Sammel-Mail je Eigentümer. Fehler
+		// beim Mailversand bleiben folgenlos.
+		foreach ( $pending_by_owner as $po_owner => $po_lines ) {
+			do_action( 'pp_booking_approvals_requested', $po_lines, (int) $po_owner, $uid );
 		}
 
 		if ( 0 === $booked ) {
@@ -3890,7 +4072,7 @@ class MemberPortal {
 		if ( ! $existing ) {
 			return new \WP_Error( 'pp_not_found', __( 'Line item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
-		$input = self::booking_input();
+		$input = self::normalize_booking_dates( self::booking_input(), $p );
 
 		// Braucht der Artikel eine Freigabe (fremd + requires_approval)? Owner aus
 		// dem Gruppen-Pool (shared_by = Eigentümer/Freigebende:r).
@@ -4178,6 +4360,11 @@ class MemberPortal {
 				<p class="pp-portal__empty"><?php esc_html_e( 'No open approval requests. When someone books your equipment on approval, it shows up here.', 'project-prepper' ); ?></p>
 			</div>
 		<?php else : ?>
+			<?php // Sammel-Formular: je Anfrage Freigeben/Ablehnen/Später wählen, EIN
+			// Absenden entscheidet alles zusammen — der Anfrager bekommt EINE Mail
+			// mit der ganzen Liste (statt einer Mail pro Gerät). ?>
+			<form class="pp-approvals-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return !this.querySelector('input[value=reject]:checked') || confirm('<?php echo esc_js( __( 'Reject the selected requests? Those bookings will be removed.', 'project-prepper' ) ); ?>');">
+				<?php self::action_fields( 'booking_decide_bulk' ); ?>
 			<div class="pp-approvals">
 				<?php foreach ( $pending as $r ) :
 					$range = self::fmt_range( $r->date_from_eff, $r->date_to_eff );
@@ -4223,21 +4410,19 @@ class MemberPortal {
 								<?php endif; ?>
 							</div>
 						<?php endif; ?>
-						<div class="pp-portal__actions">
-							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;">
-								<?php self::action_fields( 'booking_approve' ); ?>
-								<input type="hidden" name="pp_line" value="<?php echo (int) $r->line_id; ?>">
-								<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Approve', 'project-prepper' ); ?></button>
-							</form>
-							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin:0;" onsubmit="return confirm('<?php echo esc_js( __( 'Reject this request? The booking will be removed.', 'project-prepper' ) ); ?>');">
-								<?php self::action_fields( 'booking_reject' ); ?>
-								<input type="hidden" name="pp_line" value="<?php echo (int) $r->line_id; ?>">
-								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Reject', 'project-prepper' ); ?></button>
-							</form>
+						<div class="pp-portal__actions pp-approval__decide" role="radiogroup" aria-label="<?php esc_attr_e( 'Decision', 'project-prepper' ); ?>">
+							<label class="pp-portal__chip"><input type="radio" name="pp_decide[<?php echo (int) $r->line_id; ?>]" value="approve" hidden> <?php esc_html_e( 'Approve', 'project-prepper' ); ?></label>
+							<label class="pp-portal__chip"><input type="radio" name="pp_decide[<?php echo (int) $r->line_id; ?>]" value="reject" hidden> <?php esc_html_e( 'Reject', 'project-prepper' ); ?></label>
+							<label class="pp-portal__chip"><input type="radio" name="pp_decide[<?php echo (int) $r->line_id; ?>]" value="" hidden checked> <?php esc_html_e( 'Decide later', 'project-prepper' ); ?></label>
 						</div>
 					</div>
 				<?php endforeach; ?>
 			</div>
+			<div class="pp-portal__actions pp-approvals-form__submit">
+				<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Send decisions', 'project-prepper' ); ?></button>
+				<span class="pp-portal__hint"><?php esc_html_e( 'Each requester gets one email listing all your decisions.', 'project-prepper' ); ?></span>
+			</div>
+			</form>
 		<?php endif; ?>
 		<?php
 	}
@@ -4487,16 +4672,16 @@ class MemberPortal {
 													<input type="number" name="pp_quantity" min="1" value="<?php echo (int) $line->quantity; ?>">
 												</label>
 												<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
-													<input type="date" name="pp_from" value="<?php echo esc_attr( (string) $line->date_from ); ?>">
+													<input type="date" name="pp_from" value="<?php echo esc_attr( '' !== (string) $line->date_from ? (string) $line->date_from : substr( (string) $p->date_start, 0, 10 ) ); ?>">
 												</label>
 												<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
-													<input type="date" name="pp_to" value="<?php echo esc_attr( (string) $line->date_to ); ?>">
+													<input type="date" name="pp_to" value="<?php echo esc_attr( '' !== (string) $line->date_to ? (string) $line->date_to : substr( (string) $p->date_end, 0, 10 ) ); ?>">
 												</label>
 											</div>
 											<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
 												<input type="text" name="pp_notes" value="<?php echo esc_attr( (string) $line->notes ); ?>">
 											</label>
-											<p class="pp-portal__hint"><?php esc_html_e( 'Leave both dates empty to book for the whole project period.', 'project-prepper' ); ?></p>
+											<p class="pp-portal__hint"><?php esc_html_e( 'Prefilled with the project period — only change this if these items are needed for a different period.', 'project-prepper' ); ?></p>
 											<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
 										</form>
 									</details>
@@ -4601,13 +4786,15 @@ class MemberPortal {
 						<p class="pp-book-none pp-portal__hint" hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
 						<div class="pp-portal__form-row">
 							<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
-								<input type="date" name="pp_from">
+								<input type="date" name="pp_from" value="<?php echo esc_attr( substr( (string) $p->date_start, 0, 10 ) ); ?>">
 							</label>
 							<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
-								<input type="date" name="pp_to">
+								<input type="date" name="pp_to" value="<?php echo esc_attr( substr( (string) $p->date_end, 0, 10 ) ); ?>">
 							</label>
 						</div>
-						<p class="pp-portal__hint"><?php esc_html_e( 'Leave both dates empty to book for the whole project period.', 'project-prepper' ); ?></p>
+						<p class="pp-portal__hint"><?php echo $has_period
+							? esc_html__( 'Prefilled with the project period — only change this if these items are needed for a different period.', 'project-prepper' )
+							: esc_html__( 'Leave both dates empty to book for the whole project period.', 'project-prepper' ); ?></p>
 						<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
 							<input type="text" name="pp_notes">
 						</label>
@@ -7862,65 +8049,31 @@ class MemberPortal {
 							<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
 						</div>
 						<div class="pp-modal-body">
-							<div class="pp-modal-photo">
-								<?php if ( ! empty( $item->image_url ) ) : ?>
-									<img class="pp-modal-photo__img" src="<?php echo esc_url( $item->image_url ); ?>" alt="">
-								<?php endif; ?>
-								<form class="pp-modal-photo__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-									<input type="hidden" name="action" value="pp_member_photo">
-									<?php wp_nonce_field( 'pp_member_photo', 'pp_nonce' ); ?>
-									<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
-									<input type="file" name="pp_photo" accept="image/*" required>
-									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save photo', 'project-prepper' ); ?></button>
-								</form>
-								<?php if ( ! empty( $item->image_url ) ) : ?>
-									<form class="pp-modal-photo__remove" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-										<input type="hidden" name="action" value="pp_member_photo">
-										<?php wp_nonce_field( 'pp_member_photo', 'pp_nonce' ); ?>
-										<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
-										<input type="hidden" name="pp_remove" value="1">
-										<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Remove photo', 'project-prepper' ); ?></button>
-									</form>
-								<?php endif; ?>
-							</div>
-							<?php self::item_form( 'item_update', $categories, $conditions, $item ); ?>
-						<?php if ( $groups ) :
-							$pp_share_cfg = MemberInventory::share_settings( (int) $item->id );
-							$pp_presets   = MemberInventory::condition_presets(); ?>
-							<div class="pp-share">
-								<h4 class="pp-share__title"><?php esc_html_e( 'Share with your collectives', 'project-prepper' ); ?></h4>
-								<?php foreach ( $groups as $g ) :
-									$pp_cfg = $pp_share_cfg[ (int) $g->id ] ?? null; ?>
-									<form class="pp-share__group" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-										<?php self::action_fields( 'item_share_set' ); ?>
-										<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
-										<input type="hidden" name="pp_group" value="<?php echo (int) $g->id; ?>">
-										<label class="pp-share__head">
-											<input type="checkbox" name="pp_shared" value="1" data-pp-share-toggle <?php checked( null !== $pp_cfg ); ?>>
-											<span class="pp-share__name"><?php echo esc_html( $g->name ); ?></span>
-										</label>
-										<div class="pp-share__body">
-											<div class="pp-share__fields">
-												<label class="pp-share__rate"><?php esc_html_e( 'Daily rate (€)', 'project-prepper' ); ?>
-													<input type="number" step="0.01" min="0" name="pp_rate" value="<?php echo ( $pp_cfg && null !== $pp_cfg->daily_rate ) ? esc_attr( number_format( (float) $pp_cfg->daily_rate, 2, '.', '' ) ) : ''; ?>">
-												</label>
-												<label class="pp-share__approval"><input type="checkbox" name="pp_approval" value="1" <?php checked( $pp_cfg && $pp_cfg->requires_approval ); ?>> <?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></label>
-											</div>
-											<div class="pp-share__conds">
-												<?php foreach ( $pp_presets as $pp_key => $pp_label ) :
-													$pp_on = $pp_cfg && in_array( $pp_key, (array) $pp_cfg->conditions_tags, true ); ?>
-													<label class="pp-portal__chip"><input type="checkbox" name="pp_cond[]" value="<?php echo esc_attr( $pp_key ); ?>" <?php checked( $pp_on ); ?> hidden><?php echo esc_html( $pp_label ); ?></label>
-												<?php endforeach; ?>
-											</div>
-											<label class="pp-share__notes"><?php esc_html_e( 'Notes (optional)', 'project-prepper' ); ?>
-												<textarea name="pp_conditions" rows="2"><?php echo esc_textarea( $pp_cfg->conditions ?? '' ); ?></textarea>
-											</label>
-										</div>
-										<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save sharing', 'project-prepper' ); ?></button>
-									</form>
-								<?php endforeach; ?>
-							</div>
-						<?php endif; ?>
+							<?php // EIN Formular für alles (Feedback: kein Speichern-Button
+							// pro Abschnitt): Foto, Stammdaten und Kollektiv-Freigaben
+							// werden zusammen gespeichert — beim Klick auf „Speichern"
+							// oder automatisch beim Schließen (portal.js, data-pp-autosave). ?>
+							<form class="pp-portal__form pp-item-form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-autosave>
+								<?php self::action_fields( 'item_save_all' ); ?>
+								<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+								<div class="pp-modal-photo">
+									<?php if ( ! empty( $item->image_url ) ) : ?>
+										<img class="pp-modal-photo__img" src="<?php echo esc_url( $item->image_url ); ?>" alt="">
+									<?php endif; ?>
+									<label class="pp-modal-photo__pick"><?php echo esc_html( empty( $item->image_url ) ? __( 'Photo (optional)', 'project-prepper' ) : __( 'Replace photo', 'project-prepper' ) ); ?>
+										<input type="file" name="pp_photo" accept="image/*">
+									</label>
+									<?php if ( ! empty( $item->image_url ) ) : ?>
+										<label class="pp-modal-photo__removecb"><input type="checkbox" name="pp_photo_remove" value="1"> <?php esc_html_e( 'Remove photo', 'project-prepper' ); ?></label>
+									<?php endif; ?>
+								</div>
+								<?php self::item_fields( $categories, $conditions, $item ); ?>
+								<?php self::item_share_fields( $groups, $groups ? MemberInventory::share_settings( (int) $item->id ) : [] ); ?>
+								<div class="pp-item-form__save">
+									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+									<span class="pp-portal__hint"><?php esc_html_e( 'Changes are also saved automatically when you close this window.', 'project-prepper' ); ?></span>
+								</div>
+							</form>
 							<details class="pp-modal-section">
 								<summary class="pp-modal-section__head"><?php esc_html_e( 'Documents', 'project-prepper' ); ?><?php if ( ! empty( $item->documents ) ) : ?> (<?php echo (int) count( $item->documents ); ?>)<?php endif; ?></summary>
 								<?php if ( ! empty( $item->documents ) ) : ?>
@@ -8058,15 +8211,33 @@ class MemberPortal {
 	 * @param array{own:array<object>,templates:array<object>} $categories
 	 * @param array<string,string> $conditions
 	 */
-	private static function item_form( string $do, array $categories, array $conditions, ?object $item ): void {
-		$val      = static fn( string $field, $default = '' ) => $item && isset( $item->$field ) ? $item->$field : $default;
-		$selected = (int) $val( 'category_id', 0 );
+	/**
+	 * Formular „Artikel anlegen" — bewusst ALLES in einem Schritt: Stammdaten,
+	 * optionales Foto und die Kollektiv-Freigaben (Feedback: nicht erst anlegen
+	 * und dann über „Verwalten" nachpflegen). Multipart wegen des Foto-Felds.
+	 */
+	private static function item_form( string $do, array $categories, array $conditions, ?object $item, array $groups = [] ): void {
 		?>
-		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<?php self::action_fields( $do ); ?>
 			<?php if ( $item ) : ?>
 				<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
 			<?php endif; ?>
+			<?php self::item_fields( $categories, $conditions, $item ); ?>
+			<label><?php esc_html_e( 'Photo (optional)', 'project-prepper' ); ?>
+				<input type="file" name="pp_photo" accept="image/*">
+			</label>
+			<?php self::item_share_fields( $groups, [] ); ?>
+			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save item', 'project-prepper' ); ?></button>
+		</form>
+		<?php
+	}
+
+	/** Stammdaten-Felder eines Artikels (gemeinsam für Anlegen + Verwalten-Modal). */
+	private static function item_fields( array $categories, array $conditions, ?object $item ): void {
+		$val      = static fn( string $field, $default = '' ) => $item && isset( $item->$field ) ? $item->$field : $default;
+		$selected = (int) $val( 'category_id', 0 );
+		?>
 			<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
 				<input type="text" name="pp_name" value="<?php echo esc_attr( (string) $val( 'name' ) ); ?>" required>
 			</label>
@@ -8123,8 +8294,55 @@ class MemberPortal {
 			<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
 				<textarea name="pp_description" rows="2"><?php echo esc_textarea( (string) $val( 'description' ) ); ?></textarea>
 			</label>
-			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save item', 'project-prepper' ); ?></button>
-		</form>
+		<?php
+	}
+
+	/**
+	 * Freigabe-Blöcke „Mit deinen Kollektiven teilen" für das vereinte Artikel-
+	 * Formular (Anlegen + Verwalten-Modal). Feldnamen sind pro Gruppe indexiert
+	 * (pp_share_on[<gid>] …) und werden von apply_share_input() ausgewertet.
+	 * „Freigabe erforderlich" ist bei NEUEN Freigaben bewusst vorangehakt —
+	 * Feedback: die Freigabe durch den Eigentümer soll der Standard sein.
+	 *
+	 * @param array<object>     $groups  Gruppen des Users (leer → keine Ausgabe).
+	 * @param array<int,object> $cfg_map group_id => bestehende Freigabe-Konditionen.
+	 */
+	private static function item_share_fields( array $groups, array $cfg_map ): void {
+		if ( ! $groups ) {
+			return;
+		}
+		$presets = MemberInventory::condition_presets();
+		?>
+		<div class="pp-share">
+			<h4 class="pp-share__title"><?php esc_html_e( 'Share with your collectives', 'project-prepper' ); ?></h4>
+			<?php foreach ( $groups as $g ) :
+				$gid = (int) $g->id;
+				$cfg = $cfg_map[ $gid ] ?? null; ?>
+				<div class="pp-share__group">
+					<label class="pp-share__head">
+						<input type="checkbox" name="pp_share_on[<?php echo $gid; ?>]" value="1" data-pp-share-toggle <?php checked( null !== $cfg ); ?>>
+						<span class="pp-share__name"><?php echo esc_html( $g->name ); ?></span>
+					</label>
+					<div class="pp-share__body">
+						<div class="pp-share__fields">
+							<label class="pp-share__rate"><?php esc_html_e( 'Daily rate (€)', 'project-prepper' ); ?>
+								<input type="number" step="0.01" min="0" name="pp_share_rate[<?php echo $gid; ?>]" value="<?php echo ( $cfg && null !== $cfg->daily_rate ) ? esc_attr( number_format( (float) $cfg->daily_rate, 2, '.', '' ) ) : ''; ?>">
+							</label>
+							<label class="pp-share__approval"><input type="checkbox" name="pp_share_approval[<?php echo $gid; ?>]" value="1" <?php checked( $cfg ? ! empty( $cfg->requires_approval ) : true ); ?>> <?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></label>
+						</div>
+						<div class="pp-share__conds">
+							<?php foreach ( $presets as $pp_key => $pp_label ) :
+								$pp_on = $cfg && in_array( $pp_key, (array) $cfg->conditions_tags, true ); ?>
+								<label class="pp-portal__chip"><input type="checkbox" name="pp_share_cond[<?php echo $gid; ?>][]" value="<?php echo esc_attr( $pp_key ); ?>" <?php checked( $pp_on ); ?> hidden><?php echo esc_html( $pp_label ); ?></label>
+							<?php endforeach; ?>
+						</div>
+						<label class="pp-share__notes"><?php esc_html_e( 'Notes (optional)', 'project-prepper' ); ?>
+							<textarea name="pp_share_notes[<?php echo $gid; ?>]" rows="2"><?php echo esc_textarea( $cfg->conditions ?? '' ); ?></textarea>
+						</label>
+					</div>
+				</div>
+			<?php endforeach; ?>
+		</div>
 		<?php
 	}
 
@@ -8159,7 +8377,7 @@ class MemberPortal {
 			<span class="pp-inv-tools__spacer"></span>
 			<details class="pp-portal__add pp-inv-tools__new">
 				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Add item', 'project-prepper' ); ?></summary>
-				<?php self::item_form( 'item_create', $categories, $conditions, null ); ?>
+				<?php self::item_form( 'item_create', $categories, $conditions, null, $groups ); ?>
 			</details>
 		</div>
 		<?php
@@ -8199,7 +8417,9 @@ class MemberPortal {
 									<label class="pp-share__rate"><?php esc_html_e( 'Daily rate (€)', 'project-prepper' ); ?>
 										<input type="number" step="0.01" min="0" name="pp_rate">
 									</label>
-									<label class="pp-share__approval"><input type="checkbox" name="pp_approval" value="1"> <?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></label>
+									<?php // „Freigabe erforderlich" bewusst vorangehakt — Feedback:
+									// die Freigabe durch den Eigentümer soll der Standard sein. ?>
+									<label class="pp-share__approval"><input type="checkbox" name="pp_approval" value="1" checked> <?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></label>
 								</div>
 								<div class="pp-share__conds">
 									<?php foreach ( $fp_presets as $fp_key => $fp_label ) : ?>
@@ -8588,36 +8808,11 @@ class MemberPortal {
 			exit;
 		}
 
-		require_once ABSPATH . 'wp-admin/includes/file.php';
-		require_once ABSPATH . 'wp-admin/includes/image.php';
-
-		// Nur Bild-MIME-Typen zulassen (kein test_form, da kein klassisches Admin-Formular).
-		$overrides = [
-			'test_form' => false,
-			'mimes'     => [
-				'jpg|jpeg|jpe' => 'image/jpeg',
-				'png'          => 'image/png',
-				'gif'          => 'image/gif',
-				'webp'         => 'image/webp',
-			],
-		];
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- $_FILES wird von wp_handle_upload validiert (mimes-Whitelist).
-		$moved = wp_handle_upload( $_FILES['pp_photo'], $overrides );
-		if ( ! is_array( $moved ) || isset( $moved['error'] ) ) {
+		$attach_id = self::create_photo_attachment();
+		if ( is_wp_error( $attach_id ) ) {
 			wp_safe_redirect( add_query_arg( 'pp_msg', 'photo_failed', $back ) );
 			exit;
 		}
-
-		$attach_id = wp_insert_attachment( [
-			'post_mime_type' => $moved['type'],
-			'post_title'     => sanitize_file_name( wp_basename( $moved['file'] ) ),
-			'post_status'    => 'inherit',
-		], $moved['file'] );
-		if ( ! $attach_id || is_wp_error( $attach_id ) ) {
-			wp_safe_redirect( add_query_arg( 'pp_msg', 'photo_failed', $back ) );
-			exit;
-		}
-		wp_update_attachment_metadata( $attach_id, wp_generate_attachment_metadata( (int) $attach_id, $moved['file'] ) );
 		MemberInventory::set_image( $user_id, $item_id, (int) $attach_id );
 
 		wp_safe_redirect( add_query_arg( 'pp_msg', 'photo_saved', $back ) );

@@ -35,6 +35,10 @@ class Notifications {
 		// Freigabe-Workflow für Technik-Buchungen (an Eigentümer / an Anfrager).
 		add_action( 'pp_booking_approval_requested', [ self::class, 'on_booking_requested' ], 10, 3 );
 		add_action( 'pp_booking_approval_decided', [ self::class, 'on_booking_decided' ], 10, 1 );
+		// Sammel-Varianten: EIN Buchungsvorgang bzw. EIN Entscheidungs-Schwung =
+		// EINE Mail mit allen Positionen (statt einer Mail pro Gerät).
+		add_action( 'pp_booking_approvals_requested', [ self::class, 'on_booking_requested_batch' ], 10, 3 );
+		add_action( 'pp_booking_approvals_decided', [ self::class, 'on_booking_decided_batch' ], 10, 2 );
 	}
 
 	public static function default_templates(): array {
@@ -99,6 +103,18 @@ class Notifications {
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
 				'body'    => __( "Hello,\n\nyour booking of \"{{item_name}}\" for the project \"{{project_name}}\" was {{status}}.\n\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
+			'booking_requested_list' => [
+				/* translators: Email subject. Keep the {{count}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'Approval needed: {{count}} bookings — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello,\n\n{{requester_name}} would like to use your equipment for the project \"{{project_name}}\":\n\n{{items}}\n\nApprove or reject each request on your own terms in the portal:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
+			'booking_decided_list' => [
+				/* translators: Email subject. Keep the {{site_name}} placeholder unchanged. */
+				'subject' => __( 'Decisions on your equipment bookings — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello,\n\nthe owner has decided on your booking requests:\n\n{{items}}\n\nDetails:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
 			'member_2fa_code' => [
 				/* translators: Email subject. Keep the {{site_name}} placeholder unchanged. */
 				'subject' => __( 'Your login code — {{site_name}}', 'project-prepper' ),
@@ -126,6 +142,8 @@ class Notifications {
 			'borrow_decided'   => __( 'Borrow decision (to requester)', 'project-prepper' ),
 			'booking_requested' => __( 'Equipment approval request (to owner)', 'project-prepper' ),
 			'booking_decided'   => __( 'Equipment approval decision (to requester)', 'project-prepper' ),
+			'booking_requested_list' => __( 'Equipment approval request — several items in one email (to owner)', 'project-prepper' ),
+			'booking_decided_list'   => __( 'Equipment approval decisions — several in one email (to requester)', 'project-prepper' ),
 			'member_2fa_code'  => __( 'Member login code (2FA)', 'project-prepper' ),
 		];
 	}
@@ -372,6 +390,92 @@ class Notifications {
 			'site_name'      => get_bloginfo( 'name' ),
 		];
 		wp_mail( $owner->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
+	}
+
+	/**
+	 * Sammel-Anfrage: EIN Buchungsvorgang hat mehrere freigabepflichtige Artikel
+	 * DESSELBEN Eigentümers erzeugt → EINE Mail mit allen Positionen statt einer
+	 * Mail pro Gerät (Feedback: „nicht für jedes Gerät eine eigene Mail"). Bei nur
+	 * einer Position kommt weiterhin die gewohnte Einzel-Mail.
+	 *
+	 * @param int[] $line_ids Buchungszeilen (alle im selben Projekt, gleicher Owner).
+	 */
+	public static function on_booking_requested_batch( array $line_ids, int $owner_id, int $requester_id ): void {
+		$line_ids = array_values( array_filter( array_map( 'intval', $line_ids ) ) );
+		if ( ! self::enabled() || ! $line_ids ) {
+			return;
+		}
+		if ( 1 === count( $line_ids ) ) {
+			self::on_booking_requested( $line_ids[0], $owner_id, $requester_id );
+			return;
+		}
+		$owner = get_userdata( $owner_id );
+		if ( ! $owner || ! is_email( $owner->user_email ) ) {
+			return;
+		}
+		$items        = [];
+		$project_name = '';
+		foreach ( $line_ids as $line_id ) {
+			$ctx = BookingApprovals::get_line_context( $line_id );
+			if ( ! $ctx ) {
+				continue;
+			}
+			$project_name = (string) $ctx->project_name;
+			$from         = $ctx->date_from_eff ? mysql2date( 'd.m.Y', $ctx->date_from_eff ) : '—';
+			$to           = $ctx->date_to_eff ? mysql2date( 'd.m.Y', $ctx->date_to_eff ) : '—';
+			/* translators: List line in the approval email. 1: quantity, 2: item name, 3: start date, 4: end date. */
+			$items[] = sprintf( __( '- %1$d× %2$s (%3$s to %4$s)', 'project-prepper' ), (int) $ctx->quantity, (string) $ctx->item_name, $from, $to );
+		}
+		if ( ! $items ) {
+			return;
+		}
+		$requester = get_userdata( $requester_id );
+		$tpl       = self::templates()['booking_requested_list'];
+		$vars      = [
+			'count'          => count( $items ),
+			'requester_name' => $requester ? $requester->display_name : '',
+			'project_name'   => $project_name,
+			'items'          => implode( "\n", $items ),
+			'portal_url'     => add_query_arg( 'pp_view', 'approvals', MemberPortal::portal_url() ),
+			'site_name'      => get_bloginfo( 'name' ),
+		];
+		wp_mail( $owner->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
+	}
+
+	/**
+	 * Sammel-Entscheidung: der Eigentümer hat mehrere Anfragen DESSELBEN Anfragers
+	 * in einem Schwung entschieden → EINE Mail mit der Ergebnis-Liste (freigegeben/
+	 * abgelehnt). Bei nur einer Entscheidung greift die gewohnte Einzel-Mail.
+	 *
+	 * @param array<array> $decisions Je Eintrag requester_id/item_name/project_name/project_id/status.
+	 */
+	public static function on_booking_decided_batch( int $requester_id, array $decisions ): void {
+		if ( ! self::enabled() || ! $decisions ) {
+			return;
+		}
+		if ( 1 === count( $decisions ) ) {
+			self::on_booking_decided( (array) reset( $decisions ) );
+			return;
+		}
+		$requester = get_userdata( $requester_id );
+		if ( ! $requester || ! is_email( $requester->user_email ) ) {
+			return;
+		}
+		$items = [];
+		foreach ( $decisions as $d ) {
+			$status_text = 'approved' === (string) ( $d['status'] ?? '' )
+				? __( 'approved', 'project-prepper' )
+				: __( 'rejected', 'project-prepper' );
+			/* translators: List line in the decisions email. 1: item name, 2: project name, 3: decision (approved/rejected). */
+			$items[] = sprintf( __( '- %1$s (%2$s): %3$s', 'project-prepper' ), (string) ( $d['item_name'] ?? '' ), (string) ( $d['project_name'] ?? '' ), $status_text );
+		}
+		$tpl  = self::templates()['booking_decided_list'];
+		$vars = [
+			'items'      => implode( "\n", $items ),
+			'portal_url' => add_query_arg( 'pp_view', 'projects', MemberPortal::portal_url() ),
+			'site_name'  => get_bloginfo( 'name' ),
+		];
+		wp_mail( $requester->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
 	}
 
 	/**
