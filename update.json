@@ -1,9 +1,9 @@
 {
-  "version": "0.128.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.128.0/project-prepper-0.128.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.128.0",
+  "version": "0.129.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.129.0/project-prepper-0.129.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.129.0",
   "published": "2026-08-26",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "* Technik buchen: Die Zeitraum-Felder sind jetzt sichtbar mit dem Projektzeitraum vorbelegt (beim Buchen und beim Bearbeiten einer Buchung). Unverändert abgesendet erben die Buchungen weiterhin den Projektzeitraum — verschiebt sich das Projekt, wandern sie automatisch mit.\n* Sammel-Mails statt einer Mail pro Gerät: Wer mehrere freigabepflichtige Artikel in einem Vorgang bucht, löst pro Eigentümer nur noch EINE Anfrage-Mail mit allen Positionen aus.\n* Die Freigaben-Ansicht entscheidet gesammelt: je Anfrage Zustimmen, Ablehnen oder Später entscheiden, ein Klick „Entscheidungen senden“ — jede anfragende Person bekommt EINE Ergebnis-Mail. Zwei neue editierbare E-Mail-Templates.\n* Verwalten-Modal im Inventar: EIN Formular für Foto, Stammdaten und alle Kollektiv-Freigaben — kein eigener Speichern-Knopf mehr pro Abschnitt. Änderungen werden beim Schließen des Fensters automatisch übernommen.\n* Artikel anlegen in einem Schritt: Foto und Kollektiv-Freigaben lassen sich direkt beim Anlegen setzen, ohne den Umweg über „Verwalten“.\n* „Freigabe durch Eigentümer erforderlich“ ist bei neuen Freigaben jetzt standardmäßig aktiv (beim Anlegen, im Verwalten-Modal und bei der Gesamt-Freigabe). Bestehende Freigaben bleiben unverändert."
+  "changelog": "* Kollektiv-Inventar: nach Kategorien filtern — über der Tabelle stehen jetzt Filter-Pills („Alle“ plus eine je Kategorie, mit Icon und Anzahl), wie im persönlichen Inventar. Ein Klick zeigt nur die Artikel dieser Kategorie; funktioniert kombiniert mit der Suche."
 }

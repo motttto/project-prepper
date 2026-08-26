@@ -3,6 +3,17 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🏷️ Release v0.129.0 2026-08-26 (Kategorie-Filter im Kollektiv-Inventar, Schema UNVERÄNDERT 0.38.0)
+> **Ausgeliefert.** Nachzügler zur Feedback-Runde (Feature-Commit `c93ab65`): Die Gruppen-Inventar-Ansicht
+> (Arbeitsbereich = Kollektiv, `pp_view=inventory`) hat jetzt dieselben Kategorie-Filter-Pills wie
+> „Mein Inventar" — „Alle (n)" + eine Pill je vorkommender Kategorie (Icon + Name + Anzahl), Auswahl via
+> `?pp_cat=<id>`, kombiniert mit der Suche (`pp_q` wird in den Pill-Links weitergeführt); KPI-Zeile bleibt
+> der Gesamtbestand, Leer-Zustände auf die ungefilterte Menge umgestellt. Reine View-Änderung in
+> `view_group_inventory()` (includes/Frontend/MemberPortal.php) — kein Service-/Schema-Change, keine neuen
+> i18n-Strings (alle Texte existieren aus „Mein Inventar", mo weiter 1506 übersetzt). In wp-env verifiziert
+> (Pills zählen korrekt, Klick filtert, Suche kombiniert). `update.json` auf 0.129.0.
+> GitHub-Release `v0.129.0` mit ZIP-Asset.
+>
 > ## 📦 Release v0.128.0 2026-08-26 (Mitglieder-Feedback Jan: Inventar + Technik-Buchung, Schema UNVERÄNDERT 0.38.0)
 > **Ausgeliefert.** Anlass: erste Mitglieder-Feedback-Runde (Jan, 24.08., über den Portal-Feedback-Kanal) —
 > 5 Punkte umgesetzt (Feature-Commit `3169a3a`): (1) **Buchungs-Zeitraum sichtbar**: Datumsfelder beim Buchen
