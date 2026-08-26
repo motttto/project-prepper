@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.127.0
+Stable tag: 0.128.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,14 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.128.0 =
+* Improved: booking equipment — the date fields are now visible and pre-filled with the project period, both when booking and when editing a booking line. Submitted unchanged, bookings keep inheriting the project period as before — if the project moves, they move with it automatically.
+* New: bundled emails instead of one email per device — booking several approval-required items in one go now sends only ONE request email per owner, listing all positions.
+* New: the approvals screen decides in bulk — approve, reject or postpone each request and send everything with one “Send decisions” click; every requester receives ONE result email. Two new editable email templates.
+* Improved: the inventory “Manage” modal is now ONE form for photo, item data and all collective shares — no more separate save button per section. Changes are applied automatically when the window is closed.
+* Improved: creating an item in a single step — photo and collective shares can be set right in the create form, without the detour through “Manage”.
+* Changed: “Owner approval required” is now pre-selected for new shares (create form, Manage modal and full-inventory share). Existing shares keep their setting.
 
 = 0.127.0 =
 * New: “Download all feedback (CSV)” button on the Feedback screen — every entry submitted from the member portal in one file, ready to open in Excel or hand to someone else.

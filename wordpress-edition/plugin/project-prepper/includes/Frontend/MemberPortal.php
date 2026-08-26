@@ -8320,24 +8320,24 @@ class MemberPortal {
 				$cfg = $cfg_map[ $gid ] ?? null; ?>
 				<div class="pp-share__group">
 					<label class="pp-share__head">
-						<input type="checkbox" name="pp_share_on[<?php echo $gid; ?>]" value="1" data-pp-share-toggle <?php checked( null !== $cfg ); ?>>
+						<input type="checkbox" name="pp_share_on[<?php echo (int) $gid; ?>]" value="1" data-pp-share-toggle <?php checked( null !== $cfg ); ?>>
 						<span class="pp-share__name"><?php echo esc_html( $g->name ); ?></span>
 					</label>
 					<div class="pp-share__body">
 						<div class="pp-share__fields">
 							<label class="pp-share__rate"><?php esc_html_e( 'Daily rate (€)', 'project-prepper' ); ?>
-								<input type="number" step="0.01" min="0" name="pp_share_rate[<?php echo $gid; ?>]" value="<?php echo ( $cfg && null !== $cfg->daily_rate ) ? esc_attr( number_format( (float) $cfg->daily_rate, 2, '.', '' ) ) : ''; ?>">
+								<input type="number" step="0.01" min="0" name="pp_share_rate[<?php echo (int) $gid; ?>]" value="<?php echo ( $cfg && null !== $cfg->daily_rate ) ? esc_attr( number_format( (float) $cfg->daily_rate, 2, '.', '' ) ) : ''; ?>">
 							</label>
-							<label class="pp-share__approval"><input type="checkbox" name="pp_share_approval[<?php echo $gid; ?>]" value="1" <?php checked( $cfg ? ! empty( $cfg->requires_approval ) : true ); ?>> <?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></label>
+							<label class="pp-share__approval"><input type="checkbox" name="pp_share_approval[<?php echo (int) $gid; ?>]" value="1" <?php checked( $cfg ? ! empty( $cfg->requires_approval ) : true ); ?>> <?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></label>
 						</div>
 						<div class="pp-share__conds">
 							<?php foreach ( $presets as $pp_key => $pp_label ) :
 								$pp_on = $cfg && in_array( $pp_key, (array) $cfg->conditions_tags, true ); ?>
-								<label class="pp-portal__chip"><input type="checkbox" name="pp_share_cond[<?php echo $gid; ?>][]" value="<?php echo esc_attr( $pp_key ); ?>" <?php checked( $pp_on ); ?> hidden><?php echo esc_html( $pp_label ); ?></label>
+								<label class="pp-portal__chip"><input type="checkbox" name="pp_share_cond[<?php echo (int) $gid; ?>][]" value="<?php echo esc_attr( $pp_key ); ?>" <?php checked( $pp_on ); ?> hidden><?php echo esc_html( $pp_label ); ?></label>
 							<?php endforeach; ?>
 						</div>
 						<label class="pp-share__notes"><?php esc_html_e( 'Notes (optional)', 'project-prepper' ); ?>
-							<textarea name="pp_share_notes[<?php echo $gid; ?>]" rows="2"><?php echo esc_textarea( $cfg->conditions ?? '' ); ?></textarea>
+							<textarea name="pp_share_notes[<?php echo (int) $gid; ?>]" rows="2"><?php echo esc_textarea( $cfg->conditions ?? '' ); ?></textarea>
 						</label>
 					</div>
 				</div>

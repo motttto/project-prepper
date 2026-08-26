@@ -3,6 +3,25 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 📦 Release v0.128.0 2026-08-26 (Mitglieder-Feedback Jan: Inventar + Technik-Buchung, Schema UNVERÄNDERT 0.38.0)
+> **Ausgeliefert.** Anlass: erste Mitglieder-Feedback-Runde (Jan, 24.08., über den Portal-Feedback-Kanal) —
+> 5 Punkte umgesetzt (Feature-Commit `3169a3a`): (1) **Buchungs-Zeitraum sichtbar**: Datumsfelder beim Buchen
+> UND Zeilen-Bearbeiten mit Projektzeitraum vorbelegt; `normalize_booking_dates()` speichert Eingabe ==
+> Projektzeitraum weiter LEER (COALESCE-Erben bleibt — Projekt verschieben wirkt weiter). (2) **Sammel-Mails**:
+> freigabepflichtige Zeilen PRO EIGENTÜMER gebündelt → Hook `pp_booking_approvals_requested` → EINE Mail
+> mit Positions-Liste (Template `booking_requested_list`); Freigaben-Ansicht als Sammel-Formular
+> (Zustimmen/Ablehnen/„Später entscheiden" je Anfrage, EIN „Entscheidungen senden" → `booking_decide_bulk`),
+> Ergebnis-Mails PRO ANFRAGER gebündelt (Hook `pp_booking_approvals_decided`, Template `booking_decided_list`)
+> — 2 neue editierbare E-Mail-Templates. (3) **Verwalten-Modal = EIN Formular** (`item_save_all`): Foto +
+> Stammdaten + alle Kollektiv-Freigaben zusammen; portal.js speichert geänderte Felder AUTOMATISCH beim
+> Schließen (✕/Backdrop/Esc, dirty-Tracking). (4) **Artikel anlegen in EINEM Schritt**: `item_form` multipart
+> mit Foto-Feld + Freigabe-Blöcken je Kollektiv. (5) **„Freigabe erforderlich" bei NEUEN Freigaben
+> vorangehakt** (Anlegen, Verwalten-Modal, Gesamt-Freigabe); Bestand unverändert. In wp-env end-to-end
+> verifiziert (memberB/portaltest, Mail-Log-MU-Plugin). i18n: 18 neue Strings dt. übersetzt (pot regeneriert,
+> po manuell ergänzt — msgmerge-Gotcha —, mo mit msgfmt gebaut; keine JS-Strings → JSON unverändert).
+> Punkt 6 (Multi-Kategorie + Artikel-Bundles) bewusst NICHT enthalten — Konzeptfrage, separat.
+> `update.json` auf 0.128.0. GitHub-Release `v0.128.0` mit ZIP-Asset.
+>
 > ## 📥 Release v0.127.0 2026-08-24 (Feedback-Export im Backend, Schema UNVERÄNDERT 0.38.0)
 > **Ausgeliefert.** Anlass: Betreiber:in wollte das Mitglieder-Feedback gesammelt herausgeben können
 > (bislang nur einzeln in der Backend-Tabelle lesbar). Neuer Knopf „Gesamtes Feedback herunterladen (CSV)"
