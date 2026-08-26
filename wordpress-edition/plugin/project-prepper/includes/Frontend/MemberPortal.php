@@ -2692,19 +2692,34 @@ class MemberPortal {
 		$name = $group ? (string) $group->name : __( 'Group', 'project-prepper' );
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Suche/Navigation
 		$q    = isset( $_GET['pp_q'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_q'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
+		$cat  = isset( $_GET['pp_cat'] ) ? (int) $_GET['pp_cat'] : 0;
 		$args = [ 'shared_with_group' => $group_id ];
 		if ( '' !== trim( $q ) ) {
 			$args['search'] = trim( $q );
 		}
-		$items        = Inventory::items( $args );
+		$all_items    = Inventory::items( $args );
 		$conditions   = Shortcodes::condition_labels();
 		$uid          = (int) $user->ID;
+		$base_url     = self::portal_url();
+		// KPI + Kategorie-Filter-Pills wie „Mein Inventar": Zählung über alle
+		// (such-gefilterten) Artikel, die Tabelle zeigt die gewählte Kategorie.
 		$total_pieces = 0;
 		$total_value  = 0.0;
-		foreach ( $items as $it ) {
+		$cat_counts   = [];
+		$cat_labels   = [];
+		foreach ( $all_items as $it ) {
 			$total_pieces += (int) $it->quantity;
 			$total_value  += (float) $it->cost_per_day * (int) $it->quantity;
+			$cid = (int) ( $it->category_id ?? 0 );
+			$cat_counts[ $cid ] = ( $cat_counts[ $cid ] ?? 0 ) + 1;
+			if ( $cid && ! isset( $cat_labels[ $cid ] ) ) {
+				$cat_labels[ $cid ] = trim( ( $it->category_icon ? $it->category_icon . ' ' : '' ) . (string) ( $it->category_name ?? '' ) );
+			}
 		}
+		$items = $cat ? array_values( array_filter( $all_items, static function ( $it ) use ( $cat ) {
+			return (int) ( $it->category_id ?? 0 ) === $cat;
+		} ) ) : $all_items;
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title">
@@ -2714,7 +2729,7 @@ class MemberPortal {
 		</header>
 
 		<section class="pp-portal__section pp-ginv">
-			<?php if ( ! $items && '' === $q ) : ?>
+			<?php if ( ! $all_items && '' === $q ) : ?>
 				<p class="pp-portal__empty">
 					<?php esc_html_e( 'Nothing shared with this group yet. Members add equipment from their own inventory: switch your workspace to “Solo”, open “My inventory”, and use the share buttons on an item.', 'project-prepper' ); ?>
 				</p>
@@ -2725,15 +2740,23 @@ class MemberPortal {
 					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Search', 'project-prepper' ); ?></button>
 				</form>
 
-				<?php if ( $items ) : ?>
+				<?php if ( $all_items ) : ?>
 					<p class="pp-inv-kpi">
 						<?php
 						$pp_dv = ( (float) $total_value === floor( (float) $total_value ) ) ? number_format_i18n( $total_value, 0 ) : number_format_i18n( $total_value, 2 );
 						/* translators: 1: item count, 2: total pieces, 3: total daily value. */
-						printf( esc_html__( '%1$d items · %2$d pieces · daily value %3$s €', 'project-prepper' ), count( $items ), (int) $total_pieces, esc_html( $pp_dv ) );
+						printf( esc_html__( '%1$d items · %2$d pieces · daily value %3$s €', 'project-prepper' ), count( $all_items ), (int) $total_pieces, esc_html( $pp_dv ) );
 						?>
 					</p>
+					<div class="pp-inv-pills">
+						<a class="pp-portal__chip <?php echo $cat ? '' : 'pp-portal__chip--on'; ?>" href="<?php echo esc_url( add_query_arg( array_filter( [ 'pp_view' => 'inventory', 'pp_q' => $q ] ), $base_url ) ); ?>"><?php esc_html_e( 'All', 'project-prepper' ); ?> (<?php echo (int) count( $all_items ); ?>)</a>
+						<?php foreach ( $cat_labels as $cid => $label ) : ?>
+							<a class="pp-portal__chip <?php echo $cat === (int) $cid ? 'pp-portal__chip--on' : ''; ?>" href="<?php echo esc_url( add_query_arg( array_filter( [ 'pp_view' => 'inventory', 'pp_q' => $q, 'pp_cat' => (int) $cid ] ), $base_url ) ); ?>"><?php echo esc_html( $label ); ?> (<?php echo (int) $cat_counts[ $cid ]; ?>)</a>
+						<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
 
+				<?php if ( $items ) : ?>
 					<div class="pp-inv-row pp-inv-row--head">
 						<span class="pp-col pp-col--name"><?php esc_html_e( 'Item', 'project-prepper' ); ?></span>
 						<span class="pp-col pp-col--cat"><?php esc_html_e( 'Category', 'project-prepper' ); ?></span>
