@@ -1,9 +1,9 @@
 {
-  "version": "0.129.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.129.0/project-prepper-0.129.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.129.0",
+  "version": "0.130.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.130.0/project-prepper-0.130.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.130.0",
   "published": "2026-08-26",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "* Kollektiv-Inventar: nach Kategorien filtern — über der Tabelle stehen jetzt Filter-Pills („Alle“ plus eine je Kategorie, mit Icon und Anzahl), wie im persönlichen Inventar. Ein Klick zeigt nur die Artikel dieser Kategorie; funktioniert kombiniert mit der Suche."
+  "changelog": "* Neu: Sets im Inventar — ein Artikel kann jetzt eine Stückliste tragen („Lichterkette 30 m = 3× 10-m-Glied + 1× Einspeiser“). Der neue Abschnitt „Set-Inhalt“ im Artikel-Formular macht eigene Artikel zu Teilen eines Sets.\n* Sets werden beim Buchen automatisch in ihre Teile aufgelöst: Verfügbarkeit, Freigaben und Packliste rechnen mit den echten Teilen — wer Teile einzeln bucht, reduziert automatisch die freien Sets. Der Technik-Picker zeigt „x Sets frei“ samt Stückliste.\n* Gebuchte Sets erscheinen im Equipment-Reiter als Gruppe und werden als Ganzes geändert oder entfernt (keine halben Sets); die Freigabe-Anfragen eines Sets kommen als eine Sammel-Mail.\n* Inventar-Listen zeigen Sets mit „Set“-Kennzeichen, Stückliste und berechneter Set-Anzahl.\n* Hinweis: Dieses Update enthält eine kleine Datenbank-Erweiterung (neue Stücklisten-Tabelle + ein Zusatzfeld). Sie läuft beim Update automatisch, bestehende Daten bleiben unberührt.\n* Sets sind zunächst über Projekt-Buchungen nutzbar; externer Verleih und Leih-Anfragen mit Sets folgen in einem späteren Update."
 }

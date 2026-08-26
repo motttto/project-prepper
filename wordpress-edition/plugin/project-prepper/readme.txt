@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.129.0
+Stable tag: 0.130.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,14 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.130.0 =
+* New: sets in the inventory — an item can now carry a parts list (“30 m light chain = 3× 10 m segment + 1× feed-in”). The new “Set contents” section in the item form turns your own items into parts of a set.
+* Sets are automatically expanded into their parts when booked: availability, approvals and the packing list work with the real parts — booking parts individually automatically reduces the number of free sets. The equipment picker shows “x sets free” along with the parts list.
+* Booked sets appear as one group on the project Equipment tab and are changed or removed as a whole (no half sets); the approval requests of a set arrive as a single combined email.
+* Inventory lists show sets with a “Set” badge, their parts list and the calculated set count.
+* Note: this update contains a small database extension (a new parts-list table plus one extra field). It runs automatically during the update; existing data stays untouched.
+* Sets are initially available through project bookings; external rentals and loan requests with sets will follow in a later update.
 
 = 0.129.0 =
 * New: the collective inventory can now be filtered by category — filter pills above the table (“All” plus one per category, with icon and count), just like in the personal inventory. One click shows only the items of that category; works combined with the search.

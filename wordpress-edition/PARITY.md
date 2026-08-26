@@ -3,6 +3,22 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release v0.130.0 2026-08-26 (Sets/Bundles im Inventar, Schema 0.38.0 → 0.39.0)
+> **Ausgeliefert.** Letzter Punkt aus Jans Feedback-Runde (Feature-Commit `612eb46`, Konzept docs/07-BUNDLES.md):
+> Ein Artikel kann eine **Stückliste** tragen (Set = normaler Artikel, z.B. „Lichterkette 30 m = 3× 10-m-Glied
+> + 1× Einspeiser"). Gebucht wird nie das Set selbst: `member_book_equipment` expandiert Set-Positionen
+> serverseitig in Teil-Buchungszeilen (Marker `project_items.bundle_item_id`) — Verfügbarkeit, Freigabe-Workflow
+> (inkl. Sammel-Mails aus v0.128.0) und Packliste rechnen unverändert mit den echten Teilen; Einzel-Buchung
+> eines Teils reduziert automatisch die freien Sets. Neuer Service `Services\Bundles`
+> (parts/set_parts/available_sets = min(floor(frei/Bedarf))), UI: „Set-Inhalt"-Abschnitt im Artikel-Formular,
+> Set-Chip + Stückliste + berechnete Set-Anzahl in beiden Inventar-Listen, Technik-Picker „%d Sets frei",
+> Equipment-Tab gruppiert Teil-Zeilen mit Set-Aktionen Ändern/Entfernen (alles-oder-nichts, Teil-Zeilen einzeln
+> gesperrt). V1 nur Projekt-Buchung — Verleih/Leih-Anfragen filtern Sets aus (Phase 2). **Schema 0.39.0**: neue
+> Tabelle `pp_item_bundle_parts` + additive Spalte `project_items.bundle_item_id`, beides dbDelta, keine
+> Datenmigration — in wp-env verifiziert (Option `pp_schema_version` = 0.39.0). i18n: 18 neue Strings dt.
+> (mo 1524 übersetzt), keine JS-Strings. Plugin Check sauber (nur die 2 by-design-ERRORs). `update.json` auf
+> 0.130.0. GitHub-Release `v0.130.0` mit ZIP-Asset.
+>
 > ## 🏷️ Release v0.129.0 2026-08-26 (Kategorie-Filter im Kollektiv-Inventar, Schema UNVERÄNDERT 0.38.0)
 > **Ausgeliefert.** Nachzügler zur Feedback-Runde (Feature-Commit `c93ab65`): Die Gruppen-Inventar-Ansicht
 > (Arbeitsbereich = Kollektiv, `pp_view=inventory`) hat jetzt dieselben Kategorie-Filter-Pills wie
