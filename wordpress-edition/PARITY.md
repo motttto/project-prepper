@@ -3,6 +3,22 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔎 Release v0.131.0 2026-08-27 (Live-Suche in allen Suchmasken, Schema UNVERÄNDERT 0.39.0)
+> **Ausgeliefert.** Feature-Commit `0cad589`: Alle Suchmasken filtern jetzt beim Tippen, ohne Seitenreload —
+> geleertes Feld zeigt sofort wieder ALLE Artikel. Neues gemeinsames Script `assets/js/live-search.js`
+> (einzige neue Datei, ZIP 124 → 125 Dateien): Formulare mit `data-pp-live` filtern die Zeilen ihres
+> Bereichs (`data-pp-live-scope`, umschließt das Formular) per Text-Match auf `[data-pp-searchable]`;
+> versteckt wird das umschließende `[data-pp-search-row]`, `[data-pp-search-none]` blendet den
+> „nichts gefunden"-Hinweis ein. Umgestellt: Mein Inventar, Kollektiv-Inventar, Technik-Picker im Projekt,
+> Netzwerk-Ansicht, öffentliche Inventarliste (`templates/inventory-list.php`). Die Server-Suche bleibt
+> erhalten (Enter/„Suchen" findet weiterhin Seriennummer/Tags/Notizen); wurde die Seite mit `pp_q` geladen
+> und das Feld geleert, lädt sie nach 350 ms ohne `pp_q` nach. Die separate Picker-Live-Suche in `portal.js`
+> entfällt zugunsten des gemeinsamen Systems. Zwei Fallstricke gefixt: `[hidden]` verliert gegen die
+> grid/flex-display-Regeln der Zeilen (CSS-Regel am Dateiende) und die Scope-Zuordnung in der
+> Netzwerk-Ansicht (Wrapper `.pp-net-live`). **Kein Schema-Change** (0.39.0), **keine neuen i18n-Strings**
+> (nur bestehende Texte, mo weiterhin 1524 übersetzt). Plugin Check sauber (nur die 2 by-design-ERRORs).
+> `update.json` auf 0.131.0. GitHub-Release `v0.131.0` mit ZIP-Asset.
+>
 > ## 🧩 Release v0.130.0 2026-08-26 (Sets/Bundles im Inventar, Schema 0.38.0 → 0.39.0)
 > **Ausgeliefert.** Letzter Punkt aus Jans Feedback-Runde (Feature-Commit `612eb46`, Konzept docs/07-BUNDLES.md):
 > Ein Artikel kann eine **Stückliste** tragen (Set = normaler Artikel, z.B. „Lichterkette 30 m = 3× 10-m-Glied
