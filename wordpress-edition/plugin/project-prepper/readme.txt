@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.133.0
+Stable tag: 0.134.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,15 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.134.0 =
+* New item states: besides “Broken” and “Retired” an item can now be “In maintenance” or “Missing”. Pick them like any other condition — no database change is involved.
+* An item in one of those states is blocked everywhere at once: it cannot be rented out, booked into a project, borrowed inside a collective or requested from a partner instance, and it counts as 0 available in every list.
+* Broken, in maintenance and missing items stay visible in the lists, marked with a coloured badge in the “Condition” column, so everyone can see why they are unavailable.
+* Retired items disappear from the lists instead — from your inventory, the collective pool, the rental picker and the public list. Nothing is deleted: the filter “Retired (n)” in “My inventory” brings them back so you can put them into service again.
+* Fix: the condition of an item was barely enforced before — a broken item could still be rented out, booked and borrowed. It was only checked in the public list and for incoming network requests.
+* Fix: booking equipment into a project without any dates skipped the availability check completely. Blocked items are now refused there as well.
+* Note: this update does not change the database.
 
 = 0.133.0 =
 * Rentals: the item list now works like the equipment picker in a project — photo on the left, inventory number, availability and daily rate on one line, and it scrolls so you can click through your whole inventory.

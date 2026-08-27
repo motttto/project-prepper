@@ -3,8 +3,8 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
-> ## 🔒 Gesperrte Artikel — ein global gültiger Zustand 2026-08-27 (Feature-Stand, Schema UNVERÄNDERT 0.40.0)
-> **Noch nicht released.** Antwort auf die User-Frage „können wir nicht einen Status pro Artikel führen,
+> ## 🔒 Release v0.134.0 2026-08-27 (Gesperrte Artikel — ein global gültiger Zustand, Schema UNVERÄNDERT 0.40.0)
+> **Ausgeliefert** (Feature-Commit `87dbeff`). Antwort auf die User-Frage „können wir nicht einen Status pro Artikel führen,
 > der global gilt?" — mit einer bewussten Zweiteilung: **Verfügbarkeit bleibt berechnet** (sie ist eine
 > Funktion von Zeitraum × Menge; eine Spalte könnte nur „jetzt" beantworten, müsste von jedem Schreibweg
 > gepflegt werden UND von einem Cron, weil ein endender Verleih ohne jeden Schreibvorgang wieder frei
@@ -38,6 +38,8 @@
 > by-design-ERRORs.
 > **Bekannte Grenze:** Der Zustand hängt am ARTIKEL, nicht am Einzelstück — „1 von 6 defekt" ist damit
 > nicht abbildbar (dafür bräuchte es die `pp_units`-Ebene, im Portal nicht angebunden).
+> Build `dist/project-prepper-0.134.0.zip` (1,3 MB, 125 Dateien), `update.json` auf 0.134.0,
+> GitHub-Release `v0.134.0` mit ZIP-Asset.
 >
 > ## 📦 Release v0.133.0 2026-08-27 (Verleih-Umbau + EINE Verfügbarkeitsrechnung, Schema UNVERÄNDERT 0.40.0)
 > **Ausgeliefert** (Feature-Commit `0d24919`). Fünf Punkte aus einer User-Rückmeldung zur Verleih-Seite.
