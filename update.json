@@ -1,9 +1,9 @@
 {
-  "version": "0.137.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.137.0/project-prepper-0.137.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.137.0",
+  "version": "0.137.1",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.137.1/project-prepper-0.137.1.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.137.1",
   "published": "2026-08-27",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "* Der Monatskalender zeichnet einen mehrtägigen Eintrag jetzt als EINEN durchgehenden Balken über die betroffenen Tage, statt ihn in jeder einzelnen Tageszelle zu wiederholen. Ein Projekt vom 10. bis 14. sieht damit endlich nach einem Vorgang aus und nicht nach fünf.\n* Läuft ein Eintrag in die nächste Woche weiter, bleibt die Kante des Balkens dort flach — man sieht also, dass es in der Zeile darunter weitergeht.\n* Überlappende Einträge bekommen jeweils eine eigene Spur und behalten diese Höhe über die ganze Woche. Kurze Einträge füllen die freien Plätze neben einem langen Balken auf.\n* Pro Woche werden drei Spuren gezeigt; alles darüber erscheint als „+n weitere“ — und zwar genau an den Tagen, die es betrifft.\n* Hinweis: Dieses Update ändert die Datenbank NICHT."
+  "changelog": "* Behoben: In 0.137.0 konnten die neuen Kalender-Balken unter den Tageskacheln hängen und rechts aus dem Raster laufen. Der Monat ist jetzt EIN Raster, dessen Zeilen alle im Voraus feststehen — dadurch kann nichts mehr herausrutschen.\n* Behoben: Die Balken haben jetzt eigene Farben für den Dunkelmodus. Vor allem Ausleihen waren dunkelgrün auf dunklem Grund und kaum lesbar.\n* Wochen ohne Einträge reservieren keine leeren Spuren mehr — ein ruhiger Monat bekommt dadurch flachere Kacheln."
 }

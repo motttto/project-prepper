@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.137.0
+Stable tag: 0.137.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.137.1 =
+* Fix: in 0.137.0 the new calendar bars could hang below the day tiles and run out of the grid on the right. The month is now laid out as a single grid whose rows are all declared up front, so nothing can slip out.
+* Fix: the bars now have their own dark mode colours. Loans in particular were dark green on a dark background and hard to read.
+* Weeks without entries no longer reserve empty tracks, so a quiet month has flatter tiles.
 
 = 0.137.0 =
 * The month calendar now draws an entry that runs over several days as one continuous bar across those days, instead of repeating it in every single day cell. A project from the 10th to the 14th finally looks like one thing, not like five.
