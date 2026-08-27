@@ -7597,9 +7597,9 @@ class MemberPortal {
 		$prev        = gmdate( 'Y-m', strtotime( '-1 month', $first_ts ) );
 		$next        = gmdate( 'Y-m', strtotime( '+1 month', $first_ts ) );
 
-		$by_day = self::calendar_events( $user, $groups, $month_start, $month_end );
-		$cals   = CalendarEvents::calendars( (int) $user->ID, self::active_group_id( $groups ) );
-		$base   = self::view_url( 'calendar' );
+		$entries = self::calendar_entries( $user, $groups, $month_start, $month_end );
+		$cals    = CalendarEvents::calendars( (int) $user->ID, self::active_group_id( $groups ) );
+		$base    = self::view_url( 'calendar' );
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title"><?php esc_html_e( 'Calendar', 'project-prepper' ); ?></h1>
@@ -7618,33 +7618,15 @@ class MemberPortal {
 				</span>
 			</div>
 
-			<div class="pp-cal__grid">
+			<div class="pp-cal__grid pp-cal__grid--head">
 				<?php
 				$ref = strtotime( '2024-01-01' ); // Montag
 				for ( $i = 0; $i < 7; $i++ ) {
 					echo '<div class="pp-cal__dow">' . esc_html( date_i18n( 'D', strtotime( "+$i day", $ref ) ) ) . '</div>';
 				}
-				for ( $i = 0; $i < $lead; $i++ ) {
-					echo '<div class="pp-cal__cell pp-cal__cell--blank"></div>';
-				}
-				for ( $d = 1; $d <= $days; $d++ ) {
-					$key      = sprintf( '%s-%02d', $month, $d );
-					$is_today = ( $key === $today );
-					$events   = $by_day[ $key ] ?? [];
-					echo '<div class="pp-cal__cell' . ( $is_today ? ' pp-cal__cell--today' : '' ) . '">';
-					echo '<span class="pp-cal__daynum">' . (int) $d . '</span>';
-					foreach ( array_slice( $events, 0, 3 ) as $ev ) {
-						self::cal_chip( $ev );
-					}
-					$extra = count( $events ) - 3;
-					if ( $extra > 0 ) {
-						/* translators: %d: number of additional events on that day. */
-						echo '<span class="pp-cal__more">' . esc_html( sprintf( __( '+%d more', 'project-prepper' ), $extra ) ) . '</span>';
-					}
-					echo '</div>';
-				}
 				?>
 			</div>
+			<?php self::render_month_weeks( $month, $days, $lead, $today, $entries ); ?>
 
 			<?php self::calendar_legend( $cals ); ?>
 		</div>
@@ -8141,15 +8123,52 @@ class MemberPortal {
 	 * site-weiten Verleihe (das ist Admin-Sache).
 	 */
 	private static function calendar_events( WP_User $user, array $groups, string $ms, string $me ): array {
-		$by_day   = [];
+		$by_day = [];
+		foreach ( self::calendar_entries( $user, $groups, $ms, $me ) as $entry ) {
+			$event = $entry;
+			unset( $event['from'], $event['to'] );
+			self::cal_span( $by_day, (string) $entry['from'], (string) $entry['to'], $ms, $me, $event );
+		}
+		// Pro Tag stabil sortieren: Termin, Projekt, Zeitplan, Verleih.
+		$order = [ 'event' => 0, 'project' => 1, 'schedule' => 2, 'borrow' => 3 ];
+		foreach ( $by_day as &$list ) {
+			usort( $list, static fn( $a, $b ) => ( $order[ $a['type'] ] ?? 9 ) <=> ( $order[ $b['type'] ] ?? 9 ) );
+		}
+		unset( $list );
+		return $by_day;
+	}
+
+	/**
+	 * Alle Kalender-Einträge des Zeitfensters als FLACHE Liste mit Zeitraum
+	 * (`from`/`to`, auf [$ms..$me] beschnitten) — Grundlage sowohl für die
+	 * Tages-Aufteilung der Wochenansicht als auch für die Balken der
+	 * Monatsansicht, die einen mehrtägigen Eintrag als EINEN Vorgang zeichnet.
+	 *
+	 * Vier Quellen wie der iCal-Feed: eigene Termine, Projekte des aktiven
+	 * Arbeitsbereichs (+ deren Zeitplan), Kollektiv-Ausleihen, externe Verleihe.
+	 *
+	 * @return array<array<string,mixed>>
+	 */
+	private static function calendar_entries( WP_User $user, array $groups, string $ms, string $me ): array {
+		$out      = [];
 		$projects = self::member_projects( $groups );
+		$add      = static function ( array $entry, string $from, string $to ) use ( &$out, $ms, $me ): void {
+			$start = $from < $ms ? $ms : $from;
+			$end   = $to > $me ? $me : $to;
+			if ( '' === $from || $start > $end ) {
+				return;
+			}
+			$entry['from'] = $start;
+			$entry['to']   = $end;
+			$out[]         = $entry;
+		};
 
 		// Eigene Termine des aktiven Arbeitsbereichs (v0.29.0) — in der Farbe
 		// ihres Kalenders; Chip springt zur Termin-Liste unter dem Raster.
 		$active = self::active_group_id( $groups );
 		foreach ( CalendarEvents::events_between( (int) $user->ID, $active, $ms, $me ) as $e ) {
 			$label = trim( ( '' !== (string) $e->time_start ? $e->time_start . ' ' : '' ) . $e->title );
-			self::cal_span( $by_day, (string) $e->date_from, (string) ( $e->date_to ?: $e->date_from ), $ms, $me, [
+			$add( [
 				'type'       => 'event',
 				'label'      => $label,
 				'title'      => (string) $e->title,
@@ -8157,18 +8176,18 @@ class MemberPortal {
 				'time_end'   => (string) $e->time_end,
 				'url'        => '#pp-ev-' . (int) $e->id,
 				'color'      => (string) ( $e->calendar_color ?: CalendarEvents::COLORS[0] ),
-			] );
+			], (string) $e->date_from, (string) ( $e->date_to ?: $e->date_from ) );
 		}
 
 		foreach ( $projects as $p ) {
 			$start = (string) ( $p->date_start ?? '' );
 			if ( '' !== $start ) {
 				$end = ! empty( $p->date_end ) ? (string) $p->date_end : $start;
-				self::cal_span( $by_day, $start, $end, $ms, $me, [
+				$add( [
 					'type'  => 'project',
 					'label' => $p->name,
 					'url'   => add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $p->id ], self::portal_url() ),
-				] );
+				], $start, $end );
 			}
 			foreach ( Schedule::for_project( (int) $p->id ) as $s ) {
 				$date = (string) ( $s->schedule_date ?? '' );
@@ -8176,14 +8195,14 @@ class MemberPortal {
 					continue;
 				}
 				$label = trim( ( ! empty( $s->time_start ) ? substr( (string) $s->time_start, 0, 5 ) . ' ' : '' ) . $s->title );
-				$by_day[ $date ][] = [
+				$add( [
 					'type'       => 'schedule',
 					'label'      => $label,
 					'title'      => (string) $s->title,
 					'time_start' => ! empty( $s->time_start ) ? substr( (string) $s->time_start, 0, 5 ) : '',
 					'time_end'   => ! empty( $s->time_end ) ? substr( (string) $s->time_end, 0, 5 ) : '',
 					'url'        => add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $p->id ], self::portal_url() ),
-				];
+				], $date, $date );
 			}
 		}
 
@@ -8201,11 +8220,11 @@ class MemberPortal {
 				continue;
 			}
 			$end = ! empty( $b->date_to ) ? (string) $b->date_to : $start;
-			self::cal_span( $by_day, $start, $end, $ms, $me, [
+			$add( [
 				'type'  => 'borrow',
 				'label' => $b->item_name,
 				'url'   => $lending_url,
-			] );
+			], $start, $end );
 		}
 
 		// Eigene externe Verleihe (an Personen außerhalb der Plattform) —
@@ -8220,21 +8239,180 @@ class MemberPortal {
 				continue;
 			}
 			$end = ! empty( $r->date_to ) ? (string) $r->date_to : $start;
-			self::cal_span( $by_day, $start, $end, $ms, $me, [
+			$add( [
 				'type'  => 'borrow',
 				'label' => $r->borrower_name,
 				'url'   => $lending_url,
-			] );
+			], $start, $end );
 		}
 
-		// Pro Tag stabil sortieren: Termin, Projekt, Zeitplan, Verleih.
-		$order = [ 'event' => 0, 'project' => 1, 'schedule' => 2, 'borrow' => 3 ];
-		foreach ( $by_day as &$list ) {
-			usort( $list, static fn( $a, $b ) => ( $order[ $a['type'] ] ?? 9 ) <=> ( $order[ $b['type'] ] ?? 9 ) );
-		}
-		unset( $list );
+		return $out;
+	}
 
-		return $by_day;
+	/** Wie viele Balken-Spuren eine Monatszelle zeigt, bevor „+n" greift. */
+	private const CAL_LANES = 3;
+
+	/**
+	 * Monatsraster als WOCHEN-ZEILEN mit durchgehenden Balken (v0.42.0).
+	 *
+	 * Vorher lag derselbe Eintrag als eigener Chip in JEDER Tageszelle — ein
+	 * Projekt vom 10.–14. sah aus wie fünf Vorgänge. Jetzt wird je Woche ein
+	 * SEGMENT gezeichnet, das über `grid-column: start / span n` läuft; an
+	 * Wochengrenzen zerfällt ein Eintrag in mehrere Segmente, deren Kanten flach
+	 * bleiben (`--cont-left/right`), damit die Fortsetzung sichtbar ist.
+	 *
+	 * Aufbau je Woche: EIN Raster mit 7 Spalten. Die Tageszellen liegen als
+	 * Hintergrund über alle Zeilen (`grid-row: 1 / -1`), Zeile 1 trägt die
+	 * Tageszahlen, ab Zeile 2 folgen die Balken-Spuren. Überlappende Einträge
+	 * bekommen dadurch je eine eigene Spur und bleiben über die ganze Woche auf
+	 * derselben Höhe.
+	 *
+	 * @param array<array<string,mixed>> $entries Flache Liste mit from/to.
+	 */
+	private static function render_month_weeks( string $month, int $days, int $lead, string $today, array $entries ): void {
+		$cells = (int) ( ceil( ( $lead + $days ) / 7 ) * 7 );
+		$weeks = (int) ( $cells / 7 );
+
+		for ( $w = 0; $w < $weeks; $w++ ) {
+			// Gültige (= im Monat liegende) Tage dieser Woche einsammeln.
+			$dates = []; // Spalte 1..7 => Y-m-d
+			for ( $c = 0; $c < 7; $c++ ) {
+				$day = ( $w * 7 + $c ) - $lead + 1;
+				if ( $day >= 1 && $day <= $days ) {
+					$dates[ $c + 1 ] = sprintf( '%s-%02d', $month, $day );
+				}
+			}
+			if ( ! $dates ) {
+				continue;
+			}
+			$first = reset( $dates );
+			$last  = end( $dates );
+			$cols  = array_flip( $dates ); // Y-m-d => Spalte
+
+			// Segmente dieser Woche + Spurvergabe.
+			$segments = [];
+			foreach ( $entries as $entry ) {
+				$from = max( (string) $entry['from'], (string) $first );
+				$to   = min( (string) $entry['to'], (string) $last );
+				if ( $from > $to || ! isset( $cols[ $from ] ) || ! isset( $cols[ $to ] ) ) {
+					continue;
+				}
+				$segments[] = [
+					'entry' => $entry,
+					'col'   => (int) $cols[ $from ],
+					'span'  => (int) $cols[ $to ] - (int) $cols[ $from ] + 1,
+					'cont_left'  => (string) $entry['from'] < (string) $from,
+					'cont_right' => (string) $entry['to'] > (string) $to,
+				];
+			}
+			// Lange Balken zuerst, dann von links nach rechts — so liegen
+			// mehrtägige Vorgänge oben und kurze füllen darunter auf.
+			$order = [ 'event' => 0, 'project' => 1, 'schedule' => 2, 'borrow' => 3 ];
+			usort( $segments, static function ( $a, $b ) use ( $order ) {
+				return [ -$a['span'], $a['col'], $order[ $a['entry']['type'] ] ?? 9 ]
+					<=> [ -$b['span'], $b['col'], $order[ $b['entry']['type'] ] ?? 9 ];
+			} );
+			$lanes = []; // lane => [ [colStart, colEnd], … ]
+			foreach ( $segments as $i => $seg ) {
+				$end = $seg['col'] + $seg['span'] - 1;
+				for ( $lane = 0; ; $lane++ ) {
+					$free = true;
+					foreach ( $lanes[ $lane ] ?? [] as $taken ) {
+						if ( $seg['col'] <= $taken[1] && $end >= $taken[0] ) {
+							$free = false;
+							break;
+						}
+					}
+					if ( $free ) {
+						$lanes[ $lane ][]        = [ $seg['col'], $end ];
+						$segments[ $i ]['lane'] = $lane;
+						break;
+					}
+				}
+			}
+			// Verdeckte Einträge je Tag zählen (Spuren jenseits der Anzeige).
+			$hidden = [];
+			foreach ( $segments as $seg ) {
+				if ( $seg['lane'] < self::CAL_LANES ) {
+					continue;
+				}
+				for ( $c = $seg['col']; $c < $seg['col'] + $seg['span']; $c++ ) {
+					$hidden[ $c ] = ( $hidden[ $c ] ?? 0 ) + 1;
+				}
+			}
+			$used_lanes = min( self::CAL_LANES, count( $lanes ) );
+			$rows       = 1 + $used_lanes + ( $hidden ? 1 : 0 );
+			?>
+			<div class="pp-cal__week" style="grid-template-rows: auto repeat(<?php echo (int) max( 1, $rows - 1 ); ?>, auto);">
+				<?php for ( $c = 1; $c <= 7; $c++ ) : ?>
+					<?php $date = $dates[ $c ] ?? ''; ?>
+					<div class="pp-cal__cell<?php echo '' === $date ? ' pp-cal__cell--blank' : ''; ?><?php echo $date === $today ? ' pp-cal__cell--today' : ''; ?>" style="grid-column: <?php echo (int) $c; ?>; grid-row: 1 / -1;"></div>
+					<?php if ( '' !== $date ) : ?>
+						<span class="pp-cal__daynum" style="grid-column: <?php echo (int) $c; ?>; grid-row: 1;"><?php echo (int) substr( $date, 8 ); ?></span>
+					<?php endif; ?>
+				<?php endfor; ?>
+
+				<?php foreach ( $segments as $seg ) : ?>
+					<?php
+					if ( $seg['lane'] >= self::CAL_LANES ) {
+						continue;
+					}
+					self::cal_bar( $seg );
+					?>
+				<?php endforeach; ?>
+
+				<?php foreach ( $hidden as $col => $count ) : ?>
+					<span class="pp-cal__more" style="grid-column: <?php echo (int) $col; ?>; grid-row: <?php echo (int) ( self::CAL_LANES + 2 ); ?>;">
+						<?php
+						/* translators: %d: number of additional events on that day. */
+						printf( esc_html__( '+%d more', 'project-prepper' ), (int) $count );
+						?>
+					</span>
+				<?php endforeach; ?>
+			</div>
+			<?php
+		}
+	}
+
+	/**
+	 * Ein Balken-Segment im Wochenraster. Farbe/Typ wie beim Tages-Chip; die
+	 * Kanten werden flach, wo der Eintrag über die Woche hinausläuft.
+	 *
+	 * @param array<string,mixed> $seg
+	 */
+	private static function cal_bar( array $seg ): void {
+		$ev    = $seg['entry'];
+		$cls   = 'pp-cal__bar pp-cal__bar--' . $ev['type'];
+		$cls  .= $seg['cont_left'] ? ' pp-cal__bar--cont-left' : '';
+		$cls  .= $seg['cont_right'] ? ' pp-cal__bar--cont-right' : '';
+		$style = sprintf(
+			'grid-column: %d / span %d; grid-row: %d;',
+			(int) $seg['col'],
+			(int) $seg['span'],
+			(int) $seg['lane'] + 2
+		);
+		if ( ! empty( $ev['color'] ) ) {
+			$style .= 'background:' . $ev['color'] . ';color:#fff;';
+		}
+		$label = (string) $ev['label'];
+		if ( ! empty( $ev['url'] ) ) {
+			printf(
+				'<a class="%1$s" style="%2$s" href="%3$s" title="%4$s">%5$s</a>',
+				esc_attr( $cls ),
+				esc_attr( $style ),
+				esc_url( (string) $ev['url'] ),
+				esc_attr( $label ),
+				esc_html( $label )
+			);
+			return;
+		}
+		printf(
+			'<span class="%1$s" style="%2$s" title="%3$s">%4$s</span>',
+			esc_attr( $cls ),
+			esc_attr( $style ),
+			esc_attr( $label ),
+			esc_html( $label )
+		);
 	}
 
 	/** Ein (mehrtägiges) Event auf jeden Tag im Schnitt mit [ms..me] legen. */

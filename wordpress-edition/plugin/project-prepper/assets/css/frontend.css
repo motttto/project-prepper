@@ -2262,6 +2262,72 @@ button.pp-checkitem__box--on { background: var(--pp-success); }
 	grid-template-columns: repeat(7, 1fr);
 	gap: 6px;
 }
+/* Monatsraster (v0.42.0): je Woche EIN Raster, damit mehrtägige Einträge als
+ * durchgehender Balken über mehrere Spalten laufen können. Die Tageszellen
+ * liegen als Hintergrund über alle Zeilen, Zeile 1 trägt die Tageszahl, ab
+ * Zeile 2 folgen die Balken-Spuren. */
+.pp-cal__grid--head { margin-bottom: 6px; }
+.pp-cal__week {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	column-gap: 6px;
+	row-gap: 3px;
+	margin-bottom: 6px;
+}
+.pp-cal__week .pp-cal__cell {
+	min-height: 84px;
+	display: block;
+	padding: 0;
+}
+.pp-cal__week .pp-cal__daynum {
+	z-index: 1;
+	justify-self: start;
+	margin: 5px 0 0 7px;
+	pointer-events: none;
+}
+.pp-cal__week .pp-cal__cell--today + .pp-cal__daynum {
+	color: #fff;
+	background: var(--pp-primary);
+	border-radius: 999px;
+	width: 22px;
+	height: 22px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	margin-left: 4px;
+}
+/* Der Balken selbst — Kanten flach, wo der Eintrag in die Nachbarwoche läuft. */
+.pp-cal__bar {
+	z-index: 1;
+	min-width: 0;
+	margin: 0 3px;
+	padding: 2px 6px;
+	border-radius: 5px;
+	font-size: .72rem;
+	line-height: 1.35;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	text-decoration: none;
+	background: var(--pp-muted);
+	color: var(--pp-foreground);
+}
+a.pp-cal__bar:hover { filter: brightness(.95); }
+.pp-cal__bar--cont-left {
+	margin-left: 0;
+	border-top-left-radius: 0;
+	border-bottom-left-radius: 0;
+}
+.pp-cal__bar--cont-right {
+	margin-right: 0;
+	border-top-right-radius: 0;
+	border-bottom-right-radius: 0;
+}
+.pp-cal__bar--event    { background: var(--pp-primary-light); color: #4338ca; }
+.pp-cal__bar--project  { background: var(--pp-primary); color: #fff; }
+.pp-cal__bar--schedule { background: var(--pp-info-light); color: #1d4ed8; }
+.pp-cal__bar--borrow   { background: var(--pp-success-light); color: #047857; }
+.pp-cal__week .pp-cal__more { z-index: 1; padding-left: 7px; }
 /* Wochen-Zeitraster (App: WeekTimeGrid) — Stundenachse + positionierte Blöcke */
 .pp-cal__tg {
 	background: var(--pp-surface);
@@ -2489,6 +2555,13 @@ a.pp-cal__chip:hover { filter: brightness(.97); }
 	.pp-cal__chip--schedule { background: var(--pp-info); }
 	.pp-cal__chip--borrow { background: var(--pp-success); }
 	.pp-cal__more { font-size: .6rem; }
+	/* Monatsraster: Zellen ebenfalls kompakt, Balken schmaler — der Text bleibt
+	 * aber lesbar (anders als beim Tages-Chip, der auf dem Handy zum Punkt wird:
+	 * ein Balken ohne Beschriftung wäre über mehrere Tage nicht deutbar). */
+	.pp-cal__week .pp-cal__cell { min-height: 52px; padding: 4px; border-radius: 8px; }
+	.pp-cal__week .pp-cal__daynum { margin: 3px 0 0 5px; }
+	.pp-cal__bar { font-size: .62rem; padding: 1px 4px; margin: 0 2px; }
+	.pp-cal__week .pp-cal__more { font-size: .6rem; padding-left: 5px; }
 }
 
 /* Mobile: Off-Canvas-Sidebar (reines CSS, Checkbox-Toggle) */

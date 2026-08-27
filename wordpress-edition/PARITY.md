@@ -3,6 +3,30 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 📊 Monatskalender: durchgehende Balken 2026-08-27 (Feature-Stand, Schema UNVERÄNDERT 0.41.0)
+> **Noch nicht released.** User-Frage „kann der Kalender tagesübergreifende Ereignisse überlappend
+> darstellen?" — konnte er nicht: `cal_span()` legte denselben Eintrag als eigenen Chip in JEDE
+> Tageszelle, ein Projekt vom 10.–14. sah aus wie fünf Vorgänge.
+> **Umbau:** Das Monatsraster besteht jetzt aus WOCHEN-ZEILEN (`render_month_weeks()`). Je Woche ein
+> Raster mit 7 Spalten: Tageszellen als Hintergrund über alle Zeilen (`grid-row: 1 / -1`), Zeile 1 die
+> Tageszahlen, ab Zeile 2 die Balken-Spuren. Ein Eintrag wird zum Segment über
+> `grid-column: start / span n`; an Wochengrenzen zerfällt er in mehrere Segmente mit flachen Kanten
+> (`--cont-left/right`), sodass die Fortsetzung sichtbar ist.
+> **Spurvergabe:** Segmente werden sortiert (längste zuerst, dann von links nach rechts, dann
+> Typ-Reihenfolge) und bekommen die niedrigste freie Spur, in der sie mit keinem anderen Segment
+> kollidieren — dadurch bleibt ein Balken über die ganze Woche auf derselben Höhe. Sichtbar sind
+> `CAL_LANES = 3` Spuren; alles darüber zählt pro betroffenem Tag als „+n weitere" (spurgenau).
+> **Datenseite entkoppelt:** neue `calendar_entries()` liefert die vier Quellen als FLACHE Liste mit
+> from/to; `calendar_events()` (Tages-Map für die Wochenansicht, unverändert im Verhalten) baut darauf
+> auf — die Quellen stehen weiterhin nur an einer Stelle.
+> **Verifiziert** im Browser mit Testdaten über eine Wochengrenze und drei überlappenden Einträgen:
+> Projekt 10.–14. = EIN Balken (`1 / span 5`, Spur 0); Eintrag 13.–19. = zwei Segmente
+> (`4 / span 4` mit `cont-right`, danach `1 / span 3` mit `cont-left`); kurze Einträge füllen freie
+> Spuren derselben Zeile auf (Zeitplan 10. und Einzeltag 12. liegen beide in Spur 1 neben dem langen
+> Balken); Überlauf korrekt als „+2 weitere" am 12. und „+1 weitere" am 13./14. Wochenansicht
+> unverändert, Hell + Dunkel geprüft, Mobil-Zellen wieder kompakt (eigene Media-Query-Regeln).
+> i18n: KEINE neuen Strings. Plugin Check: nur die 2 by-design-ERRORs.
+>
 > ## 📅 Release v0.136.0 2026-08-27 (Kalender-Abo enthält jetzt alles, Schema UNVERÄNDERT 0.41.0)
 > **Ausgeliefert** (Feature-Commit `aa6828d`). User-Meldung „ich habe den Eindruck, dass das Apple-Kalenderabo nicht ankommt".
 > Route geprüft (live: `/wp-json/` = 200, Feed ohne Token = 401 `pp_invalid_token`) — Erreichbarkeit war
