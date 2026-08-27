@@ -3,8 +3,8 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
-> ## 🩹 Monatsraster repariert 2026-08-27 (Feature-Stand, Schema UNVERÄNDERT 0.41.0)
-> **Noch nicht released — behebt einen sichtbaren Fehler in v0.137.0.** Der User meldete mit Screenshot:
+> ## 🩹 Release v0.137.1 2026-08-27 (Monatsraster repariert, Schema UNVERÄNDERT 0.41.0)
+> **Ausgeliefert** (Feature-Commit `c42288c`) — Fix-Release für einen sichtbaren Fehler in v0.137.0. Der User meldete mit Screenshot:
 > „der Kalender sieht nicht gut aus" — Balken hingen UNTER den Tageskacheln und liefen rechts aus dem
 > Raster. **Ursache:** v0.137.0 baute je Woche ein eigenes Raster und ließ die Kacheln mit
 > `grid-row: 1 / -1` darüber spannen. `-1` zeigt auf die letzte EXPLIZITE Rasterlinie; die „+n"-Zeile
@@ -22,6 +22,8 @@
 > `24px 19px 19px 19px 16px` × 6 Wochen, Kacheln `1 / span 5` … `26 / span 5`, Balken in den Zeilen 2, 7,
 > 12–14, 17 — und **kein einziges Element außerhalb des Rasters** (programmatisch geprüft, Desktop wie
 > Mobil). Hell + Dunkel geprüft. i18n: keine neuen Strings. Plugin Check: nur die 2 by-design-ERRORs.
+> Build `dist/project-prepper-0.137.1.zip` (1,3 MB, 126 Dateien), `update.json` auf 0.137.1,
+> GitHub-Release `v0.137.1` mit ZIP-Asset (PATCH statt MINOR — reines Fix-Release).
 >
 > ## 📊 Release v0.137.0 2026-08-27 (Monatskalender: durchgehende Balken, Schema UNVERÄNDERT 0.41.0)
 > **Ausgeliefert** (Feature-Commit `7f0e0d2`). User-Frage „kann der Kalender tagesübergreifende Ereignisse überlappend
