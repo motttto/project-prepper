@@ -3,6 +3,28 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🎨 Release v0.138.0 2026-08-27 (Monatskalender neu gestaltet, Schema UNVERÄNDERT 0.41.0)
+> **Ausgeliefert.** User nach zwei Fix-Releases: „du hast schon zwei Fixes angewendet und es hat sich an
+> der Anzeige nichts geändert?" — **berechtigt.** v0.137.1/.2 haben LAYOUTFEHLER behoben (Elemente liefen
+> aus dem Raster, Kacheln fielen zusammen); das AUSSEHEN war davon unabhängig von Anfang an schlecht:
+> 42 einzelne gerundete Kästen mit Rahmen, durch die die Balken hindurchliefen, dazu dünne, blasse
+> Streifen mit Mini-Schrift.
+> **Gestaltung neu:** Der Monat ist EIN zusammenhängendes Blatt — Rahmen außen, `gap: 1px` mit
+> `background: var(--pp-border)` erzeugt die Trennlinien, die Kacheln sind randlos. Mehrtägige Balken
+> laufen dadurch sauber über die Tagesgrenzen (wie bei jedem Kalender), statt Kästen zu durchschneiden.
+> Balken jetzt GEFÜLLT mit weißer Schrift (18 px hoch statt 15, lesbare Schriftgröße) — das löst zugleich
+> das Dark-Mode-Kontrastproblem, die themenabhängigen Textfarben für Balken sind wieder entfallen.
+> Tage außerhalb des Monats gedämpft, heutige Kachel flächig hervorgehoben, Kacheln 92 px.
+> ⚠️ **Namenskollision gefunden:** Die neue Klasse hieß `.pp-cal__bar` — so heißt aber seit jeher die
+> NAVIGATIONSLEISTE des Kalenders (Monatswechsel/Heute/Ansicht). Meine Balken-Regeln (height 18px,
+> background, line-height) haben sie plattgedrückt; im Screenshot überlappten Monatswahl und
+> Wochentagszeile. Umbenannt in `.pp-cal__span`. **Lehre:** vor einem neuen BEM-Block im gewachsenen
+> Stylesheet grundsätzlich `grep` auf den Namen.
+> **Verifiziert** mit den nachgebauten User-Daten in Hell, Dunkel und Mobil: Navigationsleiste wieder
+> 35 px hoch, Kacheln 92 px (mobil 67), 8 Balken, `probleme: []` (jedes Element gegen seine Kachel und
+> das Raster geprüft). i18n: keine neuen Strings. Plugin Check: nur die 2 by-design-ERRORs.
+> Build `dist/project-prepper-0.138.0.zip` (1,3 MB, 126 Dateien), `update.json` auf 0.138.0.
+>
 > ## 🩹 Release v0.137.2 2026-08-27 (Monatsraster: Kachelhöhe zurück, Schema UNVERÄNDERT 0.41.0)
 > **Ausgeliefert.** Der User meldete nach v0.137.1: „der Kalender sieht immer noch genauso schlecht aus".
 > Live-Prüfung von außen ergab: 0.137.1 war korrekt ausgeliefert (CSS enthält `pp-cal__grid--month`, kein

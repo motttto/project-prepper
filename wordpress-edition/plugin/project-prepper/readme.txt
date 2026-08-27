@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.137.2
+Stable tag: 0.138.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.138.0 =
+* The month calendar is now one connected sheet with thin dividing lines, instead of 42 separate rounded boxes. Multi-day bars run across the days as they should, rather than looking as if they cut through the tiles.
+* Entries are drawn as filled bars with white text, so they are equally readable in light and dark mode. Before, loans in particular were dark green on a dark background.
+* Days outside the month are dimmed, today's tile is highlighted, and the tiles are a little taller so entries have room to breathe.
+* Fix: the new bars used the same CSS class name as the calendar's navigation bar, which squashed the month switcher.
+* Note: this update does not change the database.
 
 = 0.137.2 =
 * Fix: the month view had collapsed to the height of its content, so the day tiles were far too flat and the bars were pressed against the bottom edge. Tiles have a proper minimum height again, and the bars sit right under the day number.

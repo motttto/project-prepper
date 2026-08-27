@@ -8440,9 +8440,11 @@ class MemberPortal {
 	 */
 	private static function cal_bar( array $seg, int $row ): void {
 		$ev    = $seg['entry'];
-		$cls   = 'pp-cal__bar pp-cal__bar--' . $ev['type'];
-		$cls  .= $seg['cont_left'] ? ' pp-cal__bar--cont-left' : '';
-		$cls  .= $seg['cont_right'] ? ' pp-cal__bar--cont-right' : '';
+		// Klasse bewusst `pp-cal__span`, NICHT `pp-cal__bar` — letzteres ist seit
+		// jeher die Navigationsleiste des Kalenders (Monatswechsel/Heute/Ansicht).
+		$cls   = 'pp-cal__span pp-cal__span--' . $ev['type'];
+		$cls  .= $seg['cont_left'] ? ' pp-cal__span--cont-left' : '';
+		$cls  .= $seg['cont_right'] ? ' pp-cal__span--cont-right' : '';
 		$style = sprintf(
 			'grid-column: %d / span %d; grid-row: %d;',
 			(int) $seg['col'],

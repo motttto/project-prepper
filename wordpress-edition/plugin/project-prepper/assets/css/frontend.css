@@ -2267,31 +2267,46 @@ button.pp-checkitem__box--on { background: var(--pp-success); }
  * baut PHP daraus zusammen (render_month_weeks). Jede Kachel spannt genau über
  * die Zeilen IHRER Woche, jeder Balken sitzt in einer bekannten Zeile: keine
  * impliziten Zeilen, dadurch kann nichts unter die Kacheln rutschen. */
-.pp-cal__grid--head { margin-bottom: 6px; }
+.pp-cal__grid--head { gap: 1px; margin-bottom: 5px; }
+.pp-cal__grid--head .pp-cal__dow { padding-left: 8px; text-align: left; }
 .pp-cal__grid--month {
-	--pp-cal-row-day: 24px;
-	--pp-cal-row-lane: 19px;
+	--pp-cal-row-day: 26px;
+	--pp-cal-row-lane: 22px;
 	--pp-cal-row-more: 18px;
-	--pp-cal-row-fill: 8px;
-	column-gap: 6px;
-	row-gap: 0;
-	grid-auto-flow: row;
+	--pp-cal-row-fill: 6px;
+	/* Zusammenhängendes Monatsblatt statt 42 Einzelkacheln: Der Rahmen liegt
+	 * außen, die Trennlinien entstehen als 1px-Lücken, durch die der Untergrund
+	 * scheint. Dadurch laufen mehrtägige Balken sauber über die Tagesgrenzen —
+	 * bei gerundeten Einzelkästen sahen sie aus, als würden sie die Kacheln
+	 * durchschneiden. */
+	gap: 1px;
+	background: var(--pp-border);
+	border: 1px solid var(--pp-border);
+	border-radius: 12px;
+	overflow: hidden;
 	align-items: stretch;
 }
 .pp-cal__grid--month .pp-cal__cell {
 	/* Mindesthöhe, damit der Monat wie ein Kalender aussieht. Die zusätzliche
 	 * Höhe nimmt die Füllzeile am Ende jeder Woche auf (siehe render_month_weeks),
 	 * deshalb bleiben die Balken oben und berühren den unteren Rand nicht. */
-	min-height: 84px;
+	min-height: 92px;
 	display: block;
 	padding: 0;
-	margin-bottom: 6px;
+	margin: 0;
+	background: var(--pp-surface);
+	border: 0;
+	border-radius: 0;
 }
+/* Tage außerhalb des Monats: gedämpfte Fläche statt Loch im Blatt. */
+.pp-cal__grid--month .pp-cal__cell--blank { background: var(--pp-surface); opacity: .45; }
+.pp-cal__grid--month .pp-cal__cell--today { background: var(--pp-primary-light); box-shadow: none; }
 .pp-cal__grid--month .pp-cal__daynum {
 	z-index: 1;
 	justify-self: start;
-	align-self: start;
-	margin: 4px 0 0 7px;
+	align-self: center;
+	margin: 0 0 0 8px;
+	font-size: .78rem;
 	pointer-events: none;
 }
 .pp-cal__grid--month .pp-cal__cell--today + .pp-cal__daynum {
@@ -2303,41 +2318,45 @@ button.pp-checkitem__box--on { background: var(--pp-success); }
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	margin-left: 4px;
+	margin-left: 5px;
 }
-/* Der Balken selbst — Kanten flach, wo der Eintrag in die Nachbarwoche läuft. */
-.pp-cal__bar {
+/* Der Balken: gefüllt mit weißer Schrift (in beiden Themes lesbar), leicht
+ * eingerückt, damit aufeinanderfolgende Einträge sich nicht berühren. Flache
+ * Kante dort, wo der Eintrag in die Nachbarwoche läuft. */
+.pp-cal__span {
 	z-index: 1;
 	min-width: 0;
 	align-self: center;
-	margin: 0 3px;
-	padding: 1px 6px;
-	border-radius: 5px;
+	height: 18px;
+	line-height: 18px;
+	margin: 0 2px;
+	padding: 0 7px;
+	border-radius: 4px;
 	font-size: .72rem;
-	line-height: 1.35;
+	font-weight: 500;
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 	text-decoration: none;
-	background: var(--pp-muted);
-	color: var(--pp-foreground);
+	background: var(--pp-muted-foreground);
+	color: #fff;
 }
-a.pp-cal__bar:hover { filter: brightness(.95); }
-.pp-cal__bar--cont-left {
+a.pp-cal__span:hover { filter: brightness(1.08); }
+.pp-cal__span--cont-left {
 	margin-left: 0;
 	border-top-left-radius: 0;
 	border-bottom-left-radius: 0;
 }
-.pp-cal__bar--cont-right {
+.pp-cal__span--cont-right {
 	margin-right: 0;
 	border-top-right-radius: 0;
 	border-bottom-right-radius: 0;
 }
-.pp-cal__bar--event    { background: var(--pp-primary-light); color: #4338ca; }
-.pp-cal__bar--project  { background: var(--pp-primary); color: #fff; }
-.pp-cal__bar--schedule { background: var(--pp-info-light); color: #1d4ed8; }
-.pp-cal__bar--borrow   { background: var(--pp-success-light); color: #047857; }
-.pp-cal__grid--month .pp-cal__more { z-index: 1; align-self: center; padding-left: 7px; line-height: 1.2; }
+.pp-cal__span--event    { background: var(--pp-primary-hover); }
+.pp-cal__span--project  { background: var(--pp-primary); }
+.pp-cal__span--schedule { background: var(--pp-info); }
+.pp-cal__span--borrow   { background: var(--pp-success); }
+.pp-cal__grid--month .pp-cal__more { z-index: 1; align-self: center; padding-left: 8px; line-height: 1.2; }
 /* Wochen-Zeitraster (App: WeekTimeGrid) — Stundenachse + positionierte Blöcke */
 .pp-cal__tg {
 	background: var(--pp-surface);
@@ -2570,15 +2589,16 @@ a.pp-cal__chip:hover { filter: brightness(.97); }
 	 * ein Balken ohne Beschriftung wäre über mehrere Tage nicht deutbar). */
 	.pp-cal__grid--month {
 		--pp-cal-row-day: 20px;
-		--pp-cal-row-lane: 15px;
-		--pp-cal-row-more: 16px;
-		--pp-cal-row-fill: 5px;
-		column-gap: 3px;
+		--pp-cal-row-lane: 17px;
+		--pp-cal-row-more: 15px;
+		--pp-cal-row-fill: 4px;
 	}
-	.pp-cal__grid--month .pp-cal__cell { min-height: 52px; padding: 3px; border-radius: 8px; margin-bottom: 3px; }
-	.pp-cal__grid--month .pp-cal__daynum { margin: 2px 0 0 4px; }
-	.pp-cal__bar { font-size: .58rem; padding: 0 3px; margin: 0 1px; border-radius: 3px; }
+	.pp-cal__grid--month .pp-cal__cell { min-height: 58px; }
+	.pp-cal__grid--month .pp-cal__daynum { margin-left: 4px; font-size: .7rem; }
+	.pp-cal__grid--month .pp-cal__cell--today + .pp-cal__daynum { width: 18px; height: 18px; margin-left: 3px; }
+	.pp-cal__span { height: 14px; line-height: 14px; font-size: .58rem; padding: 0 4px; margin: 0 1px; border-radius: 3px; }
 	.pp-cal__grid--month .pp-cal__more { font-size: .55rem; padding-left: 4px; }
+	.pp-cal__grid--head .pp-cal__dow { padding-left: 4px; }
 }
 
 /* Mobile: Off-Canvas-Sidebar (reines CSS, Checkbox-Toggle) */
@@ -3063,8 +3083,7 @@ label.pp-swatch,
 	.pp-status--reserved,
 	.pp-status--signing,
 	.pp-kpi--info.pp-kpi--static .pp-kpi__value,
-	.pp-cal__chip--schedule,
-	.pp-cal__bar--schedule { color: var(--pp-info); }
+	.pp-cal__chip--schedule { color: var(--pp-info); }
 	/* Dunkles Grün (#059669/#047857) → helles Erfolgs-Grün */
 	.pp-portal__tag--ok,
 	.pp-status--running,
@@ -3075,13 +3094,11 @@ label.pp-swatch,
 	.pp-kpi--success.pp-kpi--static .pp-kpi__value,
 	.pp-vote-btn--approve.is-active,
 	.pp-poll-btn--yes.is-active,
-	.pp-cal__chip--borrow,
-	.pp-cal__bar--borrow { color: var(--pp-success); }
+	.pp-cal__chip--borrow { color: var(--pp-success); }
 	/* Dunkles Indigo (#3730a3/#4338ca) → helles Indigo */
 	.pp-hiw__summary,
 	.pp-cal__chip--project,
-	.pp-cal__chip--event,
-	.pp-cal__bar--event { color: var(--pp-primary-hover); }
+	.pp-cal__chip--event { color: var(--pp-primary-hover); }
 	/* Helle Strukturflächen/-rahmen → dunkle Pendants */
 	.pp-hiw { border-color: var(--pp-border); }
 	.pp-hiw__col { background: rgba(255, 255, 255, .07); }

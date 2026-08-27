@@ -1,9 +1,9 @@
 {
-  "version": "0.137.2",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.137.2/project-prepper-0.137.2.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.137.2",
+  "version": "0.138.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.138.0/project-prepper-0.138.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.138.0",
   "published": "2026-08-27",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "* Behoben: Die Monatsansicht war auf die Höhe ihres Inhalts zusammengefallen — die Tageskacheln waren viel zu flach und die Balken klebten am unteren Rand. Die Kacheln haben wieder eine ordentliche Mindesthöhe, die Balken sitzen direkt unter der Tageszahl.\n* Behoben: In einer voll belegten Woche konnte die Zeile „+n weitere“ unten aus der Kachel ragen."
+  "changelog": "* Der Monatskalender ist jetzt EIN zusammenhängendes Blatt mit dünnen Trennlinien statt 42 einzelner gerundeter Kästen. Mehrtägige Balken laufen dadurch sauber über die Tage, statt so auszusehen, als würden sie die Kacheln durchschneiden.\n* Einträge werden als gefüllte Balken mit weißer Schrift gezeichnet und sind damit in hell wie dunkel gleich gut lesbar. Vorher waren vor allem Ausleihen dunkelgrün auf dunklem Grund.\n* Tage außerhalb des Monats sind gedämpft, der heutige Tag ist hervorgehoben, und die Kacheln sind etwas höher, damit die Einträge Luft haben.\n* Behoben: Die neuen Balken benutzten denselben CSS-Klassennamen wie die Navigationsleiste des Kalenders und haben deren Monatsumschalter zusammengedrückt.\n* Hinweis: Dieses Update ändert die Datenbank NICHT."
 }
