@@ -3,6 +3,26 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🩹 Monatsraster repariert 2026-08-27 (Feature-Stand, Schema UNVERÄNDERT 0.41.0)
+> **Noch nicht released — behebt einen sichtbaren Fehler in v0.137.0.** Der User meldete mit Screenshot:
+> „der Kalender sieht nicht gut aus" — Balken hingen UNTER den Tageskacheln und liefen rechts aus dem
+> Raster. **Ursache:** v0.137.0 baute je Woche ein eigenes Raster und ließ die Kacheln mit
+> `grid-row: 1 / -1` darüber spannen. `-1` zeigt auf die letzte EXPLIZITE Rasterlinie; die „+n"-Zeile
+> stand aber auf der festen Zeile `CAL_LANES + 2` = 5, und die Zeilenvorlage hatte je nach belegten
+> Spuren nur 2–3 Zeilen. Alles jenseits davon landete in IMPLIZITEN Zeilen, über die die Kachel nicht
+> mehr spannte — und implizite Spalten schoben Balken zusätzlich aus dem Container.
+> **Fix (auf Ansage des Users „die Tageskacheln können auch ein Grid insgesamt sein"):** EIN Raster für
+> den ganzen Monat. Feste Zeilenvorlage je Woche (Tageszahl · Spuren · optional „+n"), aus CSS-Variablen
+> zusammengesetzt, damit die Media-Query die Höhen auf dem Handy verkleinern kann. Jede Kachel spannt
+> explizit `grid-row: base / span per_week`, jeder Balken sitzt in `base + 1 + lane`, „+n" in der letzten
+> Zeile der Woche. Keine impliziten Zeilen mehr, kein `-1`. Zusätzlich: Zeilenanzahl richtet sich nach den
+> tatsächlich belegten Spuren (leerer Monat = flache Kacheln), Dunkelmodus-Farben für die Balken ergänzt
+> (die Chips hatten Overrides, die Balken nicht — grüner Text auf dunklem Grund).
+> **Verifiziert** mit Testdaten inkl. Monatsrand (28.07.–04.08.) und Wochenwechsel: Zeilenvorlage
+> `24px 19px 19px 19px 16px` × 6 Wochen, Kacheln `1 / span 5` … `26 / span 5`, Balken in den Zeilen 2, 7,
+> 12–14, 17 — und **kein einziges Element außerhalb des Rasters** (programmatisch geprüft, Desktop wie
+> Mobil). Hell + Dunkel geprüft. i18n: keine neuen Strings. Plugin Check: nur die 2 by-design-ERRORs.
+>
 > ## 📊 Release v0.137.0 2026-08-27 (Monatskalender: durchgehende Balken, Schema UNVERÄNDERT 0.41.0)
 > **Ausgeliefert** (Feature-Commit `7f0e0d2`). User-Frage „kann der Kalender tagesübergreifende Ereignisse überlappend
 > darstellen?" — konnte er nicht: `cal_span()` legte denselben Eintrag als eigenen Chip in JEDE

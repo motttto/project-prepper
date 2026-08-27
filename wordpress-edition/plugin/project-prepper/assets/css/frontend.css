@@ -2262,35 +2262,40 @@ button.pp-checkitem__box--on { background: var(--pp-success); }
 	grid-template-columns: repeat(7, 1fr);
 	gap: 6px;
 }
-/* Monatsraster (v0.42.0): je Woche EIN Raster, damit mehrtägige Einträge als
- * durchgehender Balken über mehrere Spalten laufen können. Die Tageszellen
- * liegen als Hintergrund über alle Zeilen, Zeile 1 trägt die Tageszahl, ab
- * Zeile 2 folgen die Balken-Spuren. */
+/* Monatsraster (v0.42.0): EIN Raster für den ganzen Monat. Je Woche ein fester
+ * Zeilenblock — Tageszahl, Balken-Spuren, ggf. „+n"-Zeile; die Zeilenvorlage
+ * baut PHP daraus zusammen (render_month_weeks). Jede Kachel spannt genau über
+ * die Zeilen IHRER Woche, jeder Balken sitzt in einer bekannten Zeile: keine
+ * impliziten Zeilen, dadurch kann nichts unter die Kacheln rutschen. */
 .pp-cal__grid--head { margin-bottom: 6px; }
-.pp-cal__week {
-	display: grid;
-	grid-template-columns: repeat(7, 1fr);
+.pp-cal__grid--month {
+	--pp-cal-row-day: 24px;
+	--pp-cal-row-lane: 19px;
+	--pp-cal-row-more: 16px;
 	column-gap: 6px;
-	row-gap: 3px;
-	margin-bottom: 6px;
+	row-gap: 0;
+	grid-auto-flow: row;
+	align-items: stretch;
 }
-.pp-cal__week .pp-cal__cell {
-	min-height: 84px;
+.pp-cal__grid--month .pp-cal__cell {
+	min-height: 0;
 	display: block;
 	padding: 0;
+	margin-bottom: 6px;
 }
-.pp-cal__week .pp-cal__daynum {
+.pp-cal__grid--month .pp-cal__daynum {
 	z-index: 1;
 	justify-self: start;
-	margin: 5px 0 0 7px;
+	align-self: start;
+	margin: 4px 0 0 7px;
 	pointer-events: none;
 }
-.pp-cal__week .pp-cal__cell--today + .pp-cal__daynum {
+.pp-cal__grid--month .pp-cal__cell--today + .pp-cal__daynum {
 	color: #fff;
 	background: var(--pp-primary);
 	border-radius: 999px;
-	width: 22px;
-	height: 22px;
+	width: 21px;
+	height: 21px;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -2300,8 +2305,9 @@ button.pp-checkitem__box--on { background: var(--pp-success); }
 .pp-cal__bar {
 	z-index: 1;
 	min-width: 0;
+	align-self: center;
 	margin: 0 3px;
-	padding: 2px 6px;
+	padding: 1px 6px;
 	border-radius: 5px;
 	font-size: .72rem;
 	line-height: 1.35;
@@ -2327,7 +2333,7 @@ a.pp-cal__bar:hover { filter: brightness(.95); }
 .pp-cal__bar--project  { background: var(--pp-primary); color: #fff; }
 .pp-cal__bar--schedule { background: var(--pp-info-light); color: #1d4ed8; }
 .pp-cal__bar--borrow   { background: var(--pp-success-light); color: #047857; }
-.pp-cal__week .pp-cal__more { z-index: 1; padding-left: 7px; }
+.pp-cal__grid--month .pp-cal__more { z-index: 1; align-self: center; padding-left: 7px; }
 /* Wochen-Zeitraster (App: WeekTimeGrid) — Stundenachse + positionierte Blöcke */
 .pp-cal__tg {
 	background: var(--pp-surface);
@@ -2558,10 +2564,16 @@ a.pp-cal__chip:hover { filter: brightness(.97); }
 	/* Monatsraster: Zellen ebenfalls kompakt, Balken schmaler — der Text bleibt
 	 * aber lesbar (anders als beim Tages-Chip, der auf dem Handy zum Punkt wird:
 	 * ein Balken ohne Beschriftung wäre über mehrere Tage nicht deutbar). */
-	.pp-cal__week .pp-cal__cell { min-height: 52px; padding: 4px; border-radius: 8px; }
-	.pp-cal__week .pp-cal__daynum { margin: 3px 0 0 5px; }
-	.pp-cal__bar { font-size: .62rem; padding: 1px 4px; margin: 0 2px; }
-	.pp-cal__week .pp-cal__more { font-size: .6rem; padding-left: 5px; }
+	.pp-cal__grid--month {
+		--pp-cal-row-day: 20px;
+		--pp-cal-row-lane: 15px;
+		--pp-cal-row-more: 14px;
+		column-gap: 3px;
+	}
+	.pp-cal__grid--month .pp-cal__cell { padding: 3px; border-radius: 8px; margin-bottom: 3px; }
+	.pp-cal__grid--month .pp-cal__daynum { margin: 2px 0 0 4px; }
+	.pp-cal__bar { font-size: .58rem; padding: 0 3px; margin: 0 1px; border-radius: 3px; }
+	.pp-cal__grid--month .pp-cal__more { font-size: .55rem; padding-left: 4px; }
 }
 
 /* Mobile: Off-Canvas-Sidebar (reines CSS, Checkbox-Toggle) */
@@ -3046,7 +3058,8 @@ label.pp-swatch,
 	.pp-status--reserved,
 	.pp-status--signing,
 	.pp-kpi--info.pp-kpi--static .pp-kpi__value,
-	.pp-cal__chip--schedule { color: var(--pp-info); }
+	.pp-cal__chip--schedule,
+	.pp-cal__bar--schedule { color: var(--pp-info); }
 	/* Dunkles Grün (#059669/#047857) → helles Erfolgs-Grün */
 	.pp-portal__tag--ok,
 	.pp-status--running,
@@ -3057,11 +3070,13 @@ label.pp-swatch,
 	.pp-kpi--success.pp-kpi--static .pp-kpi__value,
 	.pp-vote-btn--approve.is-active,
 	.pp-poll-btn--yes.is-active,
-	.pp-cal__chip--borrow { color: var(--pp-success); }
+	.pp-cal__chip--borrow,
+	.pp-cal__bar--borrow { color: var(--pp-success); }
 	/* Dunkles Indigo (#3730a3/#4338ca) → helles Indigo */
 	.pp-hiw__summary,
 	.pp-cal__chip--project,
-	.pp-cal__chip--event { color: var(--pp-primary-hover); }
+	.pp-cal__chip--event,
+	.pp-cal__bar--event { color: var(--pp-primary-hover); }
 	/* Helle Strukturflächen/-rahmen → dunkle Pendants */
 	.pp-hiw { border-color: var(--pp-border); }
 	.pp-hiw__col { background: rgba(255, 255, 255, .07); }

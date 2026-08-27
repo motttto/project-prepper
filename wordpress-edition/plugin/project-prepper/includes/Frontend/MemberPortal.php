@@ -8249,33 +8249,104 @@ class MemberPortal {
 		return $out;
 	}
 
-	/** Wie viele Balken-Spuren eine Monatszelle zeigt, bevor „+n" greift. */
+	/** Wie viele Balken-Spuren eine Monatszelle höchstens zeigt, bevor „+n" greift. */
 	private const CAL_LANES = 3;
 
 	/**
-	 * Monatsraster als WOCHEN-ZEILEN mit durchgehenden Balken (v0.42.0).
+	 * Monatsraster mit durchgehenden Balken (v0.42.0).
 	 *
-	 * Vorher lag derselbe Eintrag als eigener Chip in JEDER Tageszelle — ein
-	 * Projekt vom 10.–14. sah aus wie fünf Vorgänge. Jetzt wird je Woche ein
-	 * SEGMENT gezeichnet, das über `grid-column: start / span n` läuft; an
-	 * Wochengrenzen zerfällt ein Eintrag in mehrere Segmente, deren Kanten flach
-	 * bleiben (`--cont-left/right`), damit die Fortsetzung sichtbar ist.
+	 * EIN Raster für den ganzen Monat — 7 Spalten, je Woche ein fester Block aus
+	 * Zeilen: Zeile 1 die Tageszahlen, darunter die Balken-Spuren, zuletzt (nur
+	 * falls nötig) die „+n weitere"-Zeile. Alle Wochen haben denselben Aufbau,
+	 * dadurch sind die Kacheln gleich hoch und jede Position ist explizit gesetzt.
 	 *
-	 * Aufbau je Woche: EIN Raster mit 7 Spalten. Die Tageszellen liegen als
-	 * Hintergrund über alle Zeilen (`grid-row: 1 / -1`), Zeile 1 trägt die
-	 * Tageszahlen, ab Zeile 2 folgen die Balken-Spuren. Überlappende Einträge
-	 * bekommen dadurch je eine eigene Spur und bleiben über die ganze Woche auf
-	 * derselben Höhe.
+	 * Warum explizit statt `grid-row: 1 / -1` je Woche: `-1` zeigt auf die letzte
+	 * EXPLIZITE Rasterlinie. Landet ein Balken in einer implizit erzeugten Zeile,
+	 * spannt die Kachel nicht mehr darüber — die Balken hängen dann unter den
+	 * Kacheln und laufen aus dem Raster (genau dieser Fehler war in v0.42.0 kurz
+	 * sichtbar). Jetzt kennt das Raster jede Zeile im Voraus.
+	 *
+	 * Ein mehrtägiger Eintrag wird zum Segment über `grid-column: start / span n`;
+	 * an Wochengrenzen zerfällt er in mehrere Segmente mit flacher Kante
+	 * (`--cont-left/right`), damit die Fortsetzung sichtbar bleibt.
 	 *
 	 * @param array<array<string,mixed>> $entries Flache Liste mit from/to.
 	 */
 	private static function render_month_weeks( string $month, int $days, int $lead, string $today, array $entries ): void {
-		$cells = (int) ( ceil( ( $lead + $days ) / 7 ) * 7 );
-		$weeks = (int) ( $cells / 7 );
+		$weeks = self::month_week_layout( $month, $days, $lead, $entries );
+		if ( ! $weeks ) {
+			return;
+		}
+		// Einheitliche Zeilen je Woche: Tageszahl + belegte Spuren (mind. 1) +
+		// „+n"-Zeile, falls irgendeine Woche etwas verbirgt.
+		$lanes_used   = 0;
+		$has_overflow = false;
+		foreach ( $weeks as $week ) {
+			$lanes_used   = max( $lanes_used, $week['lanes'] );
+			$has_overflow = $has_overflow || (bool) $week['hidden'];
+		}
+		$lane_rows = max( 1, min( self::CAL_LANES, $lanes_used ) );
+		$per_week  = 1 + $lane_rows + ( $has_overflow ? 1 : 0 );
 
-		for ( $w = 0; $w < $weeks; $w++ ) {
-			// Gültige (= im Monat liegende) Tage dieser Woche einsammeln.
-			$dates = []; // Spalte 1..7 => Y-m-d
+		// Zeilen-Vorlage: je Woche Tageszahl-Zeile, Spur-Zeilen, ggf. „+n"-Zeile.
+		// Die Höhen stecken in CSS-Variablen, damit die Media-Query sie auf dem
+		// Handy verkleinern kann.
+		$row_tpl = 'var(--pp-cal-row-day)' . str_repeat( ' var(--pp-cal-row-lane)', $lane_rows )
+			. ( $has_overflow ? ' var(--pp-cal-row-more)' : '' );
+		$rows    = trim( str_repeat( $row_tpl . ' ', count( $weeks ) ) );
+		?>
+		<div class="pp-cal__grid pp-cal__grid--month" style="grid-template-rows: <?php echo esc_attr( $rows ); ?>;">
+			<?php foreach ( $weeks as $w => $week ) : ?>
+				<?php $base = $w * $per_week + 1; ?>
+				<?php for ( $c = 1; $c <= 7; $c++ ) : ?>
+					<?php $date = $week['dates'][ $c ] ?? ''; ?>
+					<div class="pp-cal__cell<?php echo '' === $date ? ' pp-cal__cell--blank' : ''; ?><?php echo $date === $today ? ' pp-cal__cell--today' : ''; ?>" style="grid-column: <?php echo (int) $c; ?>; grid-row: <?php echo (int) $base; ?> / span <?php echo (int) $per_week; ?>;"></div>
+					<?php if ( '' !== $date ) : ?>
+						<span class="pp-cal__daynum" style="grid-column: <?php echo (int) $c; ?>; grid-row: <?php echo (int) $base; ?>;"><?php echo (int) substr( $date, 8 ); ?></span>
+					<?php endif; ?>
+				<?php endfor; ?>
+
+				<?php foreach ( $week['segments'] as $seg ) : ?>
+					<?php
+					if ( $seg['lane'] >= $lane_rows ) {
+						continue;
+					}
+					self::cal_bar( $seg, $base + 1 + (int) $seg['lane'] );
+					?>
+				<?php endforeach; ?>
+
+				<?php if ( $has_overflow ) : ?>
+					<?php foreach ( $week['hidden'] as $col => $count ) : ?>
+						<span class="pp-cal__more" style="grid-column: <?php echo (int) $col; ?>; grid-row: <?php echo (int) ( $base + $per_week - 1 ); ?>;">
+							<?php
+							/* translators: %d: number of additional events on that day. */
+							printf( esc_html__( '+%d more', 'project-prepper' ), (int) $count );
+							?>
+						</span>
+					<?php endforeach; ?>
+				<?php endif; ?>
+			<?php endforeach; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Wochen des Monats mit fertigen Balken-Segmenten und Spurvergabe.
+	 *
+	 * Je Woche: die Tage (Spalte 1..7 → Y-m-d), die Segmente mit Spalte/Breite/
+	 * Spur/Fortsetzungs-Flags, die Zahl belegter Spuren und — je Spalte — wie
+	 * viele Einträge jenseits der sichtbaren Spuren liegen.
+	 *
+	 * @param array<array<string,mixed>> $entries
+	 * @return array<array<string,mixed>>
+	 */
+	private static function month_week_layout( string $month, int $days, int $lead, array $entries ): array {
+		$out   = [];
+		$cells = (int) ( ceil( ( $lead + $days ) / 7 ) * 7 );
+		$order = [ 'event' => 0, 'project' => 1, 'schedule' => 2, 'borrow' => 3 ];
+
+		for ( $w = 0; $w < (int) ( $cells / 7 ); $w++ ) {
+			$dates = []; // Spalte 1..7 => Y-m-d (nur Tage DIESES Monats)
 			for ( $c = 0; $c < 7; $c++ ) {
 				$day = ( $w * 7 + $c ) - $lead + 1;
 				if ( $day >= 1 && $day <= $days ) {
@@ -8285,34 +8356,34 @@ class MemberPortal {
 			if ( ! $dates ) {
 				continue;
 			}
-			$first = reset( $dates );
-			$last  = end( $dates );
+			$first = (string) reset( $dates );
+			$last  = (string) end( $dates );
 			$cols  = array_flip( $dates ); // Y-m-d => Spalte
 
-			// Segmente dieser Woche + Spurvergabe.
 			$segments = [];
 			foreach ( $entries as $entry ) {
-				$from = max( (string) $entry['from'], (string) $first );
-				$to   = min( (string) $entry['to'], (string) $last );
+				$from = max( (string) $entry['from'], $first );
+				$to   = min( (string) $entry['to'], $last );
+				// Beschnittene Ränder können auf Tage außerhalb des Monats fallen
+				// (Wochen am Monatsrand) — dann gibt es in dieser Woche kein Segment.
 				if ( $from > $to || ! isset( $cols[ $from ] ) || ! isset( $cols[ $to ] ) ) {
 					continue;
 				}
 				$segments[] = [
-					'entry' => $entry,
-					'col'   => (int) $cols[ $from ],
-					'span'  => (int) $cols[ $to ] - (int) $cols[ $from ] + 1,
-					'cont_left'  => (string) $entry['from'] < (string) $from,
-					'cont_right' => (string) $entry['to'] > (string) $to,
+					'entry'      => $entry,
+					'col'        => (int) $cols[ $from ],
+					'span'       => (int) $cols[ $to ] - (int) $cols[ $from ] + 1,
+					'cont_left'  => (string) $entry['from'] < $from,
+					'cont_right' => (string) $entry['to'] > $to,
 				];
 			}
 			// Lange Balken zuerst, dann von links nach rechts — so liegen
 			// mehrtägige Vorgänge oben und kurze füllen darunter auf.
-			$order = [ 'event' => 0, 'project' => 1, 'schedule' => 2, 'borrow' => 3 ];
 			usort( $segments, static function ( $a, $b ) use ( $order ) {
 				return [ -$a['span'], $a['col'], $order[ $a['entry']['type'] ] ?? 9 ]
 					<=> [ -$b['span'], $b['col'], $order[ $b['entry']['type'] ] ?? 9 ];
 			} );
-			$lanes = []; // lane => [ [colStart, colEnd], … ]
+			$lanes = []; // Spur => [ [colStart, colEnd], … ]
 			foreach ( $segments as $i => $seg ) {
 				$end = $seg['col'] + $seg['span'] - 1;
 				for ( $lane = 0; ; $lane++ ) {
@@ -8324,7 +8395,7 @@ class MemberPortal {
 						}
 					}
 					if ( $free ) {
-						$lanes[ $lane ][]        = [ $seg['col'], $end ];
+						$lanes[ $lane ][]       = [ $seg['col'], $end ];
 						$segments[ $i ]['lane'] = $lane;
 						break;
 					}
@@ -8340,47 +8411,25 @@ class MemberPortal {
 					$hidden[ $c ] = ( $hidden[ $c ] ?? 0 ) + 1;
 				}
 			}
-			$used_lanes = min( self::CAL_LANES, count( $lanes ) );
-			$rows       = 1 + $used_lanes + ( $hidden ? 1 : 0 );
-			?>
-			<div class="pp-cal__week" style="grid-template-rows: auto repeat(<?php echo (int) max( 1, $rows - 1 ); ?>, auto);">
-				<?php for ( $c = 1; $c <= 7; $c++ ) : ?>
-					<?php $date = $dates[ $c ] ?? ''; ?>
-					<div class="pp-cal__cell<?php echo '' === $date ? ' pp-cal__cell--blank' : ''; ?><?php echo $date === $today ? ' pp-cal__cell--today' : ''; ?>" style="grid-column: <?php echo (int) $c; ?>; grid-row: 1 / -1;"></div>
-					<?php if ( '' !== $date ) : ?>
-						<span class="pp-cal__daynum" style="grid-column: <?php echo (int) $c; ?>; grid-row: 1;"><?php echo (int) substr( $date, 8 ); ?></span>
-					<?php endif; ?>
-				<?php endfor; ?>
+			ksort( $hidden );
 
-				<?php foreach ( $segments as $seg ) : ?>
-					<?php
-					if ( $seg['lane'] >= self::CAL_LANES ) {
-						continue;
-					}
-					self::cal_bar( $seg );
-					?>
-				<?php endforeach; ?>
-
-				<?php foreach ( $hidden as $col => $count ) : ?>
-					<span class="pp-cal__more" style="grid-column: <?php echo (int) $col; ?>; grid-row: <?php echo (int) ( self::CAL_LANES + 2 ); ?>;">
-						<?php
-						/* translators: %d: number of additional events on that day. */
-						printf( esc_html__( '+%d more', 'project-prepper' ), (int) $count );
-						?>
-					</span>
-				<?php endforeach; ?>
-			</div>
-			<?php
+			$out[] = [
+				'dates'    => $dates,
+				'segments' => $segments,
+				'lanes'    => count( $lanes ),
+				'hidden'   => $hidden,
+			];
 		}
+		return $out;
 	}
 
 	/**
-	 * Ein Balken-Segment im Wochenraster. Farbe/Typ wie beim Tages-Chip; die
+	 * Ein Balken-Segment im Monatsraster. Farbe/Typ wie beim Tages-Chip; die
 	 * Kanten werden flach, wo der Eintrag über die Woche hinausläuft.
 	 *
 	 * @param array<string,mixed> $seg
 	 */
-	private static function cal_bar( array $seg ): void {
+	private static function cal_bar( array $seg, int $row ): void {
 		$ev    = $seg['entry'];
 		$cls   = 'pp-cal__bar pp-cal__bar--' . $ev['type'];
 		$cls  .= $seg['cont_left'] ? ' pp-cal__bar--cont-left' : '';
@@ -8389,7 +8438,7 @@ class MemberPortal {
 			'grid-column: %d / span %d; grid-row: %d;',
 			(int) $seg['col'],
 			(int) $seg['span'],
-			(int) $seg['lane'] + 2
+			$row
 		);
 		if ( ! empty( $ev['color'] ) ) {
 			$style .= 'background:' . $ev['color'] . ';color:#fff;';
