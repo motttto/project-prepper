@@ -3,8 +3,8 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
-> ## 📅 Kalender-Abo enthält jetzt alles 2026-08-27 (Feature-Stand, Schema UNVERÄNDERT 0.41.0)
-> **Noch nicht released.** User-Meldung „ich habe den Eindruck, dass das Apple-Kalenderabo nicht ankommt".
+> ## 📅 Release v0.136.0 2026-08-27 (Kalender-Abo enthält jetzt alles, Schema UNVERÄNDERT 0.41.0)
+> **Ausgeliefert** (Feature-Commit `aa6828d`). User-Meldung „ich habe den Eindruck, dass das Apple-Kalenderabo nicht ankommt".
 > Route geprüft (live: `/wp-json/` = 200, Feed ohne Token = 401 `pp_invalid_token`) — Erreichbarkeit war
 > nie das Problem. **Der Feed enthielt nur die von Hand angelegten Termine**; Projekte, Zeitplan,
 > Ausleihen und Verleihe zeichnet die Kalender-Ansicht selbst und exportierte sie nie. Ein Portal voller
@@ -29,6 +29,8 @@
 > als `webcal://`. i18n: 4 neue Strings dt. (mo 1575/1574). Plugin Check: nur die 2 by-design-ERRORs.
 > **Offen (separat besprochen):** mehrtägige Ereignisse werden im Monatsraster weiterhin als Chip PRO TAG
 > wiederholt statt als durchgehender Balken (`cal_span()`); Zellen zeigen max. 3 Einträge.
+> Build `dist/project-prepper-0.136.0.zip` (1,3 MB, 126 Dateien), `update.json` auf 0.136.0,
+> GitHub-Release `v0.136.0` mit ZIP-Asset.
 >
 > ## 🤝 Release v0.135.0 2026-08-27 (Kollektiv-Verleih mit Eigentümer-Freigabe, Schema 0.40.0 → **0.41.0**)
 > **Ausgeliefert** (Feature-Commit `b7091b0`). User-Frage „warum erscheinen im Gruppenmodus nur meine eigenen Inventarartikel

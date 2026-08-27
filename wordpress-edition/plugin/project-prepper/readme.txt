@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.135.0
+Stable tag: 0.136.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.136.0 =
+* Fix: the personal calendar feed only ever contained the events you created by hand. Projects, schedules, loans and rentals — everything else the portal calendar shows — were never exported, so a subscription could look empty. All four are now included, each tagged with its type and the collective or project it belongs to.
+* Calendar apps are now asked to refresh the subscription every hour. Before, the client decided on its own, and Apple Calendar on “automatic” could take a very long time to pick up new entries.
+* New “Subscribe” button next to the feed address: on a Mac or iPhone it opens the calendar app directly instead of downloading the file once.
+* Fix: very long project or event names produced calendar lines longer than the iCalendar standard allows. Apple tolerated it, stricter clients did not — lines are now wrapped correctly.
+* Note: this update does not change the database. Existing subscriptions keep working and pick up the added entries by themselves; the address stays the same.
 
 = 0.135.0 =
 * External rentals in a collective workspace now offer the same equipment as a project booking does: everything shared with the collective, not just your own items. In your solo workspace nothing changes — you still lend out your own inventory.
