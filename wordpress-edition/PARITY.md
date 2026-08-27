@@ -3,8 +3,8 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
-> ## 📦 Verleih-Umbau + eine Verfügbarkeit 2026-08-27 (Feature-Stand, Schema UNVERÄNDERT 0.40.0)
-> **Noch nicht released.** Fünf Punkte aus einer User-Rückmeldung zur Verleih-Seite.
+> ## 📦 Release v0.133.0 2026-08-27 (Verleih-Umbau + EINE Verfügbarkeitsrechnung, Schema UNVERÄNDERT 0.40.0)
+> **Ausgeliefert** (Feature-Commit `0d24919`). Fünf Punkte aus einer User-Rückmeldung zur Verleih-Seite.
 > **(1) Gemeinsame Artikel-Zeile:** neuer Baustein `MemberPortal::picker_row()` — Foto ganz links, dann
 > Name + Inventarnummer + Chips, darunter die Meta-Zeile, rechts die Steuerelemente des Kontexts
 > (Slots als Closures, damit jeder Aufrufer selbst escaped). Verwendet vom Technik-Picker im Projekt
@@ -35,8 +35,10 @@
 > **Verifiziert in wp-env** (portaltest/Gruppe 23): Kollektiv-Leihe 3× → Verleih-Picker „3 von 6 frei";
 > Verleih über 1× Beamer angelegt → Kollektiv-Inventar „0 frei", Picker-Zeile gedimmt + gesperrt;
 > Leih-Anfrage aus dem Inventar gestellt → „Meine Leihen (1)"; Live-Suche + Auswahl-Chips im Formular.
-> i18n: 9 neue Strings dt. (mo neu gebaut), 13 entfallene Stöbern-Strings. Plugin Check: nur die 2
-> by-design-ERRORs.
+> i18n: 9 neue Strings dt. (mo via WP-POMO, 1544 Einträge / 1543 übersetzt — offen nur die Plugin-URI),
+> 13 entfallene Stöbern-Strings; JSON-Übersetzungen unverändert (keine neuen JS-Strings). Plugin Check:
+> nur die 2 by-design-ERRORs. Build `dist/project-prepper-0.133.0.zip` (1,3 MB, 125 Dateien),
+> `update.json` auf 0.133.0, GitHub-Release `v0.133.0` mit ZIP-Asset.
 >
 > ## 🧩 Release v0.132.0 2026-08-27 (Sets Phase 2: Verleih + Kollektiv-Leihanfragen, Schema 0.39.0 → 0.40.0)
 > **Ausgeliefert.** Der letzte offene Punkt aus Jans Feedback-Runde (Feature-Commit `4b98699`, Konzept

@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.132.0
+Stable tag: 0.133.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,14 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.133.0 =
+* Rentals: the item list now works like the equipment picker in a project — photo on the left, inventory number, availability and daily rate on one line, and it scrolls so you can click through your whole inventory.
+* New in rentals: a search box above the list, plus a “Selected:” line that always shows what you already ticked — even while the search hides other rows.
+* New rentals start with a period already filled in (today until a week from today), and every line shows how many pieces are free for exactly that period. Nothing free means the line is greyed out and cannot be picked.
+* Fix: availability was calculated in two separate places, so external rentals and collective loans did not see each other — the same item could go out twice for the same period, and the “Available” column in the inventory lists ignored loans entirely. All four cases (rentals, project bookings, collective loans, network loans) are now counted in one place.
+* The “Browse” tab is gone: it listed the collective inventory a second time. The “Borrow” button now sits in the inventory view of a collective workspace, together with its search, category filters and the period check.
+* The member portal now uses the full window width, with tighter spacing throughout. Forms with many fields are laid out in columns so no input box is stretched across the whole screen.
 
 = 0.132.0 =
 * New: sets now work in external rentals too — pick a set as its own line, enter how many sets you need, and the parts are saved as individual rental positions. The parts list and the calculated daily rate are shown right in the form.
