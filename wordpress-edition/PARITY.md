@@ -3,8 +3,8 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
-> ## 🤝 Kollektiv-Verleih mit Eigentümer-Freigabe 2026-08-27 (Feature-Stand, Schema 0.40.0 → **0.41.0**)
-> **Noch nicht released.** User-Frage „warum erscheinen im Gruppenmodus nur meine eigenen Inventarartikel
+> ## 🤝 Release v0.135.0 2026-08-27 (Kollektiv-Verleih mit Eigentümer-Freigabe, Schema 0.40.0 → **0.41.0**)
+> **Ausgeliefert** (Feature-Commit `b7091b0`). User-Frage „warum erscheinen im Gruppenmodus nur meine eigenen Inventarartikel
 > im Verleih?" → Antwort war: bewusste Alt-Entscheidung (Verleih = solo, weil Geld + Haftung + kein
 > gruppeneigenes Inventar). Auf Ansage umgebaut: **Im Gruppen-Arbeitsbereich steht jetzt derselbe Pool
 > zur Wahl wie in der Projekt-Buchung**, fremde Artikel brauchen die Freigabe ihres Eigentümers.
@@ -36,6 +36,8 @@
 > by-design-ERRORs.
 > **Bewusst offen:** Verteilung der Einnahmen (Eigentümer / Gruppenkasse / anteilig) — braucht eine
 > Entscheidung des Kollektivs, bevor sie in Code gehört.
+> Build `dist/project-prepper-0.135.0.zip` (1,3 MB, 126 Dateien — neue Datei `RentalApprovals.php`),
+> `update.json` auf 0.135.0, GitHub-Release `v0.135.0` mit ZIP-Asset.
 >
 > ## 🔒 Release v0.134.0 2026-08-27 (Gesperrte Artikel — ein global gültiger Zustand, Schema UNVERÄNDERT 0.40.0)
 > **Ausgeliefert** (Feature-Commit `87dbeff`). Antwort auf die User-Frage „können wir nicht einen Status pro Artikel führen,

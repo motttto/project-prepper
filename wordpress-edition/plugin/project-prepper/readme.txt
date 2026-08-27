@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.134.0
+Stable tag: 0.135.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,15 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.135.0 =
+* External rentals in a collective workspace now offer the same equipment as a project booking does: everything shared with the collective, not just your own items. In your solo workspace nothing changes — you still lend out your own inventory.
+* Equipment belonging to another member needs that member's approval, exactly like booking it into a project. The picker shows who owns an item, whether it needs approval and on which terms.
+* A rental with items still waiting for approval cannot be handed out. Returning and cancelling stay possible at any time.
+* Owners find these requests under “Approvals” in their own section, showing who the external borrower is, how many pieces, which period and which daily rate. One email per owner, one result email per requester.
+* The daily rate of another member's item comes from that member's own sharing terms, not from whoever creates the rental.
+* An approval you already gave survives further edits of the rental. You are only asked again if something changes to your disadvantage: more pieces or a different period.
+* Note: this update adds three fields to the rental items table so approvals can be stored. It runs automatically during the update and leaves existing rentals untouched — they stay approved as before.
 
 = 0.134.0 =
 * New item states: besides “Broken” and “Retired” an item can now be “In maintenance” or “Missing”. Pick them like any other condition — no database change is involved.
