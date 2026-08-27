@@ -1,6 +1,7 @@
 # 07 — Konzept: Gebündelte Artikel (Sets)
 
-> Stand: 2026-08-26 · Status: **UMGESETZT wie beschrieben** (Commit `612eb46`, alle drei Entscheidungen mit „ja" beantwortet) · v0.130.0, Schema 0.38.0 → 0.39.0
+> Stand: 2026-08-27 · Status: **UMGESETZT wie beschrieben** (Commit `612eb46`, alle drei Entscheidungen mit „ja" beantwortet) · v0.130.0, Schema 0.38.0 → 0.39.0
+> **Phase 2 ebenfalls umgesetzt** (Schema 0.39.0 → 0.40.0): Set-Expansion jetzt auch im externen Verleih und in den Kollektiv-Leihanfragen — siehe § 6.
 > Anlass: Mitglieder-Feedback (Jan, 24.08.): „gebündelte Artikel (Lichterkette hat 10m Glieder steckbar und Einspeiser) — Möglichkeit, Teile zusammenzustückeln eines gebündelten Artikels"
 
 ## 1. Ausgangspunkt
@@ -61,9 +62,26 @@ Ein Artikel **ist** ein Set, sobald er Stücklisten-Zeilen hat (kein extra Flag)
 - **Equipment-Tab:** gebuchte Teil-Zeilen werden unter dem Set-Namen gruppiert dargestellt (einklappbar), mit einer gemeinsamen Entfernen-/Ändern-Aktion.
 - **Packliste:** zeigt die Teile einzeln (jedes Glied wird real gepackt/getestet), mit Set-Zugehörigkeit als Vermerk.
 
-## 6. Bewusst NICHT in V1
+## 6. Phase 2 — Verleih & Leihanfragen (umgesetzt, Schema 0.40.0)
 
-- **Externer Verleih + Kollektiv-Leihanfragen:** Die Set-Expansion für `pp_rental_items` und `borrow_requests` ist konzeptionell identisch, kommt aber als Phase 2 — V1 konzentriert sich auf die Projekt-Buchung (dort kam das Feedback her).
+Die Set-Expansion ist konzeptionell identisch zur Projekt-Buchung und trägt jetzt beide restlichen Wege. Gemeinsame Basis ist `Bundles::expand()` (Stückliste × Anzahl Sets → Positionszeilen).
+
+**Externer Verleih (`pp_rental_items` + Spalte `bundle_item_id`).** Im Verleih-Formular steht das Set als eigene Zeile mit Mengenfeld „Sets"; gespeichert werden Teil-Positionen (`MemberRentals::expand_sets`). Damit greifen der bestehende Verfügbarkeits-Guard und die Abrechnung unverändert auf echte Artikel. Reicht die Set-Verfügbarkeit nicht, bricht der ganze Vorgang mit einer Meldung auf Set-Ebene ab („… nur 2× zusammenstellbar"), es entsteht keine halbe Position. Beim Bearbeiten werden die Teil-Zeilen wieder zu „n× Set" zusammengefasst; die Teile erscheinen dabei NICHT zusätzlich als Einzelzeilen (sonst würde beim Speichern doppelt verliehen).
+
+**Geld:** Ein Set hat im Verleih keinen eigenen Tagessatz — abgerechnet wird über die **Teile** (Σ Teil-Satz × Bedarf), im Formular als „11,00 €/Tag (aus den Teilen)" ausgewiesen. Das ist exakt (keine Rundungsreste durch Verteilen eines Paketpreises auf Positionen) und bleibt konsistent damit, dass die Teile normale Artikel mit eigenem Satz sind. Wer einen Paketpreis will, nutzt wie bisher das Feld **„Leihgebühr (brutto)"** am Verleih — das überschreibt die Positions-Summe ohnehin.
+
+**Kollektiv-Leihanfragen (`pp_borrow_requests` + `quantity`, `bundle_item_id`, `bundle_ref`).** Angefragt wird das Set (mit „Anzahl Sets"), gespeichert wird eine Zeile je Teil; `bundle_ref` (= ID der ersten Zeile) klammert den Vorgang. Folgen:
+
+- **Verfügbarkeit** zählt echte Artikel — `available_units()` summiert jetzt `quantity` statt Zeilen zu zählen (Bestandszeilen haben `quantity` = 1, zählen also unverändert). Frei = min über alle Teile von ⌊frei/Bedarf⌋.
+- **Der Eigentümer entscheidet EINMAL über das ganze Set** (alles-oder-nichts): Vor dem Genehmigen müssen alle Teile frei sein, dann werden alle Zeilen gemeinsam gesetzt. Abbrechen und „zurückgegeben" gelten ebenso für den ganzen Vorgang.
+- **Eine Mail je Vorgang**, nicht je Teil — Betreff nennt das Set samt Stückliste.
+- Im Portal (Meine Leihen / Leih-Anfragen / Historie) erscheint der Vorgang als EIN Eintrag mit Set-Chip und den Teilen als Unterzeile.
+- **Set-Share genügt** wie bei der Projekt-Buchung: geteilt sein muss nur das Set, die Teil-Zeilen entstehen serverseitig.
+
+**Föderation bleibt außen vor:** Sets stehen nicht im föderierten Katalog (`Federation::public_inventory` filtert sie), und `FederatedBorrow::create_inbound` weist sie ab — die anfragende Instanz kennt die Teile nicht.
+
+## 6a. Bewusst NICHT umgesetzt
+
 - **„Stückeln" im Set-Dialog** (z. B. „ich will 50 m"): Wer vom Standard-Set abweichen will, bucht die Teile einzeln — die sind ja normale Artikel. Das Set ist die Bequemlichkeit für den Standardfall. (Erweiterbar: mehrere Set-Varianten anlegen — „Lichterkette 30 m", „Lichterkette 50 m" — teilen sich denselben Teile-Pool und konkurrieren automatisch korrekt um die Glieder.)
 - **Verschachtelte Sets.**
 
@@ -82,6 +100,6 @@ Jan legt an: „LK 10-m-Glied" (Menge 10), „LK Einspeiser" (Menge 3), Set **�
 
 **Vom Betreiber zu entscheiden:**
 
-1. **V1-Scope ok?** Nur Projekt-Buchung; Verleih/Leihanfragen als Phase 2. *(Empfehlung: ja)*
+1. ~~**V1-Scope ok?** Nur Projekt-Buchung; Verleih/Leihanfragen als Phase 2.~~ *(mit „ja" entschieden — Phase 2 inzwischen ebenfalls umgesetzt, § 6)*
 2. **Alles-oder-nichts pro Set** bei Teil-Engpass? *(Empfehlung: ja — halbe Sets sind der Fehler, den das Feature verhindern soll)*
 3. **Set-Share genügt** (Teile müssen nicht einzeln geteilt sein)? *(Empfehlung: ja — einfachste Eigentümer-UX, Freigabepflicht hängt am Set)*

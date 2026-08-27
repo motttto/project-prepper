@@ -7,6 +7,7 @@ use ProjectPrepper\Services\GroupGovernance;
 use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\BookingApprovals;
 use ProjectPrepper\Services\Inventory;
+use ProjectPrepper\Services\Bundles;
 use ProjectPrepper\Frontend\MemberPortal;
 
 defined( 'ABSPATH' ) || exit;
@@ -318,11 +319,10 @@ class Notifications {
 		if ( ! $owner || ! is_email( $owner->user_email ) ) {
 			return;
 		}
-		$item      = Inventory::get_item( (int) $req->item_id );
 		$requester = get_userdata( (int) $req->requester_id );
 		$tpl       = self::templates()['borrow_requested'];
 		$vars      = [
-			'item_name'      => $item ? $item->name : '',
+			'item_name'      => self::borrow_item_label( $req ),
 			'requester_name' => $requester ? $requester->display_name : '',
 			'date_from'      => $req->date_from ? mysql2date( 'd.m.Y', $req->date_from ) : '—',
 			'date_to'        => $req->date_to ? mysql2date( 'd.m.Y', $req->date_to ) : '—',
@@ -345,11 +345,10 @@ class Notifications {
 		if ( ! $requester || ! is_email( $requester->user_email ) ) {
 			return;
 		}
-		$item        = Inventory::get_item( (int) $req->item_id );
 		$status_text = 'approved' === $status ? __( 'approved', 'project-prepper' ) : __( 'declined', 'project-prepper' );
 		$tpl         = self::templates()['borrow_decided'];
 		$vars        = [
-			'item_name'  => $item ? $item->name : '',
+			'item_name'  => self::borrow_item_label( $req ),
 			'status'     => $status_text,
 			'date_from'  => $req->date_from ? mysql2date( 'd.m.Y', $req->date_from ) : '—',
 			'date_to'    => $req->date_to ? mysql2date( 'd.m.Y', $req->date_to ) : '—',
@@ -357,6 +356,24 @@ class Notifications {
 			'site_name'  => get_bloginfo( 'name' ),
 		];
 		wp_mail( $requester->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
+	}
+
+	/**
+	 * Bezeichnung des angefragten Gegenstands in Leih-Mails: bei einer Set-Anfrage
+	 * der SET-Name samt Stückliste („Lichterkette 30 m (3× Glied · 1× Einspeiser)"),
+	 * sonst schlicht der Artikelname. Die Mail geht je Vorgang EINMAL raus — bei
+	 * Sets über die klammernde Zeile (bundle_ref).
+	 */
+	private static function borrow_item_label( object $req ): string {
+		$bundle_id = (int) ( $req->bundle_item_id ?? 0 );
+		if ( $bundle_id > 0 ) {
+			$set   = Inventory::get_item( $bundle_id );
+			$parts = Bundles::parts( $bundle_id );
+			$name  = $set ? $set->name : '';
+			return $parts ? sprintf( '%s (%s)', $name, Bundles::parts_label( $parts ) ) : $name;
+		}
+		$item = Inventory::get_item( (int) $req->item_id );
+		return $item ? $item->name : '';
 	}
 
 	/**

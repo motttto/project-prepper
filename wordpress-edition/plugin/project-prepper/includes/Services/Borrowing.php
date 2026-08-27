@@ -16,6 +16,11 @@ defined( 'ABSPATH' ) || exit;
  * geteiltes Item (nicht das eigene); entscheiden nur der Eigentümer.
  *
  * status: requested → approved | declined | cancelled → returned.
+ *
+ * Sets (v0.40.0, docs/07 §6): Ein Set wird nie selbst angefragt — die Anfrage
+ * expandiert in eine Zeile je Teil (Marker `bundle_item_id`, geklammert über
+ * `bundle_ref`). Verfügbarkeit zählt dadurch echte Artikel, und der Eigentümer
+ * entscheidet über das ganze Set auf einmal (alles-oder-nichts).
  */
 class Borrowing {
 
@@ -60,6 +65,11 @@ class Borrowing {
 		if ( ! $item ) {
 			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
+		// Sets laufen ausschließlich über request_bundle() — ein Set selbst hat
+		// keinen eigenen Bestand (docs/07 §3).
+		if ( Bundles::is_bundle( $item_id ) ) {
+			return new WP_Error( 'pp_is_bundle', __( 'This is a set — please request it as a set.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
 		$owner_id = (int) ( $item->owner_user_id ?? 0 );
 		if ( $owner_id === $user_id ) {
 			return new WP_Error( 'pp_own_item', __( 'This is your own item.', 'project-prepper' ), [ 'status' => 400 ] );
@@ -95,25 +105,168 @@ class Borrowing {
 	}
 
 	/**
+	 * Leih-Anfrage für ein SET (docs/07 §6): geprüft wird das Set (Share, Bestand
+	 * über die Stückliste), gespeichert wird eine Zeile JE TEIL — Menge = Bedarf
+	 * des Teils × Anzahl Sets, alle mit `bundle_item_id` (welches Set) und
+	 * `bundle_ref` (welcher Vorgang). Der Eigentümer entscheidet später über den
+	 * ganzen Vorgang auf einmal.
+	 *
+	 * Wie im Projekt gilt: das SET muss mit der Gruppe geteilt sein, die Teile
+	 * nicht (Set-Share genügt, docs/07 §4.5) — der Anfragende wählt nur das Set,
+	 * die Teil-Zeilen entstehen serverseitig.
+	 *
+	 * @return int|WP_Error ID der ersten Zeile (= bundle_ref des Vorgangs).
+	 */
+	public static function request_bundle( int $user_id, int $bundle_item_id, int $group_id, string $from, string $to, int $sets = 1, string $message = '' ) {
+		global $wpdb;
+
+		if ( ! $user_id || ! current_user_can( Capabilities::COLLECTIVES ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'You are not allowed to borrow.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		if ( ! Groups::is_member( $group_id, $user_id ) ) {
+			return new WP_Error( 'pp_not_member', __( 'You can only borrow within your own collectives.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		// Das SET muss in dieser Gruppe geteilt sein.
+		$share = $wpdb->get_var( $wpdb->prepare(
+			'SELECT id FROM %i WHERE item_id = %d AND group_id = %d',
+			Schema::table( 'item_group_shares' ),
+			$bundle_item_id,
+			$group_id
+		) );
+		if ( ! $share ) {
+			return new WP_Error( 'pp_not_shared', __( 'This item is not shared with that collective.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$set = Inventory::get_item( $bundle_item_id );
+		if ( ! $set ) {
+			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		$owner_id = (int) ( $set->owner_user_id ?? 0 );
+		if ( $owner_id === $user_id ) {
+			return new WP_Error( 'pp_own_item', __( 'This is your own item.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$parts = Bundles::parts( $bundle_item_id );
+		if ( ! $parts ) {
+			return new WP_Error( 'pp_bundle_empty', __( 'This set has no parts (any more). Please check its contents.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		$from = self::valid_date( $from );
+		$to   = self::valid_date( $to );
+		if ( ! $from || ! $to || $to < $from ) {
+			return new WP_Error( 'pp_bad_dates', __( 'Please choose a valid period.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		$sets = max( 1, $sets );
+		$free = self::available_sets( $parts, $from, $to );
+		if ( $free < $sets ) {
+			return new WP_Error(
+				'pp_bundle_unavailable',
+				sprintf(
+					/* translators: 1: set name, 2: number of available sets */
+					__( 'Only %2$d× "%1$s" can be assembled from free parts in this period.', 'project-prepper' ),
+					$set->name,
+					$free
+				),
+				[ 'status' => 409 ]
+			);
+		}
+
+		$now = current_time( 'mysql' );
+		$ids = [];
+		foreach ( Bundles::expand( $parts, $sets, $bundle_item_id ) as $line ) {
+			$wpdb->insert( Schema::table( 'borrow_requests' ), [
+				'item_id'        => (int) $line['item_id'],
+				'group_id'       => $group_id,
+				'requester_id'   => $user_id,
+				'owner_id'       => $owner_id ?: null,
+				'date_from'      => $from,
+				'date_to'        => $to,
+				'message'        => $message,
+				'quantity'       => (int) $line['quantity'],
+				'bundle_item_id' => $bundle_item_id,
+				'status'         => 'requested',
+				'created_at'     => $now,
+			] );
+			$ids[] = (int) $wpdb->insert_id;
+		}
+		if ( ! $ids ) {
+			return new WP_Error( 'pp_request_failed', __( 'The request could not be saved.', 'project-prepper' ), [ 'status' => 500 ] );
+		}
+		// Alle Zeilen des Vorgangs über die ID der ersten klammern.
+		$ref = $ids[0];
+		foreach ( $ids as $id ) {
+			$wpdb->update( Schema::table( 'borrow_requests' ), [ 'bundle_ref' => $ref ], [ 'id' => $id ], [ '%d' ], [ '%d' ] );
+		}
+		ActivityLog::log( 'borrow_requested', 'item', $bundle_item_id, [ 'request_id' => $ref, 'group_id' => $group_id, 'sets' => $sets, 'parts' => count( $ids ) ] );
+		// EINE Anfrage-Mail pro Set-Vorgang (nicht je Teil).
+		do_action( 'pp_borrow_requested', $ref );
+		return $ref;
+	}
+
+	/**
+	 * Verfügbare SET-Anzahl im Kollektiv-Leihen: min über alle Teile von
+	 * floor( freie Einheiten(Teil) / Bedarf ). Zählt — anders als
+	 * {@see Bundles::available_sets} — die Leih-Seite (genehmigte Leihen,
+	 * föderierte Ausleihen), nicht Verleihe/Projekt-Buchungen.
+	 *
+	 * @param array<object> $parts Stückliste aus Bundles::parts()/for_items().
+	 */
+	public static function available_sets( array $parts, string $from, string $to, int $exclude_ref = 0 ): int {
+		if ( ! $parts ) {
+			return 0;
+		}
+		$min = PHP_INT_MAX;
+		foreach ( $parts as $part ) {
+			$need = max( 1, (int) $part->quantity );
+			$free = self::available_units( (int) $part->part_item_id, $from, $to, 0, $exclude_ref );
+			$min  = min( $min, (int) floor( $free / $need ) );
+		}
+		return max( 0, PHP_INT_MAX === $min ? 0 : $min );
+	}
+
+	/**
+	 * Alle Zeilen eines Vorgangs: bei Set-Anfragen die Geschwister-Zeilen
+	 * (gleiche bundle_ref), sonst die Zeile selbst. Damit gelten Entscheiden,
+	 * Abbrechen und Zurückgeben immer für das GANZE Set.
+	 *
+	 * @return array<object>
+	 */
+	public static function siblings( object $request ): array {
+		global $wpdb;
+		if ( empty( $request->bundle_ref ) ) {
+			return [ $request ];
+		}
+		return $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM %i WHERE bundle_ref = %d ORDER BY id ASC',
+			Schema::table( 'borrow_requests' ),
+			(int) $request->bundle_ref
+		) ) ?: [ $request ];
+	}
+
+	/**
 	 * Verfügbare Einheiten eines Items in einem Zeitraum: Menge minus überlappende
 	 * genehmigte Leihen (eine Anfrage = eine Einheit). $exclude lässt die eigene
 	 * Anfrage außen vor.
 	 */
-	public static function available_units( int $item_id, string $from, string $to, int $exclude = 0 ): int {
+	public static function available_units( int $item_id, string $from, string $to, int $exclude = 0, int $exclude_ref = 0 ): int {
 		global $wpdb;
 		$item = Inventory::get_item( $item_id );
 		if ( ! $item ) {
 			return 0;
 		}
 		$qty  = max( 1, (int) $item->quantity );
-		// Lokale genehmigte Leihen im Zeitraum (eine Anfrage = eine Einheit).
+		// Lokale genehmigte Leihen im Zeitraum. `quantity` ist seit v0.40.0 die
+		// angefragte Stückzahl (Einzel-Artikel und Bestandszeilen: 1), Set-Teile
+		// tragen Bedarf × Anzahl Sets. $exclude_ref klammert einen ganzen
+		// Set-Vorgang aus (alle Zeilen mit dieser bundle_ref).
 		$used = (int) $wpdb->get_var( $wpdb->prepare(
-			"SELECT COUNT(*) FROM %i
+			"SELECT COALESCE(SUM(quantity), 0) FROM %i
 			 WHERE item_id = %d AND status = 'approved' AND id <> %d
+			   AND ( bundle_ref IS NULL OR bundle_ref <> %d )
 			   AND date_from <= %s AND date_to >= %s",
 			Schema::table( 'borrow_requests' ),
 			$item_id,
 			$exclude,
+			$exclude_ref,
 			$to,
 			$from
 		) );
@@ -141,7 +294,12 @@ class Borrowing {
 		return self::decide( $user_id, $request_id, 'declined' );
 	}
 
-	/** Eigentümer entscheidet über eine offene Anfrage. */
+	/**
+	 * Eigentümer entscheidet über eine offene Anfrage. Bei Set-Anfragen gilt die
+	 * Entscheidung für ALLE Teil-Zeilen des Vorgangs (alles-oder-nichts): erst
+	 * müssen alle Teile im Zeitraum frei sein, dann werden alle Zeilen gesetzt —
+	 * ein halb genehmigtes Set gibt es nicht.
+	 */
 	private static function decide( int $user_id, int $request_id, string $status ) {
 		global $wpdb;
 		$req = self::get( $request_id );
@@ -154,20 +312,37 @@ class Borrowing {
 		if ( 'requested' !== $req->status ) {
 			return new WP_Error( 'pp_bad_state', __( 'This request is already resolved.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
-		// Beim Genehmigen Verfügbarkeit prüfen (keine Überbuchung über die Menge hinaus).
-		if ( 'approved' === $status
-			&& self::available_units( (int) $req->item_id, (string) $req->date_from, (string) $req->date_to, $request_id ) < 1 ) {
-			return new WP_Error( 'pp_no_units', __( 'No units of this item are free in that period.', 'project-prepper' ), [ 'status' => 409 ] );
+		$rows = self::siblings( $req );
+		// Beim Genehmigen Verfügbarkeit prüfen (keine Überbuchung über die Menge
+		// hinaus) — bei Sets für jede Teil-Zeile, den eigenen Vorgang ausgenommen.
+		if ( 'approved' === $status ) {
+			$ref = (int) ( $req->bundle_ref ?? 0 );
+			foreach ( $rows as $row ) {
+				if ( (int) $row->owner_id !== $user_id ) {
+					return new WP_Error( 'pp_forbidden', __( 'Only the item owner can decide this request.', 'project-prepper' ), [ 'status' => 403 ] );
+				}
+				$need = max( 1, (int) ( $row->quantity ?? 1 ) );
+				if ( self::available_units( (int) $row->item_id, (string) $row->date_from, (string) $row->date_to, (int) $row->id, $ref ) < $need ) {
+					return new WP_Error( 'pp_no_units', __( 'No units of this item are free in that period.', 'project-prepper' ), [ 'status' => 409 ] );
+				}
+			}
 		}
-		$wpdb->update(
-			Schema::table( 'borrow_requests' ),
-			[ 'status' => $status, 'decided_at' => current_time( 'mysql' ), 'decided_by' => $user_id ],
-			[ 'id' => $request_id ],
-			[ '%s', '%s', '%d' ],
-			[ '%d' ]
-		);
-		ActivityLog::log( 'borrow_' . $status, 'item', (int) $req->item_id, [ 'request_id' => $request_id ] );
-		do_action( 'pp_borrow_decided', $request_id, $status );
+		$now = current_time( 'mysql' );
+		foreach ( $rows as $row ) {
+			if ( 'requested' !== $row->status ) {
+				continue;
+			}
+			$wpdb->update(
+				Schema::table( 'borrow_requests' ),
+				[ 'status' => $status, 'decided_at' => $now, 'decided_by' => $user_id ],
+				[ 'id' => (int) $row->id ],
+				[ '%s', '%s', '%d' ],
+				[ '%d' ]
+			);
+		}
+		ActivityLog::log( 'borrow_' . $status, 'item', (int) ( $req->bundle_item_id ?: $req->item_id ), [ 'request_id' => $request_id, 'lines' => count( $rows ) ] );
+		// Eine Ergebnis-Mail je Vorgang (bei Sets über die klammernde Zeile).
+		do_action( 'pp_borrow_decided', (int) ( $req->bundle_ref ?: $request_id ), $status );
 		return true;
 	}
 
@@ -184,7 +359,12 @@ class Borrowing {
 		if ( 'requested' !== $req->status ) {
 			return new WP_Error( 'pp_bad_state', __( 'This request is already resolved.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
-		$wpdb->update( Schema::table( 'borrow_requests' ), [ 'status' => 'cancelled' ], [ 'id' => $request_id ], [ '%s' ], [ '%d' ] );
+		// Set-Anfrage: der ganze Vorgang wird abgebrochen, nicht eine Teil-Zeile.
+		foreach ( self::siblings( $req ) as $row ) {
+			if ( 'requested' === $row->status ) {
+				$wpdb->update( Schema::table( 'borrow_requests' ), [ 'status' => 'cancelled' ], [ 'id' => (int) $row->id ], [ '%s' ], [ '%d' ] );
+			}
+		}
 		return true;
 	}
 
@@ -201,8 +381,13 @@ class Borrowing {
 		if ( 'approved' !== $req->status ) {
 			return new WP_Error( 'pp_bad_state', __( 'Only an active loan can be returned.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
-		$wpdb->update( Schema::table( 'borrow_requests' ), [ 'status' => 'returned' ], [ 'id' => $request_id ], [ '%s' ], [ '%d' ] );
-		ActivityLog::log( 'borrow_returned', 'item', (int) $req->item_id, [ 'request_id' => $request_id ] );
+		// Set-Leihe: alle Teile kommen gemeinsam zurück.
+		foreach ( self::siblings( $req ) as $row ) {
+			if ( 'approved' === $row->status ) {
+				$wpdb->update( Schema::table( 'borrow_requests' ), [ 'status' => 'returned' ], [ 'id' => (int) $row->id ], [ '%s' ], [ '%d' ] );
+			}
+		}
+		ActivityLog::log( 'borrow_returned', 'item', (int) ( $req->bundle_item_id ?: $req->item_id ), [ 'request_id' => $request_id ] );
 		return true;
 	}
 
@@ -250,7 +435,7 @@ class Borrowing {
 				'kind'             => 'borrow',
 				'item_name'        => (string) $r->item_name,
 				'inventory_number' => (string) $r->inventory_number,
-				'quantity'         => 1,
+				'quantity'         => max( 1, (int) ( $r->quantity ?? 1 ) ),
 				'status'           => 'approved',
 				'status_label'     => __( 'Lent out', 'project-prepper' ),
 				'to_name'          => (string) ( $r->counterpart_name ?? '' ),

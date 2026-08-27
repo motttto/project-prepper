@@ -15,7 +15,12 @@ class Schema {
 	// je Set-Artikel) + additive Spalte project_items.bundle_item_id (markiert,
 	// aus welchem Set eine Buchungszeile expandiert wurde). Beides via dbDelta,
 	// keine Datenmigration.
-	const VERSION    = '0.39.0';
+	// v0.40.0: Sets Phase 2 (docs/07 §6) — dieselbe Expansion für den externen
+	// Verleih und für Kollektiv-Leihanfragen: rental_items.bundle_item_id sowie
+	// borrow_requests.quantity/bundle_item_id/bundle_ref. Additiv via dbDelta;
+	// quantity kommt mit DEFAULT 1, damit Bestandszeilen (= eine Einheit je
+	// Anfrage) unverändert weiterzählen.
+	const VERSION    = '0.40.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -165,6 +170,9 @@ class Schema {
 			KEY owner_group_id (owner_group_id)
 		) {$charset};" );
 
+		// bundle_item_id (v0.40.0): aus welchem Set diese Position expandiert wurde
+		// (NULL = normale Einzelposition). Wie bei project_items ist das ein reiner
+		// Anzeige-/Gruppierungs-Marker — die Verfügbarkeit zählt die Teil-Zeilen.
 		dbDelta( "CREATE TABLE {$lines} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			rental_id bigint(20) unsigned NOT NULL,
@@ -172,9 +180,11 @@ class Schema {
 			unit_id bigint(20) unsigned DEFAULT NULL,
 			quantity int(11) NOT NULL DEFAULT 1,
 			daily_rate decimal(10,2) DEFAULT NULL,
+			bundle_item_id bigint(20) unsigned DEFAULT NULL,
 			PRIMARY KEY  (id),
 			KEY rental_id (rental_id),
-			KEY item_id (item_id)
+			KEY item_id (item_id),
+			KEY bundle_item_id (bundle_item_id)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$log} (
@@ -710,6 +720,10 @@ class Schema {
 			// für einen Zeitraum an, der Eigentümer (owner_id) entscheidet. KEINE
 			// Gebühren/Kaution. status: requested → approved | declined | cancelled
 			// → returned. decided_at/decided_by = Entscheidung des Eigentümers.
+			// v0.40.0 (Sets Phase 2): quantity = angefragte Einheiten (Bestand und
+			// Einzel-Artikel bleiben bei 1), bundle_item_id = aus welchem Set die
+			// Zeile expandiert wurde, bundle_ref = ID der ersten Zeile desselben
+			// Set-Vorgangs (klammert die Teil-Anfragen zu EINER Entscheidung).
 			dbDelta( "CREATE TABLE {$borrows} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				item_id bigint(20) unsigned NOT NULL,
@@ -719,6 +733,9 @@ class Schema {
 				date_from date DEFAULT NULL,
 				date_to date DEFAULT NULL,
 				message text,
+				quantity int(11) NOT NULL DEFAULT 1,
+				bundle_item_id bigint(20) unsigned DEFAULT NULL,
+				bundle_ref bigint(20) unsigned DEFAULT NULL,
 				status varchar(20) NOT NULL DEFAULT 'requested',
 				created_at datetime NOT NULL,
 				decided_at datetime DEFAULT NULL,
@@ -728,6 +745,7 @@ class Schema {
 				KEY group_id (group_id),
 				KEY requester_id (requester_id),
 				KEY owner_id (owner_id),
+				KEY bundle_ref (bundle_ref),
 				KEY status (status)
 			) {$charset};" );
 

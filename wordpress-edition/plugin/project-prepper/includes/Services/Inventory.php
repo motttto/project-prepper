@@ -341,12 +341,7 @@ class Inventory {
 			'serial_number'    => '%s',
 			'quantity'         => '%d',
 			'location'         => '%s',
-			'cost_per_day'     => '%f',
-			'purchase_price'   => '%f',
-			'current_value'    => '%f',
-			'purchase_date'    => '%s',
 			'dimensions'       => '%s',
-			'power_watts'      => '%d',
 			'accessories'      => '%s',
 			'manufacturer_url' => '%s',
 			'manual_url'       => '%s',
@@ -382,6 +377,20 @@ class Inventory {
 		if ( array_key_exists( 'residual_value', $data ) ) {
 			$fields['residual_value'] = '' === $data['residual_value'] || null === $data['residual_value'] ? null : (float) $data['residual_value'];
 			$formats[]                = '%f';
+		}
+		// Nullable Zahlen-/Datumsfelder: ein GELEERTES Feld muss NULL werden, nicht
+		// 0.00 / 0 / '0000-00-00'. Über die $map (%f/%d/%s) käme sonst eine 0 in die
+		// Spalte und Listen zeigten „0,00 €/Tag" statt „—" (create_item macht es
+		// über self::dec() schon richtig).
+		foreach ( [ 'cost_per_day' => '%f', 'purchase_price' => '%f', 'current_value' => '%f', 'power_watts' => '%d', 'purchase_date' => '%s' ] as $pp_key => $pp_format ) {
+			if ( ! array_key_exists( $pp_key, $data ) ) {
+				continue;
+			}
+			$pp_value          = $data[ $pp_key ];
+			$fields[ $pp_key ] = ( '' === $pp_value || null === $pp_value )
+				? null
+				: ( '%d' === $pp_format ? (int) $pp_value : ( '%f' === $pp_format ? (float) $pp_value : $pp_value ) );
+			$formats[]         = $pp_format;
 		}
 		if ( array_key_exists( 'tags', $data ) ) {
 			$fields['tags'] = wp_json_encode( (array) $data['tags'] );

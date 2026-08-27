@@ -15,6 +15,11 @@ defined( 'ABSPATH' ) || exit;
  *
  * Regeln (docs/07 §4): nur eigene Artikel als Teile, kein Set im Set,
  * alles-oder-nichts beim Buchen, Set-Share genügt fürs Kollektiv.
+ *
+ * Phase 2 (v0.40.0): Dieselbe Expansion trägt jetzt auch den externen Verleih
+ * ({@see MemberRentals::expand_sets}, Marker rental_items.bundle_item_id) und
+ * die Kollektiv-Leihanfragen ({@see Borrowing::request_bundle}, Marker
+ * borrow_requests.bundle_item_id + bundle_ref). Gemeinsame Basis ist expand().
  */
 class Bundles {
 
@@ -29,7 +34,7 @@ class Bundles {
 			return [];
 		}
 		return $wpdb->get_results( $wpdb->prepare(
-			'SELECT bp.part_item_id, bp.quantity, i.name, i.inventory_number, i.quantity AS part_total
+			'SELECT bp.part_item_id, bp.quantity, i.name, i.inventory_number, i.quantity AS part_total, i.cost_per_day
 			 FROM %i bp
 			 JOIN %i i ON i.id = bp.part_item_id
 			 WHERE bp.bundle_item_id = %d
@@ -56,7 +61,7 @@ class Bundles {
 		}
 		$placeholders = implode( ',', array_fill( 0, count( $item_ids ), '%d' ) );
 		$rows         = $wpdb->get_results( $wpdb->prepare(
-			"SELECT bp.bundle_item_id, bp.part_item_id, bp.quantity, i.name, i.inventory_number, i.quantity AS part_total
+			"SELECT bp.bundle_item_id, bp.part_item_id, bp.quantity, i.name, i.inventory_number, i.quantity AS part_total, i.cost_per_day
 			 FROM %i bp
 			 JOIN %i i ON i.id = bp.part_item_id
 			 WHERE bp.bundle_item_id IN ({$placeholders})
@@ -150,7 +155,7 @@ class Bundles {
 	 *
 	 * @param array<object> $parts Stückliste aus parts()/for_items().
 	 */
-	public static function available_sets( array $parts, string $from = '', string $to = '', int $exclude_project_id = 0 ): int {
+	public static function available_sets( array $parts, string $from = '', string $to = '', int $exclude_project_id = 0, int $exclude_rental_id = 0 ): int {
 		if ( ! $parts ) {
 			return 0;
 		}
@@ -158,11 +163,56 @@ class Bundles {
 		foreach ( $parts as $part ) {
 			$need = max( 1, (int) $part->quantity );
 			$free = ( '' !== $from && '' !== $to )
-				? Availability::available_quantity( (int) $part->part_item_id, $from, $to, 0, $exclude_project_id )
+				? Availability::available_quantity( (int) $part->part_item_id, $from, $to, $exclude_rental_id, $exclude_project_id )
 				: (int) ( $part->part_total ?? 0 );
 			$min  = min( $min, (int) floor( $free / $need ) );
 		}
 		return max( 0, PHP_INT_MAX === $min ? 0 : $min );
+	}
+
+	/**
+	 * Buchungs-Makro (docs/07 §2): Stückliste × Anzahl Sets → Positionszeilen.
+	 * Gemeinsame Grundlage für Projekt-Buchung, externen Verleih (rental_items)
+	 * und Kollektiv-Leihanfragen (borrow_requests) — überall gilt
+	 * Zeilen-Menge = Bedarf des Teils × Anzahl Sets.
+	 *
+	 * @param array<object> $parts Stückliste aus parts()/for_items().
+	 * @return array<array{item_id:int,quantity:int,bundle_item_id:int,daily_rate:float|null}>
+	 */
+	public static function expand( array $parts, int $sets, int $bundle_item_id ): array {
+		$sets = max( 1, $sets );
+		$out  = [];
+		foreach ( $parts as $part ) {
+			$out[] = [
+				'item_id'        => (int) $part->part_item_id,
+				'quantity'       => max( 1, (int) $part->quantity ) * $sets,
+				'bundle_item_id' => $bundle_item_id,
+				'daily_rate'     => ( isset( $part->cost_per_day ) && null !== $part->cost_per_day && '' !== $part->cost_per_day )
+					? (float) $part->cost_per_day
+					: null,
+			];
+		}
+		return $out;
+	}
+
+	/**
+	 * Tagessatz eines Sets = Σ (Tagessatz des Teils × Bedarf). Sets werden über
+	 * ihre TEILE abgerechnet — nur die tragen im Verleih einen eigenen Satz, und
+	 * nur so bleibt die Summe exakt (ein Paketpreis läuft weiter über das Feld
+	 * „Leihgebühr" am Verleih). Ohne Sätze an den Teilen: null.
+	 *
+	 * @param array<object> $parts
+	 */
+	public static function parts_daily_rate( array $parts ): ?float {
+		$sum = 0.0;
+		$any = false;
+		foreach ( $parts as $part ) {
+			if ( isset( $part->cost_per_day ) && null !== $part->cost_per_day && '' !== $part->cost_per_day ) {
+				$sum += (float) $part->cost_per_day * max( 1, (int) $part->quantity );
+				$any  = true;
+			}
+		}
+		return $any ? round( $sum, 2 ) : null;
 	}
 
 	/**

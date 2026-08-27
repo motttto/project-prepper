@@ -3,6 +3,7 @@ namespace ProjectPrepper;
 
 use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\Inventory;
+use ProjectPrepper\Services\Bundles;
 use ProjectPrepper\Frontend\Shortcodes;
 
 defined( 'ABSPATH' ) || exit;
@@ -190,6 +191,13 @@ class Federation {
 	 */
 	public static function public_inventory( int $limit = 200 ): array {
 		$items      = Inventory::items( [ 'usable_only' => true ] );
+		// Sets (docs/07) bleiben aus dem föderierten Katalog: Ein Set hat keinen
+		// eigenen Bestand — buchbar sind seine Teile, und die kennt die anfragende
+		// Instanz nicht. Föderierte Set-Expansion ist bewusst nicht vorgesehen.
+		if ( $items ) {
+			$bundles = Bundles::for_items( array_map( static fn( $i ) => (int) $i->id, $items ) );
+			$items   = array_values( array_filter( $items, static fn( $i ) => ! isset( $bundles[ (int) $i->id ] ) ) );
+		}
 		$show_rates = (bool) get_option( 'pp_public_show_rates', false );
 		$out        = [];
 		foreach ( array_slice( $items, 0, max( 1, $limit ) ) as $item ) {

@@ -7454,3 +7454,47 @@ msgstr "Diese Position gehört zu einem Set. Ändere oder entferne stattdessen d
 #: includes/Frontend/MemberPortal.php:5390
 msgid "from set “%s”"
 msgstr "aus Set „%s“"
+
+#. translators: 1: free sets, 2: start date, 3: end date.
+#: includes/Frontend/MemberPortal.php
+msgid "%1$d sets free (%2$s – %3$s)"
+msgstr "%1$d Sets frei (%2$s – %3$s)"
+
+#. translators: %d: number of sets free today.
+#: includes/Frontend/MemberPortal.php
+msgid "%d sets free today"
+msgstr "%d Sets heute frei"
+
+#. translators: %s: daily rate per set in euro.
+#: includes/Frontend/MemberPortal.php
+msgid "%s €/day (from parts)"
+msgstr "%s €/Tag (aus den Teilen)"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Not enough complete sets are free in this period — some parts are already taken."
+msgstr "In diesem Zeitraum sind nicht genug vollständige Sets frei — einzelne Teile sind schon vergeben."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Number of sets"
+msgstr "Anzahl Sets"
+
+#. translators: 1: set name, 2: number of available sets
+#: includes/Services/MemberRentals.php includes/Services/Borrowing.php
+msgid "Only %2$d× \"%1$s\" can be assembled from free parts in this period."
+msgstr "Aus den freien Teilen lässt sich „%1$s“ in diesem Zeitraum nur %2$d× zusammenstellen."
+
+#: includes/Services/Borrowing.php
+msgid "The request could not be saved."
+msgstr "Die Anfrage konnte nicht gespeichert werden."
+
+#: includes/Services/Borrowing.php
+msgid "This is a set — please request it as a set."
+msgstr "Das ist ein Set — bitte als Set anfragen."
+
+#: includes/Services/MemberRentals.php includes/Services/Borrowing.php includes/Frontend/MemberPortal.php
+msgid "This set has no parts (any more). Please check its contents."
+msgstr "Dieses Set enthält keine Teile (mehr). Bitte den Set-Inhalt prüfen."
+
+#: includes/Frontend/MemberPortal.php
+msgid "no daily rate on the parts"
+msgstr "kein Tagessatz an den Teilen"

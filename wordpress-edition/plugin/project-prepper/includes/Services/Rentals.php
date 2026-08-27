@@ -10,6 +10,11 @@ defined( 'ABSPATH' ) || exit;
  * Verleih-Service: Header + Positionen, Status-Maschine, Verfügbarkeits-Guard.
  *
  * Status-Flow (wie App): reserved → active → returned; cancelled aus reserved/active.
+ *
+ * Sets (v0.40.0, docs/07 §6): Ein Set wird nie selbst als Position verliehen —
+ * die Auswahl wird in {@see MemberRentals::expand_sets} in Teil-Positionen
+ * expandiert (Marker `bundle_item_id`). Dadurch greifen Verfügbarkeits-Guard und
+ * Abrechnung hier unverändert auf echte Artikel.
  */
 class Rentals {
 
@@ -176,11 +181,14 @@ class Rentals {
 
 		foreach ( $items as $line ) {
 			$wpdb->insert( Schema::table( 'rental_items' ), [
-				'rental_id'  => $rental_id,
-				'item_id'    => (int) $line['item_id'],
-				'unit_id'    => ! empty( $line['unit_id'] ) ? (int) $line['unit_id'] : null,
-				'quantity'   => max( 1, (int) ( $line['quantity'] ?? 1 ) ),
-				'daily_rate' => isset( $line['daily_rate'] ) && '' !== $line['daily_rate'] ? (float) $line['daily_rate'] : null,
+				'rental_id'      => $rental_id,
+				'item_id'        => (int) $line['item_id'],
+				'unit_id'        => ! empty( $line['unit_id'] ) ? (int) $line['unit_id'] : null,
+				'quantity'       => max( 1, (int) ( $line['quantity'] ?? 1 ) ),
+				'daily_rate'     => isset( $line['daily_rate'] ) && '' !== $line['daily_rate'] ? (float) $line['daily_rate'] : null,
+				// Set-Herkunft (v0.40.0): gesetzt, wenn die Zeile aus einer
+				// Set-Auswahl expandiert wurde — reiner Gruppierungs-Marker.
+				'bundle_item_id' => ! empty( $line['bundle_item_id'] ) ? (int) $line['bundle_item_id'] : null,
 			] );
 		}
 
@@ -300,10 +308,11 @@ class Rentals {
 			$kept = [];
 			foreach ( $items as $line ) {
 				$row = [
-					'item_id'    => (int) $line['item_id'],
-					'unit_id'    => ! empty( $line['unit_id'] ) ? (int) $line['unit_id'] : null,
-					'quantity'   => max( 1, (int) ( $line['quantity'] ?? 1 ) ),
-					'daily_rate' => isset( $line['daily_rate'] ) && '' !== $line['daily_rate'] ? (float) $line['daily_rate'] : null,
+					'item_id'        => (int) $line['item_id'],
+					'unit_id'        => ! empty( $line['unit_id'] ) ? (int) $line['unit_id'] : null,
+					'quantity'       => max( 1, (int) ( $line['quantity'] ?? 1 ) ),
+					'daily_rate'     => isset( $line['daily_rate'] ) && '' !== $line['daily_rate'] ? (float) $line['daily_rate'] : null,
+					'bundle_item_id' => ! empty( $line['bundle_item_id'] ) ? (int) $line['bundle_item_id'] : null,
 				];
 				$line_id = (int) ( $line['id'] ?? 0 );
 				if ( $line_id && isset( $existing[ $line_id ] ) ) {

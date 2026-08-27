@@ -95,6 +95,12 @@ class FederatedBorrow {
 		if ( ! $item || in_array( (string) $item->item_condition, [ 'broken', 'retired' ], true ) ) {
 			return new WP_Error( 'pp_fed_item', __( 'The requested item is not available.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
+		// Sets haben keinen eigenen Bestand (docs/07) — sie stehen deshalb gar nicht
+		// erst im föderierten Katalog. Guard für den Fall eines veralteten Caches
+		// oder einer manuell zusammengebauten Anfrage.
+		if ( Bundles::is_bundle( $item_id ) ) {
+			return new WP_Error( 'pp_fed_item', __( 'The requested item is not available.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
 
 		$name    = sanitize_text_field( (string) ( $data['requester_name'] ?? '' ) );
 		$contact = sanitize_email( (string) ( $data['requester_contact'] ?? '' ) );

@@ -709,12 +709,12 @@ class MemberPortal {
 				break;
 			case 'rental_create':
 				$in     = self::rental_input();
-				$result = MemberRentals::create( get_current_user_id(), $in['data'], $in['items'] );
+				$result = MemberRentals::create( get_current_user_id(), $in['data'], $in['items'], $in['sets'] );
 				$ok_msg = 'rental_saved';
 				break;
 			case 'rental_update':
 				$in     = self::rental_input();
-				$result = MemberRentals::update( (int) ( $_POST['pp_rental'] ?? 0 ), get_current_user_id(), $in['data'], $in['items'] );
+				$result = MemberRentals::update( (int) ( $_POST['pp_rental'] ?? 0 ), get_current_user_id(), $in['data'], $in['items'], $in['sets'] );
 				$ok_msg = 'rental_updated';
 				break;
 			case 'rental_status':
@@ -1052,14 +1052,24 @@ class MemberPortal {
 				$ok_msg = 'pfile_removed';
 				break;
 			case 'borrow_request':
-				$result = Borrowing::request(
-					get_current_user_id(),
-					(int) ( $_POST['pp_item'] ?? 0 ),
-					$grp_id,
-					sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
-					sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
-					sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_message'] ?? '' ) ) )
-				);
+				$pp_bitem = (int) ( $_POST['pp_item'] ?? 0 );
+				$pp_bfrom = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) );
+				$pp_bto   = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) );
+				$pp_bmsg  = sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_message'] ?? '' ) ) );
+				// Sets laufen über die Expansion in Teil-Anfragen (docs/07 §6). Ob es
+				// ein Set ist, entscheidet der Server anhand der Stückliste — nicht
+				// ein mitgeschicktes Feld.
+				$result = Bundles::is_bundle( $pp_bitem )
+					? Borrowing::request_bundle(
+						get_current_user_id(),
+						$pp_bitem,
+						$grp_id,
+						$pp_bfrom,
+						$pp_bto,
+						max( 1, (int) ( $_POST['pp_sets'] ?? 1 ) ),
+						$pp_bmsg
+					)
+					: Borrowing::request( get_current_user_id(), $pp_bitem, $grp_id, $pp_bfrom, $pp_bto, $pp_bmsg );
 				$ok_msg = 'borrow_requested';
 				break;
 			case 'borrow_approve':
@@ -1250,6 +1260,10 @@ class MemberPortal {
 				$msg = 'bundle_line_locked';
 			} elseif ( 'pp_bundle_nested' === $code ) {
 				$msg = 'bundle_nested';
+			} elseif ( 'pp_bundle_unavailable' === $code ) {
+				$msg = 'bundle_unavailable';
+			} elseif ( 'pp_bundle_empty' === $code ) {
+				$msg = 'bundle_empty';
 			} elseif ( 'pp_not_pending' === $code ) {
 				$msg = 'booking_decided_already';
 			} elseif ( 'pp_telegram_not_configured' === $code ) {
@@ -1454,6 +1468,8 @@ class MemberPortal {
 			'booking_bulk_none'  => [ 'err', __( 'Please choose Approve or Reject for at least one request.', 'project-prepper' ) ],
 			'bundle_line_locked' => [ 'err', __( 'This line belongs to a set. Change or remove the whole set instead.', 'project-prepper' ) ],
 			'bundle_nested'      => [ 'err', __( 'Sets cannot contain other sets.', 'project-prepper' ) ],
+			'bundle_unavailable' => [ 'err', __( 'Not enough complete sets are free in this period — some parts are already taken.', 'project-prepper' ) ],
+			'bundle_empty'       => [ 'err', __( 'This set has no parts (any more). Please check its contents.', 'project-prepper' ) ],
 			'borrow_requested' => [ 'ok', __( 'Borrow request sent to the owner.', 'project-prepper' ) ],
 			'borrow_decided'   => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'borrow_cancelled' => [ 'ok', __( 'Request cancelled.', 'project-prepper' ) ],
@@ -2994,12 +3010,10 @@ class MemberPortal {
 		$rentals  = MemberRentals::for_owner( $uid );
 		$kpis     = MemberRentals::kpis( $uid );
 		$lendable = MemberRentals::lendable_items( $uid );
-		// Sets sind in V1 nur über Projekt-Buchungen nutzbar — im externen Verleih
-		// ausblenden, damit der Set-Artikel nicht als Einzelposition verliehen
-		// wird (docs/07 §6, Verleih-Expansion = Phase 2).
-		if ( $lendable ) {
-			$lendable = array_diff_key( $lendable, Bundles::for_items( array_keys( $lendable ) ) );
-		}
+		// Sets sind seit v0.40.0 regulär verleihbar (docs/07 §6): ausgewählt wird
+		// das Set, verliehen werden serverseitig seine Teile. $bundles trennt im
+		// Formular die Set-Zeilen von den normalen Artikel-Zeilen.
+		$bundles = $lendable ? Bundles::for_items( array_keys( $lendable ) ) : [];
 		?>
 		<section class="pp-portal__section">
 			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'External lending', 'project-prepper' ); ?></h3>
@@ -3039,8 +3053,30 @@ class MemberPortal {
 
 						<?php if ( $full->items ) : ?>
 							<ul class="pp-portal__rental-lines">
-								<?php foreach ( $full->items as $line ) : ?>
-									<li>
+								<?php
+								// Set-Positionen unter ihrem Set gruppieren (Marker
+								// bundle_item_id) — verliehen werden die Teile, angezeigt
+								// wird die Herkunft.
+								$pp_shown_sets = [];
+								foreach ( $full->items as $line ) :
+									$pp_bid = (int) ( $line->bundle_item_id ?? 0 );
+									if ( $pp_bid > 0 && ! isset( $pp_shown_sets[ $pp_bid ] ) ) :
+										$pp_shown_sets[ $pp_bid ] = true;
+										$pp_set_item  = Inventory::get_item( $pp_bid );
+										$pp_set_parts = Bundles::parts( $pp_bid );
+										$pp_set_count = self::bundle_line_sets( $full->items, $pp_bid, $pp_set_parts );
+										?>
+										<li>
+											<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
+											<?php echo esc_html( $pp_set_item ? $pp_set_item->name : ( '#' . $pp_bid ) ); ?>
+											<?php if ( $pp_set_count > 1 ) : ?>
+												<span class="pp-portal__item-meta"><?php echo (int) $pp_set_count; ?>×</span>
+											<?php endif; ?>
+										</li>
+										<?php
+									endif;
+									?>
+									<li class="<?php echo esc_attr( $pp_bid > 0 ? 'pp-portal__rental-line--part' : '' ); ?>">
 										<?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?>
 										<?php if ( (int) $line->quantity > 1 ) : ?>
 											<span class="pp-portal__item-meta"><?php echo (int) $line->quantity; ?>×</span>
@@ -3101,7 +3137,7 @@ class MemberPortal {
 										<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
 									</div>
 									<div class="pp-modal-body">
-										<?php self::rental_form( $lendable, $full ); ?>
+										<?php self::rental_form( $lendable, $bundles, $full ); ?>
 									</div>
 								</dialog>
 							<?php endif; ?>
@@ -3120,7 +3156,7 @@ class MemberPortal {
 			<?php if ( $lendable ) : ?>
 				<details class="pp-portal__add">
 					<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New rental', 'project-prepper' ); ?></summary>
-					<?php self::rental_form( $lendable ); ?>
+					<?php self::rental_form( $lendable, $bundles ); ?>
 				</details>
 			<?php else : ?>
 				<p class="pp-portal__hint"><?php esc_html_e( 'Add items to your inventory first — then you can lend them out.', 'project-prepper' ); ?></p>
@@ -3156,14 +3192,32 @@ class MemberPortal {
 	 * Zeilen-ID läuft als pp_item[…][line] mit, damit {@see Rentals::update} per
 	 * Diff aktualisiert statt neu anzulegen.
 	 *
-	 * @param array<int,object> $lendable Eigene Artikel (ID → Objekt).
-	 * @param object|null       $rental   Bestehender Verleih (inkl. items) oder null.
+	 * Sets (v0.40.0) stehen als eigene Zeile oben: Menge = Anzahl SETS, Auswahl
+	 * läuft über `pp_set[…]`; expandiert wird serverseitig (docs/07 §6).
+	 *
+	 * @param array<int,object>        $lendable Eigene Artikel (ID → Objekt).
+	 * @param array<int,array<object>> $bundles  Stücklisten der eigenen Sets.
+	 * @param object|null              $rental   Bestehender Verleih (inkl. items) oder null.
 	 */
-	private static function rental_form( array $lendable, ?object $rental = null ): void {
+	private static function rental_form( array $lendable, array $bundles = [], ?object $rental = null ): void {
 		$line_by_item = [];
 		foreach ( (array) ( $rental->items ?? [] ) as $line ) {
+			// Set-Teil-Zeilen gehören zur SET-Zeile des Formulars — sie dürfen die
+			// Einzel-Zeile ihres Artikels nicht vorbelegen (sonst würde das Teil beim
+			// Speichern doppelt verliehen).
+			if ( ! empty( $line->bundle_item_id ) ) {
+				continue;
+			}
 			if ( ! isset( $line_by_item[ (int) $line->item_id ] ) ) {
 				$line_by_item[ (int) $line->item_id ] = $line;
+			}
+		}
+		// Bestehende Set-Positionen zurück in „n× Set" übersetzen.
+		$sets_picked = [];
+		foreach ( (array) ( $rental->items ?? [] ) as $line ) {
+			$pp_bid = (int) ( $line->bundle_item_id ?? 0 );
+			if ( $pp_bid > 0 && ! isset( $sets_picked[ $pp_bid ] ) ) {
+				$sets_picked[ $pp_bid ] = self::bundle_line_sets( (array) $rental->items, $pp_bid, $bundles[ $pp_bid ] ?? Bundles::parts( $pp_bid ) );
 			}
 		}
 		$val = static fn( string $f, $d = '' ) => $rental && isset( $rental->$f ) && null !== $rental->$f ? $rental->$f : $d;
@@ -3201,7 +3255,44 @@ class MemberPortal {
 
 			<fieldset class="pp-portal__rental-items">
 				<legend><?php esc_html_e( 'Items to lend out', 'project-prepper' ); ?></legend>
+				<?php
+				// Sets zuerst: eine Zeile je Set, Menge = Anzahl Sets. Verliehen
+				// werden serverseitig die Teile (docs/07 §6); der Tagessatz ergibt
+				// sich aus den Teil-Sätzen, ein Paketpreis läuft über „Leihgebühr".
+				foreach ( $bundles as $set_id => $parts ) :
+					if ( ! isset( $lendable[ $set_id ] ) ) {
+						continue;
+					}
+					$set_item = $lendable[ $set_id ];
+					$set_rate = Bundles::parts_daily_rate( $parts );
+					?>
+					<div class="pp-portal__rental-item-row">
+						<label class="pp-portal__rental-item-pick">
+							<input type="checkbox" name="pp_set[<?php echo (int) $set_id; ?>][on]" value="1" <?php checked( isset( $sets_picked[ $set_id ] ) ); ?>>
+							<span>
+								<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
+								<?php echo esc_html( $set_item->name ); ?>
+								<small class="pp-portal__item-num"><?php echo esc_html( $set_item->inventory_number ?? '' ); ?></small>
+								<small class="pp-inv-name-sub"><?php echo esc_html( Bundles::parts_label( $parts ) ); ?></small>
+							</span>
+						</label>
+						<label class="pp-portal__rental-item-qty"><?php esc_html_e( 'Sets', 'project-prepper' ); ?>
+							<input type="number" name="pp_set[<?php echo (int) $set_id; ?>][qty]" min="1" value="<?php echo (int) ( $sets_picked[ $set_id ] ?? 1 ); ?>">
+						</label>
+						<span class="pp-portal__rental-item-rate pp-portal__item-meta">
+							<?php
+							echo null !== $set_rate
+								/* translators: %s: daily rate per set in euro. */
+								? esc_html( sprintf( __( '%s €/day (from parts)', 'project-prepper' ), number_format_i18n( (float) $set_rate, 2 ) ) )
+								: esc_html__( 'no daily rate on the parts', 'project-prepper' );
+							?>
+						</span>
+					</div>
+				<?php endforeach; ?>
 				<?php foreach ( $lendable as $item ) :
+					if ( isset( $bundles[ (int) $item->id ] ) ) {
+						continue; // oben schon als Set-Zeile ausgegeben.
+					}
 					$line = $line_by_item[ (int) $item->id ] ?? null;
 					$rate = $line && null !== $line->daily_rate
 						? (float) $line->daily_rate
@@ -3233,6 +3324,33 @@ class MemberPortal {
 		<?php
 	}
 
+	/**
+	 * Aus expandierten Set-Positionen die Anzahl SETS zurückrechnen:
+	 * min über alle Teile von floor( gebuchte Menge / Bedarf ). Wurde die
+	 * Stückliste nach dem Verleih geändert, bleibt mindestens 1 stehen.
+	 *
+	 * @param array<object> $lines  Positionen des Verleihs.
+	 * @param array<object> $parts  Stückliste des Sets.
+	 */
+	private static function bundle_line_sets( array $lines, int $bundle_id, array $parts ): int {
+		$booked = [];
+		foreach ( $lines as $line ) {
+			if ( (int) ( $line->bundle_item_id ?? 0 ) === $bundle_id ) {
+				$booked[ (int) $line->item_id ] = ( $booked[ (int) $line->item_id ] ?? 0 ) + max( 1, (int) $line->quantity );
+			}
+		}
+		if ( ! $parts || ! $booked ) {
+			return 1;
+		}
+		$sets = PHP_INT_MAX;
+		foreach ( $parts as $part ) {
+			$need = max( 1, (int) $part->quantity );
+			$have = (int) ( $booked[ (int) $part->part_item_id ] ?? 0 );
+			$sets = min( $sets, (int) floor( $have / $need ) );
+		}
+		return max( 1, PHP_INT_MAX === $sets ? 1 : $sets );
+	}
+
 	/** Eingaben des Verleih-Formulars einsammeln (Header + Positionen). */
 	private static function rental_input(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
@@ -3247,6 +3365,16 @@ class MemberPortal {
 			'notes'          => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_notes'] ?? '' ) ) ),
 		];
 		$items = [];
+		// Set-Auswahl (v0.40.0): set_item_id => Anzahl Sets. Expandiert wird
+		// serverseitig in MemberRentals::expand_sets — hier nur einsammeln.
+		$sets = [];
+		$raw_sets = isset( $_POST['pp_set'] ) && is_array( $_POST['pp_set'] ) ? wp_unslash( $_POST['pp_set'] ) : [];
+		foreach ( $raw_sets as $set_id => $row ) {
+			if ( empty( $row['on'] ) ) {
+				continue;
+			}
+			$sets[ (int) $set_id ] = max( 1, (int) ( $row['qty'] ?? 1 ) );
+		}
 		$raw   = isset( $_POST['pp_item'] ) && is_array( $_POST['pp_item'] ) ? wp_unslash( $_POST['pp_item'] ) : [];
 		foreach ( $raw as $item_id => $line ) {
 			if ( empty( $line['on'] ) ) {
@@ -3264,7 +3392,7 @@ class MemberPortal {
 			$items[] = $row;
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
-		return [ 'data' => $data, 'items' => $items ];
+		return [ 'data' => $data, 'items' => $items, 'sets' => $sets ];
 	}
 
 	/** Eingehende föderierte Leih-Anfragen für die eigenen Artikel (Slice 4). */
@@ -9630,15 +9758,12 @@ class MemberPortal {
 		ob_start();
 		foreach ( $groups as $group ) {
 			$items = Borrowing::browse( (int) $group->id );
-			// Sets sind in V1 nur über Projekt-Buchungen nutzbar — beim Stöbern/
-			// Leihen ausblenden (docs/07 §6, Leih-Expansion = Phase 2).
-			if ( $items ) {
-				$pp_set_map = Bundles::for_items( array_map( static fn( $i ) => (int) $i->id, $items ) );
-				$items      = array_values( array_filter( $items, static fn( $i ) => ! isset( $pp_set_map[ (int) $i->id ] ) ) );
-			}
 			if ( ! $items ) {
 				continue;
 			}
+			// Sets sind seit v0.40.0 auch im Kollektiv leihbar (docs/07 §6):
+			// angefragt wird das Set, gespeichert wird eine Zeile je Teil.
+			$pp_set_map = Bundles::for_items( array_map( static fn( $i ) => (int) $i->id, $items ) );
 			$any = true;
 			?>
 			<div class="pp-portal__collective">
@@ -9646,24 +9771,45 @@ class MemberPortal {
 					<span class="pp-portal__group-name"><?php echo esc_html( $group->name ); ?></span>
 				</div>
 				<?php foreach ( $items as $item ) :
-					$is_mine = ( (int) ( $item->owner_user_id ?? 0 ) === (int) $user->ID ); ?>
+					$is_mine  = ( (int) ( $item->owner_user_id ?? 0 ) === (int) $user->ID );
+					$pp_parts = $pp_set_map[ (int) $item->id ] ?? []; ?>
 					<div class="pp-portal__browse-item">
 						<div class="pp-portal__item-head">
-							<span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span>
+							<span class="pp-portal__group-name">
+								<?php echo esc_html( $item->name ); ?>
+								<?php if ( $pp_parts ) : ?>
+									<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
+								<?php endif; ?>
+							</span>
 							<span class="pp-portal__item-meta">
 								<?php
-								echo esc_html( $conditions[ $item->item_condition ] ?? $item->item_condition );
+								if ( $pp_parts ) {
+									/* translators: %s: list of set parts, e.g. "3× link · 1× feed". */
+									printf( esc_html__( 'Set of %s', 'project-prepper' ), esc_html( Bundles::parts_label( $pp_parts ) ) );
+								} else {
+									echo esc_html( $conditions[ $item->item_condition ] ?? $item->item_condition );
+								}
 								echo ' · ';
 								/* translators: %s: owner display name. */
 								printf( esc_html__( 'from %s', 'project-prepper' ), esc_html( $item->owner_name ) );
 								echo ' · ';
-								if ( $period_ok ) {
+								// Sets zählen über ihre Teile: min( floor( frei / Bedarf ) ).
+								$pp_range = $period_ok ? [ $pf, $pt ] : [ current_time( 'Y-m-d' ), current_time( 'Y-m-d' ) ];
+								if ( $pp_parts ) {
+									$pp_sets_free = Borrowing::available_sets( $pp_parts, $pp_range[0], $pp_range[1] );
+									if ( $period_ok ) {
+										/* translators: 1: free sets, 2: start date, 3: end date. */
+										printf( esc_html__( '%1$d sets free (%2$s – %3$s)', 'project-prepper' ), (int) $pp_sets_free, esc_html( $pf ), esc_html( $pt ) );
+									} else {
+										/* translators: %d: number of sets free today. */
+										printf( esc_html__( '%d sets free today', 'project-prepper' ), (int) $pp_sets_free );
+									}
+								} elseif ( $period_ok ) {
 									$pp_avail = Borrowing::available_units( (int) $item->id, $pf, $pt );
 									/* translators: 1: free units, 2: total quantity, 3: start date, 4: end date. */
 									printf( esc_html__( '%1$d of %2$d free (%3$s – %4$s)', 'project-prepper' ), (int) $pp_avail, (int) $item->quantity, esc_html( $pf ), esc_html( $pt ) );
 								} else {
-									$pp_today = current_time( 'Y-m-d' );
-									$pp_avail = Borrowing::available_units( (int) $item->id, $pp_today, $pp_today );
+									$pp_avail = Borrowing::available_units( (int) $item->id, $pp_range[0], $pp_range[1] );
 									/* translators: 1: free units today, 2: total quantity. */
 									printf( esc_html__( '%1$d of %2$d free today', 'project-prepper' ), (int) $pp_avail, (int) $item->quantity );
 								}
@@ -9684,6 +9830,12 @@ class MemberPortal {
 									<?php self::action_fields( 'borrow_request' ); ?>
 									<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
 									<input type="hidden" name="pp_group" value="<?php echo (int) $group->id; ?>">
+									<?php if ( $pp_parts ) : ?>
+										<p class="pp-portal__hint"><?php echo esc_html( Bundles::parts_label( $pp_parts ) ); ?></p>
+										<label><?php esc_html_e( 'Number of sets', 'project-prepper' ); ?>
+											<input type="number" name="pp_sets" min="1" value="1">
+										</label>
+									<?php endif; ?>
 									<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
 										<input type="date" name="pp_from" value="<?php echo $period_ok ? esc_attr( $pf ) : ''; ?>" required>
 									</label>
@@ -9742,11 +9894,74 @@ class MemberPortal {
 	private const BORROW_ACTIVE = [ 'requested', 'approved' ];
 	private const BORROW_CLOSED = [ 'returned', 'declined', 'cancelled' ];
 
+	/**
+	 * Leih-Vorgänge für die Anzeige klammern: Die Teil-Zeilen einer SET-Anfrage
+	 * (gleiche `bundle_ref`) werden zu EINEM Eintrag zusammengefasst — Titel ist
+	 * der Set-Name, die Teile stehen als Unterzeile. Aktionen greifen dadurch
+	 * automatisch auf den ganzen Vorgang (Borrowing::siblings).
+	 *
+	 * @param array<object> $rows
+	 * @return array<object> Einträge mit ->pp_set_name und ->pp_lines.
+	 */
+	private static function group_borrow_rows( array $rows ): array {
+		$out = [];
+		$idx = [];
+		foreach ( $rows as $row ) {
+			$ref              = (int) ( $row->bundle_ref ?? 0 );
+			$row->pp_lines    = [];
+			$row->pp_set_name = '';
+			if ( $ref <= 0 ) {
+				$out[] = $row;
+				continue;
+			}
+			$part = [
+				'name'     => (string) ( $row->item_name ?? '' ),
+				'quantity' => max( 1, (int) ( $row->quantity ?? 1 ) ),
+			];
+			if ( isset( $idx[ $ref ] ) ) {
+				$out[ $idx[ $ref ] ]->pp_lines[] = $part;
+				continue;
+			}
+			$set              = Inventory::get_item( (int) ( $row->bundle_item_id ?? 0 ) );
+			$row->pp_set_name = $set ? $set->name : (string) $row->item_name;
+			$row->pp_lines    = [ $part ];
+			$idx[ $ref ]      = count( $out );
+			$out[]            = $row;
+		}
+		return $out;
+	}
+
+	/** Titelzeile eines Leih-Eintrags: Set-Name mit Chip, sonst der Artikelname. */
+	private static function borrow_title( object $r ): void {
+		?>
+		<span class="pp-portal__group-name">
+			<?php if ( '' !== (string) $r->pp_set_name ) : ?>
+				<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
+				<?php echo esc_html( $r->pp_set_name ); ?>
+				<small class="pp-inv-name-sub">
+					<?php
+					$bits = [];
+					foreach ( (array) $r->pp_lines as $part ) {
+						$bits[] = sprintf( '%d× %s', (int) $part['quantity'], (string) $part['name'] );
+					}
+					echo esc_html( implode( ' · ', $bits ) );
+					?>
+				</small>
+			<?php else : ?>
+				<?php echo esc_html( $r->item_name ); ?>
+				<?php if ( (int) ( $r->quantity ?? 1 ) > 1 ) : ?>
+					<span class="pp-portal__item-meta"><?php echo (int) $r->quantity; ?>×</span>
+				<?php endif; ?>
+			<?php endif; ?>
+		</span>
+		<?php
+	}
+
 	private static function render_my_borrows( WP_User $user ): void {
-		$requests = array_filter(
+		$requests = self::group_borrow_rows( array_filter(
 			Borrowing::my_requests( (int) $user->ID ),
 			static fn( $r ) => in_array( $r->status, self::BORROW_ACTIVE, true )
-		);
+		) );
 		if ( ! $requests ) {
 			return;
 		}
@@ -9755,7 +9970,7 @@ class MemberPortal {
 			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'My borrow requests', 'project-prepper' ); ?></h3>
 			<?php foreach ( $requests as $r ) : ?>
 				<div class="pp-portal__invite">
-					<span class="pp-portal__group-name"><?php echo esc_html( $r->item_name ); ?></span>
+					<?php self::borrow_title( $r ); ?>
 					<span class="pp-portal__item-meta"><?php echo esc_html( $r->date_from . ' – ' . $r->date_to ); ?></span>
 					<span class="pp-portal__tag <?php echo esc_attr( self::borrow_status_class( $r->status ) ); ?>"><?php echo esc_html( self::borrow_status_label( $r->status ) ); ?></span>
 					<?php if ( 'requested' === $r->status ) : ?>
@@ -9770,10 +9985,10 @@ class MemberPortal {
 	}
 
 	private static function render_incoming_borrows( WP_User $user ): void {
-		$requests = array_filter(
+		$requests = self::group_borrow_rows( array_filter(
 			Borrowing::incoming_requests( (int) $user->ID ),
 			static fn( $r ) => in_array( $r->status, self::BORROW_ACTIVE, true )
-		);
+		) );
 		if ( ! $requests ) {
 			return;
 		}
@@ -9782,7 +9997,7 @@ class MemberPortal {
 			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Borrow requests for your items', 'project-prepper' ); ?></h3>
 			<?php foreach ( $requests as $r ) : ?>
 				<div class="pp-portal__invite">
-					<span class="pp-portal__group-name"><?php echo esc_html( $r->item_name ); ?></span>
+					<?php self::borrow_title( $r ); ?>
 					<span class="pp-portal__item-meta">
 						<?php
 						echo esc_html( $r->date_from . ' – ' . $r->date_to );
@@ -9833,6 +10048,7 @@ class MemberPortal {
 			return;
 		}
 		usort( $rows, static fn( $a, $b ) => strcmp( (string) $b->date_to, (string) $a->date_to ) );
+		$rows = self::group_borrow_rows( $rows );
 		?>
 		<section class="pp-portal__section">
 			<details class="pp-portal__edit">
@@ -9840,7 +10056,7 @@ class MemberPortal {
 				<div class="pp-history">
 					<?php foreach ( $rows as $r ) : ?>
 						<div class="pp-portal__invite">
-							<span class="pp-portal__group-name"><?php echo esc_html( $r->item_name ); ?></span>
+							<?php self::borrow_title( $r ); ?>
 							<span class="pp-portal__item-meta">
 								<?php
 								echo esc_html( $r->date_from . ' – ' . $r->date_to );

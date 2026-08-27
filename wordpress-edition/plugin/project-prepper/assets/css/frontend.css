@@ -2997,6 +2997,9 @@ label.pp-swatch,
 /* Technik-Picker: Stücklisten-Zeile unter der Set-Position. */
 .pp-book-item__meta--set { color: var(--pp-primary-hover); }
 
+/* Verleih (v0.40.0/Phase 2): Teil-Positionen unter ihrer Set-Zeile einrücken. */
+.pp-portal__rental-lines li.pp-portal__rental-line--part { padding-left: 1.1rem; color: var(--pp-muted-foreground); }
+
 /* ==========================================================================
    Live-Suche (v0.131.0): [hidden] muss die display-Regeln der gefilterten
    Zeilen schlagen — .pp-inv-row ist grid, .pp-net-inst/.pp-book-item sind
