@@ -61,8 +61,9 @@ class ItemDetail {
 		if ( ! $item ) {
 			return null;
 		}
-		// broken/retired nur für eingeloggte User mit Inventar-Leserecht.
-		if ( in_array( $item->condition, [ 'broken', 'retired' ], true ) && ! current_user_can( Capabilities::VIEW_INVENTORY ) ) {
+		// Gesperrte Artikel (defekt, in Wartung, verschollen, ausgemustert) nur für
+		// eingeloggte User mit Inventar-Leserecht — gleiche Liste wie überall sonst.
+		if ( Inventory::is_blocked( $item->condition ?? '' ) && ! current_user_can( Capabilities::VIEW_INVENTORY ) ) {
 			return null;
 		}
 		return $item;

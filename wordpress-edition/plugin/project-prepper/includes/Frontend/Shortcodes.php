@@ -26,12 +26,16 @@ class Shortcodes {
 	 */
 	public static function condition_labels(): array {
 		return [
-			'new'     => __( 'New', 'project-prepper' ),
-			'good'    => __( 'Good', 'project-prepper' ),
-			'fair'    => __( 'Used', 'project-prepper' ),
-			'poor'    => __( 'Poor', 'project-prepper' ),
-			'broken'  => __( 'Broken', 'project-prepper' ),
-			'retired' => __( 'Retired', 'project-prepper' ),
+			'new'         => __( 'New', 'project-prepper' ),
+			'good'        => __( 'Good', 'project-prepper' ),
+			'fair'        => __( 'Used', 'project-prepper' ),
+			'poor'        => __( 'Poor', 'project-prepper' ),
+			// Betriebszustände (v0.134.0): sperren den Artikel, siehe
+			// Inventory::BLOCKED_CONDITIONS.
+			'maintenance' => __( 'In maintenance', 'project-prepper' ),
+			'broken'      => __( 'Broken', 'project-prepper' ),
+			'lost'        => __( 'Missing', 'project-prepper' ),
+			'retired'     => __( 'Retired', 'project-prepper' ),
 		];
 	}
 

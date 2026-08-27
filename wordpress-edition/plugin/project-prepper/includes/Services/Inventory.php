@@ -11,8 +11,30 @@ defined( 'ABSPATH' ) || exit;
  */
 class Inventory {
 
-	// Zustands-Enum wie in der App (Dok 01 §8.1).
-	const CONDITIONS = [ 'new', 'good', 'fair', 'poor', 'broken', 'retired' ];
+	// Zustands-Enum wie in der App (Dok 01 §8.1), erweitert um zwei Betriebs-
+	// zustände (v0.134.0): `maintenance` = in Wartung/Reparatur, `lost` =
+	// verschollen. Bewusst dasselbe Feld statt einer zweiten Status-Spalte —
+	// ein Artikel hat EINEN Zustand, und varchar(20) trägt die neuen Werte ohne
+	// Schema-Änderung.
+	const CONDITIONS = [ 'new', 'good', 'fair', 'poor', 'maintenance', 'broken', 'lost', 'retired' ];
+
+	/**
+	 * Zustände, die den Artikel SPERREN: er existiert, darf aber nicht raus —
+	 * weder in einen Verleih noch in eine Projekt-Buchung, eine Kollektiv-Leihe
+	 * oder eine Netzwerk-Anfrage. Durchgesetzt an EINER Stelle
+	 * ({@see Availability::available_quantity} liefert 0), dadurch greift es
+	 * überall; die Listen zeigen den Grund als Chip an.
+	 *
+	 * `poor` (Zustand „schlecht") sperrt bewusst NICHT — abgenutzt heißt nicht
+	 * unbenutzbar. `retired` sperrt und wird zusätzlich ausgeblendet (siehe
+	 * `hide_retired` in items()).
+	 */
+	const BLOCKED_CONDITIONS = [ 'maintenance', 'broken', 'lost', 'retired' ];
+
+	/** Ist dieser Zustand eine Sperre (Artikel nicht verfügbar)? */
+	public static function is_blocked( ?string $condition ): bool {
+		return in_array( (string) $condition, self::BLOCKED_CONDITIONS, true );
+	}
 
 	// Eigentums-/Abschreibungs-Enums (§8.7 — reine Dokumentation, keine Buchung).
 	const OWNERSHIP_TYPES      = [ '', 'own', 'loaned', 'funded', 'other' ];
@@ -196,8 +218,15 @@ class Inventory {
 			$where_params[] = (int) $args['shared_with_group'];
 		}
 		if ( ! empty( $args['usable_only'] ) ) {
-			// Öffentliches Frontend: defekte/ausgemusterte Artikel ausblenden.
-			$where[] = "i.item_condition NOT IN ('broken', 'retired')";
+			// Öffentliches Frontend: zeigt nur, was tatsächlich einsatzbereit ist —
+			// also nichts Gesperrtes (defekt, in Wartung, verschollen, ausgemustert).
+			$where[] = "i.item_condition NOT IN ('" . implode( "','", self::BLOCKED_CONDITIONS ) . "')";
+		}
+		if ( ! empty( $args['hide_retired'] ) ) {
+			// Portal-Listen: ausgemusterte Artikel sind aus dem Betrieb genommen und
+			// verschwinden aus den Listen (Datensatz bleibt für Historie/Rückholung).
+			// Defekt/Wartung/verschollen bleiben SICHTBAR — sie kommen ja zurück.
+			$where[] = "i.item_condition <> 'retired'";
 		}
 		if ( ! empty( $args['out_only'] ) ) {
 			// Filter "Ausgeliehen": nur Artikel, die heute unterwegs sind.

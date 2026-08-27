@@ -3,6 +3,42 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔒 Gesperrte Artikel — ein global gültiger Zustand 2026-08-27 (Feature-Stand, Schema UNVERÄNDERT 0.40.0)
+> **Noch nicht released.** Antwort auf die User-Frage „können wir nicht einen Status pro Artikel führen,
+> der global gilt?" — mit einer bewussten Zweiteilung: **Verfügbarkeit bleibt berechnet** (sie ist eine
+> Funktion von Zeitraum × Menge; eine Spalte könnte nur „jetzt" beantworten, müsste von jedem Schreibweg
+> gepflegt werden UND von einem Cron, weil ein endender Verleih ohne jeden Schreibvorgang wieder frei
+> macht — genau die Drift-Klasse, die v0.133.0 beseitigt hat). **Die Sperre** dagegen gehört an den
+> Artikel, weil sie aus keiner Buchungstabelle ableitbar ist.
+> **Modell:** `Inventory::CONDITIONS` + `maintenance` (in Wartung) und `lost` (verschollen) — dasselbe
+> Feld, kein zweiter Status, `item_condition` ist `varchar(20)` → KEINE Schema-Änderung, keine Migration.
+> `Inventory::BLOCKED_CONDITIONS` = maintenance · broken · lost · retired; `poor` sperrt bewusst nicht.
+> **Durchsetzung an EINER Stelle:** `Availability::available_quantity()` gibt für gesperrte Artikel 0
+> zurück → wirkt sofort auf externen Verleih, Projekt-Buchung, Kollektiv-Leihe, Föderation und alle
+> „Verfügbar"-Spalten (ohne die Vereinheitlichung aus v0.133.0 wären das vier Einbauorte gewesen).
+> Zusätzliche Guards mit eigenem Code `pp_item_blocked` dort, wo der Verfügbarkeits-Zweig übersprungen
+> werden konnte: **`Projects::add_item()`** — eine Buchung OHNE Zeitraum lief bisher komplett ungeprüft
+> durch — sowie `Borrowing::request()`/`request_bundle()` (Meldung nennt den GRUND statt „nichts frei").
+> `FederatedBorrow` und die öffentliche Artikel-Detailseite nutzen jetzt dieselbe Liste statt eigener
+> `['broken','retired']`-Arrays.
+> **Sichtbarkeit (User-Vorgabe):** defekt/Wartung/verschollen bleiben SICHTBAR — Zustands-Chip in der
+> Spalte „Zustand" (`condition_cell()`; bewusst dort und nicht neben dem Namen, sonst schneidet das Grid
+> lange Artikelnamen ab), Verfügbar = 0, Zeile gedimmt und nicht wählbar, kein „Ausleihen"-Button.
+> **Ausgemustert verschwindet** aus allen Portal-Listen, der Verleih-Auswahl, dem Kollektiv-Pool und der
+> öffentlichen Liste (neues `Inventory::items()`-Arg `hide_retired`, `usable_only` deckt jetzt alle
+> gesperrten Zustände ab) — für den Eigentümer über den Filter „Ausgemustert (n)" in „Mein Inventar"
+> wieder einblendbar (`MemberInventory::retired_count()` = eine COUNT-Abfrage). Gelöscht wird nichts.
+> **Verifiziert** per `wp eval-file` über alle Wege: available_quantity 0, `MemberRentals::create` →
+> `pp_not_available`, `Projects::add_item` OHNE Datum → `pp_item_blocked`, `Borrowing::request` →
+> `pp_item_blocked`; Sichtbarkeit 4 (ohne) / 5 (mit Ausgemusterten) / 3 (öffentlich). Im Browser:
+> Chips + „Verfügbar 0" + gesperrte Picker-Zeilen + Filter-Pill. wp-admin-Zustandsliste (admin.js) um die
+> zwei neuen Werte ergänzt. i18n: 7 neue Strings dt. (mo 1551/1550); ⚠️ make-json schrieb den
+> vollständigen Inhalt erneut unter dem FALSCHEN Namen (`admin/js/a.js`) — in die von WP geladene Datei
+> (`…b41de59….json`, md5 von `admin/js/admin.js`) kopiert, überzählige gelöscht. Plugin Check: nur die 2
+> by-design-ERRORs.
+> **Bekannte Grenze:** Der Zustand hängt am ARTIKEL, nicht am Einzelstück — „1 von 6 defekt" ist damit
+> nicht abbildbar (dafür bräuchte es die `pp_units`-Ebene, im Portal nicht angebunden).
+>
 > ## 📦 Release v0.133.0 2026-08-27 (Verleih-Umbau + EINE Verfügbarkeitsrechnung, Schema UNVERÄNDERT 0.40.0)
 > **Ausgeliefert** (Feature-Commit `0d24919`). Fünf Punkte aus einer User-Rückmeldung zur Verleih-Seite.
 > **(1) Gemeinsame Artikel-Zeile:** neuer Baustein `MemberPortal::picker_row()` — Foto ganz links, dann

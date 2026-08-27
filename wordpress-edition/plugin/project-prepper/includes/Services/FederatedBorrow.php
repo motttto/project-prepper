@@ -89,10 +89,12 @@ class FederatedBorrow {
 			return new WP_Error( 'pp_fed_rate', __( 'Too many requests from this instance today.', 'project-prepper' ), [ 'status' => 429 ] );
 		}
 
-		// Artikel muss existieren und nutzbar sein (kein broken/retired).
+		// Artikel muss existieren und nutzbar sein — gesperrte Zustände (defekt,
+		// in Wartung, verschollen, ausgemustert) fallen über die gemeinsame Liste
+		// {@see Inventory::BLOCKED_CONDITIONS} raus.
 		$item_id = (int) ( $data['item_id'] ?? 0 );
 		$item    = $item_id ? Inventory::get_item( $item_id ) : null;
-		if ( ! $item || in_array( (string) $item->item_condition, [ 'broken', 'retired' ], true ) ) {
+		if ( ! $item || Inventory::is_blocked( $item->item_condition ?? '' ) ) {
 			return new WP_Error( 'pp_fed_item', __( 'The requested item is not available.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		// Sets haben keinen eigenen Bestand (docs/07) — sie stehen deshalb gar nicht

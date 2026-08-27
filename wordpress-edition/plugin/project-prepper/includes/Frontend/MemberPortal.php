@@ -1243,6 +1243,8 @@ class MemberPortal {
 				$msg = 'borrow_unavailable';
 			} elseif ( 'pp_last_founder' === $code ) {
 				$msg = 'leave_last_founder';
+			} elseif ( 'pp_item_blocked' === $code ) {
+				$msg = 'item_blocked';
 			} elseif ( 'pp_not_available' === $code ) {
 				$msg = 'rental_unavailable';
 			} elseif ( 'pp_invalid_amount' === $code ) {
@@ -1446,6 +1448,7 @@ class MemberPortal {
 			'rental_status'    => [ 'ok', __( 'Rental status updated.', 'project-prepper' ) ],
 			'rental_deleted'   => [ 'ok', __( 'Rental deleted.', 'project-prepper' ) ],
 			'rental_unavailable' => [ 'err', __( 'One of the items is not available in that period. Please adjust the dates or quantity.', 'project-prepper' ) ],
+			'item_blocked'       => [ 'err', __( 'That item is blocked right now (broken, in maintenance, missing or retired). Change its condition first if it should go out again.', 'project-prepper' ) ],
 			'project_saved'    => [ 'ok', __( 'Project saved.', 'project-prepper' ) ],
 			'project_deleted'  => [ 'ok', __( 'Project deleted.', 'project-prepper' ) ],
 			'proj_entry_saved'   => [ 'ok', __( 'Entry saved.', 'project-prepper' ) ],
@@ -2755,7 +2758,9 @@ class MemberPortal {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reiner Anzeige-Filter ohne Schreibvorgang.
 		$pt   = isset( $_GET['pp_bto'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_bto'] ) ) : '';
 		$period_ok = self::is_ymd( $pf ) && self::is_ymd( $pt ) && $pf <= $pt;
-		$args = [ 'shared_with_group' => $group_id ];
+		// Ausgemusterte Artikel sind aus dem Betrieb — sie stehen nicht mehr im
+		// Kollektiv-Pool (defekt/Wartung bleiben sichtbar, siehe blocked_chip).
+		$args = [ 'shared_with_group' => $group_id, 'hide_retired' => true ];
 		if ( '' !== trim( $q ) ) {
 			$args['search'] = trim( $q );
 		}
@@ -2896,6 +2901,12 @@ class MemberPortal {
 								? Borrowing::available_sets( $pp_parts, $pf, $pt )
 								: Borrowing::available_units( (int) $item->id, $pf, $pt );
 						}
+						// Gesperrt (defekt/Wartung/verschollen) → nichts verfügbar, egal
+						// was rechnerisch frei wäre; der Grund steht als Chip in der Zeile.
+						$pp_blocked = Inventory::is_blocked( $item->item_condition ?? '' );
+						if ( $pp_blocked ) {
+							$pp_avail = 0;
+						}
 						?>
 						<div data-pp-search-row>
 						<div class="pp-inv-row pp-ginv__row" data-pp-searchable>
@@ -2907,18 +2918,20 @@ class MemberPortal {
 							<span class="pp-col pp-col--owner" data-label="<?php esc_attr_e( 'Owner', 'project-prepper' ); ?>"><?php echo esc_html( $owner_lb ); ?></span>
 							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) $pp_qty_col; ?></span>
 							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo (int) $pp_avail; ?></span>
-							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php echo esc_html( $conditions[ $item->item_condition ] ?? $item->item_condition ); ?></span>
+							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php self::condition_cell( $item ); ?></span>
 							<span class="pp-col pp-col--r" data-label="€/<?php echo esc_attr__( 'day', 'project-prepper' ); ?>"><?php echo ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) ? esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) . ' €' ) : '—'; ?></span>
 							<span class="pp-col pp-col--loc" data-label="<?php esc_attr_e( 'Location', 'project-prepper' ); ?>"><?php echo ! empty( $item->location ) ? esc_html( (string) $item->location ) : '—'; ?></span>
 							<span class="pp-col pp-col--act">
 								<?php if ( $is_mine ) : ?>
 									<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Yours', 'project-prepper' ); ?></span>
+								<?php elseif ( $pp_blocked ) : ?>
+									<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Blocked', 'project-prepper' ); ?></span>
 								<?php else : ?>
 									<button type="button" class="pp-manage-btn" data-pp-modal="pp-borrow-<?php echo (int) $group_id; ?>-<?php echo (int) $item->id; ?>"><?php esc_html_e( 'Borrow', 'project-prepper' ); ?></button>
 								<?php endif; ?>
 							</span>
 						</div>
-						<?php if ( ! $is_mine ) : ?>
+						<?php if ( ! $is_mine && ! $pp_blocked ) : ?>
 							<dialog class="pp-modal pp-modal--portal" id="pp-borrow-<?php echo (int) $group_id; ?>-<?php echo (int) $item->id; ?>">
 								<div class="pp-modal-header">
 									<h2 class="pp-modal__title"><?php echo esc_html( $item->name ); ?></h2>
@@ -3260,6 +3273,39 @@ class MemberPortal {
 	}
 
 	/**
+	 * Grund-Chip für einen gesperrten Artikel („Defekt", „In Wartung",
+	 * „Verschollen", „Ausgemustert"). Gibt nichts aus, wenn der Artikel normal
+	 * einsatzbereit ist. Absichtlich EIN Baustein für alle Listen — der Zustand
+	 * soll überall gleich aussehen und gleich heißen.
+	 */
+	private static function blocked_chip( object $item ): void {
+		$cond = (string) ( $item->item_condition ?? '' );
+		if ( ! Inventory::is_blocked( $cond ) ) {
+			return;
+		}
+		$labels = Shortcodes::condition_labels();
+		?>
+		<span class="pp-state-chip pp-state-chip--<?php echo esc_attr( $cond ); ?>"><?php echo esc_html( $labels[ $cond ] ?? $cond ); ?></span>
+		<?php
+	}
+
+	/**
+	 * Inhalt der Spalte „Zustand" in den Inventar-Tabellen: gesperrte Zustände als
+	 * farbiger Chip, alles andere als Klartext. Bewusst HIER statt neben dem Namen —
+	 * die Tabellen haben eine eigene Zustands-Spalte, und ein Chip in der Namens-
+	 * spalte schneidet lange Artikelnamen ab.
+	 */
+	private static function condition_cell( object $item ): void {
+		$cond = (string) ( $item->item_condition ?? '' );
+		if ( Inventory::is_blocked( $cond ) ) {
+			self::blocked_chip( $item );
+			return;
+		}
+		$labels = Shortcodes::condition_labels();
+		echo esc_html( $labels[ $cond ] ?? $cond );
+	}
+
+	/**
 	 * GEMEINSAME Artikel-Zeile für alle Auswahl-Listen (v0.41.0): Technik-Picker
 	 * im Projekt, Verleih-Formular, Kollektiv-Inventar. Immer gleich aufgebaut —
 	 * Foto ganz links, daneben Name + Inventarnummer + Chips, darunter die
@@ -3285,11 +3331,12 @@ class MemberPortal {
 	 * }
 	 */
 	private static function picker_row( object $item, callable $pick, array $args = [] ): void {
+		$blocked = Inventory::is_blocked( $item->item_condition ?? '' );
 		$classes = 'pp-book-item';
 		if ( ! empty( $args['booked'] ) ) {
 			$classes .= ' pp-book-item--booked';
 		}
-		if ( ! empty( $args['muted'] ) ) {
+		if ( ! empty( $args['muted'] ) || $blocked ) {
 			$classes .= ' pp-book-item--unavailable';
 		}
 		$meta = implode( ' · ', array_filter( (array) ( $args['meta'] ?? [] ), static fn( $b ) => '' !== trim( (string) $b ) ) );
@@ -3311,6 +3358,7 @@ class MemberPortal {
 						<?php if ( '' !== (string) ( $item->inventory_number ?? '' ) ) : ?>
 							<small class="pp-portal__item-num"><?php echo esc_html( (string) $item->inventory_number ); ?></small>
 						<?php endif; ?>
+						<?php self::blocked_chip( $item ); ?>
 						<?php if ( '' !== (string) ( $args['badge'] ?? '' ) ) : ?>
 							<span class="pp-book-item__badge"><?php echo esc_html( (string) $args['badge'] ); ?></span>
 						<?php endif; ?>
@@ -3529,6 +3577,11 @@ class MemberPortal {
 					// (Availability). Der eigene Verleih ist beim Bearbeiten ausgenommen,
 					// damit die schon gebuchte Menge nicht gegen sich selbst zählt.
 					$free = $period_ok ? Availability::available_quantity( (int) $item->id, $from, $to, $rid ) : (int) $item->quantity;
+					// Gesperrt (defekt/Wartung/verschollen) → nie wählbar, auch ohne
+					// gültigen Zeitraum. Der Grund steht als Chip in der Zeile.
+					if ( Inventory::is_blocked( $item->item_condition ?? '' ) ) {
+						$free = 0;
+					}
 					$bits = [];
 					if ( $period_ok ) {
 						/* translators: 1: free pieces in the period, 2: total quantity. */
@@ -3540,7 +3593,7 @@ class MemberPortal {
 					if ( '' !== (string) ( $item->location ?? '' ) ) {
 						$bits[] = (string) $item->location;
 					}
-					$off = $period_ok && $free <= 0 && null === $line;
+					$off = ( $period_ok && $free <= 0 && null === $line ) || Inventory::is_blocked( $item->item_condition ?? '' );
 					self::picker_row(
 						$item,
 						static function () use ( $item, $line, $off ) {
@@ -5496,6 +5549,11 @@ class MemberPortal {
 								// Noch buchbare Menge: Sets immer berechnet; sonst im Zeitraum
 								// frei bzw. Gesamtbestand minus schon gebucht.
 								$avail = ( $pp_parts || $has_period ) ? (int) $free : max( 0, (int) $item->quantity - $already );
+								// Gesperrte Artikel (defekt/Wartung/verschollen) sind nie buchbar —
+								// greift auch, wenn das Projekt keinen Zeitraum hat.
+								if ( Inventory::is_blocked( $item->item_condition ?? '' ) ) {
+									$avail = 0;
+								}
 								self::picker_row(
 									$item,
 									static function () use ( $item, $avail ) {
@@ -8741,7 +8799,12 @@ class MemberPortal {
 		$q         = isset( $_GET['pp_q'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_q'] ) ) : '';
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$cat       = isset( $_GET['pp_cat'] ) ? (int) $_GET['pp_cat'] : 0;
-		$all_items = MemberInventory::my_items( (int) $user->ID, $q );
+		// Ausgemusterte Artikel sind normal ausgeblendet (aus dem Betrieb genommen)
+		// und nur über den Filter erreichbar — gelöscht wird nichts.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reiner Anzeige-Filter.
+		$show_ret  = ! empty( $_GET['pp_retired'] );
+		$all_items = MemberInventory::my_items( (int) $user->ID, $q, $show_ret );
+		$ret_count = MemberInventory::retired_count( (int) $user->ID );
 		// KPI + Kategorie-Zählung über alle (such-gefilterten) Artikel.
 		$total_pieces = 0;
 		$total_value  = 0.0;
@@ -8808,6 +8871,16 @@ class MemberPortal {
 					<?php foreach ( $cat_labels as $cid => $label ) : ?>
 						<a class="pp-portal__chip <?php echo $cat === (int) $cid ? 'pp-portal__chip--on' : ''; ?>" href="<?php echo esc_url( add_query_arg( array_filter( [ 'pp_view' => 'inventory', 'pp_q' => $q, 'pp_cat' => (int) $cid ] ), $base_url ) ); ?>"><?php echo esc_html( $label ); ?> (<?php echo (int) $cat_counts[ $cid ]; ?>)</a>
 					<?php endforeach; ?>
+					<?php if ( $ret_count > 0 || $show_ret ) : ?>
+						<a class="pp-portal__chip <?php echo $show_ret ? 'pp-portal__chip--on' : ''; ?>" href="<?php echo esc_url( $show_ret
+							? add_query_arg( array_filter( [ 'pp_view' => 'inventory', 'pp_q' => $q ] ), $base_url )
+							: add_query_arg( array_filter( [ 'pp_view' => 'inventory', 'pp_q' => $q, 'pp_retired' => 1 ] ), $base_url ) ); ?>">
+							<?php
+							/* translators: %d: number of retired items that are hidden from the list. */
+							printf( esc_html__( 'Retired (%d)', 'project-prepper' ), (int) $ret_count );
+							?>
+						</a>
+					<?php endif; ?>
 				</div>
 			<?php endif; ?>
 
@@ -8858,8 +8931,8 @@ class MemberPortal {
 							</span>
 							<span class="pp-col pp-col--cat" data-label="<?php esc_attr_e( 'Category', 'project-prepper' ); ?>"><?php echo $item->category_name ? esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) : '—'; ?></span>
 							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) ( $pp_parts ? $pp_set_total : $item->quantity ); ?></span>
-							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo (int) ( $pp_parts ? $pp_set_free : max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) ) ); ?></span>
-							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php echo esc_html( $conditions[ $item->condition ] ?? $item->condition ); ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo Inventory::is_blocked( $item->item_condition ?? '' ) ? 0 : (int) ( $pp_parts ? $pp_set_free : max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) ) ); ?></span>
+							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php self::condition_cell( $item ); ?></span>
 							<span class="pp-col pp-col--r" data-label="€/<?php echo esc_attr__( 'day', 'project-prepper' ); ?>"><?php echo ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) ? esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) . ' €' ) : '—'; ?></span>
 							<span class="pp-col pp-col--shared" data-label="<?php esc_attr_e( 'Shared', 'project-prepper' ); ?>"><?php echo $shared_names ? esc_html( implode( ', ', $shared_names ) ) : '<span class="pp-muted">' . esc_html__( 'Not shared', 'project-prepper' ) . '</span>'; ?></span>
 							<span class="pp-col pp-col--loc" data-label="<?php esc_attr_e( 'Location', 'project-prepper' ); ?>"><?php echo ! empty( $item->location ) ? esc_html( (string) $item->location ) : '—'; ?></span>

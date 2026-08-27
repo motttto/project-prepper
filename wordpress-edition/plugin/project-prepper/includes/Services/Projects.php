@@ -562,8 +562,20 @@ class Projects {
 		global $wpdb;
 		$item_id = (int) ( $line['item_id'] ?? 0 );
 		$qty     = max( 1, (int) ( $line['quantity'] ?? 1 ) );
-		if ( ! $item_id || ! Inventory::get_item( $item_id ) ) {
+		$line_item = $item_id ? Inventory::get_item( $item_id ) : null;
+		if ( ! $item_id || ! $line_item ) {
 			return new WP_Error( 'pp_invalid_line', __( 'Invalid line item.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+
+		// Gesperrter Artikel (defekt, in Wartung, verschollen, ausgemustert) ist nie
+		// buchbar. Der Guard steht VOR dem Zeitraum-Zweig, weil eine Sperre nicht
+		// vom Zeitraum abhängt — Buchungen ohne Termine würden ihn sonst umgehen.
+		if ( Inventory::is_blocked( $line_item->item_condition ?? '' ) ) {
+			return new WP_Error(
+				'pp_item_blocked',
+				__( 'This item is currently blocked (broken, in maintenance, missing or retired) and cannot be booked.', 'project-prepper' ),
+				[ 'status' => 409 ]
+			);
 		}
 
 		// Eigener Zeitraum (beide Daten oder keins).

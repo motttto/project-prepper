@@ -115,7 +115,9 @@
 		return " · " + (s || e);
 	}
 
-	var CONDITIONS = { new: __("New", "project-prepper"), good: __("Good", "project-prepper"), fair: __("Used", "project-prepper"), poor: __("Poor", "project-prepper"), broken: __("Broken", "project-prepper"), retired: __("Retired", "project-prepper") };
+	// Reihenfolge + Werte wie Inventory::CONDITIONS; maintenance/lost/broken/retired
+	// sperren den Artikel (Inventory::BLOCKED_CONDITIONS).
+	var CONDITIONS = { new: __("New", "project-prepper"), good: __("Good", "project-prepper"), fair: __("Used", "project-prepper"), poor: __("Poor", "project-prepper"), maintenance: __("In maintenance", "project-prepper"), broken: __("Broken", "project-prepper"), lost: __("Missing", "project-prepper"), retired: __("Retired", "project-prepper") };
 	var STATUS_LABELS = { reserved: __("Reserved", "project-prepper"), active: __("On loan", "project-prepper"), returned: __("Returned", "project-prepper"), cancelled: __("Cancelled", "project-prepper") };
 	var STATUS_ACTIONS = { active: __("Hand out", "project-prepper"), returned: __("Take back", "project-prepper"), cancelled: _x("Cancel", "rental status action", "project-prepper") };
 	var TRANSITIONS = { reserved: ["active", "returned", "cancelled"], active: ["returned", "cancelled"] };

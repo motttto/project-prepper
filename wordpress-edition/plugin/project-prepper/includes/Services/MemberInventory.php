@@ -24,15 +24,35 @@ class MemberInventory {
 	 * @param string $search Optionale Volltextsuche (Name/Nummer/Hersteller/Tags …).
 	 * @return array<object> Items mit owner_user_id = $user_id.
 	 */
-	public static function my_items( int $user_id, string $search = '' ): array {
+	public static function my_items( int $user_id, string $search = '', bool $with_retired = false ): array {
 		if ( ! $user_id ) {
 			return [];
 		}
-		$args = [ 'owner_user_id' => $user_id ];
+		// Ausgemusterte Artikel sind aus dem Betrieb genommen und stehen normal
+		// nicht in der Liste; der Eigentümer kann sie über einen Filter wieder
+		// einblenden (sonst wären sie nicht mehr erreichbar/zurückholbar).
+		$args = [ 'owner_user_id' => $user_id, 'hide_retired' => ! $with_retired ];
 		if ( '' !== trim( $search ) ) {
 			$args['search'] = trim( $search );
 		}
 		return Inventory::items( $args );
+	}
+
+	/**
+	 * Wie viele eigene Artikel sind ausgemustert? (Für den Filter „Ausgemusterte (n)"
+	 * — eine COUNT-Abfrage statt zwei kompletter Listen.)
+	 */
+	public static function retired_count( int $user_id ): int {
+		global $wpdb;
+		if ( ! $user_id ) {
+			return 0;
+		}
+		return (int) $wpdb->get_var( $wpdb->prepare(
+			'SELECT COUNT(*) FROM %i WHERE owner_user_id = %d AND item_condition = %s',
+			Schema::table( 'items' ),
+			$user_id,
+			'retired'
+		) );
 	}
 
 	public static function owns( int $user_id, int $item_id ): bool {
@@ -607,11 +627,13 @@ class MemberInventory {
 			 JOIN %i i ON i.id = s.item_id
 			 LEFT JOIN %i c ON c.id = i.category_id
 			 WHERE s.group_id = %d
+			   AND i.item_condition <> %s
 			 ORDER BY i.name ASC',
 			Schema::table( 'item_group_shares' ),
 			Schema::table( 'items' ),
 			Schema::table( 'categories' ),
-			$group_id
+			$group_id,
+			'retired'
 		) ) ?: [];
 		foreach ( $rows as $row ) {
 			$owner          = get_userdata( (int) $row->shared_by );

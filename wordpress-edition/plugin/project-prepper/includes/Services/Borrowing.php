@@ -74,6 +74,12 @@ class Borrowing {
 		if ( $owner_id === $user_id ) {
 			return new WP_Error( 'pp_own_item', __( 'This is your own item.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
+		// Gesperrt (defekt/Wartung/verschollen/ausgemustert): eigener Fehlercode, damit
+		// die Meldung den GRUND nennt statt bloß „nichts frei" (die Verfügbarkeit wäre
+		// ohnehin 0 — der Guard steht nur früher).
+		if ( Inventory::is_blocked( $item->item_condition ?? '' ) ) {
+			return new WP_Error( 'pp_item_blocked', __( 'This item is currently blocked by its owner (broken, in maintenance, missing or retired).', 'project-prepper' ), [ 'status' => 409 ] );
+		}
 
 		$from = self::valid_date( $from );
 		$to   = self::valid_date( $to );
@@ -143,6 +149,12 @@ class Borrowing {
 		$owner_id = (int) ( $set->owner_user_id ?? 0 );
 		if ( $owner_id === $user_id ) {
 			return new WP_Error( 'pp_own_item', __( 'This is your own item.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		// Gesperrtes SET: gar nicht erst expandieren (dieselbe Meldung wie beim
+		// Einzel-Artikel). Gesperrte TEILE fängt die Set-Verfügbarkeit unten ab,
+		// weil available_sets über Availability rechnet.
+		if ( Inventory::is_blocked( $set->item_condition ?? '' ) ) {
+			return new WP_Error( 'pp_item_blocked', __( 'This item is currently blocked by its owner (broken, in maintenance, missing or retired).', 'project-prepper' ), [ 'status' => 409 ] );
 		}
 		$parts = Bundles::parts( $bundle_item_id );
 		if ( ! $parts ) {

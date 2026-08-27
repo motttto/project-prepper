@@ -139,13 +139,16 @@ class MemberRentals {
 	}
 
 	/**
-	 * Artikel, die das Mitglied extern verleihen darf = die eigenen.
+	 * Artikel, die das Mitglied extern verleihen darf = die eigenen. Ausgemusterte
+	 * bleiben draußen; defekte/in Wartung/verschollene stehen weiter in der Liste
+	 * (mit Grund-Chip, aber nicht wählbar — {@see Availability::available_quantity}
+	 * liefert für sie 0).
 	 *
 	 * @return array<int,object>
 	 */
 	public static function lendable_items( int $user_id ): array {
 		$out = [];
-		foreach ( Inventory::items( [ 'owner_user_id' => $user_id ] ) as $row ) {
+		foreach ( Inventory::items( [ 'owner_user_id' => $user_id, 'hide_retired' => true ] ) as $row ) {
 			$out[ (int) $row->id ] = $row;
 		}
 		return $out;

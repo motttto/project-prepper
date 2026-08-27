@@ -1962,6 +1962,32 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 /* Hinweis, dessen Aussage nicht mehr stimmt (z. B. Zeitraum nachträglich geändert). */
 .pp-hint--warn { color: var(--pp-warning, #b45309); font-weight: 500; }
 
+/* Zustands-Chip für gesperrte Artikel (defekt · in Wartung · verschollen ·
+ * ausgemustert). Überall dieselbe Optik — Inventarlisten wie Auswahl-Zeilen.
+ * Farben über die Token, damit Dark Mode automatisch mitgeht. */
+.pp-state-chip {
+	display: inline-block;
+	padding: .05rem .4rem;
+	border-radius: 999px;
+	font-size: .68rem;
+	font-weight: 600;
+	vertical-align: middle;
+	white-space: nowrap;
+	background: var(--pp-warning-light);
+	color: var(--pp-warning);
+}
+/* Defekt/verschollen sind ernster als „in Wartung" — dieselbe Form, andere Farbe. */
+.pp-state-chip--broken,
+.pp-state-chip--lost {
+	background: var(--pp-destructive-light);
+	color: var(--pp-destructive);
+}
+/* Ausgemustert ist kein Alarm, sondern „aus dem Betrieb" — neutral. */
+.pp-state-chip--retired {
+	background: var(--pp-muted);
+	color: var(--pp-muted-foreground);
+}
+
 /* Projekt-Liste */
 .pp-proj-list { display: flex; flex-direction: column; gap: 10px; }
 .pp-proj-card {

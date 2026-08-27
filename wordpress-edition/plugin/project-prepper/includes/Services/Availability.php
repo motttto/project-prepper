@@ -16,6 +16,9 @@ defined( 'ABSPATH' ) || exit;
  *   − Σ genehmigter Kollektiv-Leihen (borrow_requests) im Zeitraum
  *   − Σ genehmigter föderierter Leihen (fed_borrow_in, je Anfrage 1 Einheit).
  *
+ * Vorgelagert: Ein Artikel in einem GESPERRTEN Zustand ({@see Inventory::BLOCKED_CONDITIONS}
+ * — defekt, in Wartung, verschollen, ausgemustert) ist immer 0 verfügbar.
+ *
  * Vorher rechneten zwei Schichten getrennt — {@see Borrowing::available_units}
  * kannte Verleihe/Projekte nicht, diese Klasse kannte Leihen nicht. Derselbe
  * Artikel konnte dadurch im selben Zeitraum extern verliehen UND ans Kollektiv
@@ -40,6 +43,14 @@ class Availability {
 
 		$item = Inventory::get_item( $item_id );
 		if ( ! $item ) {
+			return 0;
+		}
+
+		// Gesperrter Artikel (defekt, in Wartung, verschollen, ausgemustert) geht
+		// gar nicht raus — unabhängig davon, was rechnerisch frei wäre. Der Guard
+		// sitzt hier, weil ALLE vier Wege durch diese Methode laufen: externer
+		// Verleih, Projekt-Buchung, Kollektiv-Leihe und Netzwerk-Anfrage.
+		if ( Inventory::is_blocked( $item->item_condition ?? '' ) ) {
 			return 0;
 		}
 

@@ -7540,3 +7540,36 @@ msgstr "Deins"
 #: includes/Frontend/MemberPortal.php:3351
 msgid "nothing yet — tick the items below"
 msgstr "noch nichts — hake unten Artikel an"
+
+#: includes/Frontend/MemberPortal.php:2928
+msgid "Blocked"
+msgstr "Gesperrt"
+
+#: includes/Frontend/Shortcodes.php:35
+#: admin/js/admin.js:120
+msgid "In maintenance"
+msgstr "In Wartung"
+
+#: includes/Frontend/Shortcodes.php:37
+#: admin/js/admin.js:120
+msgid "Missing"
+msgstr "Verschollen"
+
+#. translators: %d: number of retired items that are hidden from the list.
+#: includes/Frontend/MemberPortal.php:8864
+#, php-format
+msgid "Retired (%d)"
+msgstr "Ausgemustert (%d)"
+
+#: includes/Frontend/MemberPortal.php:1451
+msgid "That item is blocked right now (broken, in maintenance, missing or retired). Change its condition first if it should go out again."
+msgstr "Dieser Artikel ist gerade gesperrt (defekt, in Wartung, verschollen oder ausgemustert). Ändere zuerst seinen Zustand, wenn er wieder raus soll."
+
+#: includes/Services/Projects.php:576
+msgid "This item is currently blocked (broken, in maintenance, missing or retired) and cannot be booked."
+msgstr "Dieser Artikel ist gerade gesperrt (defekt, in Wartung, verschollen oder ausgemustert) und kann nicht gebucht werden."
+
+#: includes/Services/Borrowing.php:81
+#: includes/Services/Borrowing.php:157
+msgid "This item is currently blocked by its owner (broken, in maintenance, missing or retired)."
+msgstr "Dieser Artikel ist von seinem Eigentümer gerade gesperrt (defekt, in Wartung, verschollen oder ausgemustert)."
