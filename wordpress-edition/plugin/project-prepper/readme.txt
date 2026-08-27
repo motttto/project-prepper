@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.131.0
+Stable tag: 0.132.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,16 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.132.0 =
+* New: sets now work in external rentals too — pick a set as its own line, enter how many sets you need, and the parts are saved as individual rental positions. The parts list and the calculated daily rate are shown right in the form.
+* Sets are all-or-nothing: if one part is not available for the chosen period, the whole set is refused with a message on the set level. When editing a rental, part lines are folded back into “n× set”.
+* Billing uses the parts (sum of the part rates × quantity), so there are no rounding leftovers. A package price still goes into the “Rental fee” field as before.
+* New: sets can be requested from the collective as well — browsing shows a set badge, its parts list, how many sets are free and a “number of sets” field. One request creates one position per part, and the owner approves, rejects, cancels or takes back the whole request in one go.
+* Sharing a set is enough — the individual parts do not have to be shared separately. Every set request sends exactly ONE email, naming the set and its parts.
+* “My loans”, the loan requests and the history show a set request as a single entry with its parts as a sub-line.
+* Fix: clearing a number or date field on an item (daily rate, purchase price, current value, power, purchase date) now really empties it — lists used to show “0.00 €/day” instead of “—”.
+* Note: this update contains a small database extension (extra fields on the rental and loan tables). It runs automatically during the update; existing data stays untouched.
 
 = 0.131.0 =
 * New: live search in every search box — the list is filtered as you type, without reloading the page. Clearing the search field immediately brings all items back.

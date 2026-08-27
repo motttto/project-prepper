@@ -3,6 +3,33 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧩 Release v0.132.0 2026-08-27 (Sets Phase 2: Verleih + Kollektiv-Leihanfragen, Schema 0.39.0 → 0.40.0)
+> **Ausgeliefert.** Der letzte offene Punkt aus Jans Feedback-Runde (Feature-Commit `4b98699`, Konzept
+> docs/07-BUNDLES.md §6): In v0.130.0 waren Sets aus **externem Verleih** und **Kollektiv-Leihanfragen**
+> ausgefiltert — jetzt tragen beide Wege dieselbe Expansion wie die Projekt-Buchung. Ausgewählt/angefragt
+> wird das SET, gespeichert werden serverseitig seine TEILE; gemeinsame Basis ist der neue Helfer
+> `Bundles::expand()`. Dadurch bleiben Verfügbarkeit, Abrechnung und Entscheidungen auf echten Artikeln.
+> **Verleih:** Set als eigene Formular-Zeile („Sets"-Menge, Stückliste, berechneter Tagessatz);
+> `MemberRentals::expand_sets()` prüft Eigentum + Set-Verfügbarkeit (alles-oder-nichts, Meldung auf
+> Set-Ebene) und expandiert in Teil-Positionen. Beim Bearbeiten werden Teil-Zeilen wieder zu „n× Set"
+> zusammengefasst — die Teile werden dabei NICHT zusätzlich als Einzelzeilen vorbelegt; die Positionsliste
+> gruppiert die Teile unter dem Set. **Abrechnung** über die TEILE (Σ Teil-Satz × Bedarf, im Formular
+> ausgewiesen als „11,00 €/Tag (aus den Teilen)") — exakt, ohne Rundungsreste; ein Paketpreis läuft weiter
+> über „Leihgebühr (brutto)". **Kollektiv-Leihen:** `Borrowing::request_bundle()` legt eine Zeile je Teil an
+> (Menge = Bedarf × Sets), geklammert über `bundle_ref`; Set-Share genügt (Teile müssen nicht einzeln
+> geteilt sein), `available_units()` summiert jetzt `quantity`. Der Eigentümer entscheidet über den GANZEN
+> Vorgang (alles-oder-nichts), ebenso Abbrechen/Rückgabe; genau EINE Mail je Vorgang (Betreff nennt Set +
+> Stückliste). Stöbern zeigt Sets mit Chip, Stückliste, „%d Sets frei" + Feld „Anzahl Sets"; Meine Leihen /
+> Leih-Anfragen / Historie zeigen den Vorgang als EINEN Eintrag mit den Teilen als Unterzeile.
+> **Föderation:** Sets sind aus dem föderierten Katalog gefiltert und werden bei eingehenden Anfragen
+> abgewiesen. **Nebenfix:** `Inventory::update_item` schrieb geleerte Zahlen-/Datumsfelder als 0.00/0 statt
+> NULL (cost_per_day, purchase_price, current_value, power_watts, purchase_date) — Listen zeigten
+> „0,00 €/Tag" statt „—". **Schema 0.40.0**: `rental_items.bundle_item_id` sowie `borrow_requests.quantity`
+> (DEFAULT 1 → Bestandszeilen zählen unverändert) + `bundle_item_id` + `bundle_ref`; alles additiv via
+> dbDelta, keine Datenmigration — in wp-env verifiziert (Option `pp_schema_version` = 0.40.0). i18n: 10 neue
+> Strings dt. (mo 1534 übersetzt + Plugin-URI). Plugin Check sauber (nur die 2 by-design-ERRORs).
+> `update.json` auf 0.132.0. GitHub-Release `v0.132.0` mit ZIP-Asset (1,3 MB, 125 Dateien).
+>
 > ## 🔎 Release v0.131.0 2026-08-27 (Live-Suche in allen Suchmasken, Schema UNVERÄNDERT 0.39.0)
 > **Ausgeliefert.** Feature-Commit `0cad589`: Alle Suchmasken filtern jetzt beim Tippen, ohne Seitenreload —
 > geleertes Feld zeigt sofort wieder ALLE Artikel. Neues gemeinsames Script `assets/js/live-search.js`
