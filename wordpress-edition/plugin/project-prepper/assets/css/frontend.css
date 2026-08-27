@@ -2271,14 +2271,18 @@ button.pp-checkitem__box--on { background: var(--pp-success); }
 .pp-cal__grid--month {
 	--pp-cal-row-day: 24px;
 	--pp-cal-row-lane: 19px;
-	--pp-cal-row-more: 16px;
+	--pp-cal-row-more: 18px;
+	--pp-cal-row-fill: 8px;
 	column-gap: 6px;
 	row-gap: 0;
 	grid-auto-flow: row;
 	align-items: stretch;
 }
 .pp-cal__grid--month .pp-cal__cell {
-	min-height: 0;
+	/* Mindesthöhe, damit der Monat wie ein Kalender aussieht. Die zusätzliche
+	 * Höhe nimmt die Füllzeile am Ende jeder Woche auf (siehe render_month_weeks),
+	 * deshalb bleiben die Balken oben und berühren den unteren Rand nicht. */
+	min-height: 84px;
 	display: block;
 	padding: 0;
 	margin-bottom: 6px;
@@ -2333,7 +2337,7 @@ a.pp-cal__bar:hover { filter: brightness(.95); }
 .pp-cal__bar--project  { background: var(--pp-primary); color: #fff; }
 .pp-cal__bar--schedule { background: var(--pp-info-light); color: #1d4ed8; }
 .pp-cal__bar--borrow   { background: var(--pp-success-light); color: #047857; }
-.pp-cal__grid--month .pp-cal__more { z-index: 1; align-self: center; padding-left: 7px; }
+.pp-cal__grid--month .pp-cal__more { z-index: 1; align-self: center; padding-left: 7px; line-height: 1.2; }
 /* Wochen-Zeitraster (App: WeekTimeGrid) — Stundenachse + positionierte Blöcke */
 .pp-cal__tg {
 	background: var(--pp-surface);
@@ -2567,10 +2571,11 @@ a.pp-cal__chip:hover { filter: brightness(.97); }
 	.pp-cal__grid--month {
 		--pp-cal-row-day: 20px;
 		--pp-cal-row-lane: 15px;
-		--pp-cal-row-more: 14px;
+		--pp-cal-row-more: 16px;
+		--pp-cal-row-fill: 5px;
 		column-gap: 3px;
 	}
-	.pp-cal__grid--month .pp-cal__cell { padding: 3px; border-radius: 8px; margin-bottom: 3px; }
+	.pp-cal__grid--month .pp-cal__cell { min-height: 52px; padding: 3px; border-radius: 8px; margin-bottom: 3px; }
 	.pp-cal__grid--month .pp-cal__daynum { margin: 2px 0 0 4px; }
 	.pp-cal__bar { font-size: .58rem; padding: 0 3px; margin: 0 1px; border-radius: 3px; }
 	.pp-cal__grid--month .pp-cal__more { font-size: .55rem; padding-left: 4px; }

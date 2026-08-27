@@ -3,6 +3,28 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🩹 Release v0.137.2 2026-08-27 (Monatsraster: Kachelhöhe zurück, Schema UNVERÄNDERT 0.41.0)
+> **Ausgeliefert.** Der User meldete nach v0.137.1: „der Kalender sieht immer noch genauso schlecht aus".
+> Live-Prüfung von außen ergab: 0.137.1 war korrekt ausgeliefert (CSS enthält `pp-cal__grid--month`, kein
+> `pp-cal__week` mehr, Seite ohne Cache-Header) — der Fehler war ein ANDERER als der von v0.137.0.
+> **Ursache:** Beim Umbau auf das Monats-Grid hatte ich `min-height` der Kacheln auf 0 gesetzt. Damit fiel
+> der Monat auf die Summe seiner Zeilenhöhen zusammen (bei zwei Spuren nur 56 px statt 84 px), und weil
+> die letzte Spur-Zeile exakt an der Kachelunterkante endet, klebten die Balken am Rand — optisch fast
+> derselbe Eindruck wie der Vorgängerfehler, technisch etwas ganz anderes.
+> **Fix:** Jede Woche bekommt eine FÜLLZEILE am Ende (`minmax(var(--pp-cal-row-fill), auto)`), die Kachel
+> ihre Mindesthöhe zurück (84 px, mobil 52 px). Überschüssige Höhe verteilt das Raster auf die flexiblen
+> Zeilen der Spannweite — mit genau einer solchen Zeile am Ende landet sie komplett unten, die Balken
+> bleiben oben unter der Tageszahl. Dazu: „+n weitere"-Zeile von 16 auf 18 px (der Text war 18 px hoch und
+> ragte 7 px aus der Kachel), `line-height` gesetzt, „+n" sitzt jetzt VOR der Füllzeile.
+> **Verifiziert** mit den Daten aus dem User-Screenshot nachgebaut (Projekt 24.08.–02.09. über Wochen- und
+> Monatsgrenze, Verleih „Seb Specht", Projekt 07.–09.08.) plus vier überlappenden Terminen für den
+> Überlauf: Kacheln 98–101 px, `probleme: []` in Hell, Dunkel und Mobil (jedes Element gegen seine Kachel
+> UND das Raster geprüft).
+> ⚠️ **Test-Learning:** Zwischendurch zeigte die Messung fälschlich 18-px-Kacheln — der Browser hatte
+> `frontend.css?ver=…` aus der Sitzung gecacht. Bei CSS-Prüfungen im wp-env IMMER einen Cache-Buster auf
+> den Stylesheet-Link setzen, sonst misst man den alten Stand.
+> Build `dist/project-prepper-0.137.2.zip` (1,3 MB, 126 Dateien), `update.json` auf 0.137.2.
+>
 > ## 🩹 Release v0.137.1 2026-08-27 (Monatsraster repariert, Schema UNVERÄNDERT 0.41.0)
 > **Ausgeliefert** (Feature-Commit `c42288c`) — Fix-Release für einen sichtbaren Fehler in v0.137.0. Der User meldete mit Screenshot:
 > „der Kalender sieht nicht gut aus" — Balken hingen UNTER den Tageskacheln und liefen rechts aus dem

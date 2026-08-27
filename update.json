@@ -1,9 +1,9 @@
 {
-  "version": "0.137.1",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.137.1/project-prepper-0.137.1.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.137.1",
+  "version": "0.137.2",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.137.2/project-prepper-0.137.2.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.137.2",
   "published": "2026-08-27",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "* Behoben: In 0.137.0 konnten die neuen Kalender-Balken unter den Tageskacheln hängen und rechts aus dem Raster laufen. Der Monat ist jetzt EIN Raster, dessen Zeilen alle im Voraus feststehen — dadurch kann nichts mehr herausrutschen.\n* Behoben: Die Balken haben jetzt eigene Farben für den Dunkelmodus. Vor allem Ausleihen waren dunkelgrün auf dunklem Grund und kaum lesbar.\n* Wochen ohne Einträge reservieren keine leeren Spuren mehr — ein ruhiger Monat bekommt dadurch flachere Kacheln."
+  "changelog": "* Behoben: Die Monatsansicht war auf die Höhe ihres Inhalts zusammengefallen — die Tageskacheln waren viel zu flach und die Balken klebten am unteren Rand. Die Kacheln haben wieder eine ordentliche Mindesthöhe, die Balken sitzen direkt unter der Tageszahl.\n* Behoben: In einer voll belegten Woche konnte die Zeile „+n weitere“ unten aus der Kachel ragen."
 }

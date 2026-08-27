@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.137.1
+Stable tag: 0.137.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,10 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.137.2 =
+* Fix: the month view had collapsed to the height of its content, so the day tiles were far too flat and the bars were pressed against the bottom edge. Tiles have a proper minimum height again, and the bars sit right under the day number.
+* Fix: the “+n more” line could stick out past the bottom of a tile in a fully booked week.
 
 = 0.137.1 =
 * Fix: in 0.137.0 the new calendar bars could hang below the day tiles and run out of the grid on the right. The month is now laid out as a single grid whose rows are all declared up front, so nothing can slip out.

@@ -8286,13 +8286,22 @@ class MemberPortal {
 			$has_overflow = $has_overflow || (bool) $week['hidden'];
 		}
 		$lane_rows = max( 1, min( self::CAL_LANES, $lanes_used ) );
-		$per_week  = 1 + $lane_rows + ( $has_overflow ? 1 : 0 );
+		// +1 für die FÜLLZEILE am Ende jeder Woche: Die Kachel hat eine Mindesthöhe
+		// (damit der Monat wie ein Kalender aussieht und nicht auf die Zeilenhöhen
+		// zusammenfällt). Überschüssige Höhe verteilt das Raster auf die flexiblen
+		// Zeilen der Spannweite — mit genau EINER solchen Zeile am Ende landet sie
+		// komplett unten: Die Balken bleiben oben unter der Tageszahl gepackt und
+		// stoßen nie an den unteren Kachelrand.
+		$per_week  = 1 + $lane_rows + ( $has_overflow ? 1 : 0 ) + 1;
 
-		// Zeilen-Vorlage: je Woche Tageszahl-Zeile, Spur-Zeilen, ggf. „+n"-Zeile.
-		// Die Höhen stecken in CSS-Variablen, damit die Media-Query sie auf dem
-		// Handy verkleinern kann.
+		// Zeilen-Vorlage: je Woche Tageszahl-Zeile, Spur-Zeilen, ggf. „+n"-Zeile,
+		// zuletzt die Füllzeile. Deren Mindesthöhe deckt den unteren Innenabstand der
+		// Kachel ab — sonst stößt bei voller Woche (alle Spuren + „+n") die letzte
+		// Zeile an den Kachelrand. Die festen Höhen stecken in CSS-Variablen, damit
+		// die Media-Query sie auf dem Handy verkleinern kann.
 		$row_tpl = 'var(--pp-cal-row-day)' . str_repeat( ' var(--pp-cal-row-lane)', $lane_rows )
-			. ( $has_overflow ? ' var(--pp-cal-row-more)' : '' );
+			. ( $has_overflow ? ' var(--pp-cal-row-more)' : '' )
+			. ' minmax(var(--pp-cal-row-fill), auto)';
 		$rows    = trim( str_repeat( $row_tpl . ' ', count( $weeks ) ) );
 		?>
 		<div class="pp-cal__grid pp-cal__grid--month" style="grid-template-rows: <?php echo esc_attr( $rows ); ?>;">
@@ -8317,7 +8326,7 @@ class MemberPortal {
 
 				<?php if ( $has_overflow ) : ?>
 					<?php foreach ( $week['hidden'] as $col => $count ) : ?>
-						<span class="pp-cal__more" style="grid-column: <?php echo (int) $col; ?>; grid-row: <?php echo (int) ( $base + $per_week - 1 ); ?>;">
+						<span class="pp-cal__more" style="grid-column: <?php echo (int) $col; ?>; grid-row: <?php echo (int) ( $base + $per_week - 2 ); ?>;">
 							<?php
 							/* translators: %d: number of additional events on that day. */
 							printf( esc_html__( '+%d more', 'project-prepper' ), (int) $count );
