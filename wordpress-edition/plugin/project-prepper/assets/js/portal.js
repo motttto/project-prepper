@@ -225,4 +225,84 @@
 			if ( a && safe( a ) ) { prefetch( a ); }
 		}, { passive: true } );
 	} )();
+	/* Auswahl-Anzeige über den Artikel-Listen (Verleih-Formular, Technik-Picker):
+	 * zeigt live, was schon angehakt ist — auch wenn die Live-Suche die Zeile
+	 * gerade ausblendet. Struktur: [data-pp-picker] umschließt die Liste und
+	 * [data-pp-picker-summary]; die Chips landen in [data-pp-picker-chips], der
+	 * Leer-Hinweis steckt in [data-pp-picker-empty]. Ohne JS bleibt der
+	 * Leer-Hinweis stehen und die Auswahl funktioniert unverändert. */
+	( function () {
+		function itemName( row ) {
+			var name = row.querySelector( '.pp-book-item__name' );
+			if ( ! name ) { return ''; }
+			// Nur die direkten Textknoten — Chips („Set"), Inventarnummer und
+			// Badges stecken in Kind-Elementen und würden den Chip aufblähen.
+			var txt = '';
+			Array.prototype.forEach.call( name.childNodes, function ( n ) {
+				if ( 3 === n.nodeType ) { txt += n.textContent; }
+			} );
+			txt = txt.replace( /\s+/g, ' ' ).trim();
+			return txt || name.textContent.replace( /\s+/g, ' ' ).trim();
+		}
+
+		function refresh( picker ) {
+			var chips = picker.querySelector( '[data-pp-picker-chips]' );
+			var empty = picker.querySelector( '[data-pp-picker-empty]' );
+			if ( ! chips ) { return; }
+			var picked = [];
+			picker.querySelectorAll( '.pp-book-item' ).forEach( function ( row ) {
+				var box = row.querySelector( 'input[type="checkbox"]' );
+				if ( ! box || ! box.checked ) { return; }
+				var qty = row.querySelector( '.pp-book-item__qty' );
+				var n   = qty ? parseInt( qty.value, 10 ) : 1;
+				picked.push( ( n > 1 ? n + '× ' : '' ) + itemName( row ) );
+			} );
+			chips.textContent = '';
+			picked.forEach( function ( label ) {
+				var chip = document.createElement( 'span' );
+				chip.className = 'pp-picker-summary__chip';
+				chip.textContent = label;
+				chips.appendChild( chip );
+			} );
+			if ( empty ) { empty.hidden = picked.length > 0; }
+		}
+
+		function refreshFrom( el ) {
+			var picker = el.closest ? el.closest( '[data-pp-picker]' ) : null;
+			if ( picker ) { refresh( picker ); }
+		}
+
+		document.addEventListener( 'change', function ( e ) {
+			if ( e.target.matches && e.target.matches( '[data-pp-picker] input[type="checkbox"]' ) ) {
+				refreshFrom( e.target );
+			}
+		} );
+
+		/* Zeitraum im Verleih-Formular geändert → die serverseitig gerechneten
+		 * Verfügbarkeiten gelten für die ALTEN Tage. Statt stiller falscher Zahlen
+		 * sagt der Hinweis das offen; die echte Prüfung macht ohnehin der Server
+		 * beim Speichern (MemberRentals/Rentals). Der Ersatztext kommt übersetzt
+		 * aus data-pp-stale. */
+		document.addEventListener( 'change', function ( e ) {
+			if ( ! e.target.matches || ! e.target.matches( '.pp-rental-form input[type="date"]' ) ) { return; }
+			var form = e.target.closest( '.pp-rental-form' );
+			var note = form ? form.querySelector( '[data-pp-avail-note]' ) : null;
+			if ( note && note.dataset.ppStale ) {
+				note.textContent = note.dataset.ppStale;
+				note.classList.add( 'pp-hint--warn' );
+			}
+		} );
+		document.addEventListener( 'input', function ( e ) {
+			if ( e.target.matches && e.target.matches( '[data-pp-picker] .pp-book-item__qty' ) ) {
+				refreshFrom( e.target );
+			}
+		} );
+		document.addEventListener( 'DOMContentLoaded', function () {
+			document.querySelectorAll( '[data-pp-picker]' ).forEach( refresh );
+		} );
+		// Skript liegt im Footer — bei bereits fertigem DOM sofort initialisieren.
+		if ( 'loading' !== document.readyState ) {
+			document.querySelectorAll( '[data-pp-picker]' ).forEach( refresh );
+		}
+	} )();
 } )();

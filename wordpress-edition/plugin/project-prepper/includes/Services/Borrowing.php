@@ -243,45 +243,19 @@ class Borrowing {
 	}
 
 	/**
-	 * Verfügbare Einheiten eines Items in einem Zeitraum: Menge minus überlappende
-	 * genehmigte Leihen (eine Anfrage = eine Einheit). $exclude lässt die eigene
-	 * Anfrage außen vor.
+	 * Verfügbare Einheiten eines Items in einem Zeitraum.
+	 *
+	 * Seit v0.41.0 nur noch eine Weiterleitung an {@see Availability::available_quantity}
+	 * — dort zählen ALLE Wege mit, auf denen der Artikel unterwegs sein kann
+	 * (externe Verleihe, Projekt-Buchungen, Kollektiv-Leihen, föderierte Leihen).
+	 * Vorher sah diese Methode nur die Leihen, wodurch ein extern verliehener
+	 * Artikel im Kollektiv weiterhin als frei galt.
+	 *
+	 * @param int $exclude     Eigene Anfrage ausklammern (beim Entscheiden).
+	 * @param int $exclude_ref Ganzen Set-Vorgang ausklammern (bundle_ref).
 	 */
 	public static function available_units( int $item_id, string $from, string $to, int $exclude = 0, int $exclude_ref = 0 ): int {
-		global $wpdb;
-		$item = Inventory::get_item( $item_id );
-		if ( ! $item ) {
-			return 0;
-		}
-		$qty  = max( 1, (int) $item->quantity );
-		// Lokale genehmigte Leihen im Zeitraum. `quantity` ist seit v0.40.0 die
-		// angefragte Stückzahl (Einzel-Artikel und Bestandszeilen: 1), Set-Teile
-		// tragen Bedarf × Anzahl Sets. $exclude_ref klammert einen ganzen
-		// Set-Vorgang aus (alle Zeilen mit dieser bundle_ref).
-		$used = (int) $wpdb->get_var( $wpdb->prepare(
-			"SELECT COALESCE(SUM(quantity), 0) FROM %i
-			 WHERE item_id = %d AND status = 'approved' AND id <> %d
-			   AND ( bundle_ref IS NULL OR bundle_ref <> %d )
-			   AND date_from <= %s AND date_to >= %s",
-			Schema::table( 'borrow_requests' ),
-			$item_id,
-			$exclude,
-			$exclude_ref,
-			$to,
-			$from
-		) );
-		// Föderierte genehmigte Ausleihen (Slice 5): eine genehmigte Anfrage einer
-		// Partner-Instanz hält ebenfalls eine Einheit, bis sie zurückgegeben ist.
-		$used += (int) $wpdb->get_var( $wpdb->prepare(
-			"SELECT COUNT(*) FROM %i
-			 WHERE item_id = %d AND status = 'approved'
-			   AND date_from <= %s AND date_to >= %s",
-			Schema::table( 'fed_borrow_in' ),
-			$item_id,
-			$to,
-			$from
-		) );
-		return max( 0, $qty - $used );
+		return Availability::available_quantity( $item_id, $from, $to, 0, 0, $exclude, $exclude_ref );
 	}
 
 	/** Eigentümer nimmt an. @return true|WP_Error */

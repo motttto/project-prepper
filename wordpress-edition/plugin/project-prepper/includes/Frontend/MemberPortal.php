@@ -379,6 +379,11 @@ class MemberPortal {
 		if ( in_array( $do, [ 'borrow_request', 'borrow_approve', 'borrow_decline', 'borrow_cancel', 'borrow_return', 'fedborrow_approve', 'fedborrow_decline', 'fedborrow_return' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'lending', self::portal_url() );
 		}
+		// Eine neue Anfrage wird aus dem Kollektiv-Inventar gestellt (seit v0.41.0,
+		// vorher „Stöbern") — danach direkt zu „Meine Leihen", damit man sie sieht.
+		if ( 'borrow_request' === $do ) {
+			$back = add_query_arg( 'pp_tab', 'borrows', $back );
+		}
 		// Ausgehende Netzwerk-Anfrage kehrt zum Netzwerk-Tab zurück.
 		if ( 'fed_request' === $do ) {
 			$back = add_query_arg( 'pp_view', 'network', self::portal_url() );
@@ -2741,6 +2746,15 @@ class MemberPortal {
 		$q    = isset( $_GET['pp_q'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_q'] ) ) : '';
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$cat  = isset( $_GET['pp_cat'] ) ? (int) $_GET['pp_cat'] : 0;
+		// Zeitraum-Filter (v0.41.0, aus dem entfallenen „Stöbern"-Reiter übernommen):
+		// ohne Zeitraum zeigt „Verfügbar" den heutigen Stand aus dem gemeinsamen
+		// out_now-Zähler (eine Abfrage). MIT Zeitraum wird je Artikel exakt
+		// gerechnet (Availability) und das Leih-Formular ist vorbelegt.
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reiner Anzeige-Filter ohne Schreibvorgang.
+		$pf   = isset( $_GET['pp_bfrom'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_bfrom'] ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reiner Anzeige-Filter ohne Schreibvorgang.
+		$pt   = isset( $_GET['pp_bto'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_bto'] ) ) : '';
+		$period_ok = self::is_ymd( $pf ) && self::is_ymd( $pt ) && $pf <= $pt;
 		$args = [ 'shared_with_group' => $group_id ];
 		if ( '' !== trim( $q ) ) {
 			$args['search'] = trim( $q );
@@ -2802,6 +2816,26 @@ class MemberPortal {
 					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Search', 'project-prepper' ); ?></button>
 				</form>
 
+				<form class="pp-browse-period" method="get">
+					<input type="hidden" name="pp_view" value="inventory">
+					<?php if ( '' !== trim( $q ) ) : ?>
+						<input type="hidden" name="pp_q" value="<?php echo esc_attr( $q ); ?>">
+					<?php endif; ?>
+					<?php if ( $cat ) : ?>
+						<input type="hidden" name="pp_cat" value="<?php echo (int) $cat; ?>">
+					<?php endif; ?>
+					<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+						<input type="date" name="pp_bfrom" value="<?php echo esc_attr( $pf ); ?>">
+					</label>
+					<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+						<input type="date" name="pp_bto" value="<?php echo esc_attr( $pt ); ?>">
+					</label>
+					<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Check availability', 'project-prepper' ); ?></button>
+					<?php if ( $period_ok ) : ?>
+						<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( add_query_arg( array_filter( [ 'pp_view' => 'inventory', 'pp_q' => $q, 'pp_cat' => $cat ] ), $base_url ) ); ?>"><?php esc_html_e( 'Reset', 'project-prepper' ); ?></a>
+					<?php endif; ?>
+				</form>
+
 				<?php if ( $all_items ) : ?>
 					<p class="pp-inv-kpi">
 						<?php
@@ -2828,6 +2862,7 @@ class MemberPortal {
 						<span class="pp-col pp-col--cond"><?php esc_html_e( 'Condition', 'project-prepper' ); ?></span>
 						<span class="pp-col pp-col--r">€/<?php echo esc_html__( 'day', 'project-prepper' ); ?></span>
 						<span class="pp-col pp-col--loc"><?php esc_html_e( 'Location', 'project-prepper' ); ?></span>
+						<span class="pp-col pp-col--act"></span>
 					</div>
 					<?php
 					foreach ( $items as $item ) :
@@ -2855,7 +2890,14 @@ class MemberPortal {
 							$pp_avail   = (int) max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) );
 							$pp_sub     = $item->model ?: ( $item->description ?? '' );
 						}
+						// Mit gewähltem Zeitraum exakt für DIESE Tage rechnen (statt „heute").
+						if ( $period_ok ) {
+							$pp_avail = $pp_parts
+								? Borrowing::available_sets( $pp_parts, $pf, $pt )
+								: Borrowing::available_units( (int) $item->id, $pf, $pt );
+						}
 						?>
+						<div data-pp-search-row>
 						<div class="pp-inv-row pp-ginv__row" data-pp-searchable>
 							<span class="pp-col pp-col--name">
 								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php else : ?><span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span><?php endif; ?>
@@ -2868,6 +2910,51 @@ class MemberPortal {
 							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php echo esc_html( $conditions[ $item->item_condition ] ?? $item->item_condition ); ?></span>
 							<span class="pp-col pp-col--r" data-label="€/<?php echo esc_attr__( 'day', 'project-prepper' ); ?>"><?php echo ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) ? esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) . ' €' ) : '—'; ?></span>
 							<span class="pp-col pp-col--loc" data-label="<?php esc_attr_e( 'Location', 'project-prepper' ); ?>"><?php echo ! empty( $item->location ) ? esc_html( (string) $item->location ) : '—'; ?></span>
+							<span class="pp-col pp-col--act">
+								<?php if ( $is_mine ) : ?>
+									<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Yours', 'project-prepper' ); ?></span>
+								<?php else : ?>
+									<button type="button" class="pp-manage-btn" data-pp-modal="pp-borrow-<?php echo (int) $group_id; ?>-<?php echo (int) $item->id; ?>"><?php esc_html_e( 'Borrow', 'project-prepper' ); ?></button>
+								<?php endif; ?>
+							</span>
+						</div>
+						<?php if ( ! $is_mine ) : ?>
+							<dialog class="pp-modal pp-modal--portal" id="pp-borrow-<?php echo (int) $group_id; ?>-<?php echo (int) $item->id; ?>">
+								<div class="pp-modal-header">
+									<h2 class="pp-modal__title"><?php echo esc_html( $item->name ); ?></h2>
+									<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+								</div>
+								<div class="pp-modal-body">
+									<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+										<?php self::action_fields( 'borrow_request' ); ?>
+										<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+										<input type="hidden" name="pp_group" value="<?php echo (int) $group_id; ?>">
+										<p class="pp-portal__hint">
+											<?php
+											/* translators: 1: owner display name, 2: number of pieces/sets available. */
+											printf( esc_html__( 'Owner: %1$s · %2$d available', 'project-prepper' ), esc_html( $owner_lb ), (int) $pp_avail );
+											?>
+										</p>
+										<?php if ( $pp_parts ) : ?>
+											<p class="pp-portal__hint"><?php echo esc_html( Bundles::parts_label( $pp_parts ) ); ?></p>
+											<label><?php esc_html_e( 'Number of sets', 'project-prepper' ); ?>
+												<input type="number" name="pp_sets" min="1" value="1">
+											</label>
+										<?php endif; ?>
+										<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
+											<input type="date" name="pp_from" value="<?php echo $period_ok ? esc_attr( $pf ) : ''; ?>" required>
+										</label>
+										<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
+											<input type="date" name="pp_to" value="<?php echo $period_ok ? esc_attr( $pt ) : ''; ?>" required>
+										</label>
+										<label><?php esc_html_e( 'Message (optional)', 'project-prepper' ); ?>
+											<textarea name="pp_message" rows="2"></textarea>
+										</label>
+										<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Send request', 'project-prepper' ); ?></button>
+									</form>
+								</div>
+							</dialog>
+						<?php endif; ?>
 						</div>
 					<?php endforeach; ?>
 					<p class="pp-portal__empty" data-pp-search-none hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
@@ -2923,16 +3010,18 @@ class MemberPortal {
 	}
 
 	/**
-	 * Verleih & Leihen — vier Reiter statt einer langen Seite (Muster
-	 * Projekt-Detail): Externe Verleihe (App: /rentals, Default) · Stöbern ·
-	 * Leih-Anfragen (eingehend, inkl. Netzwerk) · Meine Leihen (+ Historie).
+	 * Verleih & Leihen — drei Reiter statt einer langen Seite (Muster
+	 * Projekt-Detail): Externe Verleihe (App: /rentals, Default) · Leih-Anfragen
+	 * (eingehend, inkl. Netzwerk) · Meine Leihen (+ Historie).
+	 *
+	 * Der frühere Reiter „Stöbern" ist in v0.41.0 entfallen: er listete exakt das
+	 * Kollektiv-Inventar ein zweites Mal. Der „Ausleihen"-Button sitzt jetzt dort,
+	 * wo die Artikel ohnehin stehen (Inventar-Ansicht im Gruppen-Workspace) —
+	 * inklusive Suche, Kategorie-Pills und Zeitraum-Prüfung.
 	 */
 	private static function view_lending( WP_User $user, array $groups ): void {
 		$uid          = (int) $user->ID;
 		$fed_incoming = FederatedBorrow::inbound_for_owner( $uid );
-		// Stöbern ist auf den aktiven Workspace begrenzt (Solo → kein Stöbern).
-		$active        = self::active_group_id( $groups );
-		$active_groups = array_values( array_filter( $groups, static fn( $g ) => (int) $g->id === $active ) );
 
 		// Zähler für die Reiter-Badges + Empty-States.
 		$mine      = Borrowing::my_requests( $uid );
@@ -2946,7 +3035,6 @@ class MemberPortal {
 		$tabs = [
 			/* translators: %d: number of external rentals that are reserved or handed out. */
 			'rentals'  => sprintf( __( 'External rentals (%d)', 'project-prepper' ), (int) array_sum( array_intersect_key( MemberRentals::kpis( $uid ), [ 'reserved' => 1, 'active' => 1 ] ) ) ),
-			'browse'   => __( 'Browse', 'project-prepper' ),
 			/* translators: %d: number of open borrow requests for the member’s items. */
 			'requests' => sprintf( __( 'Borrow requests (%d)', 'project-prepper' ), (int) $open_reqs ),
 			/* translators: %d: number of the member’s own active borrows. */
@@ -2961,7 +3049,7 @@ class MemberPortal {
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title"><?php esc_html_e( 'Borrowing & lending', 'project-prepper' ); ?></h1>
-			<p class="pp-app__page-sub"><?php esc_html_e( 'Browse what your collectives share, request items, manage requests for your own — and lend out your equipment to externals.', 'project-prepper' ); ?></p>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Manage borrow requests for your own equipment, keep an eye on what you borrowed — and lend your equipment out to externals.', 'project-prepper' ); ?></p>
 		</header>
 
 		<nav class="pp-proj-tabs" aria-label="<?php esc_attr_e( 'Lending sections', 'project-prepper' ); ?>">
@@ -2972,9 +3060,6 @@ class MemberPortal {
 
 		<?php
 		switch ( $tab ) {
-			case 'browse':
-				self::render_browse( $user, $active_groups );
-				break;
 			case 'requests':
 				self::render_incoming_borrows( $user );
 				self::render_incoming_fed_borrows( $fed_incoming );
@@ -2989,7 +3074,7 @@ class MemberPortal {
 				self::render_borrow_history( $user );
 				if ( ! $my_active && 0 === $closed_n ) {
 					?>
-					<p class="pp-portal__empty"><?php esc_html_e( 'You are not borrowing anything right now. Find equipment under “Browse”.', 'project-prepper' ); ?></p>
+					<p class="pp-portal__empty"><?php esc_html_e( 'You are not borrowing anything right now. Find equipment under “Inventory” while a collective workspace is active.', 'project-prepper' ); ?></p>
 					<?php
 				}
 				break;
@@ -3131,7 +3216,7 @@ class MemberPortal {
 						<div class="pp-portal__actions">
 							<?php if ( in_array( $full->status, [ 'reserved', 'active' ], true ) && $lendable ) : ?>
 								<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-rental-edit-<?php echo (int) $full->id; ?>"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></button>
-								<dialog class="pp-modal pp-modal--portal" id="pp-rental-edit-<?php echo (int) $full->id; ?>">
+								<dialog class="pp-modal pp-modal--portal pp-modal--wide" id="pp-rental-edit-<?php echo (int) $full->id; ?>">
 									<div class="pp-modal-header">
 										<h2 class="pp-modal__title"><?php echo esc_html( sprintf( /* translators: %s: rental number. */ __( 'Edit rental %s', 'project-prepper' ), $full->rental_number ) ); ?></h2>
 										<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
@@ -3171,6 +3256,106 @@ class MemberPortal {
 			<span class="pp-kpi__value"><?php echo esc_html( $value ); ?></span>
 			<span class="pp-kpi__label"><?php echo esc_html( $label ); ?></span>
 		</div>
+		<?php
+	}
+
+	/**
+	 * GEMEINSAME Artikel-Zeile für alle Auswahl-Listen (v0.41.0): Technik-Picker
+	 * im Projekt, Verleih-Formular, Kollektiv-Inventar. Immer gleich aufgebaut —
+	 * Foto ganz links, daneben Name + Inventarnummer + Chips, darunter die
+	 * Meta-Zeile (Verfügbarkeit, Tagessatz …), rechts die Steuerelemente des
+	 * jeweiligen Kontexts.
+	 *
+	 * Die Slots sind Closures statt HTML-Strings: so escaped jeder Aufrufer sein
+	 * eigenes Markup und die Vorlage bleibt frei von durchgereichtem HTML.
+	 * `data-pp-searchable` sitzt auf der Zeile — damit filtert die Live-Suche
+	 * (assets/js/live-search.js) jede dieser Listen ohne Zusatzarbeit.
+	 *
+	 * @param object   $item Inventar-Artikel (name, image_url, inventory_number).
+	 * @param callable $pick Rendert den Auswahl-Input (Checkbox) im Label.
+	 * @param array    $args {
+	 *     @type string[] $meta     Meta-Bits, werden mit „ · " verbunden.
+	 *     @type bool     $is_set   Set-Chip hinter dem Namen.
+	 *     @type string   $sub      Unterzeile (z. B. Stückliste eines Sets).
+	 *     @type string   $badge    Badge hinter dem Namen (z. B. „bereits gebucht").
+	 *     @type bool     $booked   Zeile als „schon gebucht" kennzeichnen.
+	 *     @type bool     $muted    Zeile dimmen (nichts mehr frei).
+	 *     @type callable $after    Zusatz-Markup unter der Meta-Zeile (Bedingungen).
+	 *     @type callable $controls Steuerelemente rechts (Menge, €/Tag …).
+	 * }
+	 */
+	private static function picker_row( object $item, callable $pick, array $args = [] ): void {
+		$classes = 'pp-book-item';
+		if ( ! empty( $args['booked'] ) ) {
+			$classes .= ' pp-book-item--booked';
+		}
+		if ( ! empty( $args['muted'] ) ) {
+			$classes .= ' pp-book-item--unavailable';
+		}
+		$meta = implode( ' · ', array_filter( (array) ( $args['meta'] ?? [] ), static fn( $b ) => '' !== trim( (string) $b ) ) );
+		?>
+		<div class="<?php echo esc_attr( $classes ); ?>" data-pp-searchable>
+			<label class="pp-book-item__pick">
+				<?php $pick(); ?>
+				<?php if ( ! empty( $item->image_url ) ) : ?>
+					<img class="pp-portal__item-thumb" src="<?php echo esc_url( (string) $item->image_url ); ?>" alt="" loading="lazy">
+				<?php else : ?>
+					<span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span>
+				<?php endif; ?>
+				<span class="pp-book-item__text">
+					<span class="pp-book-item__name">
+						<?php echo esc_html( (string) $item->name ); ?>
+						<?php if ( ! empty( $args['is_set'] ) ) : ?>
+							<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
+						<?php endif; ?>
+						<?php if ( '' !== (string) ( $item->inventory_number ?? '' ) ) : ?>
+							<small class="pp-portal__item-num"><?php echo esc_html( (string) $item->inventory_number ); ?></small>
+						<?php endif; ?>
+						<?php if ( '' !== (string) ( $args['badge'] ?? '' ) ) : ?>
+							<span class="pp-book-item__badge"><?php echo esc_html( (string) $args['badge'] ); ?></span>
+						<?php endif; ?>
+					</span>
+					<?php if ( '' !== $meta ) : ?>
+						<span class="pp-book-item__meta"><?php echo esc_html( $meta ); ?></span>
+					<?php endif; ?>
+					<?php if ( '' !== (string) ( $args['sub'] ?? '' ) ) : ?>
+						<span class="pp-book-item__meta pp-book-item__meta--set"><?php echo esc_html( (string) $args['sub'] ); ?></span>
+					<?php endif; ?>
+					<?php
+					if ( isset( $args['after'] ) && is_callable( $args['after'] ) ) {
+						$args['after']();
+					}
+					?>
+				</span>
+			</label>
+			<?php
+			if ( isset( $args['controls'] ) && is_callable( $args['controls'] ) ) {
+				$args['controls']();
+			}
+			?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Auswahl-Anzeige über einer Picker-Liste („was ist schon ausgewählt?").
+	 * Der Startzustand kommt serverseitig ($picked = fertige Label-Texte), damit
+	 * die Anzeige auch ohne JS stimmt; portal.js hält die Chips beim Anklicken
+	 * live aktuell (data-pp-picker-summary im umgebenden [data-pp-picker]).
+	 *
+	 * @param string[] $picked Bereits gewählte Positionen als Anzeigetext.
+	 */
+	private static function picker_summary( array $picked = [] ): void {
+		?>
+		<p class="pp-picker-summary" data-pp-picker-summary>
+			<span class="pp-picker-summary__label"><?php esc_html_e( 'Selected:', 'project-prepper' ); ?></span>
+			<span class="pp-picker-summary__chips" data-pp-picker-chips>
+				<?php foreach ( $picked as $label ) : ?>
+					<span class="pp-picker-summary__chip"><?php echo esc_html( (string) $label ); ?></span>
+				<?php endforeach; ?>
+			</span>
+			<span class="pp-picker-summary__empty" data-pp-picker-empty<?php echo $picked ? ' hidden' : ''; ?>><?php esc_html_e( 'nothing yet — tick the items below', 'project-prepper' ); ?></span>
+		</p>
 		<?php
 	}
 
@@ -3221,8 +3406,18 @@ class MemberPortal {
 			}
 		}
 		$val = static fn( string $f, $d = '' ) => $rental && isset( $rental->$f ) && null !== $rental->$f ? $rental->$f : $d;
+
+		// Zeitraum (v0.41.0): beim Anlegen sichtbar vorbelegt (heute → +7 Tage,
+		// wie bei der Projekt-Buchung). Nur MIT Zeitraum kann die Liste unten echte
+		// Verfügbarkeiten zeigen statt bloßer Bestände.
+		$today     = current_time( 'Y-m-d' );
+		$rid       = (int) ( $rental->id ?? 0 );
+		$from      = (string) $val( 'date_from', $today );
+		$to        = (string) $val( 'date_to', gmdate( 'Y-m-d', strtotime( $today . ' +7 days' ) ) );
+		$period_ok = Availability::is_valid_range( $from, $to );
+		$period_lb = $period_ok ? self::fmt_range( $from, $to ) : '';
 		?>
-		<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<form class="pp-portal__form pp-book-form pp-rental-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-live data-pp-live-scope>
 			<?php self::action_fields( $rental ? 'rental_update' : 'rental_create' ); ?>
 			<?php if ( $rental ) : ?>
 				<input type="hidden" name="pp_rental" value="<?php echo (int) $rental->id; ?>">
@@ -3238,10 +3433,10 @@ class MemberPortal {
 			</label>
 			<div class="pp-portal__form-row">
 				<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
-					<input type="date" name="pp_from" value="<?php echo esc_attr( (string) $val( 'date_from' ) ); ?>" required>
+					<input type="date" name="pp_from" value="<?php echo esc_attr( $from ); ?>" required>
 				</label>
 				<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
-					<input type="date" name="pp_to" value="<?php echo esc_attr( (string) $val( 'date_to' ) ); ?>" required>
+					<input type="date" name="pp_to" value="<?php echo esc_attr( $to ); ?>" required>
 				</label>
 			</div>
 			<div class="pp-portal__form-row">
@@ -3253,8 +3448,31 @@ class MemberPortal {
 				</label>
 			</div>
 
-			<fieldset class="pp-portal__rental-items">
+			<fieldset class="pp-portal__rental-items" data-pp-picker>
 				<legend><?php esc_html_e( 'Items to lend out', 'project-prepper' ); ?></legend>
+				<?php
+				// Startzustand der Auswahl-Anzeige (beim Bearbeiten): Sets zuerst,
+				// dann Einzel-Positionen — dieselbe Reihenfolge wie die Liste unten.
+				$picked_labels = [];
+				foreach ( $sets_picked as $pp_sid => $pp_sn ) {
+					$picked_labels[] = ( $pp_sn > 1 ? $pp_sn . '× ' : '' ) . ( isset( $lendable[ $pp_sid ] ) ? $lendable[ $pp_sid ]->name : '#' . (int) $pp_sid );
+				}
+				foreach ( $line_by_item as $pp_iid => $pp_line ) {
+					$pp_n = max( 1, (int) $pp_line->quantity );
+					$picked_labels[] = ( $pp_n > 1 ? $pp_n . '× ' : '' ) . ( isset( $lendable[ $pp_iid ] ) ? $lendable[ $pp_iid ]->name : '#' . (int) $pp_iid );
+				}
+				self::picker_summary( $picked_labels );
+				?>
+				<input type="search" class="pp-book-search" placeholder="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>">
+				<?php if ( $period_ok ) : ?>
+					<p class="pp-portal__hint" data-pp-avail-note data-pp-stale="<?php esc_attr_e( 'Period changed — the numbers below still refer to the old dates. Availability for the new period is checked when you save.', 'project-prepper' ); ?>">
+						<?php
+						/* translators: %s: date range, e.g. "26.08.2026 – 02.09.2026". */
+						printf( esc_html__( 'Availability shown for %s.', 'project-prepper' ), esc_html( $period_lb ) );
+						?>
+					</p>
+				<?php endif; ?>
+				<div class="pp-book-list">
 				<?php
 				// Sets zuerst: eine Zeile je Set, Menge = Anzahl Sets. Verliehen
 				// werden serverseitig die Teile (docs/07 §6); der Tagessatz ergibt
@@ -3265,30 +3483,40 @@ class MemberPortal {
 					}
 					$set_item = $lendable[ $set_id ];
 					$set_rate = Bundles::parts_daily_rate( $parts );
-					?>
-					<div class="pp-portal__rental-item-row">
-						<label class="pp-portal__rental-item-pick">
-							<input type="checkbox" name="pp_set[<?php echo (int) $set_id; ?>][on]" value="1" <?php checked( isset( $sets_picked[ $set_id ] ) ); ?>>
-							<span>
-								<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
-								<?php echo esc_html( $set_item->name ); ?>
-								<small class="pp-portal__item-num"><?php echo esc_html( $set_item->inventory_number ?? '' ); ?></small>
-								<small class="pp-inv-name-sub"><?php echo esc_html( Bundles::parts_label( $parts ) ); ?></small>
-							</span>
-						</label>
-						<label class="pp-portal__rental-item-qty"><?php esc_html_e( 'Sets', 'project-prepper' ); ?>
-							<input type="number" name="pp_set[<?php echo (int) $set_id; ?>][qty]" min="1" value="<?php echo (int) ( $sets_picked[ $set_id ] ?? 1 ); ?>">
-						</label>
-						<span class="pp-portal__rental-item-rate pp-portal__item-meta">
-							<?php
-							echo null !== $set_rate
-								/* translators: %s: daily rate per set in euro. */
-								? esc_html( sprintf( __( '%s €/day (from parts)', 'project-prepper' ), number_format_i18n( (float) $set_rate, 2 ) ) )
-								: esc_html__( 'no daily rate on the parts', 'project-prepper' );
+					$set_on   = isset( $sets_picked[ $set_id ] );
+					// Freie SETS im Zeitraum (eigener Verleih beim Bearbeiten ausgenommen).
+					$set_free = $period_ok ? Bundles::available_sets( $parts, $from, $to, 0, $rid ) : 0;
+					$set_bits = [];
+					if ( $period_ok ) {
+						/* translators: %d: number of complete sets available in the period. */
+						$set_bits[] = sprintf( __( '%d sets free', 'project-prepper' ), (int) $set_free );
+					}
+					$set_bits[] = null !== $set_rate
+						/* translators: %s: daily rate per set in euro. */
+						? sprintf( __( '%s €/day (from parts)', 'project-prepper' ), number_format_i18n( (float) $set_rate, 2 ) )
+						: __( 'no daily rate on the parts', 'project-prepper' );
+					$set_off = $period_ok && $set_free <= 0 && ! $set_on;
+					self::picker_row(
+						$set_item,
+						static function () use ( $set_id, $set_on, $set_off ) {
 							?>
-						</span>
-					</div>
-				<?php endforeach; ?>
+							<input type="checkbox" name="pp_set[<?php echo (int) $set_id; ?>][on]" value="1" <?php checked( $set_on ); ?><?php disabled( $set_off ); ?>>
+							<?php
+						},
+						[
+							'is_set'   => true,
+							'sub'      => Bundles::parts_label( $parts ),
+							'meta'     => $set_bits,
+							'muted'    => $set_off,
+							'controls' => static function () use ( $set_id, $sets_picked, $set_off, $period_ok, $set_free ) {
+								?>
+								<input type="number" class="pp-book-item__qty" name="pp_set[<?php echo (int) $set_id; ?>][qty]" min="1"<?php echo $period_ok && $set_free > 0 ? ' max="' . (int) $set_free . '"' : ''; ?> value="<?php echo (int) ( $sets_picked[ $set_id ] ?? 1 ); ?>" aria-label="<?php esc_attr_e( 'Sets', 'project-prepper' ); ?>"<?php disabled( $set_off ); ?>>
+								<?php
+							},
+						]
+					);
+				endforeach;
+				?>
 				<?php foreach ( $lendable as $item ) :
 					if ( isset( $bundles[ (int) $item->id ] ) ) {
 						continue; // oben schon als Set-Zeile ausgegeben.
@@ -3297,23 +3525,50 @@ class MemberPortal {
 					$rate = $line && null !== $line->daily_rate
 						? (float) $line->daily_rate
 						: ( isset( $item->cost_per_day ) && '' !== (string) $item->cost_per_day ? (float) $item->cost_per_day : '' );
-					?>
-					<div class="pp-portal__rental-item-row">
-						<label class="pp-portal__rental-item-pick">
-							<input type="checkbox" name="pp_item[<?php echo (int) $item->id; ?>][on]" value="1" <?php checked( null !== $line ); ?>>
-							<span><?php echo esc_html( $item->name ); ?> <small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ?? '' ); ?></small></span>
-						</label>
-						<?php if ( $line ) : ?>
-							<input type="hidden" name="pp_item[<?php echo (int) $item->id; ?>][line]" value="<?php echo (int) $line->id; ?>">
-						<?php endif; ?>
-						<label class="pp-portal__rental-item-qty"><?php esc_html_e( 'Qty', 'project-prepper' ); ?>
-							<input type="number" name="pp_item[<?php echo (int) $item->id; ?>][qty]" min="1" value="<?php echo (int) ( $line->quantity ?? 1 ); ?>">
-						</label>
-						<label class="pp-portal__rental-item-rate"><?php esc_html_e( '€/day', 'project-prepper' ); ?>
-							<input type="number" name="pp_item[<?php echo (int) $item->id; ?>][rate]" min="0" step="0.01" value="<?php echo esc_attr( '' === $rate ? '' : number_format( (float) $rate, 2, '.', '' ) ); ?>">
-						</label>
-					</div>
-				<?php endforeach; ?>
+					// Frei im Zeitraum — zählt Verleihe, Projekt-Buchungen und Leihen
+					// (Availability). Der eigene Verleih ist beim Bearbeiten ausgenommen,
+					// damit die schon gebuchte Menge nicht gegen sich selbst zählt.
+					$free = $period_ok ? Availability::available_quantity( (int) $item->id, $from, $to, $rid ) : (int) $item->quantity;
+					$bits = [];
+					if ( $period_ok ) {
+						/* translators: 1: free pieces in the period, 2: total quantity. */
+						$bits[] = sprintf( __( '%1$d of %2$d free', 'project-prepper' ), (int) $free, (int) $item->quantity );
+					} else {
+						/* translators: %d: total quantity. */
+						$bits[] = sprintf( __( '%d× total', 'project-prepper' ), (int) $item->quantity );
+					}
+					if ( '' !== (string) ( $item->location ?? '' ) ) {
+						$bits[] = (string) $item->location;
+					}
+					$off = $period_ok && $free <= 0 && null === $line;
+					self::picker_row(
+						$item,
+						static function () use ( $item, $line, $off ) {
+							?>
+							<input type="checkbox" name="pp_item[<?php echo (int) $item->id; ?>][on]" value="1" <?php checked( null !== $line ); ?><?php disabled( $off ); ?>>
+							<?php
+						},
+						[
+							'meta'     => $bits,
+							'muted'    => $off,
+							'controls' => static function () use ( $item, $line, $rate, $free, $off, $period_ok ) {
+								if ( $line ) {
+									?>
+									<input type="hidden" name="pp_item[<?php echo (int) $item->id; ?>][line]" value="<?php echo (int) $line->id; ?>">
+									<?php
+								}
+								?>
+								<input type="number" class="pp-book-item__qty" name="pp_item[<?php echo (int) $item->id; ?>][qty]" min="1"<?php echo $period_ok && $free > 0 ? ' max="' . (int) $free . '"' : ''; ?> value="<?php echo (int) ( $line->quantity ?? 1 ); ?>" aria-label="<?php esc_attr_e( 'Qty', 'project-prepper' ); ?>"<?php disabled( $off ); ?>>
+								<label class="pp-book-item__rate"><?php esc_html_e( '€/day', 'project-prepper' ); ?>
+									<input type="number" name="pp_item[<?php echo (int) $item->id; ?>][rate]" min="0" step="0.01" value="<?php echo esc_attr( '' === $rate ? '' : number_format( (float) $rate, 2, '.', '' ) ); ?>"<?php disabled( $off ); ?>>
+								</label>
+								<?php
+							},
+						]
+					);
+				endforeach; ?>
+				</div>
+				<p class="pp-book-none pp-portal__hint" data-pp-search-none hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
 			</fieldset>
 
 			<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
@@ -5196,15 +5451,15 @@ class MemberPortal {
 					<form class="pp-portal__form pp-book-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-live data-pp-live-scope>
 						<?php self::action_fields( 'project_item_add' ); ?>
 						<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+						<div data-pp-picker>
+						<?php self::picker_summary(); ?>
 						<input type="search" class="pp-book-search" placeholder="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Search equipment…', 'project-prepper' ); ?>">
 						<div class="pp-book-list">
 							<?php $presets = MemberInventory::condition_presets(); ?>
 							<?php $pool_bundles = Bundles::for_items( array_keys( $pool ) ); ?>
 							<?php foreach ( $pool as $item ) :
+								// Inventarnummer rendert die gemeinsame Zeile selbst (picker_row).
 								$bits = [];
-								if ( '' !== (string) ( $item->inventory_number ?? '' ) ) {
-									$bits[] = $item->inventory_number;
-								}
 								if ( '' !== (string) ( $item->owner_name ?? '' ) ) {
 									/* translators: %s: owner name of the shared item. */
 									$bits[] = sprintf( __( 'by %s', 'project-prepper' ), $item->owner_name );
@@ -5241,36 +5496,23 @@ class MemberPortal {
 								// Noch buchbare Menge: Sets immer berechnet; sonst im Zeitraum
 								// frei bzw. Gesamtbestand minus schon gebucht.
 								$avail = ( $pp_parts || $has_period ) ? (int) $free : max( 0, (int) $item->quantity - $already );
-								?>
-								<div class="pp-book-item<?php echo $already > 0 ? ' pp-book-item--booked' : ''; ?><?php echo $avail <= 0 ? ' pp-book-item--unavailable' : ''; ?>" data-pp-searchable>
-									<label class="pp-book-item__pick">
+								self::picker_row(
+									$item,
+									static function () use ( $item, $avail ) {
+										?>
 										<input type="checkbox" name="pp_items[]" value="<?php echo (int) $item->id; ?>"<?php disabled( $avail <= 0 ); ?>>
-										<?php if ( ! empty( $item->image_url ) ) : ?>
-											<img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy">
-										<?php else : ?>
-											<span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span>
-										<?php endif; ?>
-										<span class="pp-book-item__text">
-											<span class="pp-book-item__name">
-												<?php echo esc_html( $item->name ); ?>
-												<?php if ( $pp_parts ) : ?>
-													<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
-												<?php endif; ?>
-												<?php if ( $already > 0 ) : ?>
-													<span class="pp-book-item__badge"><?php
-														/* translators: %d: quantity already booked for this project. */
-														printf( esc_html__( 'already booked (%d×)', 'project-prepper' ), (int) $already );
-													?></span>
-												<?php endif; ?>
-											</span>
-											<span class="pp-book-item__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></span>
-											<?php if ( $pp_parts ) : ?>
-												<span class="pp-book-item__meta pp-book-item__meta--set"><?php
-													/* translators: %s: list of set parts, e.g. "3× link · 1× feed". */
-													printf( esc_html__( 'Set of %s', 'project-prepper' ), esc_html( Bundles::parts_label( $pp_parts ) ) );
-												?></span>
-											<?php endif; ?>
-											<?php
+										<?php
+									},
+									[
+										'is_set'   => (bool) $pp_parts,
+										'meta'     => $bits,
+										/* translators: %s: list of set parts, e.g. "3× link · 1× feed". */
+										'sub'      => $pp_parts ? sprintf( __( 'Set of %s', 'project-prepper' ), Bundles::parts_label( $pp_parts ) ) : '',
+										/* translators: %d: quantity already booked for this project. */
+										'badge'    => $already > 0 ? sprintf( __( 'already booked (%d×)', 'project-prepper' ), (int) $already ) : '',
+										'booked'   => $already > 0,
+										'muted'    => $avail <= 0,
+										'after'    => static function () use ( $item, $presets ) {
 											// Freigabe-Bedingungen des Eigentümers sichtbar machen (Pendant
 											// zum App-Leih-Modal): Bedingungs-Chips, Freitext, Freigabe-Hinweis.
 											$cond_tags = (array) ( $item->conditions_tags ?? [] );
@@ -5278,26 +5520,34 @@ class MemberPortal {
 											// „Freigabe erforderlich" nur, wenn der Artikel jemand ANDEREM
 											// gehört — für eigene Artikel wird sowieso auto-freigegeben
 											// (spiegelt die Entscheidung in member_book_equipment).
-											$req_appr  = ! empty( $item->requires_approval ) && (int) ( $item->shared_by ?? 0 ) !== get_current_user_id();
-											if ( $cond_tags || '' !== $cond_text || $req_appr ) :
-												?>
-												<span class="pp-book-item__cond">
-													<?php if ( $req_appr ) : ?>
-														<span class="pp-book-item__approval"><?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></span>
-													<?php endif; ?>
-													<?php self::render_condition_chips( $cond_tags, $presets ); ?>
-													<?php if ( '' !== $cond_text ) : ?>
-														<span class="pp-book-item__cond-text" title="<?php echo esc_attr( $cond_text ); ?>"><?php echo esc_html( $cond_text ); ?></span>
-													<?php endif; ?>
-												</span>
-											<?php endif; ?>
-										</span>
-									</label>
-									<input type="number" class="pp-book-item__qty" name="pp_qty[<?php echo (int) $item->id; ?>]" min="1" max="<?php echo (int) $avail; ?>" value="1" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"<?php disabled( $avail <= 0 ); ?>>
-								</div>
+											$req_appr = ! empty( $item->requires_approval ) && (int) ( $item->shared_by ?? 0 ) !== get_current_user_id();
+											if ( ! $cond_tags && '' === $cond_text && ! $req_appr ) {
+												return;
+											}
+											?>
+											<span class="pp-book-item__cond">
+												<?php if ( $req_appr ) : ?>
+													<span class="pp-book-item__approval"><?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></span>
+												<?php endif; ?>
+												<?php self::render_condition_chips( $cond_tags, $presets ); ?>
+												<?php if ( '' !== $cond_text ) : ?>
+													<span class="pp-book-item__cond-text" title="<?php echo esc_attr( $cond_text ); ?>"><?php echo esc_html( $cond_text ); ?></span>
+												<?php endif; ?>
+											</span>
+											<?php
+										},
+										'controls' => static function () use ( $item, $avail ) {
+											?>
+											<input type="number" class="pp-book-item__qty" name="pp_qty[<?php echo (int) $item->id; ?>]" min="1" max="<?php echo (int) $avail; ?>" value="1" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"<?php disabled( $avail <= 0 ); ?>>
+											<?php
+										},
+									]
+								);
+								?>
 							<?php endforeach; ?>
 						</div>
 						<p class="pp-book-none pp-portal__hint" data-pp-search-none hidden><?php esc_html_e( 'No items match your search.', 'project-prepper' ); ?></p>
+						</div>
 						<div class="pp-portal__form-row">
 							<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
 								<input type="date" name="pp_from" value="<?php echo esc_attr( substr( (string) $p->date_start, 0, 10 ) ); ?>">
@@ -9737,153 +9987,6 @@ class MemberPortal {
 	}
 
 	/* ---------- Stöbern & Leihen (Phase 4) ---------- */
-
-	/** @param array<object> $groups */
-	private static function render_browse( WP_User $user, array $groups ): void {
-		if ( ! $groups ) {
-			?>
-			<p class="pp-portal__empty"><?php esc_html_e( 'Browsing works in a group workspace. Switch your workspace (top left) to a collective to see what its members share.', 'project-prepper' ); ?></p>
-			<?php
-			return;
-		}
-		$conditions = Shortcodes::condition_labels();
-		// Optionaler Zeitraum-Filter (GET) — zeigt die Verfügbarkeit für genau diese
-		// Tage statt nur „heute" und belegt das Leih-Formular vor.
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reiner Anzeige-Filter ohne Schreibvorgang.
-		$pf = isset( $_GET['pp_bfrom'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_bfrom'] ) ) : '';
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reiner Anzeige-Filter ohne Schreibvorgang.
-		$pt        = isset( $_GET['pp_bto'] ) ? sanitize_text_field( wp_unslash( $_GET['pp_bto'] ) ) : '';
-		$period_ok = self::is_ymd( $pf ) && self::is_ymd( $pt ) && $pf <= $pt;
-		$any       = false;
-		ob_start();
-		foreach ( $groups as $group ) {
-			$items = Borrowing::browse( (int) $group->id );
-			if ( ! $items ) {
-				continue;
-			}
-			// Sets sind seit v0.40.0 auch im Kollektiv leihbar (docs/07 §6):
-			// angefragt wird das Set, gespeichert wird eine Zeile je Teil.
-			$pp_set_map = Bundles::for_items( array_map( static fn( $i ) => (int) $i->id, $items ) );
-			$any = true;
-			?>
-			<div class="pp-portal__collective">
-				<div class="pp-portal__collective-head">
-					<span class="pp-portal__group-name"><?php echo esc_html( $group->name ); ?></span>
-				</div>
-				<?php foreach ( $items as $item ) :
-					$is_mine  = ( (int) ( $item->owner_user_id ?? 0 ) === (int) $user->ID );
-					$pp_parts = $pp_set_map[ (int) $item->id ] ?? []; ?>
-					<div class="pp-portal__browse-item">
-						<div class="pp-portal__item-head">
-							<span class="pp-portal__group-name">
-								<?php echo esc_html( $item->name ); ?>
-								<?php if ( $pp_parts ) : ?>
-									<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
-								<?php endif; ?>
-							</span>
-							<span class="pp-portal__item-meta">
-								<?php
-								if ( $pp_parts ) {
-									/* translators: %s: list of set parts, e.g. "3× link · 1× feed". */
-									printf( esc_html__( 'Set of %s', 'project-prepper' ), esc_html( Bundles::parts_label( $pp_parts ) ) );
-								} else {
-									echo esc_html( $conditions[ $item->item_condition ] ?? $item->item_condition );
-								}
-								echo ' · ';
-								/* translators: %s: owner display name. */
-								printf( esc_html__( 'from %s', 'project-prepper' ), esc_html( $item->owner_name ) );
-								echo ' · ';
-								// Sets zählen über ihre Teile: min( floor( frei / Bedarf ) ).
-								$pp_range = $period_ok ? [ $pf, $pt ] : [ current_time( 'Y-m-d' ), current_time( 'Y-m-d' ) ];
-								if ( $pp_parts ) {
-									$pp_sets_free = Borrowing::available_sets( $pp_parts, $pp_range[0], $pp_range[1] );
-									if ( $period_ok ) {
-										/* translators: 1: free sets, 2: start date, 3: end date. */
-										printf( esc_html__( '%1$d sets free (%2$s – %3$s)', 'project-prepper' ), (int) $pp_sets_free, esc_html( $pf ), esc_html( $pt ) );
-									} else {
-										/* translators: %d: number of sets free today. */
-										printf( esc_html__( '%d sets free today', 'project-prepper' ), (int) $pp_sets_free );
-									}
-								} elseif ( $period_ok ) {
-									$pp_avail = Borrowing::available_units( (int) $item->id, $pf, $pt );
-									/* translators: 1: free units, 2: total quantity, 3: start date, 4: end date. */
-									printf( esc_html__( '%1$d of %2$d free (%3$s – %4$s)', 'project-prepper' ), (int) $pp_avail, (int) $item->quantity, esc_html( $pf ), esc_html( $pt ) );
-								} else {
-									$pp_avail = Borrowing::available_units( (int) $item->id, $pp_range[0], $pp_range[1] );
-									/* translators: 1: free units today, 2: total quantity. */
-									printf( esc_html__( '%1$d of %2$d free today', 'project-prepper' ), (int) $pp_avail, (int) $item->quantity );
-								}
-								?>
-							</span>
-						</div>
-						<?php if ( $is_mine ) : ?>
-							<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Your item', 'project-prepper' ); ?></span>
-						<?php else : ?>
-							<button type="button" class="pp-portal__btn pp-portal__btn--sm" data-pp-modal="pp-borrow-<?php echo (int) $group->id; ?>-<?php echo (int) $item->id; ?>"><?php esc_html_e( 'Borrow', 'project-prepper' ); ?></button>
-							<dialog class="pp-modal pp-modal--portal" id="pp-borrow-<?php echo (int) $group->id; ?>-<?php echo (int) $item->id; ?>">
-								<div class="pp-modal-header">
-									<h2 class="pp-modal__title"><?php echo esc_html( $item->name ); ?></h2>
-									<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
-								</div>
-								<div class="pp-modal-body">
-								<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-									<?php self::action_fields( 'borrow_request' ); ?>
-									<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
-									<input type="hidden" name="pp_group" value="<?php echo (int) $group->id; ?>">
-									<?php if ( $pp_parts ) : ?>
-										<p class="pp-portal__hint"><?php echo esc_html( Bundles::parts_label( $pp_parts ) ); ?></p>
-										<label><?php esc_html_e( 'Number of sets', 'project-prepper' ); ?>
-											<input type="number" name="pp_sets" min="1" value="1">
-										</label>
-									<?php endif; ?>
-									<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
-										<input type="date" name="pp_from" value="<?php echo $period_ok ? esc_attr( $pf ) : ''; ?>" required>
-									</label>
-									<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
-										<input type="date" name="pp_to" value="<?php echo $period_ok ? esc_attr( $pt ) : ''; ?>" required>
-									</label>
-									<label><?php esc_html_e( 'Message (optional)', 'project-prepper' ); ?>
-										<textarea name="pp_message" rows="2"></textarea>
-									</label>
-									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Send request', 'project-prepper' ); ?></button>
-								</form>
-								</div>
-							</dialog>
-						<?php endif; ?>
-					</div>
-				<?php endforeach; ?>
-			</div>
-			<?php
-		}
-		$html = (string) ob_get_clean();
-		if ( ! $any ) {
-			?>
-			<p class="pp-portal__empty"><?php esc_html_e( 'No equipment is shared with this collective yet. Members share items from “My inventory” in their solo workspace.', 'project-prepper' ); ?></p>
-			<?php
-			return;
-		}
-		$browse_url = add_query_arg( [ 'pp_view' => 'lending', 'pp_tab' => 'browse' ], self::portal_url() );
-		?>
-		<section class="pp-portal__section">
-			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'Available in your collectives', 'project-prepper' ); ?></h3>
-			<form class="pp-browse-period" method="get">
-				<input type="hidden" name="pp_view" value="lending">
-				<input type="hidden" name="pp_tab" value="browse">
-				<label><?php esc_html_e( 'From', 'project-prepper' ); ?>
-					<input type="date" name="pp_bfrom" value="<?php echo esc_attr( $pf ); ?>">
-				</label>
-				<label><?php esc_html_e( 'To', 'project-prepper' ); ?>
-					<input type="date" name="pp_bto" value="<?php echo esc_attr( $pt ); ?>">
-				</label>
-				<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Check availability', 'project-prepper' ); ?></button>
-				<?php if ( $period_ok ) : ?>
-					<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $browse_url ); ?>"><?php esc_html_e( 'Reset', 'project-prepper' ); ?></a>
-				<?php endif; ?>
-			</form>
-			<?php echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- intern erzeugtes, bereits escaptes Markup. ?>
-		</section>
-		<?php
-	}
 
 	/** Strikte YYYY-MM-DD-Prüfung (für GET-Datums-Filter). */
 	private static function is_ymd( string $v ): bool {

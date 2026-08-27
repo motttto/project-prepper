@@ -3,6 +3,41 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 📦 Verleih-Umbau + eine Verfügbarkeit 2026-08-27 (Feature-Stand, Schema UNVERÄNDERT 0.40.0)
+> **Noch nicht released.** Fünf Punkte aus einer User-Rückmeldung zur Verleih-Seite.
+> **(1) Gemeinsame Artikel-Zeile:** neuer Baustein `MemberPortal::picker_row()` — Foto ganz links, dann
+> Name + Inventarnummer + Chips, darunter die Meta-Zeile, rechts die Steuerelemente des Kontexts
+> (Slots als Closures, damit jeder Aufrufer selbst escaped). Verwendet vom Technik-Picker im Projekt
+> (umgestellt) und neu vom **Verleih-Formular**, das vorher eigene Zeilen ohne Foto hatte.
+> **(2) Verleih-Formular = vollwertiger Picker:** Live-Suche (`data-pp-live`), Auswahl-Anzeige darüber
+> („Ausgewählt: 2× LED-PAR · Beamer", serverseitiger Startzustand + `portal.js` live, bleibt sichtbar
+> während die Suche Zeilen ausblendet), scrollbare Liste (`min(60vh, 520px)`) statt Kurzliste, Zeitraum
+> beim Anlegen vorbelegt (heute → +7 Tage) und **Verfügbarkeit je Artikel für genau diesen Zeitraum**
+> („2 von 6 frei", `max` am Mengenfeld, 0 frei → Zeile gedimmt + Checkbox aus). Ändert man die Daten
+> nachträglich, sagt der Hinweis das offen (Ersatztext aus `data-pp-stale`) — geprüft wird ohnehin
+> serverseitig beim Speichern.
+> **(3) Reiter „Stöbern" entfällt:** er listete exakt das Kollektiv-Inventar ein zweites Mal. Der
+> „Ausleihen"-Button sitzt jetzt in der **Inventar-Ansicht des Gruppen-Workspaces** (9. Spalte
+> `.pp-col--act`), inklusive des Zeitraum-Filters von früher (`pp_bfrom`/`pp_bto` → exakte Zahlen statt
+> „heute") und des Leih-Modals mit Sets/Anzahl Sets. Eigene Artikel zeigen dort „Deins".
+> `render_browse()` gelöscht, Verleih hat noch 3 Reiter, `borrow_request` landet danach in „Meine Leihen".
+> **(4) EINE Verfügbarkeitsrechnung:** `Availability::available_quantity()` zählt jetzt alle vier Wege —
+> Verleihe (reserved/active), Projekt-Buchungen (confirmed/running), genehmigte Kollektiv-Leihen und
+> genehmigte föderierte Leihen (neue Parameter `$exclude_borrow_id`/`$exclude_bundle_ref`);
+> `Borrowing::available_units()` ist nur noch eine Weiterleitung dorthin. **Vorher rechneten beide Seiten
+> aneinander vorbei**: derselbe Artikel konnte im selben Zeitraum extern verliehen UND ans Kollektiv
+> verliehen werden. Derselbe Vier-Wege-Zähler steckt jetzt auch in `Inventory::items()` (`out_now`, ein
+> Subquery-JOIN, kein N+1) und `Inventory::stats()` — die „Verfügbar"-Spalten aller Inventarlisten sahen
+> Leihen bisher nicht. Sets erben es über `Bundles::available_sets()`.
+> **(5) Volle Breite + kompakter (global):** `.pp-app__content` ohne `max-width` (vorher 1180/1440 px),
+> kleinere Polster/Seitenkopf/Karten. Damit daraus keine 1600-px-Eingabefelder werden, steht das
+> Verleih-Formular ab 900 px im 3-Spalten-Raster; das Bearbeiten-Modal ist breiter (`.pp-modal--wide`).
+> **Verifiziert in wp-env** (portaltest/Gruppe 23): Kollektiv-Leihe 3× → Verleih-Picker „3 von 6 frei";
+> Verleih über 1× Beamer angelegt → Kollektiv-Inventar „0 frei", Picker-Zeile gedimmt + gesperrt;
+> Leih-Anfrage aus dem Inventar gestellt → „Meine Leihen (1)"; Live-Suche + Auswahl-Chips im Formular.
+> i18n: 9 neue Strings dt. (mo neu gebaut), 13 entfallene Stöbern-Strings. Plugin Check: nur die 2
+> by-design-ERRORs.
+>
 > ## 🧩 Release v0.132.0 2026-08-27 (Sets Phase 2: Verleih + Kollektiv-Leihanfragen, Schema 0.39.0 → 0.40.0)
 > **Ausgeliefert.** Der letzte offene Punkt aus Jans Feedback-Runde (Feature-Commit `4b98699`, Konzept
 > docs/07-BUNDLES.md §6): In v0.130.0 waren Sets aus **externem Verleih** und **Kollektiv-Leihanfragen**

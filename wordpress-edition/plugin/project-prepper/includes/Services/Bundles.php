@@ -149,9 +149,10 @@ class Bundles {
 
 	/**
 	 * Verfügbare SET-Anzahl = min über alle Teile: floor( frei(Teil) / Bedarf ).
-	 * Mit Zeitraum zählt Availability (Verleihe + Projekt-Buchungen), ohne
-	 * Zeitraum der rohe Teil-Bestand. $exclude_project_id wie bei
-	 * Availability::available_quantity (eigene Projekt-Zeilen ausklammern).
+	 * Mit Zeitraum zählt Availability (Verleihe + Projekt-Buchungen + Kollektiv-
+	 * und föderierte Leihen), ohne Zeitraum der rohe Teil-Bestand.
+	 * $exclude_project_id wie bei Availability::available_quantity (eigene
+	 * Projekt-Zeilen ausklammern).
 	 *
 	 * @param array<object> $parts Stückliste aus parts()/for_items().
 	 */

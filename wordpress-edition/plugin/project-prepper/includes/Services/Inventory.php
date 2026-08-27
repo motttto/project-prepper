@@ -159,6 +159,8 @@ class Inventory {
 		$rentals = Schema::table( 'rentals' );
 		$p_items = Schema::table( 'project_items' );
 		$projs   = Schema::table( 'projects' );
+		$borrows = Schema::table( 'borrow_requests' );
+		$fed_in  = Schema::table( 'fed_borrow_in' );
 		$today   = current_time( 'Y-m-d' );
 
 		$where        = [ '1=1' ];
@@ -203,13 +205,17 @@ class Inventory {
 		}
 
 		// out_now = heute unterwegs: Summe der Mengen aus überlappenden
-		// reserved/active-Verleihen UND confirmed/running-Projekt-Buchungen
-		// (gleiche Semantik wie Availability), als ein Subquery-JOIN — kein N+1.
+		// reserved/active-Verleihen, confirmed/running-Projekt-Buchungen,
+		// genehmigten Kollektiv-Leihen UND genehmigten föderierten Leihen
+		// (gleiche vier Zweige wie Availability::available_quantity), als ein
+		// Subquery-JOIN — kein N+1.
 		// Platzhalter-Reihenfolge folgt dem SQL von oben nach unten.
 		$params = array_merge(
 			[ $items, $cats ],                            // FROM %i i, LEFT JOIN %i c
 			[ $lines, $rentals, $today, $today ],         // Verleih-Zweig der UNION
 			[ $p_items, $projs, $today, $today ],         // Projekt-Zweig der UNION
+			[ $borrows, $today, $today ],                 // Kollektiv-Leih-Zweig
+			[ $fed_in, $today, $today ],                  // Föderierter Leih-Zweig
 			$where_params                                 // WHERE
 		);
 		$sql = $wpdb->prepare(
@@ -231,6 +237,16 @@ class Inventory {
 						WHERE p.status IN ('confirmed', 'running')
 						  AND COALESCE(pi.date_from, p.date_start) <= %s
 						  AND COALESCE(pi.date_to, p.date_end) >= %s
+						UNION ALL
+						SELECT br.item_id, br.quantity
+						FROM %i br
+						WHERE br.status = 'approved'
+						  AND br.date_from <= %s AND br.date_to >= %s
+						UNION ALL
+						SELECT fb.item_id, 1
+						FROM %i fb
+						WHERE fb.status = 'approved'
+						  AND fb.date_from <= %s AND fb.date_to >= %s
 					) u
 					GROUP BY u.item_id
 				) o ON o.item_id = i.id
@@ -437,10 +453,13 @@ class Inventory {
 		$rentals = Schema::table( 'rentals' );
 		$p_items = Schema::table( 'project_items' );
 		$projs   = Schema::table( 'projects' );
+		$borrows = Schema::table( 'borrow_requests' );
+		$fed_in  = Schema::table( 'fed_borrow_in' );
 		$today   = current_time( 'Y-m-d' );
 
 		// "Heute unterwegs" = Verleihe (reserved/active) + Projekt-Buchungen
-		// (confirmed/running), die heute überlappen — dieselbe Semantik wie
+		// (confirmed/running) + genehmigte Kollektiv-Leihen + genehmigte
+		// föderierte Leihen, die heute überlappen — dieselben vier Zweige wie
 		// Availability::available_quantity().
 		$out_rented = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT COALESCE(SUM(ri.quantity), 0)
@@ -467,7 +486,25 @@ class Inventory {
 			$today
 		) );
 
-		$out_today = $out_rented + $out_booked;
+		$out_borrowed = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COALESCE(SUM(quantity), 0) FROM %i
+			 WHERE status = 'approved'
+			   AND date_from <= %s AND date_to >= %s",
+			$borrows,
+			$today,
+			$today
+		) );
+
+		$out_federated = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM %i
+			 WHERE status = 'approved'
+			   AND date_from <= %s AND date_to >= %s",
+			$fed_in,
+			$today,
+			$today
+		) );
+
+		$out_today = $out_rented + $out_booked + $out_borrowed + $out_federated;
 
 		$row = $wpdb->get_row( $wpdb->prepare(
 			'SELECT COUNT(*) AS item_count,

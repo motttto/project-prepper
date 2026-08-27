@@ -7498,3 +7498,45 @@ msgstr "Dieses Set enthält keine Teile (mehr). Bitte den Set-Inhalt prüfen."
 #: includes/Frontend/MemberPortal.php
 msgid "no daily rate on the parts"
 msgstr "kein Tagessatz an den Teilen"
+
+#. translators: 1: free pieces in the period, 2: total quantity.
+#: includes/Frontend/MemberPortal.php:3517
+#, php-format
+msgid "%1$d of %2$d free"
+msgstr "%1$d von %2$d frei"
+
+#. translators: %s: date range, e.g. "26.08.2026 – 02.09.2026".
+#: includes/Frontend/MemberPortal.php:3453
+#, php-format
+msgid "Availability shown for %s."
+msgstr "Verfügbarkeit für %s."
+
+#: includes/Frontend/MemberPortal.php:3052
+msgid "Manage borrow requests for your own equipment, keep an eye on what you borrowed — and lend your equipment out to externals."
+msgstr "Verwalte Leih-Anfragen für dein eigenes Equipment, behalte deine Ausleihen im Blick — und verleihe dein Equipment an Externe."
+
+#. translators: 1: owner display name, 2: number of pieces/sets available.
+#: includes/Frontend/MemberPortal.php:2935
+#, php-format
+msgid "Owner: %1$s · %2$d available"
+msgstr "Eigentümer: %1$s · %2$d verfügbar"
+
+#: includes/Frontend/MemberPortal.php:3450
+msgid "Period changed — the numbers below still refer to the old dates. Availability for the new period is checked when you save."
+msgstr "Zeitraum geändert — die Zahlen unten gelten noch für die alten Tage. Die Verfügbarkeit für den neuen Zeitraum wird beim Speichern geprüft."
+
+#: includes/Frontend/MemberPortal.php:3349
+msgid "Selected:"
+msgstr "Ausgewählt:"
+
+#: includes/Frontend/MemberPortal.php:3077
+msgid "You are not borrowing anything right now. Find equipment under “Inventory” while a collective workspace is active."
+msgstr "Du hast gerade nichts ausgeliehen. Equipment findest du unter „Inventar“, solange ein Kollektiv-Arbeitsbereich aktiv ist."
+
+#: includes/Frontend/MemberPortal.php:2915
+msgid "Yours"
+msgstr "Deins"
+
+#: includes/Frontend/MemberPortal.php:3351
+msgid "nothing yet — tick the items below"
+msgstr "noch nichts — hake unten Artikel an"

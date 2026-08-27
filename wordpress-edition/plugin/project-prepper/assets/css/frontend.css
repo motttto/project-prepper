@@ -449,7 +449,7 @@ a.pp-front-card-media { text-decoration: none; }
 	margin: 0 0 .75rem;
 }
 .pp-portal__section {
-	margin-bottom: 2rem;
+	margin-bottom: 1.35rem;
 }
 
 /* Login-Karte */
@@ -1057,8 +1057,8 @@ a.pp-front-card-media { text-decoration: none; }
 	background: var(--pp-surface);
 	border: 1px solid var(--pp-border);
 	border-radius: var(--pp-radius);
-	padding: .9rem 1.1rem;
-	margin-bottom: .6rem;
+	padding: .65rem .85rem;
+	margin-bottom: .45rem;
 }
 .pp-portal__item-head {
 	display: flex;
@@ -1246,6 +1246,9 @@ a.pp-front-card-media { text-decoration: none; }
 	box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
 	overflow: hidden;
 }
+/* Breite Variante: Modals mit Artikel-Liste (Verleih bearbeiten) brauchen Platz
+ * für Foto + Name + Verfügbarkeit + Menge + €/Tag. */
+.pp-modal--wide { width: min(920px, 96vw); }
 /* WICHTIG: display NUR fürs geöffnete Modal — sonst überschreibt es die Browser-
  * Regel `dialog:not([open]){display:none}` und ALLE Modals werden gleichzeitig
  * sichtbar. Flex-Column = Kopf/Footer fix, Body scrollt. */
@@ -1313,9 +1316,9 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-modal-body > .pp-portal__form .pp-portal__form-row input { color: var(--pp-foreground); }
 /* Positions-Auswahl (Verleih bearbeiten) über die volle Modal-Breite. */
 .pp-modal-body > .pp-portal__form > .pp-portal__rental-items { grid-column: 1 / -1; }
-/* Checkbox + Artikelname in einer Zeile — `.pp-portal__form label` (flex-column)
- * braucht die höhere label.-Spezifität (bekanntes Gotcha). */
-.pp-portal__form label.pp-portal__rental-item-pick { flex-direction: row; align-items: center; }
+/* Feld-Paare (Von/Bis, Kaution/Gebühr) ebenfalls über beide Spalten — sonst
+ * quetschen sich zwei Datumsfelder in EINE Rasterspalte. */
+.pp-modal-body > .pp-portal__form > .pp-portal__form-row { grid-column: 1 / -1; }
 .pp-modal-body > .pp-portal__form > button { grid-column: 1 / -1; justify-self: start; margin-top: .2rem; }
 
 /* Foto-Bereich oben im Modal */
@@ -1401,7 +1404,9 @@ a.pp-front-card-media { text-decoration: none; }
 	color: var(--pp-foreground);
 	box-sizing: border-box;
 }
-.pp-book-list { max-height: 280px; overflow-y: auto; display: flex; flex-direction: column; gap: .3rem; }
+/* Höhe so, dass man bequem durch ALLE Geräte klicken kann (v0.41.0): auf
+ * kleinen Fenstern 60vh, auf großen gedeckelt — die Liste scrollt in sich. */
+.pp-book-list { max-height: min(60vh, 520px); overflow-y: auto; display: flex; flex-direction: column; gap: .3rem; }
 /* Mehrfachauswahl: Zeile = anklickbares Auswahl-Label + eigenes Mengenfeld. */
 .pp-book-item {
 	display: flex;
@@ -1490,25 +1495,20 @@ a.pp-front-card-media { text-decoration: none; }
 	.pp-eval__head { display: none; }
 }
 
-/* Gruppen-Inventar (read-only Pool geteilter Artikel): eigenes 8-Spalten-Raster
- * (Item · Kategorie · Owner · Menge · Verfügbar · Zustand · €/Tag · Standort). */
+/* Gruppen-Inventar (Pool geteilter Artikel): eigenes 9-Spalten-Raster (Item ·
+ * Kategorie · Owner · Menge · Verfügbar · Zustand · €/Tag · Standort · Aktion).
+ * Die Aktionsspalte trägt den „Ausleihen"-Button (v0.41.0, vorher „Stöbern"). */
 .pp-ginv .pp-inv-row {
-	grid-template-columns: minmax(140px, 2.1fr) minmax(78px, 1.05fr) minmax(90px, 1.15fr) 52px 74px minmax(72px, .85fr) 82px minmax(64px, .8fr);
+	grid-template-columns: minmax(140px, 2.1fr) minmax(78px, 1.05fr) minmax(90px, 1.15fr) 52px 74px minmax(72px, .85fr) 82px minmax(64px, .8fr) 92px;
 }
+.pp-col--act { text-align: right; overflow: visible; }
 .pp-ginv__row { border-bottom: 1px solid var(--pp-border); }
 .pp-col--owner { color: var(--pp-muted-foreground); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 720px) {
 	.pp-ginv .pp-inv-row { grid-template-columns: 1fr 1fr; gap: 6px; }
 }
 
-/* Member-Portal Phase 4 — Stöbern & Leihen */
-.pp-portal__browse-item {
-	background: var(--pp-muted);
-	border-radius: 8px;
-	padding: .6rem .8rem;
-	margin-bottom: .4rem;
-}
-.pp-portal__browse-item .pp-portal__edit { margin-top: .4rem; }
+/* Member-Portal Phase 4 — Leihen */
 .pp-portal__invite .pp-portal__item-meta { margin-left: 0; }
 
 /* ============================================================
@@ -1732,24 +1732,27 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 	cursor: pointer;
 }
 
-.pp-app__main { flex: 1; padding: clamp(20px, 3vw, 36px); }
-.pp-app__content { max-width: 1180px; margin: 0 auto; }
+/* Volle Breite (v0.41.0, User-Wunsch): der Inhalt nutzt das ganze Fenster
+ * statt einer zentrierten Spalte — dafür rundum etwas kompaktere Polster, damit
+ * die langen Zeilen-Boxen nicht auseinanderfallen. */
+.pp-app__main { flex: 1; padding: clamp(14px, 1.6vw, 24px); }
+.pp-app__content { max-width: none; margin: 0; }
 /* Inhalt in der Shell nicht auf die 760px der Standalone-Variante begrenzen. */
-.pp-app__content.pp-front { margin: 0 auto; }
+.pp-app__content.pp-front { margin: 0; max-width: none; }
 .pp-app__content .pp-portal { max-width: none; margin: 0; }
 
-/* Desktop: breitere Inhaltsbox + etwas kompaktere Schrift (App-Look). */
+/* Desktop: etwas kompaktere Schrift (App-Look). */
 @media (min-width: 1024px) {
 	.pp-app { font-size: 0.9rem; }
-	.pp-app__content { max-width: 1440px; }
 }
 
-/* Seitenkopf */
-.pp-app__page-head { margin-bottom: 24px; }
-.pp-app__page-title { font-size: 1.6rem; font-weight: 700; margin: 0 0 4px; }
-.pp-app__page-sub { color: var(--pp-muted-foreground); margin: 0; }
+/* Seitenkopf — kompakt (v0.41.0), damit oben nicht ein Drittel des Fensters
+ * für Titel + Unterzeile draufgeht. */
+.pp-app__page-head { margin-bottom: 14px; }
+.pp-app__page-title { font-size: 1.35rem; font-weight: 700; margin: 0 0 2px; }
+.pp-app__page-sub { color: var(--pp-muted-foreground); margin: 0; font-size: .85rem; }
 
-.pp-app__section { margin-bottom: 28px; }
+.pp-app__section { margin-bottom: 18px; }
 .pp-app__section-head {
 	display: flex;
 	align-items: center;
@@ -1905,11 +1908,59 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 .pp-portal__form-row > label { flex: 1 1 130px; }
 .pp-portal__rental-items { border: 1px solid var(--pp-border); border-radius: 10px; padding: 10px 12px; margin: 4px 0; }
 .pp-portal__rental-items legend { font-size: .85rem; font-weight: 600; padding: 0 4px; }
-.pp-portal__rental-item-row { display: flex; gap: 10px; align-items: flex-end; padding: 4px 0; flex-wrap: wrap; }
-.pp-portal__rental-item-pick { flex: 1 1 200px; display: flex; align-items: center; gap: 8px; }
-.pp-portal__rental-item-pick input { width: auto; }
-.pp-portal__rental-item-qty { flex: 0 0 70px; }
-.pp-portal__rental-item-rate { flex: 0 0 90px; }
+/* Verleih-Formular (v0.41.0): die Positionen nutzen die GEMEINSAME Artikel-Zeile
+ * (.pp-book-item, Foto ganz links) — die alten Eigen-Zeilen sind entfallen. Nur
+ * das €/Tag-Feld kommt hier dazu, es gibt es im Projekt-Picker nicht. */
+.pp-portal__form label.pp-book-item__rate {
+	flex: 0 0 5.5rem;
+	flex-direction: column;
+	gap: .1rem;
+	font-size: .7rem;
+	font-weight: 500;
+	color: var(--pp-muted-foreground);
+}
+.pp-portal__form label.pp-book-item__rate input { padding: .35rem .4rem; text-align: right; }
+.pp-rental-form .pp-book-search { margin-bottom: .5rem; }
+/* Volle Breite heißt nicht „ein Feld über 1600 px": die Kopfdaten des
+ * Verleihs stehen ab Tablet-Breite im Raster, nur Artikel-Liste, Notizen und
+ * Button laufen über die ganze Zeile. (Nur die freistehende Variante — im Modal
+ * gilt weiter das 2-Spalten-Raster von `.pp-modal-body > .pp-portal__form`.) */
+@media (min-width: 900px) {
+	.pp-portal__add > .pp-rental-form {
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		gap: .7rem .9rem;
+		align-items: start;
+	}
+	.pp-portal__add > .pp-rental-form > .pp-portal__rental-items,
+	.pp-portal__add > .pp-rental-form > label:has( textarea ),
+	.pp-portal__add > .pp-rental-form > button { grid-column: 1 / -1; }
+	.pp-portal__add > .pp-rental-form > .pp-portal__form-row { grid-column: span 2; }
+	.pp-portal__add > .pp-rental-form > button { justify-self: start; }
+}
+
+/* Auswahl-Anzeige über einer Picker-Liste: „was ist schon ausgewählt?" */
+.pp-picker-summary {
+	display: flex;
+	align-items: baseline;
+	flex-wrap: wrap;
+	gap: .35rem;
+	margin: 0 0 .5rem;
+	font-size: .78rem;
+}
+.pp-picker-summary__label { font-weight: 600; }
+.pp-picker-summary__chips { display: contents; }
+.pp-picker-summary__chip {
+	display: inline-block;
+	padding: .1rem .45rem;
+	border-radius: 999px;
+	background: var(--pp-primary-light);
+	color: var(--pp-primary-hover);
+	font-weight: 500;
+}
+.pp-picker-summary__empty { color: var(--pp-muted-foreground); }
+/* Hinweis, dessen Aussage nicht mehr stimmt (z. B. Zeitraum nachträglich geändert). */
+.pp-hint--warn { color: var(--pp-warning, #b45309); font-weight: 500; }
 
 /* Projekt-Liste */
 .pp-proj-list { display: flex; flex-direction: column; gap: 10px; }
@@ -1948,11 +1999,11 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 	background: var(--pp-surface);
 	border: 1px solid var(--pp-border);
 	border-radius: 12px;
-	padding: 16px 18px;
-	margin-bottom: 16px;
+	padding: 12px 14px;
+	margin-bottom: 12px;
 	box-shadow: 0 1px 2px 0 rgb(0 0 0 / .05);
 }
-.pp-card__title { font-size: 1rem; font-weight: 600; margin: 0 0 12px; }
+.pp-card__title { font-size: 1rem; font-weight: 600; margin: 0 0 9px; }
 
 .pp-dl { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: .9rem; }
 .pp-dl dt { color: var(--pp-muted-foreground); }
