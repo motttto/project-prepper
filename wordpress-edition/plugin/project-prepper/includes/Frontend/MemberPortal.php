@@ -8028,8 +8028,10 @@ class MemberPortal {
 
 		<section class="pp-card">
 			<h3 class="pp-card__title"><?php esc_html_e( 'Subscribe to your calendar', 'project-prepper' ); ?></h3>
-			<p class="pp-portal__hint"><?php esc_html_e( 'Add this address in Apple Calendar (File → New Calendar Subscription) or Google Calendar (Other calendars → From URL) to see your events there. The feed is read-only and personal — it contains your solo events and the events of all your groups.', 'project-prepper' ); ?></p>
+			<p class="pp-portal__hint"><?php esc_html_e( 'The feed is read-only and personal: it contains everything this calendar shows — your own events, the projects and schedules of your collectives, your loans and your rentals.', 'project-prepper' ); ?></p>
+			<p class="pp-portal__hint"><?php esc_html_e( 'On a Mac or iPhone, “Subscribe” opens the calendar app directly. In Google Calendar (Other calendars → From URL) or any other client, paste the address below. Clients are asked to refresh hourly.', 'project-prepper' ); ?></p>
 			<div class="pp-cal__sub">
+				<a class="pp-portal__btn pp-portal__btn--sm" href="<?php echo esc_url( CalendarController::user_feed_webcal( (int) $user->ID ) ); ?>"><?php esc_html_e( 'Subscribe', 'project-prepper' ); ?></a>
 				<input type="text" class="pp-cal__sub-url" id="pp-cal-sub-url" readonly
 					value="<?php echo esc_attr( CalendarController::user_feed_url( (int) $user->ID ) ); ?>"
 					onclick="this.select()">

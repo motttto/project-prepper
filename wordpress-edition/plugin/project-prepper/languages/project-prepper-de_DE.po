@@ -7685,3 +7685,21 @@ msgstr "Wartet auf die Freigabe der Eigentümer — der Verleih kann noch nicht 
 #: includes/Services/MemberRentals.php:304
 msgid "You can only lend out your own items or equipment shared with your collective."
 msgstr "Du kannst nur eigene Artikel verleihen oder Equipment, das mit deinem Kollektiv geteilt ist."
+
+#. translators: 1: entry type (project, schedule, loan, rental), 2: project or group name.
+#: includes/Rest/CalendarController.php:375
+#, php-format
+msgid "%1$s · %2$s"
+msgstr "%1$s · %2$s"
+
+#: includes/Frontend/MemberPortal.php:8032
+msgid "On a Mac or iPhone, “Subscribe” opens the calendar app directly. In Google Calendar (Other calendars → From URL) or any other client, paste the address below. Clients are asked to refresh hourly."
+msgstr "Auf Mac oder iPhone öffnet „Abonnieren“ direkt die Kalender-App. In Google Kalender (Weitere Kalender → Per URL) oder jedem anderen Client fügst du die Adresse unten ein. Clients werden gebeten, stündlich zu aktualisieren."
+
+#: includes/Frontend/MemberPortal.php:8034
+msgid "Subscribe"
+msgstr "Abonnieren"
+
+#: includes/Frontend/MemberPortal.php:8031
+msgid "The feed is read-only and personal: it contains everything this calendar shows — your own events, the projects and schedules of your collectives, your loans and your rentals."
+msgstr "Der Feed ist schreibgeschützt und persönlich: Er enthält alles, was dieser Kalender zeigt — deine eigenen Termine, die Projekte und Zeitpläne deiner Kollektive, deine Ausleihen und deine Verleihe."

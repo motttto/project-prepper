@@ -1,9 +1,13 @@
 <?php
 namespace ProjectPrepper\Rest;
 
+use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\CalendarEvents;
 use ProjectPrepper\Services\Groups;
+use ProjectPrepper\Services\MemberRentals;
+use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\Rentals;
+use ProjectPrepper\Services\Schedule;
 use WP_REST_Request;
 use WP_Error;
 
@@ -14,9 +18,15 @@ defined( 'ABSPATH' ) || exit;
  * Apple/Google/Outlook-Kalendern. Zwei Token-Arten an derselben Route:
  *
  * - Instanz-Token (Option, Betreiber): alle Verleihe der Site — unverändert.
- * - Persönliches Token (User-Meta): die eigenen Portal-Termine des Mitglieds
- *   (Solo-Arbeitsbereich + alle Gruppen, in denen es Mitglied ist), inkl.
- *   Kalendername als Kategorie und zeitlosen Terminen als ganztägig.
+ * - Persönliches Token (User-Meta): ALLES, was die Kalender-Ansicht des Portals
+ *   zeigt — eigene Termine, Projekte, Zeitplan-Einträge, Kollektiv-Ausleihen und
+ *   externe Verleihe (Solo-Arbeitsbereich + alle Gruppen des Mitglieds), jeweils
+ *   mit CATEGORIES zum Unterscheiden im Kalender-Client.
+ *
+ * Bis v0.135.0 enthielt der persönliche Feed NUR die von Hand angelegten Termine.
+ * Wer im Portal überwiegend Projekte und Verleihe sieht, abonnierte damit einen
+ * praktisch leeren Kalender — der Feed „kam nicht an". Die vier abgeleiteten
+ * Quellen stammen jetzt aus denselben Services wie die Portal-Ansicht.
  *
  * CalDAV-Zweiweg bewusst NICHT (v2.x) — der Feed bleibt read-only.
  *
@@ -71,6 +81,15 @@ class CalendarController extends BaseController {
 		return add_query_arg( 'token', self::user_token( $user_id ), rest_url( self::REST_NAMESPACE . '/calendar.ics' ) );
 	}
 
+	/**
+	 * Dieselbe Feed-URL als `webcal://` — ein Klick darauf öffnet direkt den
+	 * Abo-Dialog von Apple Kalender (bzw. dem Standard-Kalender des Systems),
+	 * statt die .ics-Datei einmalig herunterzuladen.
+	 */
+	public static function user_feed_webcal( int $user_id ): string {
+		return preg_replace( '#^https?://#i', 'webcal://', self::user_feed_url( $user_id ) );
+	}
+
 	public function feed( WP_REST_Request $request ) {
 		$token = (string) $request->get_param( 'token' );
 		if ( '' === $token ) {
@@ -117,6 +136,7 @@ class CalendarController extends BaseController {
 			'CALSCALE:GREGORIAN',
 			'X-WR-CALNAME:' . $this->ical_escape( get_bloginfo( 'name' ) . ' — ' . __( 'Rentals', 'project-prepper' ) ),
 		];
+		$lines = array_merge( $lines, self::refresh_lines() );
 
 		foreach ( Rentals::all() as $rental ) {
 			if ( ! in_array( $rental->status, [ 'reserved', 'active' ], true ) ) {
@@ -149,6 +169,15 @@ class CalendarController extends BaseController {
 	 * @return array<string>
 	 */
 	private function personal_lines( int $user_id ): array {
+		// Der Feed läuft OHNE WP-Session (Token-Auth). Services, die ihren
+		// Zugriffsfilter über get_current_user_id() bilden — allen voran
+		// Projects::all() mit dem Gruppen-Filter — sähen sonst nur Site-Ebene und
+		// lieferten KEINE Kollektiv-Projekte. Das Token identifiziert genau diesen
+		// User, also wird er für die Dauer der Anfrage gesetzt; emit() beendet sie
+		// direkt danach, und Auth-Cookies werden dabei nicht gesetzt.
+		if ( get_current_user_id() !== $user_id ) {
+			wp_set_current_user( $user_id );
+		}
 		$user  = get_userdata( $user_id );
 		$host  = wp_parse_url( home_url(), PHP_URL_HOST );
 		$lines = [
@@ -158,6 +187,7 @@ class CalendarController extends BaseController {
 			'CALSCALE:GREGORIAN',
 			'X-WR-CALNAME:' . $this->ical_escape( get_bloginfo( 'name' ) . ' — ' . ( $user ? $user->display_name : __( 'Events', 'project-prepper' ) ) ),
 		];
+		$lines = array_merge( $lines, self::refresh_lines() );
 
 		// Solo-Arbeitsbereich + jede Gruppe des Mitglieds.
 		$workspaces = [ [ 'group_id' => 0, 'group_name' => '' ] ];
@@ -165,15 +195,187 @@ class CalendarController extends BaseController {
 			$workspaces[] = [ 'group_id' => (int) $g->id, 'group_name' => (string) $g->name ];
 		}
 
+		$group_ids   = [];
+		$group_names = [];
 		foreach ( $workspaces as $ws ) {
 			$events = CalendarEvents::events_between( $user_id, $ws['group_id'], '2000-01-01', '2100-12-31' );
 			foreach ( $events as $e ) {
 				$lines = array_merge( $lines, $this->event_lines( $e, $ws['group_name'], (string) $host ) );
 			}
+			if ( $ws['group_id'] > 0 ) {
+				$group_ids[]                      = (int) $ws['group_id'];
+				$group_names[ (int) $ws['group_id'] ] = (string) $ws['group_name'];
+			}
+		}
+
+		// Dieselben abgeleiteten Quellen wie die Kalender-Ansicht des Portals
+		// (MemberPortal::calendar_events): Projekte der eigenen Kollektive, deren
+		// Zeitplan-Einträge, Kollektiv-Ausleihen und externe Verleihe. Ohne sie
+		// enthielt der Feed nur die von Hand angelegten Termine.
+		foreach ( Projects::all() as $p ) {
+			$gid = (int) ( $p->owner_group_id ?? 0 );
+			if ( ! in_array( $gid, $group_ids, true ) ) {
+				continue;
+			}
+			$start = (string) ( $p->date_start ?? '' );
+			if ( '' === $start ) {
+				continue;
+			}
+			$end   = ! empty( $p->date_end ) ? (string) $p->date_end : $start;
+			$lines = array_merge( $lines, $this->allday_lines(
+				'pp-project-' . (int) $p->id . '@' . $host,
+				(string) $p->name,
+				$start,
+				$end,
+				__( 'Project', 'project-prepper' ),
+				$group_names[ $gid ] ?? '',
+				(string) ( $p->updated_at ?? '' )
+			) );
+
+			// Zeitplan-Einträge: mit Uhrzeit als Termin, sonst ganztägig.
+			foreach ( Schedule::for_project( (int) $p->id ) as $sc ) {
+				$date = (string) ( $sc->schedule_date ?? '' );
+				if ( '' === $date ) {
+					continue;
+				}
+				$lines = array_merge( $lines, $this->timed_lines(
+					'pp-sched-' . (int) $sc->id . '@' . $host,
+					(string) $sc->title,
+					$date,
+					(string) ( $sc->time_start ?? '' ),
+					(string) ( $sc->time_end ?? '' ),
+					__( 'Schedule', 'project-prepper' ),
+					(string) $p->name
+				) );
+			}
+		}
+
+		// Kollektiv-Ausleihen (eigene Anfragen + Anfragen auf eigene Artikel).
+		$borrows = array_merge( Borrowing::my_requests( $user_id ), Borrowing::incoming_requests( $user_id ) );
+		$seen    = [];
+		foreach ( $borrows as $b ) {
+			if ( ! in_array( $b->status, [ 'requested', 'approved' ], true ) || isset( $seen[ (int) $b->id ] ) ) {
+				continue;
+			}
+			$seen[ (int) $b->id ] = true;
+			$start = (string) $b->date_from;
+			if ( '' === $start ) {
+				continue;
+			}
+			$lines = array_merge( $lines, $this->allday_lines(
+				'pp-borrow-' . (int) $b->id . '@' . $host,
+				(string) $b->item_name,
+				$start,
+				! empty( $b->date_to ) ? (string) $b->date_to : $start,
+				__( 'Loan', 'project-prepper' ),
+				'',
+				(string) ( $b->created_at ?? '' ),
+				'approved' === $b->status ? 'CONFIRMED' : 'TENTATIVE'
+			) );
+		}
+
+		// Eigene externe Verleihe (reserved/active).
+		foreach ( MemberRentals::for_owner( $user_id ) as $r ) {
+			if ( ! in_array( $r->status, [ 'reserved', 'active' ], true ) || '' === (string) $r->date_from ) {
+				continue;
+			}
+			$lines = array_merge( $lines, $this->allday_lines(
+				'pp-myrental-' . (int) $r->id . '@' . $host,
+				sprintf( '%s — %s', (string) $r->rental_number, (string) $r->borrower_name ),
+				(string) $r->date_from,
+				! empty( $r->date_to ) ? (string) $r->date_to : (string) $r->date_from,
+				__( 'Rental', 'project-prepper' ),
+				'',
+				(string) ( $r->updated_at ?? '' ),
+				'active' === $r->status ? 'CONFIRMED' : 'TENTATIVE'
+			) );
 		}
 
 		$lines[] = 'END:VCALENDAR';
 		return $lines;
+	}
+
+	/**
+	 * Aktualisierungs-Hinweis für abonnierende Clients. Ohne ihn entscheidet z. B.
+	 * Apple Kalender selbst, wie oft nachgeladen wird („Automatisch" kann sehr
+	 * träge sein) — mit ihm fragt der Client stündlich nach.
+	 *
+	 * @return array<string>
+	 */
+	private static function refresh_lines(): array {
+		return [
+			'REFRESH-INTERVAL;VALUE=DURATION:PT1H',
+			'X-PUBLISHED-TTL:PT1H',
+		];
+	}
+
+	/**
+	 * Ganztägiges VEVENT (DTEND exklusiv) für die abgeleiteten Einträge.
+	 *
+	 * @param string $stamp  Zeitstempel für DTSTAMP (leer = jetzt).
+	 * @param string $status STATUS-Feld (leer = keins).
+	 * @return array<string>
+	 */
+	private function allday_lines( string $uid, string $summary, string $from, string $to, string $category, string $context = '', string $stamp = '', string $status = '' ): array {
+		$lines   = [ 'BEGIN:VEVENT' ];
+		$lines[] = 'UID:' . $uid;
+		$lines[] = 'DTSTAMP:' . gmdate( 'Ymd\THis\Z', $stamp && strtotime( $stamp ) ? strtotime( $stamp ) : time() );
+		$lines[] = 'DTSTART;VALUE=DATE:' . gmdate( 'Ymd', strtotime( $from ) );
+		$lines[] = 'DTEND;VALUE=DATE:' . gmdate( 'Ymd', strtotime( $to . ' +1 day' ) );
+		$lines[] = 'SUMMARY:' . $this->ical_escape( $summary );
+		$lines   = array_merge( $lines, $this->context_lines( $category, $context ) );
+		if ( '' !== $status ) {
+			$lines[] = 'STATUS:' . $status;
+		}
+		$lines[] = 'END:VEVENT';
+		return $lines;
+	}
+
+	/**
+	 * VEVENT mit Uhrzeit (floating local wie die übrigen Termine); ohne Startzeit
+	 * wird daraus ein ganztägiger Eintrag.
+	 *
+	 * @return array<string>
+	 */
+	private function timed_lines( string $uid, string $summary, string $date, string $time_start, string $time_end, string $category, string $context = '' ): array {
+		if ( '' === $time_start ) {
+			return $this->allday_lines( $uid, $summary, $date, $date, $category, $context );
+		}
+		$start_ts = strtotime( $date . ' ' . $time_start );
+		$end_ts   = '' !== $time_end ? strtotime( $date . ' ' . $time_end ) : strtotime( '+1 hour', $start_ts );
+		if ( $end_ts <= $start_ts ) {
+			$end_ts = strtotime( '+1 hour', $start_ts );
+		}
+		$lines   = [ 'BEGIN:VEVENT' ];
+		$lines[] = 'UID:' . $uid;
+		$lines[] = 'DTSTAMP:' . gmdate( 'Ymd\THis\Z', time() );
+		$lines[] = 'DTSTART:' . gmdate( 'Ymd\THis', $start_ts );
+		$lines[] = 'DTEND:' . gmdate( 'Ymd\THis', $end_ts );
+		$lines[] = 'SUMMARY:' . $this->ical_escape( $summary );
+		$lines   = array_merge( $lines, $this->context_lines( $category, $context ) );
+		$lines[] = 'END:VEVENT';
+		return $lines;
+	}
+
+	/**
+	 * Kategorie (+ Kontext wie Gruppen- oder Projektname) als CATEGORIES und als
+	 * lesbare DESCRIPTION — im Kalender-Client sieht man damit auf einen Blick,
+	 * woher ein Eintrag stammt.
+	 *
+	 * @return array<string>
+	 */
+	private function context_lines( string $category, string $context ): array {
+		$out        = [];
+		$categories = array_filter( [ $category, $context ] );
+		if ( $categories ) {
+			$out[] = 'CATEGORIES:' . implode( ',', array_map( [ $this, 'ical_escape' ], $categories ) );
+		}
+		$description = '' !== $context
+			/* translators: 1: entry type (project, schedule, loan, rental), 2: project or group name. */
+			? sprintf( __( '%1$s · %2$s', 'project-prepper' ), $category, $context )
+			: $category;
+		$out[] = 'DESCRIPTION:' . $this->ical_escape( $description );
+		return $out;
 	}
 
 	/**
@@ -229,8 +431,32 @@ class CalendarController extends BaseController {
 	private function emit( array $lines ): void {
 		header( 'Content-Type: text/calendar; charset=utf-8' );
 		header( 'Content-Disposition: inline; filename="project-prepper.ics"' );
-		echo implode( "\r\n", $lines ) . "\r\n"; // phpcs:ignore WordPress.Security.EscapeOutput
+		echo implode( "\r\n", array_map( [ $this, 'fold' ], $lines ) ) . "\r\n"; // phpcs:ignore WordPress.Security.EscapeOutput
 		exit;
+	}
+
+	/**
+	 * Zeilenfaltung nach RFC 5545 §3.1: keine Content-Line länger als 75 Oktetts,
+	 * Fortsetzung beginnt mit einem Leerzeichen. Ohne das brechen lange Projekt-
+	 * oder Terminnamen strengere Parser (Apple ist tolerant, andere nicht).
+	 * Gefaltet wird an Zeichengrenzen, damit kein UTF-8-Zeichen zerrissen wird.
+	 */
+	private function fold( string $line ): string {
+		if ( strlen( $line ) <= 75 ) {
+			return $line;
+		}
+		$out   = '';
+		$chunk = '';
+		$limit = 75;
+		foreach ( preg_split( '//u', $line, -1, PREG_SPLIT_NO_EMPTY ) as $char ) {
+			if ( strlen( $chunk ) + strlen( $char ) > $limit ) {
+				$out  .= ( '' === $out ? '' : "\r\n " ) . $chunk;
+				$chunk = '';
+				$limit = 74; // Fortsetzungszeilen tragen das führende Leerzeichen mit.
+			}
+			$chunk .= $char;
+		}
+		return $out . ( '' === $out ? '' : "\r\n " ) . $chunk;
 	}
 
 	private function ical_escape( string $value ): string {

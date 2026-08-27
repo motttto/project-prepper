@@ -3,6 +3,33 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 📅 Kalender-Abo enthält jetzt alles 2026-08-27 (Feature-Stand, Schema UNVERÄNDERT 0.41.0)
+> **Noch nicht released.** User-Meldung „ich habe den Eindruck, dass das Apple-Kalenderabo nicht ankommt".
+> Route geprüft (live: `/wp-json/` = 200, Feed ohne Token = 401 `pp_invalid_token`) — Erreichbarkeit war
+> nie das Problem. **Der Feed enthielt nur die von Hand angelegten Termine**; Projekte, Zeitplan,
+> Ausleihen und Verleihe zeichnet die Kalender-Ansicht selbst und exportierte sie nie. Ein Portal voller
+> Projekte ergab so ein leeres Abo.
+> **(1) Vier Quellen ergänzt** in `CalendarController::personal_lines()` — dieselben wie
+> `MemberPortal::calendar_events`: Projekte der eigenen Kollektive, deren Zeitplan-Einträge,
+> Kollektiv-Ausleihen (requested/approved) und eigene externe Verleihe (reserved/active). Je Eintrag
+> `CATEGORIES` (Typ + Gruppe/Projekt) und `DESCRIPTION`; neue Helfer `allday_lines()` / `timed_lines()` /
+> `context_lines()`. Stabile UIDs `pp-project-` / `pp-sched-` / `pp-borrow-` / `pp-myrental-`.
+> **⚠️ Fallstrick dabei:** Der Feed hat KEINE WP-Session (Token-Auth), aber `Projects::all()` baut seinen
+> Gruppen-Filter über `get_current_user_id()` → ohne User nur Site-Ebene, also KEINE Kollektiv-Projekte
+> (im ersten Testlauf kamen 0 Projekte an). `personal_lines()` setzt jetzt `wp_set_current_user($uid)`;
+> `emit()` beendet die Anfrage unmittelbar danach, Auth-Cookies werden nicht gesetzt.
+> **(2) Aktualisierungs-Intervall:** `REFRESH-INTERVAL;VALUE=DURATION:PT1H` + `X-PUBLISHED-TTL:PT1H` in
+> BEIDEN Feeds (persönlich + Betreiber-Verleihfeed).
+> **(3) `webcal://`-Abonnieren-Button** neben der URL (`user_feed_webcal()`, `esc_url` lässt webcal zu).
+> **Nebenbei:** `emit()` faltet jetzt nach RFC 5545 §3.1 (75 Oktetts, Fortsetzung mit Leerzeichen, an
+> Zeichengrenzen). Mit einem 80-Zeichen-Projektnamen verifiziert: 0 Zeilen über 75 Oktetts, entfaltet
+> exakt der Originaltext, Umlaute intakt.
+> **Verifiziert:** Feed vorher 2 VEVENTs (nur Ausleihe + Verleih), jetzt 6 — 2 Projekte, 2 Zeitplan,
+> 1 Ausleihe, 1 Verleih; DTEND exklusiv, CRLF durchgehend, BEGIN/END paarig. Abonnieren-Button rendert
+> als `webcal://`. i18n: 4 neue Strings dt. (mo 1575/1574). Plugin Check: nur die 2 by-design-ERRORs.
+> **Offen (separat besprochen):** mehrtägige Ereignisse werden im Monatsraster weiterhin als Chip PRO TAG
+> wiederholt statt als durchgehender Balken (`cal_span()`); Zellen zeigen max. 3 Einträge.
+>
 > ## 🤝 Release v0.135.0 2026-08-27 (Kollektiv-Verleih mit Eigentümer-Freigabe, Schema 0.40.0 → **0.41.0**)
 > **Ausgeliefert** (Feature-Commit `b7091b0`). User-Frage „warum erscheinen im Gruppenmodus nur meine eigenen Inventarartikel
 > im Verleih?" → Antwort war: bewusste Alt-Entscheidung (Verleih = solo, weil Geld + Haftung + kein
