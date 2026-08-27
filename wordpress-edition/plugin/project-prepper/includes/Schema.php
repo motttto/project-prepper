@@ -20,7 +20,10 @@ class Schema {
 	// borrow_requests.quantity/bundle_item_id/bundle_ref. Additiv via dbDelta;
 	// quantity kommt mit DEFAULT 1, damit Bestandszeilen (= eine Einheit je
 	// Anfrage) unverändert weiterzählen.
-	const VERSION    = '0.40.0';
+	// 0.41.0: rental_items.approval_status/requested_by/decided_at — externer
+	// Verleih aus dem Kollektiv-Pool braucht die Freigabe des Eigentümers
+	// (Pendant zu project_items). Additiv via dbDelta, DEFAULT 'approved'.
+	const VERSION    = '0.41.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -173,6 +176,10 @@ class Schema {
 		// bundle_item_id (v0.40.0): aus welchem Set diese Position expandiert wurde
 		// (NULL = normale Einzelposition). Wie bei project_items ist das ein reiner
 		// Anzeige-/Gruppierungs-Marker — die Verfügbarkeit zählt die Teil-Zeilen.
+		// approval_status/requested_by/decided_at (v0.41.0): Seit dem Kollektiv-Verleih
+		// dürfen Positionen auch FREMDE Artikel aus dem Gruppen-Pool tragen — dann
+		// entscheidet der Eigentümer wie bei Projekt-Buchungen. DEFAULT 'approved',
+		// damit alle bestehenden Zeilen (eigene Artikel) unverändert gültig bleiben.
 		dbDelta( "CREATE TABLE {$lines} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			rental_id bigint(20) unsigned NOT NULL,
@@ -181,10 +188,14 @@ class Schema {
 			quantity int(11) NOT NULL DEFAULT 1,
 			daily_rate decimal(10,2) DEFAULT NULL,
 			bundle_item_id bigint(20) unsigned DEFAULT NULL,
+			approval_status varchar(20) NOT NULL DEFAULT 'approved',
+			requested_by bigint(20) unsigned DEFAULT NULL,
+			decided_at datetime DEFAULT NULL,
 			PRIMARY KEY  (id),
 			KEY rental_id (rental_id),
 			KEY item_id (item_id),
-			KEY bundle_item_id (bundle_item_id)
+			KEY bundle_item_id (bundle_item_id),
+			KEY approval_status (approval_status)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$log} (

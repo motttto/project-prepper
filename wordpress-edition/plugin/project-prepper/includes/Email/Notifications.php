@@ -6,6 +6,7 @@ use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance;
 use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\BookingApprovals;
+use ProjectPrepper\Services\RentalApprovals;
 use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Services\Bundles;
 use ProjectPrepper\Frontend\MemberPortal;
@@ -40,6 +41,11 @@ class Notifications {
 		// EINE Mail mit allen Positionen (statt einer Mail pro Gerät).
 		add_action( 'pp_booking_approvals_requested', [ self::class, 'on_booking_requested_batch' ], 10, 3 );
 		add_action( 'pp_booking_approvals_decided', [ self::class, 'on_booking_decided_batch' ], 10, 2 );
+		// Verleih-Freigaben (v0.41.0) — dieselbe Mechanik für externe Verleihe aus
+		// dem Kollektiv-Pool. Bewusst eigene Templates: der Kontext ist ein anderer
+		// (externer Leiher statt Projekt).
+		add_action( 'pp_rental_approvals_requested', [ self::class, 'on_rental_requested_batch' ], 10, 3 );
+		add_action( 'pp_rental_approvals_decided', [ self::class, 'on_rental_decided_batch' ], 10, 2 );
 	}
 
 	public static function default_templates(): array {
@@ -116,6 +122,18 @@ class Notifications {
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
 				'body'    => __( "Hello,\n\nthe owner has decided on your booking requests:\n\n{{items}}\n\nDetails:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
+			'rental_requested_list' => [
+				/* translators: Email subject. Keep the {{count}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'Approval needed: {{count}} item(s) for a rental — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello,\n\n{{requester_name}} would like to lend out your equipment to \"{{borrower_name}}\" (outside the platform):\n\n{{items}}\n\nNothing leaves the house before you decide. Approve or reject in the portal:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
+			'rental_decided_list' => [
+				/* translators: Email subject. Keep the {{site_name}} placeholder unchanged. */
+				'subject' => __( 'Decisions on your rental request — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello,\n\nthe owners have decided on the equipment you wanted to lend out:\n\n{{items}}\n\nDetails:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
 			'member_2fa_code' => [
 				/* translators: Email subject. Keep the {{site_name}} placeholder unchanged. */
 				'subject' => __( 'Your login code — {{site_name}}', 'project-prepper' ),
@@ -145,6 +163,8 @@ class Notifications {
 			'booking_decided'   => __( 'Equipment approval decision (to requester)', 'project-prepper' ),
 			'booking_requested_list' => __( 'Equipment approval request — several items in one email (to owner)', 'project-prepper' ),
 			'booking_decided_list'   => __( 'Equipment approval decisions — several in one email (to requester)', 'project-prepper' ),
+			'rental_requested_list' => __( 'Rental approval request (to owner)', 'project-prepper' ),
+			'rental_decided_list'   => __( 'Rental approval decisions (to requester)', 'project-prepper' ),
 			'member_2fa_code'  => __( 'Member login code (2FA)', 'project-prepper' ),
 		];
 	}
@@ -466,6 +486,87 @@ class Notifications {
 	 *
 	 * @param array<array> $decisions Je Eintrag requester_id/item_name/project_name/project_id/status.
 	 */
+	/**
+	 * Sammel-Anfrage an den Eigentümer: „Diese Artikel von dir sollen extern
+	 * verliehen werden." EINE Mail je Eigentümer und Vorgang — auch bei einer
+	 * einzelnen Position (der Text trägt die Liste ohnehin).
+	 *
+	 * @param array<int> $line_ids Positions-IDs (pp_rental_items).
+	 */
+	public static function on_rental_requested_batch( array $line_ids, int $owner_id, int $requester_id ): void {
+		$line_ids = array_values( array_filter( array_map( 'intval', $line_ids ) ) );
+		if ( ! self::enabled() || ! $line_ids ) {
+			return;
+		}
+		$owner = get_userdata( $owner_id );
+		if ( ! $owner || ! is_email( $owner->user_email ) ) {
+			return;
+		}
+		$items         = [];
+		$borrower_name = '';
+		foreach ( $line_ids as $line_id ) {
+			$ctx = RentalApprovals::get_line_context( $line_id );
+			if ( ! $ctx ) {
+				continue;
+			}
+			$borrower_name = (string) $ctx->borrower_name;
+			$from          = $ctx->date_from ? mysql2date( 'd.m.Y', $ctx->date_from ) : '—';
+			$to            = $ctx->date_to ? mysql2date( 'd.m.Y', $ctx->date_to ) : '—';
+			$rate          = ( null !== $ctx->daily_rate && '' !== (string) $ctx->daily_rate )
+				/* translators: %s: daily rate in euros. */
+				? ' · ' . sprintf( __( '%s €/day', 'project-prepper' ), number_format_i18n( (float) $ctx->daily_rate, 2 ) )
+				: '';
+			/* translators: List line in the rental approval email. 1: quantity, 2: item name, 3: start date, 4: end date, 5: optional daily rate. */
+			$items[] = sprintf( __( '- %1$d× %2$s (%3$s to %4$s)%5$s', 'project-prepper' ), (int) $ctx->quantity, (string) $ctx->item_name, $from, $to, $rate );
+		}
+		if ( ! $items ) {
+			return;
+		}
+		$requester = get_userdata( $requester_id );
+		$tpl       = self::templates()['rental_requested_list'];
+		$vars      = [
+			'count'          => count( $items ),
+			'requester_name' => $requester ? $requester->display_name : '',
+			'borrower_name'  => $borrower_name,
+			'items'          => implode( "\n", $items ),
+			'portal_url'     => add_query_arg( 'pp_view', 'approvals', MemberPortal::portal_url() ),
+			'site_name'      => get_bloginfo( 'name' ),
+		];
+		wp_mail( $owner->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
+	}
+
+	/**
+	 * Ergebnis-Sammelmail an den Anfrager eines Verleihs (eine Mail je Anfrager,
+	 * alle Entscheidungen dieses Durchgangs). Der Payload trägt alles Nötige, weil
+	 * abgelehnte Positionen gelöscht sind und nicht nachgeladen werden können.
+	 *
+	 * @param array<array> $decisions je Eintrag item_name/rental_number/status.
+	 */
+	public static function on_rental_decided_batch( int $requester_id, array $decisions ): void {
+		if ( ! self::enabled() || ! $decisions ) {
+			return;
+		}
+		$requester = get_userdata( $requester_id );
+		if ( ! $requester || ! is_email( $requester->user_email ) ) {
+			return;
+		}
+		$items = [];
+		foreach ( $decisions as $d ) {
+			$status_text = 'approved' === (string) ( $d['status'] ?? '' )
+				? __( 'approved', 'project-prepper' )
+				: __( 'rejected', 'project-prepper' );
+			/* translators: List line in the rental decisions email. 1: item name, 2: rental number, 3: decision (approved/rejected). */
+			$items[] = sprintf( __( '- %1$s (%2$s): %3$s', 'project-prepper' ), (string) ( $d['item_name'] ?? '' ), (string) ( $d['rental_number'] ?? '' ), $status_text );
+		}
+		$tpl  = self::templates()['rental_decided_list'];
+		$vars = [
+			'items'      => implode( "\n", $items ),
+			'portal_url' => add_query_arg( 'pp_view', 'lending', MemberPortal::portal_url() ),
+			'site_name'  => get_bloginfo( 'name' ),
+		];
+		wp_mail( $requester->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
+	}
+
 	public static function on_booking_decided_batch( int $requester_id, array $decisions ): void {
 		if ( ! self::enabled() || ! $decisions ) {
 			return;

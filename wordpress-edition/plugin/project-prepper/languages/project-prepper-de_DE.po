@@ -7573,3 +7573,115 @@ msgstr "Dieser Artikel ist gerade gesperrt (defekt, in Wartung, verschollen oder
 #: includes/Services/Borrowing.php:157
 msgid "This item is currently blocked by its owner (broken, in maintenance, missing or retired)."
 msgstr "Dieser Artikel ist von seinem Eigentümer gerade gesperrt (defekt, in Wartung, verschollen oder ausgemustert)."
+
+#. translators: List line in the rental approval email. 1: quantity, 2: item name, 3: start date, 4: end date, 5: optional daily rate.
+#: includes/Email/Notifications.php:520
+#, php-format
+msgid "- %1$d× %2$s (%3$s to %4$s)%5$s"
+msgstr "- %1$d× %2$s (%3$s bis %4$s)%5$s"
+
+#: includes/Frontend/MemberPortal.php:5273
+msgid "A member of your collective wants to lend your equipment to someone outside the platform. Until you decide, it cannot be handed out."
+msgstr "Ein Mitglied deines Kollektivs möchte dein Equipment an jemanden außerhalb der Plattform verleihen. Bis du entscheidest, wird es nicht ausgegeben."
+
+#. translators: Email subject. Keep the {{count}} and {{site_name}} placeholders unchanged.
+#: includes/Email/Notifications.php:127
+msgid "Approval needed: {{count}} item(s) for a rental — {{site_name}}"
+msgstr "Freigabe nötig: {{count}} Artikel für einen Verleih — {{site_name}}"
+
+#. translators: Email subject. Keep the {{site_name}} placeholder unchanged.
+#: includes/Email/Notifications.php:133
+msgid "Decisions on your rental request — {{site_name}}"
+msgstr "Entscheidungen zu deiner Verleih-Anfrage — {{site_name}}"
+
+#: includes/Frontend/MemberPortal.php:5272
+msgid "For an external rental"
+msgstr "Für einen externen Verleih"
+
+#. translators: Email body. Keep all {{…}} placeholders unchanged.
+#: includes/Email/Notifications.php:135
+msgid ""
+"Hello,\n"
+"\n"
+"the owners have decided on the equipment you wanted to lend out:\n"
+"\n"
+"{{items}}\n"
+"\n"
+"Details:\n"
+"{{portal_url}}\n"
+"\n"
+"Best regards\n"
+"{{site_name}}"
+msgstr "Hallo,\n\ndie Eigentümer haben über das Equipment entschieden, das du verleihen wolltest:\n\n{{items}}\n\nDetails:\n{{portal_url}}\n\nViele Grüße\n{{site_name}}"
+
+#. translators: Email body. Keep all {{…}} placeholders unchanged.
+#: includes/Email/Notifications.php:129
+msgid ""
+"Hello,\n"
+"\n"
+"{{requester_name}} would like to lend out your equipment to \"{{borrower_name}}\" (outside the platform):\n"
+"\n"
+"{{items}}\n"
+"\n"
+"Nothing leaves the house before you decide. Approve or reject in the portal:\n"
+"{{portal_url}}\n"
+"\n"
+"Best regards\n"
+"{{site_name}}"
+msgstr "Hallo,\n\n{{requester_name}} möchte dein Equipment an „{{borrower_name}}“ verleihen (außerhalb der Plattform):\n\n{{items}}\n\nNichts verlässt das Haus, bevor du entschieden hast. Freigeben oder ablehnen im Portal:\n{{portal_url}}\n\nViele Grüße\n{{site_name}}"
+
+#: includes/Frontend/MemberPortal.php:5180
+msgid "No open approval requests for collective projects."
+msgstr "Keine offenen Freigaben für Kollektiv-Projekte."
+
+#: includes/Frontend/MemberPortal.php:5181
+msgid "No open approval requests. When someone books or lends out your equipment on approval, it shows up here."
+msgstr "Keine offenen Freigabe-Anfragen. Sobald jemand dein Equipment mit Freigabe bucht oder verleiht, steht es hier."
+
+#: includes/Services/MemberRentals.php:286
+msgid "Pick at least one item."
+msgstr "Wähle mindestens einen Artikel."
+
+#: includes/Frontend/MemberPortal.php:5270
+msgid "Reject the selected requests? Those items will be removed from the rental."
+msgstr "Die gewählten Anfragen ablehnen? Diese Artikel werden aus dem Verleih entfernt."
+
+#: includes/Email/Notifications.php:167
+msgid "Rental approval decisions (to requester)"
+msgstr "Verleih-Freigabe: Entscheidungen (an den Anfrager)"
+
+#: includes/Email/Notifications.php:166
+msgid "Rental approval request (to owner)"
+msgstr "Verleih-Freigabe: Anfrage (an den Eigentümer)"
+
+#: includes/Services/RentalApprovals.php:243
+msgid "Rental line not found."
+msgstr "Verleih-Position nicht gefunden."
+
+#: includes/Frontend/MemberPortal.php:1514
+msgid "Rental saved. Some items belong to other members — they have been asked for approval and the rental can be handed out once everyone has decided."
+msgstr "Verleih gespeichert. Einige Artikel gehören anderen Mitgliedern — sie wurden um Freigabe gebeten. Ausgeben lässt sich der Verleih, sobald alle entschieden haben."
+
+#. translators: %s: name of the external borrower.
+#: includes/Frontend/MemberPortal.php:5296
+#, php-format
+msgid "Rental to %s"
+msgstr "Verleih an %s"
+
+#: includes/Frontend/MemberPortal.php:5172
+msgid "Requests to use your equipment — in a collective project or in an external rental. You decide on your own terms."
+msgstr "Anfragen für dein Equipment — im Kollektiv-Projekt oder für einen externen Verleih. Du entscheidest zu deinen Bedingungen."
+
+#: includes/Frontend/MemberPortal.php:1515
+#: includes/Services/MemberRentals.php:160
+msgid "This rental still has items waiting for their owner’s approval. You can hand it out once every owner has decided."
+msgstr "In diesem Verleih warten noch Artikel auf die Freigabe ihrer Eigentümer. Ausgeben kannst du ihn, sobald alle entschieden haben."
+
+#: includes/Frontend/MemberPortal.php:3297
+msgid "Waiting for approval by the item owners — the rental cannot be handed out yet."
+msgstr "Wartet auf die Freigabe der Eigentümer — der Verleih kann noch nicht ausgegeben werden."
+
+#: includes/Services/MemberRentals.php:239
+#: includes/Services/MemberRentals.php:304
+msgid "You can only lend out your own items or equipment shared with your collective."
+msgstr "Du kannst nur eigene Artikel verleihen oder Equipment, das mit deinem Kollektiv geteilt ist."

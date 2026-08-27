@@ -16,6 +16,7 @@ use ProjectPrepper\Services\Inquiries;
 use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\Projects;
 use ProjectPrepper\Services\BookingApprovals;
+use ProjectPrepper\Services\RentalApprovals;
 use ProjectPrepper\Services\Bundles;
 use ProjectPrepper\Services\Availability;
 use ProjectPrepper\Services\Costs;
@@ -456,7 +457,7 @@ class MemberPortal {
 			$back = add_query_arg( 'pp_view', 'projects', self::portal_url() );
 		}
 		// Freigabe-Entscheidungen kehren zur Freigaben-Ansicht zurück.
-		if ( in_array( $do, [ 'booking_approve', 'booking_reject', 'booking_decide_bulk' ], true ) ) {
+		if ( in_array( $do, [ 'booking_approve', 'booking_reject', 'booking_decide_bulk', 'rental_decide_bulk' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'approvals', self::portal_url() );
 		}
 		// Reiter-Erhalt für ALLE View-Redirects: die Umbauten oben starten von
@@ -713,14 +714,46 @@ class MemberPortal {
 				$ok_msg = 'rsvp_saved';
 				break;
 			case 'rental_create':
-				$in     = self::rental_input();
-				$result = MemberRentals::create( get_current_user_id(), $in['data'], $in['items'], $in['sets'] );
-				$ok_msg = 'rental_saved';
+				$in       = self::rental_input();
+				$rent_grp = self::active_group_id( Groups::user_groups( get_current_user_id() ) );
+				$result   = MemberRentals::create( get_current_user_id(), $in['data'], $in['items'], $in['sets'], $rent_grp );
+				$ok_msg   = 'rental_saved';
+				// Freigabe-Anfragen an die Eigentümer fremder Positionen — EINE
+				// Sammel-Anfrage je Eigentümer (wie bei Projekt-Buchungen).
+				if ( ! is_wp_error( $result ) ) {
+					$rent_pending = RentalApprovals::pending_lines_by_owner( (int) $result );
+					foreach ( $rent_pending as $rp_owner => $rp_lines ) {
+						do_action( 'pp_rental_approvals_requested', $rp_lines, (int) $rp_owner, get_current_user_id() );
+					}
+					if ( $rent_pending ) {
+						$ok_msg = 'rental_pending';
+					}
+				}
 				break;
 			case 'rental_update':
-				$in     = self::rental_input();
-				$result = MemberRentals::update( (int) ( $_POST['pp_rental'] ?? 0 ), get_current_user_id(), $in['data'], $in['items'], $in['sets'] );
-				$ok_msg = 'rental_updated';
+				$in        = self::rental_input();
+				$rent_id   = (int) ( $_POST['pp_rental'] ?? 0 );
+				$rent_grp  = self::active_group_id( Groups::user_groups( get_current_user_id() ) );
+				// Vor dem Speichern merken, welche Positionen schon offen WAREN —
+				// gefragt wird nur zu neu entstandenen Freigaben.
+				$rent_before = RentalApprovals::pending_line_ids( $rent_id );
+				$result    = MemberRentals::update( $rent_id, get_current_user_id(), $in['data'], $in['items'], $in['sets'], $rent_grp );
+				$ok_msg    = 'rental_updated';
+				if ( ! is_wp_error( $result ) ) {
+					$rent_new = [];
+					foreach ( RentalApprovals::pending_lines_by_owner( $rent_id ) as $rp_owner => $rp_lines ) {
+						$fresh = array_values( array_diff( $rp_lines, $rent_before ) );
+						if ( $fresh ) {
+							$rent_new[ $rp_owner ] = $fresh;
+						}
+					}
+					foreach ( $rent_new as $rp_owner => $rp_lines ) {
+						do_action( 'pp_rental_approvals_requested', $rp_lines, (int) $rp_owner, get_current_user_id() );
+					}
+					if ( $rent_new ) {
+						$ok_msg = 'rental_pending';
+					}
+				}
 				break;
 			case 'rental_status':
 				$result = MemberRentals::set_status( (int) ( $_POST['pp_rental'] ?? 0 ), get_current_user_id(), sanitize_key( wp_unslash( (string) ( $_POST['pp_status'] ?? '' ) ) ) );
@@ -836,6 +869,33 @@ class MemberPortal {
 				}
 				foreach ( $by_requester as $bulk_req => $bulk_decisions ) {
 					do_action( 'pp_booking_approvals_decided', (int) $bulk_req, $bulk_decisions );
+				}
+				$result = $decided > 0 ? true : new \WP_Error( 'pp_bulk_none', 'nothing chosen' );
+				$ok_msg = 'booking_bulk_saved';
+				break;
+			case 'rental_decide_bulk':
+				// Wie booking_decide_bulk, nur für Verleih-Positionen: je Position
+				// approve/reject/leer, Bündelung PRO ANFRAGER, dieselben Owner-Gates
+				// (RentalApprovals prüft Eigentum + „noch offen" selbst).
+				$raw_decide   = is_array( $_POST['pp_decide'] ?? null ) ? wp_unslash( $_POST['pp_decide'] ) : [];
+				$decided      = 0;
+				$by_requester = [];
+				foreach ( $raw_decide as $bulk_line => $bulk_choice ) {
+					$bulk_choice = sanitize_key( (string) $bulk_choice );
+					if ( ! in_array( $bulk_choice, [ 'approve', 'reject' ], true ) ) {
+						continue;
+					}
+					$ctx = 'approve' === $bulk_choice
+						? RentalApprovals::approve( get_current_user_id(), (int) $bulk_line )
+						: RentalApprovals::reject( get_current_user_id(), (int) $bulk_line );
+					if ( is_array( $ctx ) ) {
+						$decided++;
+						$ctx['status'] = 'approve' === $bulk_choice ? 'approved' : 'rejected';
+						$by_requester[ (int) $ctx['requester_id'] ][] = $ctx;
+					}
+				}
+				foreach ( $by_requester as $bulk_req => $bulk_decisions ) {
+					do_action( 'pp_rental_approvals_decided', (int) $bulk_req, $bulk_decisions );
 				}
 				$result = $decided > 0 ? true : new \WP_Error( 'pp_bulk_none', 'nothing chosen' );
 				$ok_msg = 'booking_bulk_saved';
@@ -1245,6 +1305,8 @@ class MemberPortal {
 				$msg = 'leave_last_founder';
 			} elseif ( 'pp_item_blocked' === $code ) {
 				$msg = 'item_blocked';
+			} elseif ( 'pp_rental_pending' === $code ) {
+				$msg = 'rental_locked';
 			} elseif ( 'pp_not_available' === $code ) {
 				$msg = 'rental_unavailable';
 			} elseif ( 'pp_invalid_amount' === $code ) {
@@ -1449,6 +1511,8 @@ class MemberPortal {
 			'rental_deleted'   => [ 'ok', __( 'Rental deleted.', 'project-prepper' ) ],
 			'rental_unavailable' => [ 'err', __( 'One of the items is not available in that period. Please adjust the dates or quantity.', 'project-prepper' ) ],
 			'item_blocked'       => [ 'err', __( 'That item is blocked right now (broken, in maintenance, missing or retired). Change its condition first if it should go out again.', 'project-prepper' ) ],
+			'rental_pending'     => [ 'ok', __( 'Rental saved. Some items belong to other members — they have been asked for approval and the rental can be handed out once everyone has decided.', 'project-prepper' ) ],
+			'rental_locked'      => [ 'err', __( 'This rental still has items waiting for their owner’s approval. You can hand it out once every owner has decided.', 'project-prepper' ) ],
 			'project_saved'    => [ 'ok', __( 'Project saved.', 'project-prepper' ) ],
 			'project_deleted'  => [ 'ok', __( 'Project deleted.', 'project-prepper' ) ],
 			'proj_entry_saved'   => [ 'ok', __( 'Entry saved.', 'project-prepper' ) ],
@@ -3092,7 +3156,7 @@ class MemberPortal {
 				}
 				break;
 			default:
-				self::render_external_rentals( $user );
+				self::render_external_rentals( $user, self::active_group_id( $groups ) );
 		}
 	}
 
@@ -3103,11 +3167,13 @@ class MemberPortal {
 	 * reserved→active→returned/cancelled. Persönlich (owner_user_id), siehe
 	 * {@see MemberRentals}-Klassendoku zur Gruppen-Abgrenzung.
 	 */
-	private static function render_external_rentals( WP_User $user ): void {
+	private static function render_external_rentals( WP_User $user, int $group_id = 0 ): void {
 		$uid      = (int) $user->ID;
 		$rentals  = MemberRentals::for_owner( $uid );
 		$kpis     = MemberRentals::kpis( $uid );
-		$lendable = MemberRentals::lendable_items( $uid );
+		// Im Gruppen-Arbeitsbereich steht der Kollektiv-Pool zur Wahl (derselbe wie
+		// bei der Projekt-Buchung), im Solo-Modus das eigene Inventar.
+		$lendable = MemberRentals::lendable_items( $uid, $group_id );
 		// Sets sind seit v0.40.0 regulär verleihbar (docs/07 §6): ausgewählt wird
 		// das Set, verliehen werden serverseitig seine Teile. $bundles trennt im
 		// Formular die Set-Zeilen von den normalen Artikel-Zeilen.
@@ -3138,6 +3204,9 @@ class MemberPortal {
 					}
 					$next = Rentals::TRANSITIONS[ $full->status ] ?? [];
 					$bill = $full->billing;
+					// Offene Freigaben halten die Ausgabe an (MemberRentals::set_status
+					// weist sie serverseitig ohnehin ab — hier gar nicht erst anbieten).
+					$pp_locked = RentalApprovals::has_pending( (int) $full->id );
 					?>
 					<div class="pp-portal__item">
 						<div class="pp-portal__item-head">
@@ -3176,6 +3245,18 @@ class MemberPortal {
 									?>
 									<li class="<?php echo esc_attr( $pp_bid > 0 ? 'pp-portal__rental-line--part' : '' ); ?>">
 										<?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?>
+										<?php
+										// Fremder Artikel aus dem Kollektiv-Pool: Eigentümer + Freigabe-Stand.
+										$pp_line_owner = (int) ( $line->item_owner_id ?? 0 );
+										if ( $pp_line_owner > 0 && $pp_line_owner !== $uid ) :
+											$pp_lo = get_userdata( $pp_line_owner );
+											?>
+											<span class="pp-portal__item-meta"><?php
+												/* translators: %s: owner name of the shared item. */
+												printf( esc_html__( 'by %s', 'project-prepper' ), esc_html( $pp_lo ? $pp_lo->display_name : '—' ) );
+											?></span>
+										<?php endif; ?>
+										<?php self::approval_chip( $line ); ?>
 										<?php if ( (int) $line->quantity > 1 ) : ?>
 											<span class="pp-portal__item-meta"><?php echo (int) $line->quantity; ?>×</span>
 										<?php endif; ?>
@@ -3212,10 +3293,15 @@ class MemberPortal {
 							<p class="pp-portal__inq-msg"><?php echo esc_html( $full->notes ); ?></p>
 						<?php endif; ?>
 
+						<?php if ( $pp_locked ) : ?>
+							<p class="pp-portal__hint pp-hint--warn"><?php esc_html_e( 'Waiting for approval by the item owners — the rental cannot be handed out yet.', 'project-prepper' ); ?></p>
+						<?php endif; ?>
+
 						<?php if ( $next ) : ?>
 							<div class="pp-portal__share-row">
 								<span class="pp-portal__share-label"><?php esc_html_e( 'Move to:', 'project-prepper' ); ?></span>
 								<?php foreach ( $next as $st ) : ?>
+									<?php if ( 'active' === $st && $pp_locked ) { continue; } ?>
 									<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 										<?php self::action_fields( 'rental_status' ); ?>
 										<input type="hidden" name="pp_rental" value="<?php echo (int) $full->id; ?>">
@@ -3235,7 +3321,7 @@ class MemberPortal {
 										<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
 									</div>
 									<div class="pp-modal-body">
-										<?php self::rental_form( $lendable, $bundles, $full ); ?>
+										<?php self::rental_form( $lendable, $bundles, $full, $group_id ); ?>
 									</div>
 								</dialog>
 							<?php endif; ?>
@@ -3254,7 +3340,7 @@ class MemberPortal {
 			<?php if ( $lendable ) : ?>
 				<details class="pp-portal__add">
 					<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New rental', 'project-prepper' ); ?></summary>
-					<?php self::rental_form( $lendable, $bundles ); ?>
+					<?php self::rental_form( $lendable, $bundles, null, $group_id ); ?>
 				</details>
 			<?php else : ?>
 				<p class="pp-portal__hint"><?php esc_html_e( 'Add items to your inventory first — then you can lend them out.', 'project-prepper' ); ?></p>
@@ -3432,7 +3518,7 @@ class MemberPortal {
 	 * @param array<int,array<object>> $bundles  Stücklisten der eigenen Sets.
 	 * @param object|null              $rental   Bestehender Verleih (inkl. items) oder null.
 	 */
-	private static function rental_form( array $lendable, array $bundles = [], ?object $rental = null ): void {
+	private static function rental_form( array $lendable, array $bundles = [], ?object $rental = null, int $group_id = 0 ): void {
 		$line_by_item = [];
 		foreach ( (array) ( $rental->items ?? [] ) as $line ) {
 			// Set-Teil-Zeilen gehören zur SET-Zeile des Formulars — sie dürfen die
@@ -3522,6 +3608,7 @@ class MemberPortal {
 				<?php endif; ?>
 				<div class="pp-book-list">
 				<?php
+				$pp_presets = MemberInventory::condition_presets();
 				// Sets zuerst: eine Zeile je Set, Menge = Anzahl Sets. Verliehen
 				// werden serverseitig die Teile (docs/07 §6); der Tagessatz ergibt
 				// sich aus den Teil-Sätzen, ein Paketpreis läuft über „Leihgebühr".
@@ -3570,9 +3657,19 @@ class MemberPortal {
 						continue; // oben schon als Set-Zeile ausgegeben.
 					}
 					$line = $line_by_item[ (int) $item->id ] ?? null;
+					// Tagessatz: gespeicherte Zeile > Satz aus der Kollektiv-Freigabe des
+					// Eigentümers > Standardsatz des Artikels. Bei fremden Artikeln gilt
+					// also der Preis, den der Eigentümer selbst gesetzt hat.
 					$rate = $line && null !== $line->daily_rate
 						? (float) $line->daily_rate
-						: ( isset( $item->cost_per_day ) && '' !== (string) $item->cost_per_day ? (float) $item->cost_per_day : '' );
+						: ( '' !== (string) ( $item->share_daily_rate ?? '' )
+							? (float) $item->share_daily_rate
+							: ( isset( $item->cost_per_day ) && '' !== (string) $item->cost_per_day ? (float) $item->cost_per_day : '' ) );
+					// Fremder Artikel aus dem Pool → Eigentümer nennen; braucht er eine
+					// Freigabe, sagt die Zeile das VOR dem Anlegen.
+					$pp_owner_id = (int) ( $item->owner_user_id ?? $item->shared_by ?? 0 );
+					$pp_foreign  = $pp_owner_id > 0 && $pp_owner_id !== get_current_user_id();
+					$pp_needs    = $pp_foreign && ! empty( $item->requires_approval );
 					// Frei im Zeitraum — zählt Verleihe, Projekt-Buchungen und Leihen
 					// (Availability). Der eigene Verleih ist beim Bearbeiten ausgenommen,
 					// damit die schon gebuchte Menge nicht gegen sich selbst zählt.
@@ -3590,6 +3687,11 @@ class MemberPortal {
 						/* translators: %d: total quantity. */
 						$bits[] = sprintf( __( '%d× total', 'project-prepper' ), (int) $item->quantity );
 					}
+					if ( $pp_foreign ) {
+						$pp_owner = get_userdata( $pp_owner_id );
+						/* translators: %s: owner name of the shared item. */
+						$bits[] = sprintf( __( 'by %s', 'project-prepper' ), $pp_owner ? $pp_owner->display_name : '—' );
+					}
 					if ( '' !== (string) ( $item->location ?? '' ) ) {
 						$bits[] = (string) $item->location;
 					}
@@ -3604,6 +3706,24 @@ class MemberPortal {
 						[
 							'meta'     => $bits,
 							'muted'    => $off,
+							'after'    => static function () use ( $item, $pp_needs, $pp_presets ) {
+								$cond_tags = (array) ( $item->conditions_tags ?? [] );
+								$cond_text = trim( (string) ( $item->conditions ?? '' ) );
+								if ( ! $pp_needs && ! $cond_tags && '' === $cond_text ) {
+									return;
+								}
+								?>
+								<span class="pp-book-item__cond">
+									<?php if ( $pp_needs ) : ?>
+										<span class="pp-book-item__approval"><?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></span>
+									<?php endif; ?>
+									<?php self::render_condition_chips( $cond_tags, $pp_presets ); ?>
+									<?php if ( '' !== $cond_text ) : ?>
+										<span class="pp-book-item__cond-text" title="<?php echo esc_attr( $cond_text ); ?>"><?php echo esc_html( $cond_text ); ?></span>
+									<?php endif; ?>
+								</span>
+								<?php
+							},
 							'controls' => static function () use ( $item, $line, $rate, $free, $off, $period_ok ) {
 								if ( $line ) {
 									?>
@@ -5042,16 +5162,23 @@ class MemberPortal {
 	 */
 	private static function view_approvals( WP_User $user ): void {
 		$pending = BookingApprovals::pending_for_owner( (int) $user->ID );
+		// Verleih-Anfragen (v0.41.0): dieselbe Seite, eigener Block — der Kontext
+		// ist ein anderer (externer Leiher + Geld statt Projekt).
+		$pending_rent = RentalApprovals::pending_for_owner( (int) $user->ID );
 		$presets = MemberInventory::condition_presets();
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title"><?php esc_html_e( 'Equipment approvals', 'project-prepper' ); ?></h1>
-			<p class="pp-app__page-sub"><?php esc_html_e( 'Requests to use your equipment in a collective project — approve them on your own terms.', 'project-prepper' ); ?></p>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Requests to use your equipment — in a collective project or in an external rental. You decide on your own terms.', 'project-prepper' ); ?></p>
 		</header>
+
+		<?php self::render_rental_approvals( $pending_rent ); ?>
 
 		<?php if ( ! $pending ) : ?>
 			<div class="pp-card">
-				<p class="pp-portal__empty"><?php esc_html_e( 'No open approval requests. When someone books your equipment on approval, it shows up here.', 'project-prepper' ); ?></p>
+				<p class="pp-portal__empty"><?php echo esc_html( $pending_rent
+					? __( 'No open approval requests for collective projects.', 'project-prepper' )
+					: __( 'No open approval requests. When someone books or lends out your equipment on approval, it shows up here.', 'project-prepper' ) ); ?></p>
 			</div>
 		<?php else : ?>
 			<?php // Sammel-Formular: je Anfrage Freigeben/Ablehnen/Später wählen, EIN
@@ -5124,6 +5251,79 @@ class MemberPortal {
 			</div>
 			</form>
 		<?php endif; ?>
+		<?php
+	}
+
+	/**
+	 * Offene Freigaben für EXTERNE VERLEIHE (v0.41.0). Gleiche Bedienung wie die
+	 * Projekt-Freigaben (Sammel-Formular, eine Entscheidung je Position, ein
+	 * Absenden), aber eigener Kontext: an wen verliehen wird, zu welchem Satz und
+	 * unter welcher Verleih-Nummer.
+	 *
+	 * @param array<object> $pending
+	 */
+	private static function render_rental_approvals( array $pending ): void {
+		if ( ! $pending ) {
+			return;
+		}
+		?>
+		<form class="pp-approvals-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return !this.querySelector('input[value=reject]:checked') || confirm('<?php echo esc_js( __( 'Reject the selected requests? Those items will be removed from the rental.', 'project-prepper' ) ); ?>');">
+			<?php self::action_fields( 'rental_decide_bulk' ); ?>
+			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'For an external rental', 'project-prepper' ); ?></h3>
+			<p class="pp-portal__hint"><?php esc_html_e( 'A member of your collective wants to lend your equipment to someone outside the platform. Until you decide, it cannot be handed out.', 'project-prepper' ); ?></p>
+			<div class="pp-approvals">
+				<?php foreach ( $pending as $r ) :
+					$range = self::fmt_range( (string) $r->date_from, (string) $r->date_to );
+					?>
+					<div class="pp-approval">
+						<div class="pp-approval__head">
+							<span class="pp-approval__item"><?php echo esc_html( (string) $r->item_name ); ?></span>
+							<?php if ( ! empty( $r->inventory_number ) ) : ?>
+								<span class="pp-portal__item-num"><?php echo esc_html( (string) $r->inventory_number ); ?></span>
+							<?php endif; ?>
+							<?php if ( ! empty( $r->bundle_name ) ) : ?>
+								<span class="pp-bundle-chip"><?php
+									/* translators: %s: name of the set this line belongs to. */
+									printf( esc_html__( 'Set “%s”', 'project-prepper' ), esc_html( (string) $r->bundle_name ) );
+								?></span>
+							<?php endif; ?>
+							<span class="pp-appr-chip pp-appr--pending"><?php esc_html_e( 'Pending', 'project-prepper' ); ?></span>
+						</div>
+						<div class="pp-approval__meta">
+							<?php
+							$bits = [];
+							/* translators: %s: name of the external borrower. */
+							$bits[] = sprintf( __( 'Rental to %s', 'project-prepper' ), (string) $r->borrower_name );
+							if ( '' !== (string) $r->requester_name ) {
+								/* translators: %s: requester name. */
+								$bits[] = sprintf( __( 'requested by %s', 'project-prepper' ), (string) $r->requester_name );
+							}
+							/* translators: %d: quantity. */
+							$bits[] = sprintf( __( 'Qty %d', 'project-prepper' ), (int) $r->quantity );
+							if ( '' !== $range ) {
+								$bits[] = $range;
+							}
+							if ( null !== $r->daily_rate && '' !== (string) $r->daily_rate ) {
+								/* translators: %s: daily rate in euros. */
+								$bits[] = sprintf( __( '%s €/day', 'project-prepper' ), number_format_i18n( (float) $r->daily_rate, 2 ) );
+							}
+							$bits[] = (string) $r->rental_number;
+							echo esc_html( implode( ' · ', $bits ) );
+							?>
+						</div>
+						<div class="pp-portal__actions pp-approval__decide" role="radiogroup" aria-label="<?php esc_attr_e( 'Decision', 'project-prepper' ); ?>">
+							<label class="pp-portal__chip"><input type="radio" name="pp_decide[<?php echo (int) $r->line_id; ?>]" value="approve" hidden> <?php esc_html_e( 'Approve', 'project-prepper' ); ?></label>
+							<label class="pp-portal__chip"><input type="radio" name="pp_decide[<?php echo (int) $r->line_id; ?>]" value="reject" hidden> <?php esc_html_e( 'Reject', 'project-prepper' ); ?></label>
+							<label class="pp-portal__chip"><input type="radio" name="pp_decide[<?php echo (int) $r->line_id; ?>]" value="" hidden checked> <?php esc_html_e( 'Decide later', 'project-prepper' ); ?></label>
+						</div>
+					</div>
+				<?php endforeach; ?>
+			</div>
+			<div class="pp-portal__actions pp-approvals-form__submit">
+				<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Send decisions', 'project-prepper' ); ?></button>
+				<span class="pp-portal__hint"><?php esc_html_e( 'Each requester gets one email listing all your decisions.', 'project-prepper' ); ?></span>
+			</div>
+		</form>
 		<?php
 	}
 

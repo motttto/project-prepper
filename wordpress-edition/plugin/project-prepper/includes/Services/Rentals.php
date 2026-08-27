@@ -70,7 +70,7 @@ class Rentals {
 			return null;
 		}
 		$rental->items = $wpdb->get_results( $wpdb->prepare(
-			'SELECT ri.*, i.name AS item_name, i.inventory_number
+			'SELECT ri.*, i.name AS item_name, i.inventory_number, i.owner_user_id AS item_owner_id
 			 FROM %i ri
 			 LEFT JOIN %i i ON i.id = ri.item_id
 			 WHERE ri.rental_id = %d
@@ -189,6 +189,10 @@ class Rentals {
 				// Set-Herkunft (v0.40.0): gesetzt, wenn die Zeile aus einer
 				// Set-Auswahl expandiert wurde — reiner Gruppierungs-Marker.
 				'bundle_item_id' => ! empty( $line['bundle_item_id'] ) ? (int) $line['bundle_item_id'] : null,
+				// Freigabe (v0.41.0): fremde Artikel aus dem Kollektiv-Pool starten
+				// als 'pending', eigene bleiben beim DEFAULT 'approved'.
+				'approval_status' => ! empty( $line['approval_status'] ) ? (string) $line['approval_status'] : 'approved',
+				'requested_by'    => ! empty( $line['requested_by'] ) ? (int) $line['requested_by'] : null,
 			] );
 		}
 
@@ -314,6 +318,14 @@ class Rentals {
 					'daily_rate'     => isset( $line['daily_rate'] ) && '' !== $line['daily_rate'] ? (float) $line['daily_rate'] : null,
 					'bundle_item_id' => ! empty( $line['bundle_item_id'] ) ? (int) $line['bundle_item_id'] : null,
 				];
+				// Freigabe-Status nur setzen, wenn der Aufrufer ihn mitgibt — sonst
+				// würde ein Speichern des Formulars eine schon erteilte Freigabe
+				// überschreiben (der Diff aktualisiert bestehende Zeilen).
+				if ( isset( $line['approval_status'] ) ) {
+					$row['approval_status'] = (string) $line['approval_status'];
+					$row['requested_by']    = ! empty( $line['requested_by'] ) ? (int) $line['requested_by'] : null;
+					$row['decided_at']      = null;
+				}
 				$line_id = (int) ( $line['id'] ?? 0 );
 				if ( $line_id && isset( $existing[ $line_id ] ) ) {
 					$wpdb->update( Schema::table( 'rental_items' ), $row, [ 'id' => $line_id, 'rental_id' => $id ] );

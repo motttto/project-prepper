@@ -3,6 +3,40 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🤝 Kollektiv-Verleih mit Eigentümer-Freigabe 2026-08-27 (Feature-Stand, Schema 0.40.0 → **0.41.0**)
+> **Noch nicht released.** User-Frage „warum erscheinen im Gruppenmodus nur meine eigenen Inventarartikel
+> im Verleih?" → Antwort war: bewusste Alt-Entscheidung (Verleih = solo, weil Geld + Haftung + kein
+> gruppeneigenes Inventar). Auf Ansage umgebaut: **Im Gruppen-Arbeitsbereich steht jetzt derselbe Pool
+> zur Wahl wie in der Projekt-Buchung**, fremde Artikel brauchen die Freigabe ihres Eigentümers.
+> **Schema 0.41.0:** `rental_items.approval_status` (DEFAULT `approved` → Bestandszeilen bleiben gültig),
+> `requested_by`, `decided_at` + KEY; additiv via dbDelta, keine Datenmigration.
+> **Services:** `MemberRentals::lendable_items($uid, $group_id)` liefert im Gruppen-Modus
+> `items_shared_with_group()`, im Solo-Modus die eigenen; `guard_items_owned()` → `guard_items_lendable()`
+> gibt die Positionen ANGEREICHERT zurück (pending + requested_by für fremd + `requires_approval`) und
+> bleibt harte IDOR-Grenze. `expand_sets()` ist pool-fähig und vererbt die Freigabepflicht des SETS an die
+> Teil-Zeilen (docs/07 §4.4 — Teile müssen nicht einzeln geteilt sein; Marker `pp_via_bundle`).
+> Neuer Service **`RentalApprovals`** (Schwester von BookingApprovals auf `pp_rental_items`):
+> pending_for_owner / approve / reject / has_pending / pending_lines_by_owner / pending_line_ids, jede
+> mutierende Methode mit Owner-Gate. Bewusst eigene Klasse statt Verallgemeinerung — andere Tabellen,
+> anderer Kontext (Projekt ↔ externer Leiher + Geld), geteilte Logik gäbe es kaum.
+> **Regeln:** (1) Ausgabe gesperrt, solange eine Position offen ist (`pp_rental_pending`; die UI bietet
+> „Ausgegeben" gar nicht erst an, Zurückgeben/Stornieren bleibt möglich). (2) Eine erteilte Freigabe
+> überlebt jedes weitere Speichern — erneut gefragt wird nur bei mehr Stück oder geändertem Zeitraum.
+> (3) Tagessatz einer fremden Position = `share_daily_rate` des Eigentümers, sonst Artikel-Satz.
+> **UI:** Verleih-Picker zeigt „von X", „Freigabe erforderlich" und die Bedingungs-Chips des Eigentümers;
+> Positionsliste zeigt Eigentümer + Freigabe-Chip; Freigaben-Ansicht hat einen zweiten Block „Für einen
+> externen Verleih" mit demselben Sammel-Formular (neue Aktion `rental_decide_bulk`).
+> **Mails:** neue Templates `rental_requested_list` (an den Eigentümer, nennt den externen Leiher) und
+> `rental_decided_list` (an den Anfrager), je EINE Sammel-Mail; beide im Backend editierbar.
+> **Verifiziert** per `wp eval-file`: Pool 7 vs. Solo 5 Artikel; create mit fremdem Artikel → pending;
+> Ausgabe → `pp_rental_pending`; fremder User entscheidet → `pp_forbidden`; Eigentümer gibt frei →
+> Ausgabe möglich; Solo-Modus mit fremdem Artikel → `pp_not_your_item`. Im Browser komplett durchgespielt
+> (portaltest legt an → memberB sieht + gibt frei → Chip „Angenommen", Ausgabe wieder möglich); beide
+> Mails abgefangen und geprüft. i18n: 20 neue Strings dt. (mo 1571/1570). Plugin Check: nur die 2
+> by-design-ERRORs.
+> **Bewusst offen:** Verteilung der Einnahmen (Eigentümer / Gruppenkasse / anteilig) — braucht eine
+> Entscheidung des Kollektivs, bevor sie in Code gehört.
+>
 > ## 🔒 Release v0.134.0 2026-08-27 (Gesperrte Artikel — ein global gültiger Zustand, Schema UNVERÄNDERT 0.40.0)
 > **Ausgeliefert** (Feature-Commit `87dbeff`). Antwort auf die User-Frage „können wir nicht einen Status pro Artikel führen,
 > der global gilt?" — mit einer bewussten Zweiteilung: **Verfügbarkeit bleibt berechnet** (sie ist eine
