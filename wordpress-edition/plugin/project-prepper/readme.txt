@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.136.0
+Stable tag: 0.137.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.137.0 =
+* The month calendar now draws an entry that runs over several days as one continuous bar across those days, instead of repeating it in every single day cell. A project from the 10th to the 14th finally looks like one thing, not like five.
+* Where an entry continues into the next week, the bar keeps a flat edge on that side, so you can see it carries on in the row below.
+* Overlapping entries each get their own track and keep that height across the whole week. Short entries fill the free spots next to a long bar.
+* Three tracks are shown per week; anything beyond that appears as “+n more” on exactly the days it affects.
+* Note: this update does not change the database.
 
 = 0.136.0 =
 * Fix: the personal calendar feed only ever contained the events you created by hand. Projects, schedules, loans and rentals — everything else the portal calendar shows — were never exported, so a subscription could look empty. All four are now included, each tagged with its type and the collective or project it belongs to.

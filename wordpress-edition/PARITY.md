@@ -3,8 +3,8 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
-> ## 📊 Monatskalender: durchgehende Balken 2026-08-27 (Feature-Stand, Schema UNVERÄNDERT 0.41.0)
-> **Noch nicht released.** User-Frage „kann der Kalender tagesübergreifende Ereignisse überlappend
+> ## 📊 Release v0.137.0 2026-08-27 (Monatskalender: durchgehende Balken, Schema UNVERÄNDERT 0.41.0)
+> **Ausgeliefert** (Feature-Commit `7f0e0d2`). User-Frage „kann der Kalender tagesübergreifende Ereignisse überlappend
 > darstellen?" — konnte er nicht: `cal_span()` legte denselben Eintrag als eigenen Chip in JEDE
 > Tageszelle, ein Projekt vom 10.–14. sah aus wie fünf Vorgänge.
 > **Umbau:** Das Monatsraster besteht jetzt aus WOCHEN-ZEILEN (`render_month_weeks()`). Je Woche ein
@@ -26,6 +26,10 @@
 > Balken); Überlauf korrekt als „+2 weitere" am 12. und „+1 weitere" am 13./14. Wochenansicht
 > unverändert, Hell + Dunkel geprüft, Mobil-Zellen wieder kompakt (eigene Media-Query-Regeln).
 > i18n: KEINE neuen Strings. Plugin Check: nur die 2 by-design-ERRORs.
+> Build `dist/project-prepper-0.137.0.zip` (1,3 MB, 126 Dateien), `update.json` auf 0.137.0,
+> GitHub-Release `v0.137.0` mit ZIP-Asset.
+> **Bekannte Grenze:** Ein Eintrag über den MONATSRAND hinaus wird am Monatsanfang/-ende abgeschnitten
+> (flache Kante zeigt es an); im Nachbarmonat beginnt der Balken wieder von vorn.
 >
 > ## 📅 Release v0.136.0 2026-08-27 (Kalender-Abo enthält jetzt alles, Schema UNVERÄNDERT 0.41.0)
 > **Ausgeliefert** (Feature-Commit `aa6828d`). User-Meldung „ich habe den Eindruck, dass das Apple-Kalenderabo nicht ankommt".
