@@ -596,6 +596,11 @@ class Projects {
 			$available = Availability::available_quantity( $item_id, $eff_from, $eff_to, 0, (int) $project->id );
 
 			// Übrige Zeilen des eigenen Projekts (statusunabhängig) gegenrechnen.
+			// BEWUSST ohne Rüstzeiten: die gelten zwischen VORGÄNGEN (ein Verleih
+			// endet, der nächste beginnt), nicht innerhalb eines Projekts — dort
+			// bleibt das Gerät ohnehin beim selben Team und wird nicht zwischen
+			// zwei eigenen Zeilen aufbereitet. Ein Puffer hier würde die eigene
+			// Binnenplanung ohne Grund blockieren.
 			$own_booked = (int) $wpdb->get_var( $wpdb->prepare(
 				'SELECT COALESCE(SUM(pi.quantity), 0)
 				 FROM %i pi

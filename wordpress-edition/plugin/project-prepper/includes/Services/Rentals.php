@@ -44,7 +44,11 @@ class Rentals {
 			$where[]  = 'r.owner_group_id = %d';
 			$params[] = (int) $args['owner_group_id'];
 		} elseif ( array_key_exists( 'owner_user_id', $args ) ) {
-			$where[]  = 'r.owner_user_id = %d AND r.owner_group_id IS NULL';
+			// `any_workspace` = alles, was diese Person angelegt hat, auch im Namen
+			// eines Kollektivs. Ohne das Flag nur die rein persönlichen Verleihe.
+			$where[]  = ! empty( $args['any_workspace'] )
+				? 'r.owner_user_id = %d'
+				: 'r.owner_user_id = %d AND r.owner_group_id IS NULL';
 			$params[] = (int) $args['owner_user_id'];
 		}
 
@@ -55,6 +59,41 @@ class Rentals {
 			 WHERE ' . implode( ' AND ', $where ) . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- WHERE-Bedingungen sind statische Strings mit Platzhaltern.
 			' ORDER BY r.date_from DESC, r.id DESC',
 			$params
+		);
+		return $wpdb->get_results( $sql ) ?: []; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql ist oben via prepare() aufgebaut.
+	}
+
+	/**
+	 * Verleihe, in denen Equipment von $owner_id steckt — unabhängig davon, WER
+	 * den Vorgang angelegt hat oder in welchem Arbeitsbereich er hängt.
+	 *
+	 * Grundlage der Eigentümer-Sicht: Wer einen Artikel beisteuert,
+	 * soll sehen, dass sein Gerät außer Haus geht — auch wenn seine Freigabe
+	 * keine Zustimmung verlangt und ihn deshalb nie jemand gefragt hat. Ohne das
+	 * war ein Verleih fremden Equipments für den Eigentümer komplett unsichtbar,
+	 * bis der Artikel am Ausleihtag im eigenen Inventar als „unterwegs" auftauchte.
+	 *
+	 * @return array<object>
+	 */
+	public static function for_item_owner( int $owner_id ): array {
+		global $wpdb;
+		if ( $owner_id <= 0 ) {
+			return [];
+		}
+		$sql = $wpdb->prepare(
+			'SELECT r.*, (SELECT COUNT(*) FROM %i ri2 WHERE ri2.rental_id = r.id) AS item_count
+			 FROM %i r
+			 WHERE EXISTS (
+				SELECT 1 FROM %i ri
+				JOIN %i i ON i.id = ri.item_id
+				WHERE ri.rental_id = r.id AND i.owner_user_id = %d
+			 )
+			 ORDER BY r.date_from DESC, r.id DESC',
+			Schema::table( 'rental_items' ),
+			Schema::table( 'rentals' ),
+			Schema::table( 'rental_items' ),
+			Schema::table( 'items' ),
+			$owner_id
 		);
 		return $wpdb->get_results( $sql ) ?: []; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql ist oben via prepare() aufgebaut.
 	}

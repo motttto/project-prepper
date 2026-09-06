@@ -3,6 +3,7 @@ namespace ProjectPrepper\Services;
 
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Schema;
+use ProjectPrepper\Settings;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -23,10 +24,20 @@ defined( 'ABSPATH' ) || exit;
  * und nur der EIGENTÜMER gibt sie frei ({@see RentalApprovals}). Solange eine
  * Position offen ist, lässt sich der Verleih nicht ausgeben.
  *
- * Der Verleih selbst bleibt PERSÖNLICH (`owner_user_id` = das Mitglied, das
- * verleiht): Es gibt im WP-Modell kein Inventar mit `owner_group_id`, und wer
- * gegenüber dem externen Leiher haftet und kassiert, ist die Person, die den
- * Vorgang anlegt. Die Gruppe steuert nur, WELCHE Artikel wählbar sind.
+ * Ein im GRUPPEN-Arbeitsbereich angelegter Verleih hängt außerdem am Kollektiv
+ * (`owner_group_id`), solange der Betreiber {@see Settings::collective_rentals_visible}
+ * nicht abschaltet — davor war er ausschließlich persönlich und
+ * damit für alle anderen unsichtbar: weder in ihrer Verleih-Liste noch im
+ * Kalender noch im iCal-Abo tauchte auf, dass Kollektiv-Equipment außer Haus
+ * geht. Verantwortlich bleibt trotzdem der Anleger (`owner_user_id`): nur er
+ * bearbeitet, gibt aus und storniert; die übrigen Mitglieder sehen den Vorgang
+ * lesend ({@see visible}).
+ *
+ * Zweiter Sichtbarkeitsweg, unabhängig vom Arbeitsbereich: Wer einen Artikel
+ * BEISTEUERT, sieht den Verleih ebenfalls ({@see Rentals::for_item_owner}) —
+ * auch wenn seine Freigabe keine Zustimmung verlangt und ihn deshalb niemand
+ * gefragt hat.
+ *
  * Offen und bewusst nicht mitentschieden: die Verteilung der Einnahmen — der
  * Tagessatz je Position kommt aus der Freigabe des Eigentümers, wohin das Geld
  * fließt, klärt das Kollektiv außerhalb der Software.
@@ -36,17 +47,132 @@ defined( 'ABSPATH' ) || exit;
  */
 class MemberRentals {
 
-	/** Verleihe des Mitglieds (Solo — persönliche externe Verleihe). */
+	/** Persönliche Verleihe des Mitglieds (Solo-Arbeitsbereich). */
 	public static function for_owner( int $user_id ): array {
 		return Rentals::all( [ 'owner_user_id' => $user_id ] );
 	}
 
-	/** Gehört der Verleih diesem Mitglied (persönlich)? */
+	/**
+	 * Alle vom Mitglied selbst angelegten Verleihe — persönliche UND im Namen
+	 * eines Kollektivs. Sie bleiben in jedem Arbeitsbereich sichtbar: sonst
+	 * verschwände ein Gruppen-Verleih beim Umschalten auf Solo und niemand
+	 * könnte ihn mehr zurückbuchen.
+	 */
+	public static function authored_by( int $user_id ): array {
+		return Rentals::all( [ 'owner_user_id' => $user_id, 'any_workspace' => true ] );
+	}
+
+	/**
+	 * Verleihe des aktiven Arbeitsbereichs: Solo die persönlichen, im
+	 * Gruppen-Arbeitsbereich die des Kollektivs (auch die der Mitglieder).
+	 * Die Mitgliedschaft wird geprüft — eine fremde Gruppen-ID liefert nichts.
+	 */
+	public static function for_workspace( int $user_id, int $group_id ): array {
+		if ( $group_id > 0 ) {
+			// Abgeschalteter Betreiber-Schalter: Verleihe bleiben privat, auch
+			// bereits angelegte Kollektiv-Vorgänge verschwinden aus der Gruppensicht.
+			return ( Settings::collective_rentals_visible() && Groups::is_member( $group_id, $user_id ) )
+				? Rentals::all( [ 'owner_group_id' => $group_id ] )
+				: [];
+		}
+		return self::for_owner( $user_id );
+	}
+
+	/**
+	 * Alles, was das Mitglied sehen darf — Grundlage für Liste, Kalender und
+	 * iCal-Abo. Drei Wege, in dieser Rangfolge (der erste gewinnt je Verleih):
+	 *
+	 *   `own`        eigener Vorgang → bearbeiten/ausgeben/stornieren erlaubt
+	 *   `group`      Verleih des aktiven Kollektivs, angelegt von jemand anderem
+	 *   `item_owner` fremder Verleih, in dem eigenes Equipment steckt
+	 *
+	 * Jede Zeile trägt `pp_can_edit` (bool) und `pp_relation` (einer der drei
+	 * Schlüssel); nur `own` darf schreiben.
+	 *
+	 * @return array<object>
+	 */
+	public static function visible( int $user_id, int $group_id = 0 ): array {
+		return self::collect( $user_id, $group_id > 0 ? [ $group_id ] : [] );
+	}
+
+	/**
+	 * Wie {@see visible}, aber über ALLE Kollektive des Mitglieds — für Ausgaben
+	 * ohne Arbeitsbereich-Umschalter, allen voran das iCal-Abo: Ein Abonnement
+	 * kann nicht wissen, welchen Arbeitsbereich jemand gerade offen hat.
+	 *
+	 * @return array<object>
+	 */
+	public static function visible_everywhere( int $user_id ): array {
+		return self::collect( $user_id, Groups::user_group_ids( $user_id ) );
+	}
+
+	/**
+	 * Sammelt die drei Sichtbarkeitswege für die übergebenen Kollektive,
+	 * dedupliziert (der erste Weg gewinnt) und sortiert wie die Listen-Queries.
+	 *
+	 * @param int[] $group_ids Kollektive, deren Verleihe mitgelesen werden dürfen.
+	 * @return array<object>
+	 */
+	private static function collect( int $user_id, array $group_ids ): array {
+		$seen = [];
+		$out  = [];
+		$add  = static function ( array $rows, string $relation ) use ( &$seen, &$out, $user_id ): void {
+			foreach ( $rows as $row ) {
+				$id = (int) $row->id;
+				if ( isset( $seen[ $id ] ) ) {
+					continue;
+				}
+				$seen[ $id ]      = true;
+				$own              = (int) ( $row->owner_user_id ?? 0 ) === $user_id;
+				$row->pp_relation = $own ? 'own' : $relation;
+				$row->pp_can_edit = $own;
+				$out[]            = $row;
+			}
+		};
+
+		$add( self::authored_by( $user_id ), 'own' );
+		foreach ( $group_ids as $gid ) {
+			$add( self::for_workspace( $user_id, (int) $gid ), 'group' );
+		}
+		$add( Rentals::for_item_owner( $user_id ), 'item_owner' );
+
+		usort( $out, static function ( $a, $b ) {
+			return [ (string) $b->date_from, (int) $b->id ] <=> [ (string) $a->date_from, (int) $a->id ];
+		} );
+		return $out;
+	}
+
+	/**
+	 * Darf das Mitglied den Verleih ÄNDERN? Nur der Anleger — auch bei einem
+	 * Kollektiv-Verleih: Wer den Vorgang aufgesetzt hat, haftet gegenüber dem
+	 * externen Leiher und kassiert die Kaution.
+	 */
 	public static function owns( ?object $rental, int $user_id ): bool {
 		if ( ! $rental ) {
 			return false;
 		}
-		return (int) ( $rental->owner_user_id ?? 0 ) === $user_id && empty( $rental->owner_group_id );
+		return (int) ( $rental->owner_user_id ?? 0 ) === $user_id;
+	}
+
+	/** Darf das Mitglied den Verleih SEHEN (einer der drei Wege aus {@see visible})? */
+	public static function may_view( ?object $rental, int $user_id, int $group_id = 0 ): bool {
+		if ( ! $rental ) {
+			return false;
+		}
+		if ( self::owns( $rental, $user_id ) ) {
+			return true;
+		}
+		$rental_group = (int) ( $rental->owner_group_id ?? 0 );
+		if ( Settings::collective_rentals_visible() && $rental_group > 0 && $rental_group === $group_id
+			&& Groups::is_member( $rental_group, $user_id ) ) {
+			return true;
+		}
+		foreach ( (array) ( $rental->items ?? [] ) as $line ) {
+			if ( (int) ( $line->item_owner_id ?? 0 ) === $user_id ) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/** Verleih (inkl. Positionen + Abrechnung) nur, wenn er dem Member gehört. */
@@ -55,19 +181,37 @@ class MemberRentals {
 		return self::owns( $rental, $user_id ) ? $rental : null;
 	}
 
+	/** Verleih zum Anzeigen — eigener oder mitlesend (Kollektiv/eigenes Equipment). */
+	public static function get_visible( int $id, int $user_id, int $group_id = 0 ): ?object {
+		$rental = Rentals::get( $id );
+		if ( ! self::may_view( $rental, $user_id, $group_id ) ) {
+			return null;
+		}
+		$rental->pp_can_edit = self::owns( $rental, $user_id );
+		return $rental;
+	}
+
 	/**
 	 * KPI-Zähler wie die App-Verleihseite: Reserviert/Ausgegeben/Zurück +
-	 * offene Kaution (Summe nicht zurückgegebener/stornierter Verleihe).
+	 * offene Kaution.
+	 *
+	 * Gezählt wird GENAU die Menge, die auch in der Liste steht ({@see visible}) —
+	 * sonst widersprechen sich Kachel und Liste direkt untereinander: die Kachel
+	 * sagte „1 reserviert", darunter standen drei Karten.
+	 *
+	 * Die KAUTION ist die Ausnahme und zählt nur eigene Vorgänge: Geld eines
+	 * fremden Verleihs hält jemand anderes, es gehört nicht in die eigene Bilanz.
 	 */
-	public static function kpis( int $user_id ): array {
-		$rentals = self::for_owner( $user_id );
+	public static function kpis( int $user_id, int $group_id = 0 ): array {
+		$rentals = self::visible( $user_id, $group_id );
 		$counts  = [ 'reserved' => 0, 'active' => 0, 'returned' => 0, 'cancelled' => 0 ];
 		$deposit = 0.0;
 		foreach ( $rentals as $r ) {
 			if ( isset( $counts[ $r->status ] ) ) {
 				++$counts[ $r->status ];
 			}
-			if ( ! in_array( $r->status, [ 'returned', 'cancelled' ], true ) ) {
+			$mine = (int) ( $r->owner_user_id ?? 0 ) === $user_id;
+			if ( $mine && ! in_array( $r->status, [ 'returned', 'cancelled' ], true ) ) {
 				$deposit += (float) ( $r->deposit_amount ?? 0 );
 			}
 		}
@@ -96,8 +240,13 @@ class MemberRentals {
 		if ( is_wp_error( $items ) ) {
 			return $items;
 		}
-		$data['owner_user_id']  = $user_id;
-		$data['owner_group_id'] = null;
+		$data['owner_user_id'] = $user_id;
+		// Im Gruppen-Arbeitsbereich gehört der Vorgang AUCH dem Kollektiv, damit
+		// die anderen Mitglieder ihn in Liste, Kalender und iCal-Abo sehen. Das
+		// Schreibrecht bleibt trotzdem beim Anleger ({@see owns}). Der Betreiber
+		// kann das instanzweit abschalten — dann bleibt jeder Verleih privat.
+		$data['owner_group_id'] = ( Settings::collective_rentals_visible() && $group_id > 0
+			&& Groups::is_member( $group_id, $user_id ) ) ? $group_id : null;
 		return Rentals::create( $data, $items );
 	}
 
@@ -113,6 +262,19 @@ class MemberRentals {
 		if ( ! $rental ) {
 			return new WP_Error( 'pp_forbidden', __( 'This rental is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
 		}
+		// Maßgeblich ist der Arbeitsbereich des VERLEIHS, nicht der gerade offene:
+		// Ein Kollektiv-Verleih, der aus dem Solo-Arbeitsbereich bearbeitet wird,
+		// würde sonst gegen den Solo-Pool geprüft — die Kollektiv-Positionen
+		// gälten plötzlich als fremd und jedes Speichern schlüge fehl.
+		// Maßgeblich ist der Arbeitsbereich des VERLEIHS, nie der gerade offene.
+		// Sonst passiert beides: Ein persönlicher Verleih, aus dem Gruppen-
+		// Arbeitsbereich gespeichert, würde gegen den Kollektiv-Pool geprüft und
+		// verlöre seine Positionen; und wer ein Kollektiv verlassen hat, könnte
+		// über seinen alten Vorgang Equipment eines ANDEREN Kollektivs einbuchen.
+		// Abwickeln (zurückgeben, stornieren) bleibt in jedem Fall möglich — der
+		// Anleger haftet weiter.
+		$rental_group = (int) ( $rental->owner_group_id ?? 0 );
+		$group_id     = ( $rental_group > 0 && Groups::is_member( $rental_group, $user_id ) ) ? $rental_group : 0;
 		if ( null !== $items ) {
 			// Zeitraum für die Set-Prüfung: neue Werte, sonst der bestehende
 			// Verleih-Zeitraum; der eigene Verleih wird dabei ausgenommen.
@@ -183,6 +345,13 @@ class MemberRentals {
 	public static function lendable_items( int $user_id, int $group_id = 0 ): array {
 		$out = [];
 		if ( $group_id > 0 ) {
+			// Guard an der Quelle: items_shared_with_group() filtert nur nach
+			// group_id und verlässt sich darauf, dass der Aufrufer die
+			// Mitgliedschaft prüft. Diese Prüfung hier zu wiederholen kostet
+			// nichts und macht jeden künftigen Aufrufer sicher.
+			if ( ! Groups::is_member( $group_id, $user_id ) ) {
+				return [];
+			}
 			// Gruppen-Arbeitsbereich: derselbe Pool wie die Projekt-Buchung — alle
 			// mit dem Kollektiv geteilten Artikel, inklusive der eigenen. Die Zeilen
 			// tragen shared_by/requires_approval/share_daily_rate, daraus ergibt sich

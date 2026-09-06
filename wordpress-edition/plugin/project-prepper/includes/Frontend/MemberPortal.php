@@ -3,6 +3,7 @@ namespace ProjectPrepper\Frontend;
 
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Security;
+use ProjectPrepper\Settings;
 use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance as Governance;
 use ProjectPrepper\Services\Inventory;
@@ -2539,7 +2540,7 @@ class MemberPortal {
 		$inq_count  = MemberInquiries::count_for_owner( (int) $user->ID, self::active_group_id( $groups ) );
 		$incoming   = Borrowing::incoming_requests( (int) $user->ID );
 		$open_reqs  = count( array_filter( $incoming, static fn( $r ) => 'requested' === $r->status ) );
-		$rent_kpis  = MemberRentals::kpis( (int) $user->ID );
+		$rent_kpis  = MemberRentals::kpis( (int) $user->ID, $ws_group );
 		$rent_out   = (int) $rent_kpis['reserved'] + (int) $rent_kpis['active'];
 		// Presence: verschiedene gerade online befindliche Mitglieder über alle
 		// eigenen Kollektive (ein Batch-Query über die Vereinigungsmenge).
@@ -2865,6 +2866,9 @@ class MemberPortal {
 				$pp_part_by_id[ (int) $pp_pi->id ] = $pp_pi;
 			}
 		}
+		// Zeitfenster aller gezeigten Artikel (inkl. Set-Teile) in EINER Query —
+		// die Spalte „Verfügbar" rechnet auf heute, der Chip zeigt, was kommt.
+		$pp_timeline = self::timeline_for( $items, $pp_bundles );
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title">
@@ -2981,7 +2985,23 @@ class MemberPortal {
 							<span class="pp-col pp-col--cat" data-label="<?php esc_attr_e( 'Category', 'project-prepper' ); ?>"><?php echo $item->category_name ? esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) : '—'; ?></span>
 							<span class="pp-col pp-col--owner" data-label="<?php esc_attr_e( 'Owner', 'project-prepper' ); ?>"><?php echo esc_html( $owner_lb ); ?></span>
 							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) $pp_qty_col; ?></span>
-							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo (int) $pp_avail; ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>">
+								<?php
+								echo (int) $pp_avail;
+								// Mit gesetztem Zeitraum-Filter beantwortet die Zahl bereits die
+								// Frage nach GENAU diesen Tagen; der Chip rechnet dagegen immer
+								// auf heute. Beides nebeneinander wäre ein Widerspruch, also
+								// erscheint er nur in der ungefilterten Ansicht.
+								if ( ! $period_ok ) {
+									self::when_chip(
+										$pp_parts ? self::set_timeline( $pp_parts, $pp_timeline ) : ( $pp_timeline[ (int) $item->id ] ?? null ),
+										(int) $pp_qty_col,
+										(int) $pp_avail,
+										$pp_blocked
+									);
+								}
+								?>
+							</span>
 							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php self::condition_cell( $item ); ?></span>
 							<span class="pp-col pp-col--r" data-label="€/<?php echo esc_attr__( 'day', 'project-prepper' ); ?>"><?php echo ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) ? esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) . ' €' ) : '—'; ?></span>
 							<span class="pp-col pp-col--loc" data-label="<?php esc_attr_e( 'Location', 'project-prepper' ); ?>"><?php echo ! empty( $item->location ) ? esc_html( (string) $item->location ) : '—'; ?></span>
@@ -3111,7 +3131,10 @@ class MemberPortal {
 
 		$tabs = [
 			/* translators: %d: number of external rentals that are reserved or handed out. */
-			'rentals'  => sprintf( __( 'External rentals (%d)', 'project-prepper' ), (int) array_sum( array_intersect_key( MemberRentals::kpis( $uid ), [ 'reserved' => 1, 'active' => 1 ] ) ) ),
+			'rentals'  => sprintf( __( 'External rentals (%d)', 'project-prepper' ), (int) array_sum( array_intersect_key(
+				MemberRentals::kpis( $uid, self::active_group_id( $groups ) ),
+				[ 'reserved' => 1, 'active' => 1 ]
+			) ) ),
 			/* translators: %d: number of open borrow requests for the member’s items. */
 			'requests' => sprintf( __( 'Borrow requests (%d)', 'project-prepper' ), (int) $open_reqs ),
 			/* translators: %d: number of the member’s own active borrows. */
@@ -3161,16 +3184,21 @@ class MemberPortal {
 	}
 
 	/**
-	 * Externe Verleihe (App-Pendant src/app/(dashboard)/rentals): eigene Artikel
-	 * an Personen außerhalb der Plattform verleihen — KPI-Karten, Status-Pills,
+	 * Externe Verleihe (App-Pendant src/app/(dashboard)/rentals): Artikel an
+	 * Personen außerhalb der Plattform verleihen — KPI-Karten, Status-Pills,
 	 * Abrechnung (netto/USt/brutto + Kaution) und der Status-Flow
-	 * reserved→active→returned/cancelled. Persönlich (owner_user_id), siehe
-	 * {@see MemberRentals}-Klassendoku zur Gruppen-Abgrenzung.
+	 * reserved→active→returned/cancelled.
+	 *
+	 * Gezeigt werden alle Vorgänge, die das Mitglied sehen darf
+	 * ({@see MemberRentals::visible}): die eigenen, die des aktiven Kollektivs
+	 * und fremde, in denen eigenes Equipment steckt. Geschrieben (bearbeiten,
+	 * ausgeben, stornieren, löschen) wird ausschließlich am EIGENEN Vorgang —
+	 * die übrigen erscheinen als reine Lese-Karte.
 	 */
 	private static function render_external_rentals( WP_User $user, int $group_id = 0 ): void {
 		$uid      = (int) $user->ID;
-		$rentals  = MemberRentals::for_owner( $uid );
-		$kpis     = MemberRentals::kpis( $uid );
+		$rentals  = MemberRentals::visible( $uid, $group_id );
+		$kpis     = MemberRentals::kpis( $uid, $group_id );
 		// Im Gruppen-Arbeitsbereich steht der Kollektiv-Pool zur Wahl (derselbe wie
 		// bei der Projekt-Buchung), im Solo-Modus das eigene Inventar.
 		$lendable = MemberRentals::lendable_items( $uid, $group_id );
@@ -3181,7 +3209,9 @@ class MemberPortal {
 		?>
 		<section class="pp-portal__section">
 			<h3 class="pp-portal__subtitle"><?php esc_html_e( 'External lending', 'project-prepper' ); ?></h3>
-			<p class="pp-portal__hint"><?php esc_html_e( 'Lend your own equipment to people outside the platform. Reservation, hand-out, return and billing — just like the app.', 'project-prepper' ); ?></p>
+			<p class="pp-portal__hint"><?php echo esc_html( $group_id > 0
+				? __( 'Lend collective equipment to people outside the platform. Everyone in the collective sees these rentals; changing one stays with whoever set it up.', 'project-prepper' )
+				: __( 'Lend your own equipment to people outside the platform. Reservation, hand-out, return and billing — just like the app.', 'project-prepper' ) ); ?></p>
 
 			<div class="pp-kpi-grid pp-kpi-grid--compact">
 				<?php
@@ -3198,11 +3228,32 @@ class MemberPortal {
 
 			<?php if ( $rentals ) : ?>
 				<?php foreach ( $rentals as $r ) :
-					$full = MemberRentals::get_owned( (int) $r->id, $uid );
+					$full = MemberRentals::get_visible( (int) $r->id, $uid, $group_id );
 					if ( ! $full ) {
 						continue;
 					}
-					$next = Rentals::TRANSITIONS[ $full->status ] ?? [];
+					// Schreibrechte hat nur der Anleger; Kollektiv-Vorgänge und
+					// fremde Verleihe mit eigenem Equipment sind Lese-Karten.
+					$pp_may_edit = ! empty( $r->pp_can_edit );
+					$pp_relation = (string) ( $r->pp_relation ?? 'own' );
+					$next = $pp_may_edit ? ( Rentals::TRANSITIONS[ $full->status ] ?? [] ) : [];
+					// Auswahl-Pool des VERLEIHS: Ein Kollektiv-Verleih, geöffnet aus dem
+					// Solo-Arbeitsbereich, muss weiter seine Kollektiv-Positionen anbieten —
+					// sonst fehlten sie im Formular und wären beim Speichern gelöscht.
+					// Nur für eigene Karten nötig; Lese-Karten haben kein Formular.
+					// Der Auswahl-Pool richtet sich nach dem VERLEIH, nicht nach dem gerade
+					// offenen Arbeitsbereich — und zwar in beide Richtungen:
+					//   Kollektiv-Verleih + Mitgliedschaft → Pool des Kollektivs,
+					//   persönlicher Verleih (oder ausgetreten) → eigenes Inventar.
+					// Der frühere Rückfall auf $group_id war in beiden Fällen falsch: Ein
+					// persönlicher Verleih, geöffnet im Gruppen-Arbeitsbereich, wurde gegen
+					// den Kollektiv-Pool geprüft — seine eigenen Positionen fehlten dann im
+					// Formular und wären beim Speichern verschwunden. Umgekehrt hätte ein
+					// ausgetretenes Mitglied weiter in das geteilte Inventar gesehen.
+					$pp_rental_ws = (int) ( $full->owner_group_id ?? 0 );
+					$pp_ws        = ( $pp_rental_ws > 0 && Groups::is_member( $pp_rental_ws, $uid ) ) ? $pp_rental_ws : 0;
+					$pp_lendable = ( ! $pp_may_edit || $pp_ws === $group_id ) ? $lendable : MemberRentals::lendable_items( $uid, $pp_ws );
+					$pp_bundles  = ( ! $pp_may_edit || $pp_ws === $group_id ) ? $bundles : ( $pp_lendable ? Bundles::for_items( array_keys( $pp_lendable ) ) : [] );
 					$bill = $full->billing;
 					// Offene Freigaben halten die Ausgabe an (MemberRentals::set_status
 					// weist sie serverseitig ohnehin ab — hier gar nicht erst anbieten).
@@ -3217,6 +3268,29 @@ class MemberPortal {
 							<span class="pp-status pp-status--<?php echo esc_attr( $full->status ); ?>"><?php echo esc_html( self::rental_status_label( $full->status ) ); ?></span>
 							<span class="pp-portal__item-meta"><?php echo esc_html( self::fmt_range( $full->date_from, $full->date_to ) ); ?></span>
 						</div>
+
+						<?php if ( 'own' !== $pp_relation ) :
+							// Kein Anleger hinterlegt = im Backend angelegt (etwa aus einer
+							// Anfrage konvertiert); dann bleibt der Satz ohne Namen.
+							$pp_author      = get_userdata( (int) ( $full->owner_user_id ?? 0 ) );
+							$pp_author_name = $pp_author ? $pp_author->display_name : '';
+							?>
+							<p class="pp-portal__item-meta">
+								<?php
+								if ( 'group' === $pp_relation && '' !== $pp_author_name ) {
+									/* translators: %s: name of the member who set up the rental. */
+									printf( esc_html__( 'Collective rental — set up by %s.', 'project-prepper' ), esc_html( $pp_author_name ) );
+								} elseif ( 'group' === $pp_relation ) {
+									esc_html_e( 'Rental of this collective.', 'project-prepper' );
+								} elseif ( '' !== $pp_author_name ) {
+									/* translators: %s: name of the member who set up the rental. */
+									printf( esc_html__( 'Your equipment is in this rental — set up by %s.', 'project-prepper' ), esc_html( $pp_author_name ) );
+								} else {
+									esc_html_e( 'Your equipment is in this rental.', 'project-prepper' );
+								}
+								?>
+							</p>
+						<?php endif; ?>
 
 						<?php if ( $full->items ) : ?>
 							<ul class="pp-portal__rental-lines">
@@ -3272,6 +3346,12 @@ class MemberPortal {
 							<?php
 							/* translators: %d: number of rental days. */
 							echo esc_html( sprintf( _n( '%d day', '%d days', (int) $bill['days'], 'project-prepper' ), (int) $bill['days'] ) );
+							// Geld nur im eigenen Vorgang und im Kollektiv (dort ist die
+							// Abrechnung gemeinsame Sache). Steckt bloß eigenes Equipment in
+							// einem fremden, privaten Verleih, geht der Eigentümer die
+							// Preisgestaltung des Anlegers nichts an — Zeitraum, Positionen
+							// und Status genügen, um zu wissen, wo das Gerät ist.
+							if ( 'item_owner' !== $pp_relation ) :
 							echo ' · ';
 							/* translators: %s: net amount in euro. */
 							echo esc_html( sprintf( __( 'Net %s €', 'project-prepper' ), number_format_i18n( (float) $bill['net'], 2 ) ) );
@@ -3286,10 +3366,11 @@ class MemberPortal {
 								/* translators: %s: deposit amount in euro. */
 								echo esc_html( sprintf( __( 'Deposit %s €', 'project-prepper' ), number_format_i18n( (float) $bill['deposit'], 2 ) ) );
 							}
+							endif;
 							?>
 						</div>
 
-						<?php if ( '' !== trim( (string) $full->notes ) ) : ?>
+						<?php if ( 'item_owner' !== $pp_relation && '' !== trim( (string) $full->notes ) ) : ?>
 							<p class="pp-portal__inq-msg"><?php echo esc_html( $full->notes ); ?></p>
 						<?php endif; ?>
 
@@ -3312,8 +3393,9 @@ class MemberPortal {
 							</div>
 						<?php endif; ?>
 
+						<?php if ( $pp_may_edit ) : ?>
 						<div class="pp-portal__actions">
-							<?php if ( in_array( $full->status, [ 'reserved', 'active' ], true ) && $lendable ) : ?>
+							<?php if ( in_array( $full->status, [ 'reserved', 'active' ], true ) && $pp_lendable ) : ?>
 								<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-rental-edit-<?php echo (int) $full->id; ?>"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></button>
 								<dialog class="pp-modal pp-modal--portal pp-modal--wide" id="pp-rental-edit-<?php echo (int) $full->id; ?>">
 									<div class="pp-modal-header">
@@ -3321,7 +3403,7 @@ class MemberPortal {
 										<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
 									</div>
 									<div class="pp-modal-body">
-										<?php self::rental_form( $lendable, $bundles, $full, $group_id ); ?>
+										<?php self::rental_form( $pp_lendable, $pp_bundles, $full, $pp_ws ); ?>
 									</div>
 								</dialog>
 							<?php endif; ?>
@@ -3331,10 +3413,13 @@ class MemberPortal {
 								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
 							</form>
 						</div>
+						<?php endif; ?>
 					</div>
 				<?php endforeach; ?>
 			<?php else : ?>
-				<p class="pp-portal__empty"><?php esc_html_e( 'No external rentals yet. Add your first one below.', 'project-prepper' ); ?></p>
+				<p class="pp-portal__empty"><?php echo esc_html( $group_id > 0
+					? __( 'No external rentals in this collective yet. Add the first one below.', 'project-prepper' )
+					: __( 'No external rentals yet. Add your first one below.', 'project-prepper' ) ); ?></p>
 			<?php endif; ?>
 
 			<?php if ( $lendable ) : ?>
@@ -3355,6 +3440,153 @@ class MemberPortal {
 			<span class="pp-kpi__value"><?php echo esc_html( $value ); ?></span>
 			<span class="pp-kpi__label"><?php echo esc_html( $label ); ?></span>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Zeitfenster für eine Artikel-Liste in EINER Query vorbereiten.
+	 *
+	 * Sets haben keinen eigenen Bestand — ihre Belegung ergibt sich aus den
+	 * Teilen (docs/07), deshalb wandern auch deren IDs in die Abfrage.
+	 *
+	 * @param array<object>         $items   Zeilen der Liste.
+	 * @param array<int,array>      $bundles Set-ID => Teil-Zeilen.
+	 * @return array<int,array> item_id => Zeitfenster ({@see Availability::timeline})
+	 */
+	private static function timeline_for( array $items, array $bundles = [] ): array {
+		if ( ! Settings::item_time_status() ) {
+			return [];
+		}
+		$ids = [];
+		foreach ( $items as $item ) {
+			$ids[] = (int) $item->id;
+		}
+		foreach ( $bundles as $parts ) {
+			foreach ( (array) $parts as $part ) {
+				$ids[] = (int) $part->part_item_id;
+			}
+		}
+		return Availability::timeline( $ids );
+	}
+
+	/**
+	 * Zeitfenster eines SETS — bewusst nur die VORAUSSCHAU (frühester nächster
+	 * Zugriff auf irgendein Teil).
+	 *
+	 * Ein Rückkehrdatum lässt sich für ein Set nicht ehrlich angeben: Ob ein
+	 * gebundenes Teil das Set überhaupt blockiert, hängt an seinem Restbestand
+	 * (Set-frei = min(floor(frei/Bedarf)), docs/07). Das späteste Ende irgendeines
+	 * Teils wäre deshalb regelmäßig zu spät — der Chip verschwiege Verfügbarkeit,
+	 * die real da ist. Die Vorausschau dagegen stimmt konservativ: ab diesem Tag
+	 * ist mindestens ein Teil gebunden.
+	 *
+	 * @param array            $parts    Teil-Zeilen des Sets.
+	 * @param array<int,array> $timeline Ergebnis von {@see timeline_for}.
+	 */
+	private static function set_timeline( array $parts, array $timeline ): array {
+		$next  = null;
+		$until = null;
+		foreach ( $parts as $part ) {
+			$tl = $timeline[ (int) $part->part_item_id ] ?? null;
+			if ( ! $tl || empty( $tl['next_from'] ) ) {
+				continue;
+			}
+			if ( null === $next || $tl['next_from'] < $next ) {
+				$next  = $tl['next_from'];
+				$until = $tl['free_until'];
+			}
+		}
+		return [ 'busy_until' => null, 'free_from' => null, 'next_from' => $next, 'free_until' => $until ];
+	}
+
+	/**
+	 * Kurzes Datum für enge Stellen: „11. Sep" im laufenden Jahr, sonst mit
+	 * Jahreszahl. Das volle Format der Seite (`date_format`, z. B. „11. September
+	 * 2026") sprengt die schmale Zahlenspalte.
+	 */
+	private static function fmt_day_short( ?string $date ): string {
+		if ( empty( $date ) || '0000-00-00' === $date ) {
+			return '';
+		}
+		$ts = strtotime( $date );
+		if ( ! $ts ) {
+			return (string) $date;
+		}
+		$same_year = gmdate( 'Y', $ts ) === current_time( 'Y' );
+		return date_i18n( $same_year ? 'j. M' : 'j. M Y', $ts );
+	}
+
+	/**
+	 * Zeitstatus-Chip unter der Verfügbarkeits-Zahl: „frei bis …", „belegt bis …",
+	 * „frei ab …".
+	 *
+	 * Beantwortet die Frage, an der in der Praxis eine Ausleihe vorbeigelaufen ist:
+	 * Die Spalte „Verfügbar" rechnet auf HEUTE — ein Artikel, der in sechs Tagen
+	 * rausgeht, steht dort mit voller Stückzahl. Der Chip zeigt die nächste
+	 * Änderung, inklusive der eingestellten Rüstzeiten.
+	 *
+	 * Absichtlich mengenbewusst: Bei Teilbeständen wäre „belegt bis" schlicht
+	 * falsch, solange noch Stücke im Regal liegen.
+	 *
+	 * @param array|null $tl       Zeitfenster des Artikels.
+	 * @param int        $total    Gesamtmenge (bei Sets: mögliche Sets).
+	 * @param int        $free_now Heute frei (bei Sets: freie Sets).
+	 * @param bool       $blocked  Artikel gesperrt (defekt/Wartung/…)?
+	 */
+	private static function when_chip( ?array $tl, int $total, int $free_now, bool $blocked ): void {
+		if ( $blocked || ! $tl || ! Settings::item_time_status() ) {
+			return;
+		}
+		// Nur bei EINEM Stück lassen sich die Aggregate aus Availability::timeline()
+		// als Aussage über den ganzen Bestand lesen. Ab zwei Stück (und bei Sets,
+		// die über ihre Teile rechnen) sagt der Chip nur noch, DASS etwas ansteht —
+		// „frei ab" wäre dort schlicht falsch, sobald einzelne Stücke früher
+		// zurückkommen oder die nächste Buchung nur einen Teil bindet.
+		$single = $total <= 1;
+		$today  = current_time( 'Y-m-d' );
+		$label  = '';
+		$title  = '';
+		$tone   = 'free';
+
+		if ( ! empty( $tl['busy_until'] ) ) {
+			// „frei ab" nur, wenn Availability::timeline() ein belastbares Datum
+			// liefert — bei einer Anschlussbuchung lässt es free_from bewusst leer.
+			if ( $single && $free_now <= 0 && ! empty( $tl['free_from'] ) ) {
+				$tone = 'busy';
+				/* translators: %s: date when the item is available again. */
+				$label = sprintf( __( 'free from %s', 'project-prepper' ), self::fmt_day_short( $tl['free_from'] ) );
+				/* translators: %s: date the current booking ends. */
+				$title = sprintf( __( 'Booked until %s', 'project-prepper' ), self::fmt_date( $tl['busy_until'] ) );
+			} else {
+				$tone = $free_now <= 0 ? 'busy' : 'partly';
+				/* translators: %s: date the last current booking ends. */
+				$label = sprintf( __( 'out until %s', 'project-prepper' ), self::fmt_day_short( $tl['busy_until'] ) );
+				/* translators: 1: pieces still free, 2: total pieces. */
+				$title = sprintf( __( '%1$d of %2$d still free', 'project-prepper' ), $free_now, $total );
+			}
+		} elseif ( ! empty( $tl['next_from'] ) ) {
+			$free_until = (string) ( $tl['free_until'] ?? '' );
+			if ( $single && '' !== $free_until && $free_until >= $today ) {
+				/* translators: %s: last date the item can still be booked. */
+				$label = sprintf( __( 'free until %s', 'project-prepper' ), self::fmt_day_short( $free_until ) );
+				/* translators: %s: date of the next booking. */
+				$title = sprintf( __( 'Next booking starts %s', 'project-prepper' ), self::fmt_date( $tl['next_from'] ) );
+			} else {
+				// Entweder mehrere Stück (dann ist „frei bis" zu absolut), oder die
+				// Rüstzeit der nächsten Buchung läuft bereits — dann läge das Datum
+				// in der Vergangenheit.
+				$tone = $single ? 'busy' : 'free';
+				/* translators: %s: date of the next booking. */
+				$label = sprintf( __( 'booked from %s', 'project-prepper' ), self::fmt_day_short( $tl['next_from'] ) );
+				/* translators: %s: date of the next booking. */
+				$title = sprintf( __( 'Next booking starts %s', 'project-prepper' ), self::fmt_date( $tl['next_from'] ) );
+			}
+		}
+		if ( '' === $label ) {
+			return;
+		}
+		?>
+		<span class="pp-when pp-when--<?php echo esc_attr( $tone ); ?>" title="<?php echo esc_attr( $title ); ?>"><?php echo esc_html( $label ); ?></span>
 		<?php
 	}
 
@@ -8227,10 +8459,11 @@ class MemberPortal {
 			], $start, $end );
 		}
 
-		// Eigene externe Verleihe (an Personen außerhalb der Plattform) —
-		// reserved/active. Owner = aktueller User (Solo/persönlich), kein Leak
-		// fremder/Site-Verleihe.
-		foreach ( MemberRentals::for_owner( (int) $user->ID ) as $r ) {
+		// Externe Verleihe (an Personen außerhalb der Plattform) — reserved/active.
+		// Dieselbe Quelle wie die Verleih-Liste: eigene Vorgänge, die
+		// des aktiven Kollektivs und fremde mit eigenem Equipment. Kein Leak
+		// site-weiter Verleihe — MemberRentals::visible prüft jeden Weg.
+		foreach ( MemberRentals::visible( (int) $user->ID, $active ) as $r ) {
 			if ( ! in_array( $r->status, [ 'reserved', 'active' ], true ) ) {
 				continue;
 			}
@@ -9282,6 +9515,8 @@ class MemberPortal {
 		$bundle_candidates = array_values( array_filter( $pp_all_own, static function ( $it ) use ( $bundles_map ) {
 			return ! isset( $bundles_map[ (int) $it->id ] );
 		} ) );
+		// Zeitfenster aller gezeigten Artikel (inkl. Set-Teile) in EINER Query.
+		$pp_timeline = self::timeline_for( $items, $bundles_map );
 		?>
 		<section class="pp-portal__section" data-pp-live-scope>
 			<?php if ( $heading ) : ?>
@@ -9371,7 +9606,20 @@ class MemberPortal {
 							</span>
 							<span class="pp-col pp-col--cat" data-label="<?php esc_attr_e( 'Category', 'project-prepper' ); ?>"><?php echo $item->category_name ? esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) : '—'; ?></span>
 							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) ( $pp_parts ? $pp_set_total : $item->quantity ); ?></span>
-							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>"><?php echo Inventory::is_blocked( $item->item_condition ?? '' ) ? 0 : (int) ( $pp_parts ? $pp_set_free : max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) ) ); ?></span>
+							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Available', 'project-prepper' ); ?>">
+								<?php
+								$pp_blocked   = Inventory::is_blocked( $item->item_condition ?? '' );
+								$pp_free_now  = $pp_blocked ? 0 : (int) ( $pp_parts ? $pp_set_free : max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) ) );
+								$pp_total_now = (int) ( $pp_parts ? $pp_set_total : $item->quantity );
+								echo (int) $pp_free_now;
+								self::when_chip(
+									$pp_parts ? self::set_timeline( $pp_parts, $pp_timeline ) : ( $pp_timeline[ (int) $item->id ] ?? null ),
+									$pp_total_now,
+									$pp_free_now,
+									$pp_blocked
+								);
+								?>
+							</span>
 							<span class="pp-col pp-col--cond" data-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>"><?php self::condition_cell( $item ); ?></span>
 							<span class="pp-col pp-col--r" data-label="€/<?php echo esc_attr__( 'day', 'project-prepper' ); ?>"><?php echo ( null !== $item->cost_per_day && '' !== $item->cost_per_day ) ? esc_html( number_format_i18n( (float) $item->cost_per_day, 2 ) . ' €' ) : '—'; ?></span>
 							<span class="pp-col pp-col--shared" data-label="<?php esc_attr_e( 'Shared', 'project-prepper' ); ?>"><?php echo $shared_names ? esc_html( implode( ', ', $shared_names ) ) : '<span class="pp-muted">' . esc_html__( 'Not shared', 'project-prepper' ) . '</span>'; ?></span>

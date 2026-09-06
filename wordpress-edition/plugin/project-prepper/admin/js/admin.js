@@ -919,6 +919,10 @@
 							email_notifications: emailToggle.checked,
 							delete_data_on_uninstall: deleteToggle.checked,
 							public_show_rates: ratesToggle.checked,
+							collective_rentals_visible: collectiveToggle.checked,
+							item_time_status: timeStatusToggle.checked,
+							rental_buffer_before: parseInt(bufferBefore.value, 10) || 0,
+							rental_buffer_after: parseInt(bufferAfter.value, 10) || 0,
 							smtp: {
 								enabled: smtpToggle.checked,
 								host: smtpHost.value.trim(),
@@ -1040,6 +1044,29 @@
 						}
 					})
 				])
+			]));
+
+			// Verleih: Sichtbarkeit im Kollektiv + Rüstzeiten rund um eine Ausleihe.
+			var collectiveToggle = el("input", { type: "checkbox" });
+			collectiveToggle.checked = settings.collective_rentals_visible;
+			var timeStatusToggle = el("input", { type: "checkbox" });
+			timeStatusToggle.checked = settings.item_time_status;
+			var maxBuffer = String(settings.max_buffer_days || 30);
+			var bufferBefore = el("input", { type: "number", min: "0", max: maxBuffer, style: "width:90px" });
+			bufferBefore.value = settings.rental_buffer_before || 0;
+			var bufferAfter = el("input", { type: "number", min: "0", max: maxBuffer, style: "width:90px" });
+			bufferAfter.value = settings.rental_buffer_after || 0;
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Lending", "project-prepper") }),
+				el("label", { class: "pp-toggle" }, [collectiveToggle, el("span", { text: __("Show a collective’s rentals to all its members", "project-prepper") })]),
+				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("A rental set up in a collective’s workspace appears for every member of that collective — in their lending list, calendar and iCal subscription. Editing, handing out and cancelling stay with whoever set it up. Turn this off and every rental stays private to its creator. Independently of this setting, members always see rentals that contain equipment of their own.", "project-prepper") }),
+				el("label", { class: "pp-toggle", style: "margin-top:14px" }, [timeStatusToggle, el("span", { text: __("Show free/booked periods on each item", "project-prepper") })]),
+				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("Inventory lists show when an item is next out and when it is free again — not just whether it is out today.", "project-prepper") }),
+				el("div", { class: "pp-row", style: "margin-top:14px; gap:16px; align-items:flex-end" }, [
+					field(__("Turnaround before a rental (days)", "project-prepper"), bufferBefore),
+					field(__("Turnaround after a rental (days)", "project-prepper"), bufferAfter)
+				]),
+				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("Time an item needs around a booking — preparing and testing beforehand, checking and charging afterwards. Those days count as booked everywhere availability is calculated. 0 turns it off.", "project-prepper") })
 			]));
 
 			// Öffentliches Frontend

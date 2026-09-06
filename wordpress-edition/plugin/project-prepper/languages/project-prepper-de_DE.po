@@ -7703,3 +7703,87 @@ msgstr "Abonnieren"
 #: includes/Frontend/MemberPortal.php:8031
 msgid "The feed is read-only and personal: it contains everything this calendar shows — your own events, the projects and schedules of your collectives, your loans and your rentals."
 msgstr "Der Feed ist schreibgeschützt und persönlich: Er enthält alles, was dieser Kalender zeigt — deine eigenen Termine, die Projekte und Zeitpläne deiner Kollektive, deine Ausleihen und deine Verleihe."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Lend collective equipment to people outside the platform. Everyone in the collective sees these rentals; changing one stays with whoever set it up."
+msgstr "Verleiht Equipment des Kollektivs an Personen außerhalb der Plattform. Alle im Kollektiv sehen diese Verleihe; ändern kann sie nur, wer sie angelegt hat."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Collective rental — set up by %s."
+msgstr "Verleih des Kollektivs — angelegt von %s."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Your equipment is in this rental — set up by %s."
+msgstr "Dein Equipment steckt in diesem Verleih — angelegt von %s."
+
+#: includes/Frontend/MemberPortal.php
+msgid "a member"
+msgstr "ein Mitglied"
+
+#: includes/Frontend/MemberPortal.php
+msgid "No external rentals in this collective yet. Add the first one below."
+msgstr "Noch keine externen Verleihe in diesem Kollektiv. Lege unten den ersten an."
+
+#: includes/Frontend/MemberPortal.php
+msgid "free from %s"
+msgstr "frei ab %s"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Booked until %s"
+msgstr "Belegt bis %s"
+
+#: includes/Frontend/MemberPortal.php
+msgid "out until %s"
+msgstr "unterwegs bis %s"
+
+#: includes/Frontend/MemberPortal.php
+msgid "%1$d of %2$d still free"
+msgstr "%1$d von %2$d noch frei"
+
+#: includes/Frontend/MemberPortal.php
+msgid "free until %s"
+msgstr "frei bis %s"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Next booking starts %s"
+msgstr "Nächste Buchung beginnt am %s"
+
+#: includes/Frontend/MemberPortal.php
+msgid "booked from %s"
+msgstr "ab %s gebucht"
+
+#: admin/js/admin.js
+msgid "Show a collective’s rentals to all its members"
+msgstr "Verleihe eines Kollektivs allen seinen Mitgliedern zeigen"
+
+#: admin/js/admin.js
+msgid "A rental set up in a collective’s workspace appears for every member of that collective — in their lending list, calendar and iCal subscription. Editing, handing out and cancelling stay with whoever set it up. Turn this off and every rental stays private to its creator. Independently of this setting, members always see rentals that contain equipment of their own."
+msgstr "Ein Verleih, der im Arbeitsbereich eines Kollektivs angelegt wird, erscheint bei jedem Mitglied dieses Kollektivs — in der Verleih-Liste, im Kalender und im iCal-Abo. Bearbeiten, Ausgeben und Stornieren bleiben bei der Person, die ihn angelegt hat. Abgeschaltet bleibt jeder Verleih privat. Unabhängig von dieser Einstellung sehen Mitglieder immer die Verleihe, in denen eigenes Equipment steckt."
+
+#: admin/js/admin.js
+msgid "Show free/booked periods on each item"
+msgstr "Freie und belegte Zeiträume am Artikel anzeigen"
+
+#: admin/js/admin.js
+msgid "Inventory lists show when an item is next out and when it is free again — not just whether it is out today."
+msgstr "Die Inventar-Listen zeigen, wann ein Artikel das nächste Mal rausgeht und wann er wieder frei ist — nicht nur, ob er heute unterwegs ist."
+
+#: admin/js/admin.js
+msgid "Turnaround before a rental (days)"
+msgstr "Rüstzeit vor einer Ausleihe (Tage)"
+
+#: admin/js/admin.js
+msgid "Turnaround after a rental (days)"
+msgstr "Rüstzeit nach einer Ausleihe (Tage)"
+
+#: admin/js/admin.js
+msgid "Time an item needs around a booking — preparing and testing beforehand, checking and charging afterwards. Those days count as booked everywhere availability is calculated. 0 turns it off."
+msgstr "Zeit, die ein Artikel rund um eine Buchung braucht — vorher vorbereiten und testen, hinterher prüfen und laden. Diese Tage gelten überall als belegt, wo Verfügbarkeit gerechnet wird. 0 schaltet es ab."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Rental of this collective."
+msgstr "Verleih dieses Kollektivs."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Your equipment is in this rental."
+msgstr "Dein Equipment steckt in diesem Verleih."

@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.138.0
+Stable tag: 0.139.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,14 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.139.0 =
+* Rentals set up in a collective's workspace are now visible to everyone in that collective — in the lending list, in the calendar and in the iCal subscription. Editing, handing out and cancelling stay with whoever set the rental up; everyone else sees a read-only card.
+* Anyone who contributes equipment now sees the rentals their own items are in, even when their sharing settings never asked them for approval. Prices, deposit and the internal note stay private to the person who set the rental up.
+* New "Lending" section in Settings: turn collective visibility off, show or hide the free/booked periods on items, and set turnaround days before and after a rental.
+* Turnaround time: an item can now need days before a booking (preparing, testing) and after it (checking, cleaning, charging). Those days count as booked everywhere availability is calculated.
+* Inventory lists show when an item is next booked and when it is free again, instead of only whether it is out today. Items with several pieces and sets are worded carefully, because a single date cannot describe a whole stock.
+* Note: this update does not change the database.
 
 = 0.138.0 =
 * The month calendar is now one connected sheet with thin dividing lines, instead of 42 separate rounded boxes. Multi-day bars run across the days as they should, rather than looking as if they cut through the tiles.

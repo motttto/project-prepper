@@ -3195,3 +3195,28 @@ label.pp-swatch,
 [data-pp-searchable][hidden],
 [data-pp-search-row][hidden],
 [data-pp-search-none][hidden] { display: none !important; }
+
+/* ==========================================================================
+   Zeitstatus am Artikel: „frei bis …", „unterwegs bis …", „frei ab …".
+   Sitzt IN der Spalte „Verfügbar" unter der Zahl — die Inventar-Zeilen sind
+   starre 9-Spalten-Raster (.pp-inv-row / .pp-ginv .pp-inv-row), eine zehnte
+   Spalte würde vier Regeln inkl. Mobile-Overrides mitziehen und die Zellen
+   verschieben. Eigener Block statt .pp-status: dort bedeuten die Modifier
+   Vorgangs-Status („lost", „active"), und „lost" ist gleichzeitig ein
+   Artikel-Zustand — die Wiederverwendung wäre eine Bedeutungs-Kollision.
+   ========================================================================== */
+.pp-when {
+	display: block;
+	margin-top: .15rem;
+	font-size: .68rem;
+	font-weight: 600;
+	line-height: 1.2;
+	white-space: nowrap;
+	color: var(--pp-muted-foreground);
+}
+/* Nichts mehr frei: das Rückkehrdatum ist die eigentliche Nachricht. */
+.pp-when--busy { color: var(--pp-destructive); }
+/* Teilbestand unterwegs — die freie Menge steht als Zahl darüber. */
+.pp-when--partly { color: var(--pp-warning); }
+/* Rechtsbündige Zahlenspalte: der Chip folgt ihr. */
+.pp-col--c .pp-when { text-align: center; }

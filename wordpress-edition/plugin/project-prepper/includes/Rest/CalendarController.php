@@ -274,8 +274,10 @@ class CalendarController extends BaseController {
 			) );
 		}
 
-		// Eigene externe Verleihe (reserved/active).
-		foreach ( MemberRentals::for_owner( $user_id ) as $r ) {
+		// Externe Verleihe (reserved/active): eigene Vorgänge, die der eigenen
+		// Kollektive und fremde, in denen eigenes Equipment steckt. Ohne
+		// Arbeitsbereich-Filter — ein Abo kennt keinen aktiven Arbeitsbereich.
+		foreach ( MemberRentals::visible_everywhere( $user_id ) as $r ) {
 			if ( ! in_array( $r->status, [ 'reserved', 'active' ], true ) || '' === (string) $r->date_from ) {
 				continue;
 			}

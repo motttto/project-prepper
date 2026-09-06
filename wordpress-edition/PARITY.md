@@ -3,6 +3,37 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🤝 Release v0.139.0 2026-09-06 (Kollektiv-Verleihe sichtbar + Rüstzeiten, Schema UNVERÄNDERT 0.41.0)
+> **Ausgeliefert.** Ein Verleih war bisher rein privat: Wer ihn angelegt hatte, sah ihn — sonst niemand,
+> auch nicht im Arbeitsbereich eines Kollektivs. Damit war für alle anderen unsichtbar, dass Technik
+> außer Haus ist, und wer Artikel beisteuert, erfuhr nichts über deren Verbleib, sofern seine
+> Freigabe-Einstellungen nie nachgefragt hatten.
+> **Zwei neue Sichtbarkeiten, sauber getrennt von den Rechten:** (1) Verleihe aus dem Arbeitsbereich
+> eines Kollektivs sehen alle Mitglieder — in der Verleih-Liste, im Kalender und im iCal-Abo.
+> (2) Wer Technik beisteuert, sieht die Vorgänge, in denen die eigenen Artikel stecken. **Sehen ist nicht
+> Ändern:** Bearbeiten, Ausgeben und Stornieren bleiben bei der anlegenden Person, alle anderen bekommen
+> eine reine Lese-Karte; Preise, Kaution und interne Notiz bleiben ihr vorbehalten.
+> **Rüstzeiten:** Ein Artikel kann Tage VOR einer Buchung brauchen (vorbereiten, testen) und DANACH
+> (prüfen, reinigen, laden). Diese Tage zählen überall als belegt — die Rechnung sitzt in
+> `Availability`, also in der EINEN Quelle, und wirkt damit auf alle vier Wege
+> (Verleih · Projekt · Kollektiv-Leihe · Föderation) zugleich. Siehe Invariante „Eine Verfügbarkeitsrechnung".
+> **Zeitstatus am Artikel:** Inventar-Listen zeigen jetzt, wann ein Artikel als Nächstes gebucht ist und
+> wann er wieder frei ist, statt nur „heute unterwegs ja/nein". Bei Artikeln mit mehreren Stück und bei
+> Sets ist die Formulierung bewusst vorsichtig — ein einzelnes Datum kann keinen ganzen Bestand beschreiben.
+> **Alles abschaltbar:** neuer Abschnitt „Verleih" in den Einstellungen (Kollektiv-Sichtbarkeit,
+> Zeitstatus, Rüstzeit-Tage vor/nach). Neue Klasse `includes/Settings.php` ist die EINZIGE Stelle mit den
+> Options-Keys und Standardwerten; bewusst `wp_options` statt eigener Tabelle — wenige instanzweite
+> Schalter, kein Schema, keine Migration. Standardwerte so gewählt, dass Bestandsinstanzen sich wie
+> erwartet verhalten: Sichtbarkeit und Zeitstatus AN, Rüstzeiten 0 (= aus).
+> ⚠️ **Neuer Plugin-Check-Fund, NICHT von diesem Release:** `PluginCheck.CodeAnalysis.Offloading.OffloadedContent`
+> (ERROR) auf `Updater.php:222`. Die Datei ist gegenüber v0.138.0 byte-identisch (gleiche SHA-1); der
+> Befund kommt vom neueren Plugin Check 2.1.0, dessen `OffloadingSniff` die Manifest-URL
+> `raw.githubusercontent.com` als „externes Asset" wertet. Das ist dieselbe by-design-GitHub-Auslieferung,
+> die schon `plugin_updater_detected` auslöst — also der DRITTE Befund derselben Entscheidung, kein Fehler.
+> i18n: 1595 übersetzt, offen nur die Plugin-URI. Plugin Check: die 2 bekannten by-design-ERRORs + der
+> obige Offloading-Befund. Build `dist/project-prepper-0.139.0.zip` (1,3 MB, 127 Dateien — Settings.php
+> ist die 127.), `update.json` auf 0.139.0.
+>
 > ## 🎨 Release v0.138.0 2026-08-27 (Monatskalender neu gestaltet, Schema UNVERÄNDERT 0.41.0)
 > **Ausgeliefert.** User nach zwei Fix-Releases: „du hast schon zwei Fixes angewendet und es hat sich an
 > der Anzeige nichts geändert?" — **berechtigt.** v0.137.1/.2 haben LAYOUTFEHLER behoben (Elemente liefen

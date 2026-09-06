@@ -4,13 +4,15 @@ namespace ProjectPrepper\Rest;
 use ProjectPrepper\Capabilities;
 use ProjectPrepper\Email\Mailer;
 use ProjectPrepper\Email\Notifications;
+use ProjectPrepper\Settings;
 use WP_REST_Request;
 use WP_REST_Response;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Einstellungen: E-Mail-Benachrichtigungen, Templates, iCal-Feed, Uninstall-Verhalten.
+ * Einstellungen: E-Mail-Benachrichtigungen, Templates, iCal-Feed, Verleih-Regeln,
+ * Uninstall-Verhalten.
  */
 class SettingsController extends BaseController {
 
@@ -57,6 +59,20 @@ class SettingsController extends BaseController {
 		}
 		if ( array_key_exists( 'public_show_rates', $json ) ) {
 			update_option( 'pp_public_show_rates', (bool) $json['public_show_rates'] );
+		}
+		if ( array_key_exists( 'collective_rentals_visible', $json ) ) {
+			update_option( Settings::COLLECTIVE_RENTALS, (bool) $json['collective_rentals_visible'] );
+		}
+		if ( array_key_exists( 'item_time_status', $json ) ) {
+			update_option( Settings::ITEM_TIME_STATUS, (bool) $json['item_time_status'] );
+		}
+		// Rüstzeiten: gedeckelt gespeichert, damit ein Tippfehler („30000 Tage")
+		// nicht das gesamte Inventar dauerhaft blockiert.
+		if ( array_key_exists( 'rental_buffer_before', $json ) ) {
+			update_option( Settings::BUFFER_BEFORE, Settings::clamp_days( $json['rental_buffer_before'] ) );
+		}
+		if ( array_key_exists( 'rental_buffer_after', $json ) ) {
+			update_option( Settings::BUFFER_AFTER, Settings::clamp_days( $json['rental_buffer_after'] ) );
 		}
 		if ( array_key_exists( 'smtp', $json ) && is_array( $json['smtp'] ) ) {
 			Mailer::save( $json['smtp'] );
@@ -125,6 +141,11 @@ class SettingsController extends BaseController {
 			'smtp'                     => Mailer::public_config(),
 			'delete_data_on_uninstall' => (bool) get_option( 'pp_delete_data_on_uninstall', false ),
 			'public_show_rates'        => (bool) get_option( 'pp_public_show_rates', false ),
+			'collective_rentals_visible' => Settings::collective_rentals_visible(),
+			'item_time_status'         => Settings::item_time_status(),
+			'rental_buffer_before'     => Settings::buffer_before(),
+			'rental_buffer_after'      => Settings::buffer_after(),
+			'max_buffer_days'          => Settings::MAX_BUFFER_DAYS,
 			'ical_url'                 => rest_url( self::REST_NAMESPACE . '/calendar.ics' ) . '?token=' . CalendarController::token(),
 		];
 	}

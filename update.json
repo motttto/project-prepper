@@ -1,9 +1,9 @@
 {
-  "version": "0.138.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.138.0/project-prepper-0.138.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.138.0",
-  "published": "2026-08-27",
+  "version": "0.139.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.139.0/project-prepper-0.139.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.139.0",
+  "published": "2026-09-06",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "* Der Monatskalender ist jetzt EIN zusammenhängendes Blatt mit dünnen Trennlinien statt 42 einzelner gerundeter Kästen. Mehrtägige Balken laufen dadurch sauber über die Tage, statt so auszusehen, als würden sie die Kacheln durchschneiden.\n* Einträge werden als gefüllte Balken mit weißer Schrift gezeichnet und sind damit in hell wie dunkel gleich gut lesbar. Vorher waren vor allem Ausleihen dunkelgrün auf dunklem Grund.\n* Tage außerhalb des Monats sind gedämpft, der heutige Tag ist hervorgehoben, und die Kacheln sind etwas höher, damit die Einträge Luft haben.\n* Behoben: Die neuen Balken benutzten denselben CSS-Klassennamen wie die Navigationsleiste des Kalenders und haben deren Monatsumschalter zusammengedrückt.\n* Hinweis: Dieses Update ändert die Datenbank NICHT."
+  "changelog": "* Verleihe, die im Arbeitsbereich eines Kollektivs angelegt wurden, sehen jetzt alle Mitglieder dieses Kollektivs — in der Verleih-Liste, im Kalender und im iCal-Abo. Bearbeiten, Ausgeben und Stornieren bleibt bei der Person, die den Verleih angelegt hat; alle anderen sehen eine reine Lese-Karte.\n* Wer Technik beisteuert, sieht jetzt die Verleihe, in denen die eigenen Artikel stecken — auch dann, wenn die eigenen Freigabe-Einstellungen nie nachgefragt haben. Preise, Kaution und die interne Notiz bleiben bei der Person, die den Verleih angelegt hat.\n* Neuer Abschnitt „Verleih“ in den Einstellungen: Kollektiv-Sichtbarkeit abschalten, freie/gebuchte Zeiträume am Artikel ein- oder ausblenden und Rüstzeit-Tage vor und nach einer Ausleihe festlegen.\n* Rüstzeit: Ein Artikel kann jetzt Tage vor einer Buchung brauchen (vorbereiten, testen) und danach (prüfen, reinigen, laden). Diese Tage zählen überall als belegt, wo die Verfügbarkeit gerechnet wird.\n* Inventar-Listen zeigen, wann ein Artikel als Nächstes gebucht ist und wann er wieder frei ist, statt nur, ob er heute unterwegs ist. Bei Artikeln mit mehreren Stück und bei Sets ist die Formulierung bewusst vorsichtig, weil ein einzelnes Datum keinen ganzen Bestand beschreiben kann.\n* Hinweis: Dieses Update ändert die Datenbank NICHT."
 }

@@ -184,6 +184,11 @@ class Inventory {
 		$borrows = Schema::table( 'borrow_requests' );
 		$fed_in  = Schema::table( 'fed_borrow_in' );
 		$today   = current_time( 'Y-m-d' );
+		// „Heute unterwegs" schließt die Rüstzeiten mit ein: Ein Artikel, der morgen
+		// rausgeht und einen Tag Vorbereitung braucht, ist heute schon gebunden.
+		// Dieselbe Fensterweitung wie in Availability — sonst zeigt die Liste frei
+		// an, was die Buchung ablehnt.
+		list( $out_from, $out_to ) = Availability::occupancy_window( $today, $today );
 
 		$where        = [ '1=1' ];
 		$where_params = [];
@@ -241,10 +246,10 @@ class Inventory {
 		// Platzhalter-Reihenfolge folgt dem SQL von oben nach unten.
 		$params = array_merge(
 			[ $items, $cats ],                            // FROM %i i, LEFT JOIN %i c
-			[ $lines, $rentals, $today, $today ],         // Verleih-Zweig der UNION
-			[ $p_items, $projs, $today, $today ],         // Projekt-Zweig der UNION
-			[ $borrows, $today, $today ],                 // Kollektiv-Leih-Zweig
-			[ $fed_in, $today, $today ],                  // Föderierter Leih-Zweig
+			[ $lines, $rentals, $out_to, $out_from ],         // Verleih-Zweig der UNION
+			[ $p_items, $projs, $out_to, $out_from ],         // Projekt-Zweig der UNION
+			[ $borrows, $out_to, $out_from ],                 // Kollektiv-Leih-Zweig
+			[ $fed_in, $out_to, $out_from ],                  // Föderierter Leih-Zweig
 			$where_params                                 // WHERE
 		);
 		$sql = $wpdb->prepare(
@@ -485,6 +490,11 @@ class Inventory {
 		$borrows = Schema::table( 'borrow_requests' );
 		$fed_in  = Schema::table( 'fed_borrow_in' );
 		$today   = current_time( 'Y-m-d' );
+		// „Heute unterwegs" schließt die Rüstzeiten mit ein: Ein Artikel, der morgen
+		// rausgeht und einen Tag Vorbereitung braucht, ist heute schon gebunden.
+		// Dieselbe Fensterweitung wie in Availability — sonst zeigt die Liste frei
+		// an, was die Buchung ablehnt.
+		list( $out_from, $out_to ) = Availability::occupancy_window( $today, $today );
 
 		// "Heute unterwegs" = Verleihe (reserved/active) + Projekt-Buchungen
 		// (confirmed/running) + genehmigte Kollektiv-Leihen + genehmigte
@@ -498,8 +508,8 @@ class Inventory {
 			   AND r.date_from <= %s AND r.date_to >= %s",
 			$lines,
 			$rentals,
-			$today,
-			$today
+			$out_to,
+			$out_from
 		) );
 
 		$out_booked = (int) $wpdb->get_var( $wpdb->prepare(
@@ -511,8 +521,8 @@ class Inventory {
 			   AND COALESCE(pi.date_to, p.date_end) >= %s",
 			$p_items,
 			$projs,
-			$today,
-			$today
+			$out_to,
+			$out_from
 		) );
 
 		$out_borrowed = (int) $wpdb->get_var( $wpdb->prepare(
@@ -520,8 +530,8 @@ class Inventory {
 			 WHERE status = 'approved'
 			   AND date_from <= %s AND date_to >= %s",
 			$borrows,
-			$today,
-			$today
+			$out_to,
+			$out_from
 		) );
 
 		$out_federated = (int) $wpdb->get_var( $wpdb->prepare(
@@ -529,8 +539,8 @@ class Inventory {
 			 WHERE status = 'approved'
 			   AND date_from <= %s AND date_to >= %s",
 			$fed_in,
-			$today,
-			$today
+			$out_to,
+			$out_from
 		) );
 
 		$out_today = $out_rented + $out_booked + $out_borrowed + $out_federated;
