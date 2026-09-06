@@ -3292,6 +3292,24 @@ class MemberPortal {
 							</p>
 						<?php endif; ?>
 
+						<?php
+						// Summenzeile: Stückzahl, Dauer, Endbetrag — das, was man auf den
+						// ersten Blick wissen will. Der Betrag bleibt weg, wo nur eigenes
+						// Equipment in einem fremden Vorgang steckt (siehe Abrechnung unten).
+						$pp_pieces = 0;
+						foreach ( (array) $full->items as $pp_ln ) {
+							$pp_pieces += max( 1, (int) $pp_ln->quantity );
+						}
+						?>
+						<div class="pp-rsum">
+							<span><?php echo esc_html( sprintf( /* translators: %d: number of pieces in the rental. */ _n( '%d piece', '%d pieces', $pp_pieces, 'project-prepper' ), $pp_pieces ) ); ?></span>
+							<span class="pp-rsum__muted"><?php echo esc_html( sprintf( /* translators: %d: number of rental days. */ _n( '%d day', '%d days', (int) $bill['days'], 'project-prepper' ), (int) $bill['days'] ) ); ?></span>
+							<?php if ( 'item_owner' !== $pp_relation ) : ?>
+								<span class="pp-rsum__total"><?php echo esc_html( number_format_i18n( (float) $bill['gross'], 2 ) ); ?> €</span>
+								<span class="pp-rsum__muted"><?php esc_html_e( 'total incl. VAT', 'project-prepper' ); ?></span>
+							<?php endif; ?>
+						</div>
+
 						<?php if ( $full->items ) : ?>
 							<ul class="pp-portal__rental-lines">
 								<?php
@@ -3307,7 +3325,7 @@ class MemberPortal {
 										$pp_set_parts = Bundles::parts( $pp_bid );
 										$pp_set_count = self::bundle_line_sets( $full->items, $pp_bid, $pp_set_parts );
 										?>
-										<li>
+										<li class="pp-rl--set">
 											<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
 											<?php echo esc_html( $pp_set_item ? $pp_set_item->name : ( '#' . $pp_bid ) ); ?>
 											<?php if ( $pp_set_count > 1 ) : ?>
@@ -3318,25 +3336,23 @@ class MemberPortal {
 									endif;
 									?>
 									<li class="<?php echo esc_attr( $pp_bid > 0 ? 'pp-portal__rental-line--part' : '' ); ?>">
-										<?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?>
-										<?php
-										// Fremder Artikel aus dem Kollektiv-Pool: Eigentümer + Freigabe-Stand.
-										$pp_line_owner = (int) ( $line->item_owner_id ?? 0 );
-										if ( $pp_line_owner > 0 && $pp_line_owner !== $uid ) :
-											$pp_lo = get_userdata( $pp_line_owner );
-											?>
-											<span class="pp-portal__item-meta"><?php
-												/* translators: %s: owner name of the shared item. */
-												printf( esc_html__( 'by %s', 'project-prepper' ), esc_html( $pp_lo ? $pp_lo->display_name : '—' ) );
-											?></span>
-										<?php endif; ?>
-										<?php self::approval_chip( $line ); ?>
-										<?php if ( (int) $line->quantity > 1 ) : ?>
-											<span class="pp-portal__item-meta"><?php echo (int) $line->quantity; ?>×</span>
-										<?php endif; ?>
-										<?php if ( null !== $line->daily_rate ) : ?>
-											<span class="pp-portal__item-meta"><?php echo esc_html( number_format_i18n( (float) $line->daily_rate, 2 ) ); ?> €/<?php esc_html_e( 'day', 'project-prepper' ); ?></span>
-										<?php endif; ?>
+										<span class="pp-rl__name">
+											<span><?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?></span>
+											<?php
+											// Fremder Artikel aus dem Kollektiv-Pool: Eigentümer + Freigabe-Stand.
+											$pp_line_owner = (int) ( $line->item_owner_id ?? 0 );
+											if ( $pp_line_owner > 0 && $pp_line_owner !== $uid ) :
+												$pp_lo = get_userdata( $pp_line_owner );
+												?>
+												<span class="pp-portal__item-meta"><?php
+													/* translators: %s: owner name of the shared item. */
+													printf( esc_html__( 'by %s', 'project-prepper' ), esc_html( $pp_lo ? $pp_lo->display_name : '—' ) );
+												?></span>
+											<?php endif; ?>
+											<?php self::approval_chip( $line ); ?>
+										</span>
+										<span class="pp-rl__qty"><?php echo (int) $line->quantity; ?>×</span>
+										<span class="pp-rl__rate"><?php echo ( null !== $line->daily_rate && 'item_owner' !== $pp_relation ) ? esc_html( number_format_i18n( (float) $line->daily_rate, 2 ) . ' €/' . __( 'day', 'project-prepper' ) ) : ''; ?></span>
 									</li>
 								<?php endforeach; ?>
 							</ul>
@@ -3344,15 +3360,12 @@ class MemberPortal {
 
 						<div class="pp-portal__item-meta pp-portal__rental-bill">
 							<?php
-							/* translators: %d: number of rental days. */
-							echo esc_html( sprintf( _n( '%d day', '%d days', (int) $bill['days'], 'project-prepper' ), (int) $bill['days'] ) );
-							// Geld nur im eigenen Vorgang und im Kollektiv (dort ist die
-							// Abrechnung gemeinsame Sache). Steckt bloß eigenes Equipment in
-							// einem fremden, privaten Verleih, geht der Eigentümer die
-							// Preisgestaltung des Anlegers nichts an — Zeitraum, Positionen
-							// und Status genügen, um zu wissen, wo das Gerät ist.
+							// Die Tage stehen bereits in der Summenzeile; hier nur noch die
+							// Aufschlüsselung. Geld nur im eigenen Vorgang und im Kollektiv
+							// (dort ist die Abrechnung gemeinsame Sache). Steckt bloß eigenes
+							// Equipment in einem fremden, privaten Verleih, geht der Eigentümer
+							// die Preisgestaltung des Anlegers nichts an.
 							if ( 'item_owner' !== $pp_relation ) :
-							echo ' · ';
 							/* translators: %s: net amount in euro. */
 							echo esc_html( sprintf( __( 'Net %s €', 'project-prepper' ), number_format_i18n( (float) $bill['net'], 2 ) ) );
 							echo ' · ';

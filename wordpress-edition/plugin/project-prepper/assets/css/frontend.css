@@ -1707,7 +1707,7 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 	font-size: .82rem;
 }
 .pp-app__user-meta { display: flex; flex-direction: column; line-height: 1.15; }
-.pp-app__user-name { font-weight: 600; font-size: .85rem; }
+.pp-app__user-name { font-weight: 600; font-size: .85rem; color: var(--pp-foreground); } /* explizit: erbte sonst die Theme-Farbe und war im Dark Mode schwarz auf dunkel */
 .pp-app__user-role { font-size: .72rem; color: var(--pp-muted-foreground); }
 .pp-app__icon-btn {
 	display: inline-flex;
@@ -3220,3 +3220,19 @@ label.pp-swatch,
 .pp-when--partly { color: var(--pp-warning); }
 /* Rechtsbündige Zahlenspalte: der Chip folgt ihr. */
 .pp-col--c .pp-when { text-align: center; }
+
+/* ==========================================================================
+   Verleih-Karte: Positionen als feste Spalten (Name · Menge · €/Tag) statt
+   flex mit margin-left:auto — das schob Eigentümer, Menge und Preis je Zeile
+   an andere Stellen. Darüber eine Summenzeile (Geräte · Tage · Endbetrag).
+   ========================================================================== */
+.pp-rsum { display: flex; flex-wrap: wrap; gap: .35rem 1rem; align-items: baseline; margin: .35rem 0 .5rem; font-size: .88rem; }
+.pp-rsum__total { font-weight: 700; font-size: 1.05rem; color: var(--pp-foreground); }
+.pp-rsum__muted { color: var(--pp-muted-foreground); }
+.pp-portal__rental-lines li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .25rem 1rem; align-items: baseline; }
+.pp-rl__name { min-width: 0; display: flex; flex-wrap: wrap; gap: .25rem .5rem; align-items: baseline; }
+.pp-rl__name .pp-portal__item-meta { margin-left: 0; }
+.pp-rl__qty, .pp-rl__rate { font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--pp-muted-foreground); font-size: .85rem; }
+.pp-rl__qty { text-align: right; min-width: 2.5rem; }
+.pp-rl__rate { text-align: right; min-width: 6rem; }
+.pp-portal__rental-lines li.pp-rl--set { display: flex; gap: 8px; align-items: baseline; } /* Set-Kopfzeile: Chip + Name + Anzahl nebeneinander, nicht als drei Rasterzeilen */

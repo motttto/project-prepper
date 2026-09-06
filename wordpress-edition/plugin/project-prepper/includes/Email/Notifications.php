@@ -27,6 +27,8 @@ class Notifications {
 	public static function init(): void {
 		add_action( 'pp_rental_status_changed', [ self::class, 'on_rental_status_changed' ], 10, 3 );
 		add_action( 'pp_rental_created', [ self::class, 'on_rental_created' ], 10, 1 );
+		// Leiher hat über den Link aus der Reservierungs-Mail storniert.
+		add_action( 'pp_rental_cancelled_by_borrower', [ self::class, 'on_rental_cancelled_by_borrower' ], 10, 1 );
 		add_action( 'pp_inquiry_created', [ self::class, 'on_inquiry_created' ], 10, 1 );
 		// Member-Portal (Phase 4.1): Kollektiv-Einladung + Leih-Anfragen.
 		add_action( 'pp_group_invited', [ self::class, 'on_group_invited' ], 10, 1 );
@@ -54,7 +56,19 @@ class Notifications {
 				/* translators: Email subject. Keep the {{rental_number}} and {{site_name}} placeholders unchanged. */
 				'subject' => __( 'Reservation {{rental_number}} — {{site_name}}', 'project-prepper' ),
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
-				'body'    => __( "Hello {{borrower_name}},\n\nyour reservation {{rental_number}} has been recorded:\n\nPeriod: {{date_from}} to {{date_to}}\n\nItems:\n{{items}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+				'body'    => __( "Hello {{borrower_name}},\n\nyour reservation {{rental_number}} has been recorded:\n\nPeriod: {{date_from}} to {{date_to}}\n\nItems:\n{{items}}\n\nIf your plans change, you can cancel the reservation here:\n{{cancel_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
+			'rental_cancelled' => [
+				/* translators: Email subject. Keep the {{rental_number}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'Reservation {{rental_number}} cancelled — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello {{borrower_name}},\n\nyour reservation {{rental_number}} ({{date_from}} to {{date_to}}) has been cancelled as requested.\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
+			'rental_cancelled_by_borrower' => [
+				/* translators: Email subject. Keep the {{rental_number}} and {{borrower_name}} placeholders unchanged. */
+				'subject' => __( '{{borrower_name}} cancelled reservation {{rental_number}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello {{owner_name}},\n\n{{borrower_name}} has cancelled the reservation {{rental_number}} ({{date_from}} to {{date_to}}) via the link in the confirmation email.\n\nItems:\n{{items}}\n\nThe equipment is available again.\n\n{{site_name}}", 'project-prepper' ),
 			],
 			'rental_active'   => [
 				/* translators: Email subject. Keep the {{rental_number}} placeholder unchanged. */
@@ -154,6 +168,8 @@ class Notifications {
 			'rental_reserved'  => __( 'Rental: reservation confirmed', 'project-prepper' ),
 			'rental_active'    => __( 'Rental: equipment handed out', 'project-prepper' ),
 			'rental_returned'  => __( 'Rental: return confirmed', 'project-prepper' ),
+			'rental_cancelled' => __( 'Rental: cancelled by the borrower (to borrower)', 'project-prepper' ),
+			'rental_cancelled_by_borrower' => __( 'Rental: cancelled by the borrower (to the member who set it up)', 'project-prepper' ),
 			'inquiry_received' => __( 'Inquiry received (operator)', 'project-prepper' ),
 			'group_invitation' => __( 'Group invitation', 'project-prepper' ),
 			'group_vote_reminder' => __( 'Group: reminder to vote on a new member', 'project-prepper' ),
@@ -221,6 +237,47 @@ class Notifications {
 		// Nicht ersetzte Platzhalter entfernen, damit kein rohes {{foo}} in der Mail landet.
 		$template = preg_replace( '/\{\{\s*[a-zA-Z0-9_]+\s*\}\}/', '', $template );
 		return (string) $template;
+	}
+
+	/**
+	 * Storno über den Mail-Link: Bestätigung an den Leiher, Hinweis an die Person,
+	 * die den Verleih angelegt hat — die muss wissen, dass der Termin frei ist.
+	 */
+	public static function on_rental_cancelled_by_borrower( int $rental_id ): void {
+		self::send_for_rental( $rental_id, 'rental_cancelled' );
+		if ( ! self::enabled() ) {
+			return;
+		}
+		$rental = Rentals::get( $rental_id );
+		if ( ! $rental ) {
+			return;
+		}
+		// Im Backend angelegte Verleihe (z. B. aus einer Anfrage konvertiert) haben
+		// keinen Anleger — dann muss der Betreiber es erfahren, sonst merkt kein
+		// Mensch, dass der Termin frei geworden ist.
+		$owner      = $rental->owner_user_id ? get_userdata( (int) $rental->owner_user_id ) : null;
+		$to         = $owner && is_email( $owner->user_email ) ? $owner->user_email : (string) get_option( 'admin_email' );
+		$owner_name = $owner ? $owner->display_name : get_bloginfo( 'name' );
+		if ( ! is_email( $to ) ) {
+			return;
+		}
+		$template = self::templates()['rental_cancelled_by_borrower'] ?? null;
+		if ( ! $template ) {
+			return;
+		}
+		$item_lines = array_map( static function ( $line ) {
+			return sprintf( '- %s× %s', $line->quantity, $line->item_name ?: '#' . $line->item_id );
+		}, $rental->items );
+		$vars = [
+			'owner_name'    => $owner_name,
+			'borrower_name' => $rental->borrower_name,
+			'rental_number' => $rental->rental_number,
+			'date_from'     => mysql2date( 'd.m.Y', $rental->date_from ),
+			'date_to'       => mysql2date( 'd.m.Y', $rental->date_to ),
+			'items'         => implode( "\n", $item_lines ),
+			'site_name'     => get_bloginfo( 'name' ),
+		];
+		wp_mail( $to, self::render( $template['subject'], $vars ), self::render( $template['body'], $vars ) );
 	}
 
 	public static function on_rental_created( int $rental_id ): void {
@@ -665,12 +722,24 @@ class Notifications {
 			'date_to'       => mysql2date( 'd.m.Y', $rental->date_to ),
 			'items'         => implode( "\n", $item_lines ),
 			'site_name'     => get_bloginfo( 'name' ),
+			// Nur solange Stornieren überhaupt geht (reserviert); danach bleibt der
+			// Platzhalter leer und render() räumt ihn weg.
+			'cancel_url'    => 'reserved' === $rental->status ? Rentals::cancel_url( $rental ) : '',
 		];
+
+		$body = (string) $template['body'];
+		// Selbst angepasste Vorlagen aus der Zeit vor dem Storno-Link kennen den
+		// Platzhalter nicht. Statt still ohne Link zu verschicken, hängen wir ihn
+		// an — der Leiher soll stornieren können, egal wie alt die Vorlage ist.
+		if ( '' !== $vars['cancel_url'] && false === strpos( $body, '{{cancel_url}}' ) ) {
+			/* translators: Appended to a customised reservation email that lacks the {{cancel_url}} placeholder. */
+			$body .= "\n\n" . __( 'Cancel this reservation: {{cancel_url}}', 'project-prepper' );
+		}
 
 		wp_mail(
 			$rental->borrower_email,
 			self::render( $template['subject'], $vars ),
-			self::render( $template['body'], $vars )
+			self::render( $body, $vars )
 		);
 	}
 }

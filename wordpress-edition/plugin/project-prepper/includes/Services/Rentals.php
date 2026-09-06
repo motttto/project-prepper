@@ -250,6 +250,30 @@ class Rentals {
 		return $moved;
 	}
 
+	/**
+	 * Storno-Schlüssel für den Link in der Reservierungs-Mail (v0.141.0).
+	 *
+	 * Gleiches Schema wie der Beitritts-Link ({@see GroupGovernance::invite_token}):
+	 * kein Datenbankfeld, sondern ein HMAC aus Verleih-ID und Leiher-Adresse.
+	 * Ändert der Anleger die Adresse, ist der alte Link wertlos — genau richtig,
+	 * denn dann hat ihn die falsche Person.
+	 */
+	public static function cancel_token( object $rental ): string {
+		return substr( wp_hash( 'pp_rental_cancel|' . (int) $rental->id . '|' . strtolower( (string) $rental->borrower_email ), 'auth' ), 0, 20 );
+	}
+
+	/** Storno-Link für den externen Leiher — leer, wenn keine Mailadresse hinterlegt ist. */
+	public static function cancel_url( object $rental ): string {
+		if ( empty( $rental->borrower_email ) ) {
+			return '';
+		}
+		return add_query_arg( [
+			'action' => 'pp_rental_cancel',
+			'rental' => (int) $rental->id,
+			'key'    => self::cancel_token( $rental ),
+		], admin_url( 'admin-post.php' ) );
+	}
+
 	public static function get( int $id ): ?object {
 		global $wpdb;
 		$rental = $wpdb->get_row( $wpdb->prepare(
@@ -570,13 +594,24 @@ class Rentals {
 			);
 		}
 
-		$wpdb->update(
+		// Bedingt auf den GELESENEN Status: Zwei gleichzeitige Aufrufe (Doppelklick,
+		// paralleler Storno-POST) lesen sonst beide „reserved", schreiben beide und
+		// feuern Log und Hooks doppelt — der Leiher bekäme jede Mail zweimal. Mit
+		// der Bedingung gewinnt genau einer, der andere sieht 0 betroffene Zeilen.
+		$changed = $wpdb->update(
 			Schema::table( 'rentals' ),
 			[ 'status' => $status, 'updated_at' => current_time( 'mysql' ) ],
-			[ 'id' => $id ],
+			[ 'id' => $id, 'status' => $rental->status ],
 			[ '%s', '%s' ],
-			[ '%d' ]
+			[ '%d', '%s' ]
 		);
+		if ( 1 !== (int) $changed ) {
+			return new WP_Error(
+				'pp_invalid_transition',
+				__( 'The rental was changed by someone else in the meantime. Please reload.', 'project-prepper' ),
+				[ 'status' => 409 ]
+			);
+		}
 
 		ActivityLog::log( 'rental_status_changed', 'rental', $id, [ 'from' => $rental->status, 'to' => $status ] );
 

@@ -7676,3 +7676,101 @@ msgstr ""
 #: includes/Frontend/MemberPortal.php
 msgid "Your equipment is in this rental."
 msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "%d piece"
+msgid_plural "%d pieces"
+msgstr[0] ""
+msgstr[1] ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "total incl. VAT"
+msgstr ""
+
+#: includes/Email/Notifications.php
+msgid "Hello {{borrower_name}},\n\nyour reservation {{rental_number}} has been recorded:\n\nPeriod: {{date_from}} to {{date_to}}\n\nItems:\n{{items}}\n\nIf your plans change, you can cancel the reservation here:\n{{cancel_url}}\n\nBest regards\n{{site_name}}"
+msgstr ""
+
+#: includes/Email/Notifications.php
+msgid "Reservation {{rental_number}} cancelled — {{site_name}}"
+msgstr ""
+
+#: includes/Email/Notifications.php
+msgid "Hello {{borrower_name}},\n\nyour reservation {{rental_number}} ({{date_from}} to {{date_to}}) has been cancelled as requested.\n\nBest regards\n{{site_name}}"
+msgstr ""
+
+#: includes/Email/Notifications.php
+msgid "{{borrower_name}} cancelled reservation {{rental_number}}"
+msgstr ""
+
+#: includes/Email/Notifications.php
+msgid "Hello {{owner_name}},\n\n{{borrower_name}} has cancelled the reservation {{rental_number}} ({{date_from}} to {{date_to}}) via the link in the confirmation email.\n\nItems:\n{{items}}\n\nThe equipment is available again.\n\n{{site_name}}"
+msgstr ""
+
+#: includes/Email/Notifications.php
+msgid "Rental: cancelled by the borrower (to borrower)"
+msgstr ""
+
+#: includes/Email/Notifications.php
+msgid "Rental: cancelled by the borrower (to the member who set it up)"
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "This link is not valid"
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "The cancellation link is invalid or belongs to a different reservation. Please use the link from your confirmation email."
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "Already cancelled"
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "Reservation %s has already been cancelled."
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "Cancellation not possible online"
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "Reservation %s can no longer be cancelled here — the equipment has already been handed out or returned. Please contact the person you received it from."
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "Cancellation failed"
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "Reservation cancelled"
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "Reservation %s has been cancelled. You will receive a short confirmation by email."
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "Do you want to cancel reservation %1$s (%2$s)?"
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "Yes, cancel this reservation"
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "Nothing happens until you press the button."
+msgstr ""
+
+#: includes/Frontend/RentalCancel.php
+msgid "Cancel reservation?"
+msgstr ""
+
+#: includes/Email/Notifications.php
+msgid "Cancel this reservation: {{cancel_url}}"
+msgstr ""
+
+#: includes/Services/Rentals.php
+msgid "The rental was changed by someone else in the meantime. Please reload."
+msgstr ""

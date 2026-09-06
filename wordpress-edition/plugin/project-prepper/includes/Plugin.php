@@ -40,6 +40,7 @@ class Plugin {
 		Frontend\Blocks::init();
 		Frontend\ItemDetail::init();
 		Frontend\MemberPortal::init();
+		Frontend\RentalCancel::init();
 		Frontend\MemberAuth::init();
 		CalDav\Server::init();
 

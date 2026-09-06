@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.140.0
+Stable tag: 0.141.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,14 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.141.0 =
+* The reservation email now carries a cancellation link for the borrower. It opens a confirmation page; nothing happens until the button there is pressed, so mail scanners and link previews cannot cancel anything by accident. Only reservations can be cancelled this way — once equipment has been handed out, the page asks the borrower to contact the person they got it from. Both sides get a short email afterwards; both are editable in the template editor.
+* Rental cards show the essentials at a glance: number of pieces, days and the total including VAT. Line items sit in fixed columns (item · quantity · rate) instead of drifting across the row.
+* Status changes on a rental are now atomic: two simultaneous requests can no longer both succeed and send every email twice.
+* Fix: the user name in the top bar was unreadable in dark mode.
+* Customised reservation templates that predate the cancellation link get the link appended automatically; rentals created in the operator backend notify the site email when the borrower cancels.
+* Note: this update does not change the database.
 
 = 0.140.0 =
 * Existing rentals are now matched to their collective. Until this release a rental only ever belonged to the person who set it up, so equipment lent out on behalf of a collective stayed invisible to everyone else. A one-time pass assigns those old records, and every change is written to the activity log.

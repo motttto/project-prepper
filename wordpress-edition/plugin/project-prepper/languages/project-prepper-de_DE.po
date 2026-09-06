@@ -7787,3 +7787,101 @@ msgstr "Verleih dieses Kollektivs."
 #: includes/Frontend/MemberPortal.php
 msgid "Your equipment is in this rental."
 msgstr "Dein Equipment steckt in diesem Verleih."
+
+#: includes/Frontend/MemberPortal.php
+msgid "%d piece"
+msgid_plural "%d pieces"
+msgstr[0] "%d Gerät"
+msgstr[1] "%d Geräte"
+
+#: includes/Frontend/MemberPortal.php
+msgid "total incl. VAT"
+msgstr "gesamt inkl. USt"
+
+#: includes/Email/Notifications.php
+msgid "Hello {{borrower_name}},\n\nyour reservation {{rental_number}} has been recorded:\n\nPeriod: {{date_from}} to {{date_to}}\n\nItems:\n{{items}}\n\nIf your plans change, you can cancel the reservation here:\n{{cancel_url}}\n\nBest regards\n{{site_name}}"
+msgstr "Hallo {{borrower_name}},\n\ndeine Reservierung {{rental_number}} ist eingetragen:\n\nZeitraum: {{date_from}} bis {{date_to}}\n\nPositionen:\n{{items}}\n\nFalls sich deine Pläne ändern, kannst du die Reservierung hier stornieren:\n{{cancel_url}}\n\nViele Grüße\n{{site_name}}"
+
+#: includes/Email/Notifications.php
+msgid "Reservation {{rental_number}} cancelled — {{site_name}}"
+msgstr "Reservierung {{rental_number}} storniert — {{site_name}}"
+
+#: includes/Email/Notifications.php
+msgid "Hello {{borrower_name}},\n\nyour reservation {{rental_number}} ({{date_from}} to {{date_to}}) has been cancelled as requested.\n\nBest regards\n{{site_name}}"
+msgstr "Hallo {{borrower_name}},\n\ndeine Reservierung {{rental_number}} ({{date_from}} bis {{date_to}}) wurde wie gewünscht storniert.\n\nViele Grüße\n{{site_name}}"
+
+#: includes/Email/Notifications.php
+msgid "{{borrower_name}} cancelled reservation {{rental_number}}"
+msgstr "{{borrower_name}} hat Reservierung {{rental_number}} storniert"
+
+#: includes/Email/Notifications.php
+msgid "Hello {{owner_name}},\n\n{{borrower_name}} has cancelled the reservation {{rental_number}} ({{date_from}} to {{date_to}}) via the link in the confirmation email.\n\nItems:\n{{items}}\n\nThe equipment is available again.\n\n{{site_name}}"
+msgstr "Hallo {{owner_name}},\n\n{{borrower_name}} hat die Reservierung {{rental_number}} ({{date_from}} bis {{date_to}}) über den Link in der Bestätigungsmail storniert.\n\nPositionen:\n{{items}}\n\nDas Equipment ist wieder frei.\n\n{{site_name}}"
+
+#: includes/Email/Notifications.php
+msgid "Rental: cancelled by the borrower (to borrower)"
+msgstr "Verleih: vom Leiher storniert (an Leiher)"
+
+#: includes/Email/Notifications.php
+msgid "Rental: cancelled by the borrower (to the member who set it up)"
+msgstr "Verleih: vom Leiher storniert (an die Person, die ihn angelegt hat)"
+
+#: includes/Frontend/RentalCancel.php
+msgid "This link is not valid"
+msgstr "Dieser Link ist ungültig"
+
+#: includes/Frontend/RentalCancel.php
+msgid "The cancellation link is invalid or belongs to a different reservation. Please use the link from your confirmation email."
+msgstr "Der Storno-Link ist ungültig oder gehört zu einer anderen Reservierung. Bitte nutze den Link aus deiner Bestätigungsmail."
+
+#: includes/Frontend/RentalCancel.php
+msgid "Already cancelled"
+msgstr "Bereits storniert"
+
+#: includes/Frontend/RentalCancel.php
+msgid "Reservation %s has already been cancelled."
+msgstr "Die Reservierung %s wurde bereits storniert."
+
+#: includes/Frontend/RentalCancel.php
+msgid "Cancellation not possible online"
+msgstr "Stornieren hier nicht mehr möglich"
+
+#: includes/Frontend/RentalCancel.php
+msgid "Reservation %s can no longer be cancelled here — the equipment has already been handed out or returned. Please contact the person you received it from."
+msgstr "Die Reservierung %s lässt sich hier nicht mehr stornieren — das Equipment wurde bereits ausgegeben oder zurückgegeben. Bitte wende dich an die Person, von der du es bekommen hast."
+
+#: includes/Frontend/RentalCancel.php
+msgid "Cancellation failed"
+msgstr "Stornieren fehlgeschlagen"
+
+#: includes/Frontend/RentalCancel.php
+msgid "Reservation cancelled"
+msgstr "Reservierung storniert"
+
+#: includes/Frontend/RentalCancel.php
+msgid "Reservation %s has been cancelled. You will receive a short confirmation by email."
+msgstr "Die Reservierung %s wurde storniert. Du bekommst gleich eine kurze Bestätigung per E-Mail."
+
+#: includes/Frontend/RentalCancel.php
+msgid "Do you want to cancel reservation %1$s (%2$s)?"
+msgstr "Möchtest du die Reservierung %1$s (%2$s) stornieren?"
+
+#: includes/Frontend/RentalCancel.php
+msgid "Yes, cancel this reservation"
+msgstr "Ja, diese Reservierung stornieren"
+
+#: includes/Frontend/RentalCancel.php
+msgid "Nothing happens until you press the button."
+msgstr "Es passiert nichts, bevor du den Knopf drückst."
+
+#: includes/Frontend/RentalCancel.php
+msgid "Cancel reservation?"
+msgstr "Reservierung stornieren?"
+
+#: includes/Email/Notifications.php
+msgid "Cancel this reservation: {{cancel_url}}"
+msgstr "Reservierung stornieren: {{cancel_url}}"
+
+#: includes/Services/Rentals.php
+msgid "The rental was changed by someone else in the meantime. Please reload."
+msgstr "Der Verleih wurde zwischenzeitlich von jemand anderem geändert. Bitte neu laden."

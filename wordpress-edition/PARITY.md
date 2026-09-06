@@ -3,6 +3,51 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## ✉️ Release v0.141.0 2026-09-07 (Storno-Link in der Reservierungsmail + Verleih-Karten, Schema UNVERÄNDERT 0.42.0)
+> **Ausgeliefert.** Erstmals kann eine Person OHNE Konto etwas an einem Verleih ändern: Der externe Leiher
+> bekommt in der Reservierungs-Mail einen Storno-Link. Neuer Endpunkt `Frontend\RentalCancel` über
+> `admin_post_nopriv_pp_rental_cancel` (plus die eingeloggte Variante), registriert in `Plugin::init()`.
+> **Zwei Schritte, bewusst:** GET zeigt nur eine Bestätigungsseite (Nummer, Zeitraum, Positionen, ein
+> Knopf), erst POST storniert. Mail-Programme, Virenscanner und Link-Vorschauen rufen Links vorab auf —
+> wäre schon der Klick das Storno, verschwänden Reservierungen, ohne dass je ein Mensch den Knopf gedrückt
+> hat. Die Seite läuft über `wp_die()` im WP-Standardrahmen: braucht kein Theme, keinen Login.
+> **Legitimation ohne Datenbankfeld:** `Rentals::cancel_token()` ist ein HMAC (`wp_hash( 'pp_rental_cancel|'
+> . id . '|' . lower(borrower_email), 'auth' )`, 20 Zeichen) — gleiches Schema wie der Beitritts-Link
+> (`GroupGovernance::invite_token`). Ändert der Anleger die Leiher-Adresse, ist der alte Link wertlos, und
+> das ist richtig so: dann hat ihn die falsche Person. Ohne Leiher-Adresse liefert `cancel_url()` leer, es
+> wird nie ein Link verschickt, der Endpunkt ist für solche Verleihe unerreichbar. Kein Nonce — es gibt
+> keine Session, der Schlüssel IST die Legitimation (phpcs:disable mit Begründung im Code). **Deshalb kein
+> Schema-Bump: 0.42.0 bleibt.**
+> **Nur Reservierungen:** `active`/`returned` → die Seite verweist den Leiher an die Person, von der er das
+> Equipment bekommen hat (es ist außer Haus, das klärt kein Knopf); `cancelled` → „bereits storniert".
+> **Atomarer Statuswechsel** (galt vorher für ALLE Wege, nicht nur den Storno-Link): `Rentals::set_status()`
+> schreibt das UPDATE jetzt bedingt auf den GELESENEN Status (`WHERE id = … AND status = <gelesen>`);
+> 0 betroffene Zeilen → `WP_Error pp_invalid_transition` (409). Bei Doppelklick oder zwei parallelen
+> Storno-POSTs gewinnt genau einer — vorher lasen beide „reserved", schrieben beide, und Log, Hooks und
+> jede Mail liefen doppelt.
+> **Mails:** neuer Hook `pp_rental_cancelled_by_borrower` → `Notifications::on_rental_cancelled_by_borrower()`:
+> Vorlage `rental_cancelled` an den Leiher, `rental_cancelled_by_borrower` an den Anleger (`owner_user_id`);
+> hat der Verleih keinen Anleger (im Betreiber-Backend angelegt, z. B. aus einer Anfrage konvertiert), geht
+> die Meldung an `admin_email` — sonst merkt kein Mensch, dass der Termin frei geworden ist. Beide Vorlagen
+> im Vorlagen-Editor. Die Reservierungs-Vorlage kennt jetzt `{{cancel_url}}` (nur bei `reserved` gefüllt,
+> sonst leer und von `render()` weggeräumt). **Lehre aus v0.125 angewandt:** Instanzen mit selbst
+> angepasster Reservierungs-Vorlage aus der Zeit vor dem Platzhalter bekommen den Link automatisch als
+> Zeile angehängt, statt still ohne Link zu verschicken.
+> **Verleih-Karten** (User-Feedback): Summenzeile `.pp-rsum` mit Stückzahl (Σ max(1, quantity)), Tagen und
+> Endbetrag inkl. MwSt. — der Betrag bleibt weg, wo nur eigenes Equipment in einem fremden Vorgang steckt
+> (`item_owner`-Relation, wie bei der Abrechnung). Positionen als CSS-Grid `minmax(0,1fr) auto auto`
+> (`.pp-rl__name/__qty/__rate`, tabular-nums) statt flex mit `margin-left:auto`, das Eigentümer, Menge und
+> Preis je Zeile an andere Stellen schob; Set-Kopfzeilen (`.pp-rl--set`) bleiben flex.
+> **Dark-Mode-Fix:** `.pp-app__user-name` hatte keine explizite Farbe, erbte die Theme-Farbe und stand im
+> Dark Mode schwarz auf dunkel — jetzt `var(--pp-foreground)`.
+> Adversarisch reviewt und in wp-env getestet (Storno per GET/POST, Doppel-POST, ausgegebener Verleih,
+> Backend-Verleih ohne Anleger). i18n: 24 neue PHP-Strings, `.po/.pot/.mo` gepflegt (1619 übersetzt, offen nur
+> die Plugin-URI); keine JS-Strings, JSON nur geprüft (admin.js 471, blocks-editor.js 13). Plugin Check: die
+> **3** bekannten by-design-ERRORs (`hidden_files`, `plugin_updater_detected`, `Updater.php:222
+> OffloadedContent`), keine neuen ERRORs; in `RentalCancel.php` drei WARNINGs (`$_SERVER['REQUEST_METHOD']`
+> ohne unslash/sanitize in Zeile 49, Hook-Prefix `pp_` in Zeile 55 — dasselbe Muster wie alle bestehenden
+> `pp_*`-Hooks). Build `dist/project-prepper-0.141.0.zip` (1,3 MB, 128 Dateien), `update.json` auf 0.141.0.
+>
 > ## 🔁 Release v0.140.0 2026-09-07 (Alt-Verleihe ihrem Kollektiv zuordnen, Schema 0.41.0 → **0.42.0**)
 > **Ausgeliefert.** Nachtrag zu v0.139.0: Dort wurde die Kollektiv-Sichtbarkeit gebaut, aber nur für
 > Vorgänge, die ab jetzt entstehen. Bestandsdaten blieben außen vor — `owner_group_id` wurde vor v0.139.0
