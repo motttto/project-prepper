@@ -1,9 +1,9 @@
 {
-  "version": "0.139.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.139.0/project-prepper-0.139.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.139.0",
-  "published": "2026-09-06",
+  "version": "0.140.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.140.0/project-prepper-0.140.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.140.0",
+  "published": "2026-09-07",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "* Verleihe, die im Arbeitsbereich eines Kollektivs angelegt wurden, sehen jetzt alle Mitglieder dieses Kollektivs — in der Verleih-Liste, im Kalender und im iCal-Abo. Bearbeiten, Ausgeben und Stornieren bleibt bei der Person, die den Verleih angelegt hat; alle anderen sehen eine reine Lese-Karte.\n* Wer Technik beisteuert, sieht jetzt die Verleihe, in denen die eigenen Artikel stecken — auch dann, wenn die eigenen Freigabe-Einstellungen nie nachgefragt haben. Preise, Kaution und die interne Notiz bleiben bei der Person, die den Verleih angelegt hat.\n* Neuer Abschnitt „Verleih“ in den Einstellungen: Kollektiv-Sichtbarkeit abschalten, freie/gebuchte Zeiträume am Artikel ein- oder ausblenden und Rüstzeit-Tage vor und nach einer Ausleihe festlegen.\n* Rüstzeit: Ein Artikel kann jetzt Tage vor einer Buchung brauchen (vorbereiten, testen) und danach (prüfen, reinigen, laden). Diese Tage zählen überall als belegt, wo die Verfügbarkeit gerechnet wird.\n* Inventar-Listen zeigen, wann ein Artikel als Nächstes gebucht ist und wann er wieder frei ist, statt nur, ob er heute unterwegs ist. Bei Artikeln mit mehreren Stück und bei Sets ist die Formulierung bewusst vorsichtig, weil ein einzelnes Datum keinen ganzen Bestand beschreiben kann.\n* Hinweis: Dieses Update ändert die Datenbank NICHT."
+  "changelog": "* Bestehende Verleihe werden jetzt ihrem Kollektiv zugeordnet. Bis zu diesem Release gehörte ein Verleih immer nur der Person, die ihn angelegt hat — Technik, die im Namen eines Kollektivs verliehen wurde, blieb für alle anderen unsichtbar. Ein einmaliger Durchlauf ordnet diese Alt-Vorgänge zu, und jede Änderung steht im Aktivitätsprotokoll.\n* Der Durchlauf ist bewusst vorsichtig: Zugeordnet wird nur, wenn die anlegende Person Mitglied des Kollektivs ist, JEDE Position ein mit diesem Kollektiv geteilter Artikel ist (bei einem Set zählt das Set, nicht seine Teile) und mindestens eine Position jemand anderem gehört. Alles Mehrdeutige — und jeder Verleih mit einer Position, deren Artikel inzwischen gelöscht wurde — bleibt unangetastet.\n* Betreiber, die die Kollektiv-Sichtbarkeit in den Einstellungen abgeschaltet haben, sind nicht betroffen: Es wird nichts zugeordnet.\n* Hinweis: Dieses Update ÄNDERT bestehende Verleih-Datensätze (Schema 0.41.0 → 0.42.0; es werden keine Tabellen angelegt oder verändert)."
 }

@@ -3,6 +3,46 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔁 Release v0.140.0 2026-09-07 (Alt-Verleihe ihrem Kollektiv zuordnen, Schema 0.41.0 → **0.42.0**)
+> **Ausgeliefert.** Nachtrag zu v0.139.0: Dort wurde die Kollektiv-Sichtbarkeit gebaut, aber nur für
+> Vorgänge, die ab jetzt entstehen. Bestandsdaten blieben außen vor — `owner_group_id` wurde vor v0.139.0
+> nie geschrieben, jeder Verleih hing ausschließlich an seinem Anleger. Genau die Vorgänge, die den
+> Anlass für das Update gaben (Technik im Namen des Kollektivs verliehen), blieben also weiter unsichtbar.
+> **⚠️ Dieses Update ÄNDERT Daten** — anders als die letzten Releases. Die Tabellenstruktur bleibt gleich,
+> es kommt keine Spalte und keine Tabelle dazu; die Schema-Version steigt ausschließlich als **Auslöser**
+> für einen einmaligen Datenlauf `Rentals::backfill_group_owner()`, der `owner_group_id` nachträgt.
+> **Die Regel ist strenger als der laufende Betrieb**, weil Altdaten den Arbeitsbereich-Kontext nicht mehr
+> hergeben. Zugeordnet wird nur bei eindeutiger Beleglage — alle vier Bedingungen: (1) noch kein Kollektiv,
+> (2) der Anleger ist Mitglied der Gruppe, (3) JEDE Position ist ein mit dieser Gruppe geteilter Artikel,
+> (4) mindestens eine Position gehört jemand anderem. Bedingung 4 trennt den Kollektiv-Vorgang vom privaten:
+> Wer nur eigenes Equipment verliehen hat, behält seinen persönlichen Verleih. Passen mehrere Gruppen
+> gleich gut, bleibt der Vorgang unangetastet — lieber unzugeordnet als falsch zugeordnet.
+> **Warum der HEUTIGE Freigabestand als Beleg taugt:** Fremdes Equipment konnte überhaupt nur über den
+> Kollektiv-Pool in einen Verleih kommen; im Solo-Arbeitsbereich standen immer nur eigene Artikel zur Wahl.
+> Eine fremde Position IST damit der Beleg für den Kollektiv-Kontext, die Freigabe sagt nur, welches
+> Kollektiv es war.
+> **Zwei Fallstricke, bewusst behandelt:** (a) `LEFT JOIN` statt `INNER JOIN` auf die Artikel — eine
+> Artikel-Löschung räumt `rental_items` nicht auf, mit `INNER JOIN` fiele die verwaiste Position still
+> heraus und „JEDE Position ist geteilt" wäre gar nicht mehr geprüft; solche Verleihe bleiben unangetastet.
+> (b) Set-Positionen tragen das TEIL in `item_id` und das SET in `bundle_item_id` — geteilt wird das SET,
+> die Teile müssen es laut docs/07 §4.4 ausdrücklich nicht sein; die Prüfung nimmt deshalb
+> `COALESCE(bundle_item_id, item_id)`, genau wie der Live-Guard `MemberRentals::guard_items_lendable`.
+> **Riegel zusätzlich zur Schema-Version** (`pp_rental_backfill_done`): `migrate()` schreibt die neue
+> Version erst am Ende, zwei gleichzeitige Requests nach dem Update kämen sonst beide durch. Die Zuordnung
+> selbst ist idempotent, ihre Protokollzeilen wären es nicht.
+> **Betreiber-Schalter gilt:** Wer die Kollektiv-Sichtbarkeit in den Einstellungen abgeschaltet hat,
+> bekommt keine Zuordnungen. Jede Änderung steht im Aktivitätsprotokoll (`rental_group_backfilled`,
+> plus eine Summenzeile `rental_backfill_completed`).
+> **Verifiziert in wp-env** über den echten Update-Weg (Version auf 0.41.0 zurück, alle `owner_group_id`
+> auf NULL, dann `Schema::migrate()`): 5 von 8 Verleihen zugeordnet, exakt die erwarteten; unangetastet
+> blieben die zwei rein privaten und der mit der verwaisten Position. Wiederholungslauf erzeugte keine
+> zweite Protokollzeile (Riegel hält). Laufzeit 28 ms.
+> Keine neuen i18n-Strings (reine Backend-Logik) — `.po/.pot/.mo/JSON` nur geprüft, nicht neu erzeugt:
+> 1595 übersetzt, offen nur die Plugin-URI. Plugin Check: die **3** bekannten by-design-ERRORs
+> (`hidden_files`, `plugin_updater_detected`, `Updater.php:222 OffloadedContent`), keine neuen Funde —
+> die neuen `$wpdb`-Queries in `backfill_group_owner()` (Zeilen 137–251) sind befundfrei.
+> Build `dist/project-prepper-0.140.0.zip`, `update.json` auf 0.140.0.
+>
 > ## 🤝 Release v0.139.0 2026-09-06 (Kollektiv-Verleihe sichtbar + Rüstzeiten, Schema UNVERÄNDERT 0.41.0)
 > **Ausgeliefert.** Ein Verleih war bisher rein privat: Wer ihn angelegt hatte, sah ihn — sonst niemand,
 > auch nicht im Arbeitsbereich eines Kollektivs. Damit war für alle anderen unsichtbar, dass Technik

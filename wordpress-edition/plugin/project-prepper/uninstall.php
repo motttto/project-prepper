@@ -20,6 +20,10 @@ if ( get_option( 'pp_delete_data_on_uninstall' ) ) {
 		$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', \ProjectPrepper\Schema::table( $pp_table ) ) );
 	}
 	delete_option( 'pp_delete_data_on_uninstall' );
+	// Betreiber-Einstellungen des Verleihs + Riegel der einmaligen Zuordnung.
+	foreach ( [ 'pp_collective_rentals_visible', 'pp_item_time_status', 'pp_rental_buffer_before', 'pp_rental_buffer_after', 'pp_rental_backfill_done' ] as $pp_opt ) {
+		delete_option( $pp_opt );
+	}
 }
 
 delete_option( \ProjectPrepper\Schema::OPTION_KEY );

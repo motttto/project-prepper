@@ -23,7 +23,10 @@ class Schema {
 	// 0.41.0: rental_items.approval_status/requested_by/decided_at — externer
 	// Verleih aus dem Kollektiv-Pool braucht die Freigabe des Eigentümers
 	// (Pendant zu project_items). Additiv via dbDelta, DEFAULT 'approved'.
-	const VERSION    = '0.41.0';
+	// 0.42.0: KEINE Strukturänderung — nur ein einmaliger Datenlauf, der
+	// Alt-Verleihe ihrem Kollektiv zuordnet ({@see upgrade_data}). Die Version
+	// ist hier der Auslöser, damit er genau einmal passiert.
+	const VERSION    = '0.42.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -907,6 +910,25 @@ class Schema {
 			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET unit_condition = %s WHERE unit_condition = %s', $units, 'fair', 'used' ) );
 			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET unit_condition = %s WHERE unit_condition = %s', $units, 'broken', 'defect' ) );
 			// phpcs:enable WordPress.DB.DirectDatabaseQuery
+		}
+
+		if ( version_compare( $from, '0.42.0', '<' ) ) {
+			// Alt-Verleihe ihrem Kollektiv zuordnen. Die Tabellen ändern sich dabei
+			// NICHT — gebumpt wird die Version nur, weil dieser Datenlauf genau
+			// einmal laufen soll. Die Regel ist bewusst streng, sie steht in
+			// {@see \ProjectPrepper\Services\Rentals::backfill_group_owner}.
+			//
+			// Eigener Riegel zusätzlich zur Schema-Version: migrate() schreibt die
+			// neue Version erst am Ende, zwei gleichzeitige Requests nach dem Update
+			// kämen sonst beide hier vorbei. Die Zuordnung selbst ist zwar
+			// idempotent, ihre Protokollzeilen wären es nicht.
+			if ( ! get_option( 'pp_rental_backfill_done' ) ) {
+				update_option( 'pp_rental_backfill_done', 1 );
+				$moved = \ProjectPrepper\Services\Rentals::backfill_group_owner();
+				if ( $moved ) {
+					Services\ActivityLog::log( 'rental_backfill_completed', 'rental', null, [ 'count' => $moved ] );
+				}
+			}
 		}
 	}
 }

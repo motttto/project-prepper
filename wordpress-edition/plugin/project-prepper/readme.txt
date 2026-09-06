@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.139.0
+Stable tag: 0.140.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,12 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.140.0 =
+* Existing rentals are now matched to their collective. Until this release a rental only ever belonged to the person who set it up, so equipment lent out on behalf of a collective stayed invisible to everyone else. A one-time pass assigns those old records, and every change is written to the activity log.
+* The pass is deliberately cautious: a rental is only assigned when the person who set it up is a member of the collective, every line is an item shared with that collective (a set counts through the set, not its parts), and at least one line belongs to someone else. Anything ambiguous, or a rental with a line whose item has since been deleted, is left untouched.
+* Operators who turned collective visibility off in Settings are not affected — nothing is reassigned.
+* Note: this update changes existing rental records (schema 0.41.0 → 0.42.0; no tables are added or altered).
 
 = 0.139.0 =
 * Rentals set up in a collective's workspace are now visible to everyone in that collective — in the lending list, in the calendar and in the iCal subscription. Editing, handing out and cancelling stay with whoever set the rental up; everyone else sees a read-only card.

@@ -2,6 +2,7 @@
 namespace ProjectPrepper\Services;
 
 use ProjectPrepper\Schema;
+use ProjectPrepper\Settings;
 use WP_Error;
 
 defined( 'ABSPATH' ) || exit;
@@ -96,6 +97,157 @@ class Rentals {
 			$owner_id
 		);
 		return $wpdb->get_results( $sql ) ?: []; // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql ist oben via prepare() aufgebaut.
+	}
+
+	/**
+	 * Einmalige Nachzuordnung von Alt-Verleihen an ihr Kollektiv (v0.42.0).
+	 *
+	 * Vor v0.139.0 hing JEDER externe Verleih ausschließlich an seinem Anleger —
+	 * `owner_group_id` wurde nie geschrieben. Ein Vorgang, der ersichtlich für ein
+	 * Kollektiv lief (Equipment aus dem geteilten Pool, verliehen von einem
+	 * Mitglied), blieb dadurch für alle anderen unsichtbar. Genau das war der
+	 * Anlass für das Update, und Bestandsdaten sollen nicht schlechter dastehen
+	 * als alles, was ab jetzt entsteht.
+	 *
+	 * Zugeordnet wird nur bei EINDEUTIGER Beleglage — alle vier Bedingungen:
+	 *   1. der Verleih hat noch gar kein Kollektiv,
+	 *   2. der Anleger ist Mitglied der Gruppe,
+	 *   3. JEDE Position ist ein Artikel, der mit dieser Gruppe geteilt ist,
+	 *   4. mindestens eine Position gehört jemand ANDEREM als dem Anleger.
+	 *
+	 * Bedingung 4 trennt den Kollektiv-Vorgang vom privaten: Wer nur eigenes
+	 * Equipment verliehen hat, behält seinen persönlichen Verleih. Passen mehrere
+	 * Gruppen gleich gut, bleibt der Vorgang unangetastet — lieber unzugeordnet
+	 * als falsch zugeordnet. Jede Änderung landet im Aktivitätsprotokoll.
+	 *
+	 * Warum der HEUTIGE Freigabestand als Beleg taugt, obwohl die Vorgänge alt
+	 * sind: Fremdes Equipment konnte überhaupt nur über den Kollektiv-Pool in
+	 * einen Verleih kommen — im Solo-Arbeitsbereich standen immer ausschließlich
+	 * eigene Artikel zur Wahl ({@see MemberRentals::lendable_items}). Eine
+	 * fremde Position IST also der Beleg für den Kollektiv-Kontext; die Freigabe
+	 * bestätigt nur, welches Kollektiv es war.
+	 *
+	 * Die Migration ist bewusst strenger als der laufende Betrieb: Seit v0.139.0
+	 * wird JEDER im Gruppen-Arbeitsbereich angelegte Verleih zugeordnet, auch
+	 * einer mit lauter eigenen Artikeln. Für Altdaten fehlt dieser Kontext — dort
+	 * ist fremdes Equipment die einzige belastbare Spur.
+	 *
+	 * @return int Zahl der zugeordneten Verleihe.
+	 */
+	public static function backfill_group_owner(): int {
+		global $wpdb;
+
+		// Der Betreiber-Schalter entscheidet: Wer die Kollektiv-Sichtbarkeit
+		// abgeschaltet hat, bekommt auch keine nachträglichen Zuordnungen.
+		if ( ! Settings::collective_rentals_visible() ) {
+			return 0;
+		}
+
+		$rentals = Schema::table( 'rentals' );
+		$lines   = Schema::table( 'rental_items' );
+		$items   = Schema::table( 'items' );
+		$members = Schema::table( 'group_members' );
+		$shares  = Schema::table( 'item_group_shares' );
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery -- einmalige Daten-Migration auf Plugin-eigenen Tabellen, Caching nicht anwendbar.
+		$candidates = $wpdb->get_results( $wpdb->prepare(
+			'SELECT id, owner_user_id FROM %i WHERE owner_group_id IS NULL AND owner_user_id IS NOT NULL',
+			$rentals
+		) ) ?: [];
+		if ( ! $candidates ) {
+			return 0;
+		}
+
+		$moved = 0;
+		foreach ( $candidates as $rental ) {
+			$author = (int) $rental->owner_user_id;
+			// LEFT JOIN wie in get(): Eine Artikel-Löschung räumt `rental_items`
+			// NICHT auf, die Position bleibt Teil des Verleihs (und seiner
+			// Abrechnung). Mit INNER JOIN fiele sie hier still heraus und
+			// „JEDE Position ist geteilt" wäre gar nicht mehr geprüft.
+			//
+			// Set-Positionen tragen in `item_id` das TEIL und in `bundle_item_id`
+			// das Set. Geteilt wird das SET — die Teile müssen es laut docs/07 §4.4
+			// ausdrücklich nicht sein. Für die Freigabe-Prüfung zählt deshalb
+			// COALESCE(bundle_item_id, item_id), genau wie im Live-Guard
+			// {@see MemberRentals::guard_items_lendable}.
+			$rows = $wpdb->get_results( $wpdb->prepare(
+				'SELECT ri.item_id,
+						COALESCE(ri.bundle_item_id, ri.item_id) AS share_item_id,
+						i.id AS item_row,
+						i.owner_user_id AS item_owner
+				 FROM %i ri LEFT JOIN %i i ON i.id = ri.item_id
+				 WHERE ri.rental_id = %d',
+				$lines,
+				$items,
+				(int) $rental->id
+			) ) ?: [];
+			if ( ! $rows ) {
+				continue;
+			}
+			$share_ids = [];
+			$foreign   = false;
+			$orphan    = false;
+			foreach ( $rows as $row ) {
+				if ( null === $row->item_row ) {
+					// Verwaiste Position: Der Artikel ist weg, seine Freigaben sind es
+					// auch — die Beleglage ist unvollständig, also nicht zuordnen.
+					$orphan = true;
+					break;
+				}
+				$share_ids[ (int) $row->share_item_id ] = true;
+				if ( (int) $row->item_owner !== $author ) {
+					$foreign = true;
+				}
+			}
+			if ( $orphan || ! $foreign ) {
+				// Reiner Eigenbedarf bleibt ein persönlicher Verleih (Bedingung 4).
+				continue;
+			}
+			$groups = $wpdb->get_col( $wpdb->prepare(
+				'SELECT group_id FROM %i WHERE user_id = %d',
+				$members,
+				$author
+			) ) ?: [];
+
+			$match = [];
+			foreach ( $groups as $gid ) {
+				$shared = $wpdb->get_col( $wpdb->prepare(
+					'SELECT item_id FROM %i WHERE group_id = %d',
+					$shares,
+					(int) $gid
+				) ) ?: [];
+				$shared = array_flip( array_map( 'intval', $shared ) );
+				$all    = true;
+				foreach ( array_keys( $share_ids ) as $item_id ) {
+					if ( ! isset( $shared[ $item_id ] ) ) {
+						$all = false;
+						break;
+					}
+				}
+				if ( $all ) {
+					$match[] = (int) $gid;
+				}
+			}
+			if ( 1 !== count( $match ) ) {
+				// Keine oder mehrere passende Gruppen → nicht raten.
+				continue;
+			}
+			// Nur zählen und protokollieren, was die Datenbank auch geschrieben hat.
+			$ok = $wpdb->update( $rentals, [ 'owner_group_id' => $match[0] ], [ 'id' => (int) $rental->id ], [ '%d' ], [ '%d' ] );
+			if ( ! $ok ) {
+				continue;
+			}
+			ActivityLog::log( 'rental_group_backfilled', 'rental', (int) $rental->id, [
+				'group_id' => $match[0],
+				'owner'    => $author,
+				'source'   => 'migration',
+			] );
+			++$moved;
+		}
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery
+
+		return $moved;
 	}
 
 	public static function get( int $id ): ?object {
