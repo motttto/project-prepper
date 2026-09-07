@@ -200,6 +200,9 @@ class MemberPortal {
 					'heartbeatUrl' => esc_url_raw( rest_url( 'project-prepper/v1/heartbeat' ) ),
 					'nonce'        => wp_create_nonce( 'wp_rest' ),
 					'heartbeatMs'  => 45000,
+					// Für die Topbar-Uhr: dieselbe Zeitzone wie der Server, Locale für Intl.
+					'tz'           => wp_timezone_string(),
+					'locale'       => str_replace( '_', '-', get_locale() ),
 				] );
 			}
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine View-Erkennung fürs Enqueue.
@@ -2096,7 +2099,15 @@ class MemberPortal {
 			<label for="pp-nav-toggle" class="pp-app__overlay" aria-hidden="true"></label>
 			<?php self::render_sidebar( $user, $groups, $view ); ?>
 			<div class="pp-app__main-wrap">
-				<?php self::render_topbar( $user ); ?>
+				<?php
+				// Der Seitentitel wandert in die Topbar (User-Wunsch). Jede View
+				// rendert ihren Kopf weiter selbst — die Hülle hebt das erste
+				// <h1 class="pp-app__page-title"> heraus und zeigt es oben. So bleibt
+				// der Titel bei der View (auch Detail-Titel aus geladenen Objekten),
+				// ohne dass 16 Kopfzeilen umgebaut werden müssen. Dafür muss der
+				// Inhalt VOR der Topbar gerendert werden → Puffer.
+				ob_start();
+				?>
 				<main class="pp-app__main">
 					<div class="pp-front pp-app__content">
 						<?php
@@ -2132,12 +2143,30 @@ class MemberPortal {
 							case 'approvals':
 								self::view_approvals( $user );
 								break;
+							case 'howto':
+								self::view_howto();
+								break;
 							default:
 								self::view_dashboard( $user, $groups );
 						}
 						?>
 					</div>
 				</main>
+				<?php
+				$content = (string) ob_get_clean();
+				$title   = '';
+				if ( preg_match( '#<h1 class="pp-app__page-title">(.*?)</h1>#s', $content, $m ) ) {
+					$title   = trim( wp_strip_all_tags( $m[1] ) );
+					$content = str_replace( $m[0], '', $content );
+				}
+				// Das Dashboard begrüßt jetzt in der Topbar selbst — sein Titel ist
+				// schlicht „Dashboard", nicht ein zweites „Hallo Name".
+				if ( 'dashboard' === $view || '' === $title ) {
+					$title = __( 'Dashboard', 'project-prepper' );
+				}
+				self::render_topbar( $user, $title );
+				echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- bereits von den View-Funktionen escaped gerenderter Inhalt.
+				?>
 			</div>
 			<?php self::render_feedback_modal(); ?>
 		</div>
@@ -2181,7 +2210,7 @@ class MemberPortal {
 	private static function current_view(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$view    = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : 'dashboard';
-		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'inquiries', 'calendar', 'costs', 'polls', 'network', 'collectives', 'approvals' ];
+		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'inquiries', 'calendar', 'costs', 'polls', 'network', 'collectives', 'approvals', 'howto' ];
 		return in_array( $view, $allowed, true ) ? $view : 'dashboard';
 	}
 
@@ -2207,6 +2236,9 @@ class MemberPortal {
 		}
 		$items[] = [ 'view' => 'network',     'icon' => 'globe', 'label' => __( 'Network', 'project-prepper' ) ];
 		$items[] = [ 'view' => 'collectives', 'icon' => 'users', 'label' => $solo ? __( 'My groups', 'project-prepper' ) : __( 'All groups', 'project-prepper' ) ];
+		// Erklärseite als eigener Punkt (User-Wunsch): vorher klebte das Banner
+		// unbedingt und aufgeklappt über jedem Dashboard.
+		$items[] = [ 'view' => 'howto', 'icon' => 'info', 'label' => __( 'How the platform works', 'project-prepper' ) ];
 		return $items;
 	}
 
@@ -2301,15 +2333,29 @@ class MemberPortal {
 		<?php
 	}
 
-	private static function render_topbar( WP_User $user ): void {
+	private static function render_topbar( WP_User $user, string $title = '' ): void {
 		$role = self::has_backend_access( $user )
 			? __( 'Manager', 'project-prepper' )
 			: __( 'Member', 'project-prepper' );
+		// Wochentag, Datum, Uhrzeit in der WP-Zeitzone und den WP-Formaten;
+		// portal.js zieht die Uhr danach im Browser weiter (data-pp-clock).
+		$now   = current_time( 'timestamp' ); // phpcs:ignore WordPress.DateTime.CurrentTimeTimestamp.Requested -- bewusst lokaler Zeitstempel für date_i18n.
+		$clock = date_i18n( 'l', $now ) . ', ' . date_i18n( (string) get_option( 'date_format' ), $now ) . ' · ' . date_i18n( (string) get_option( 'time_format' ), $now );
 		?>
 		<header class="pp-app__topbar">
 			<label for="pp-nav-toggle" class="pp-app__burger" aria-label="<?php esc_attr_e( 'Toggle menu', 'project-prepper' ); ?>">
 				<span></span><span></span><span></span>
 			</label>
+			<div class="pp-app__topbar-left">
+				<?php if ( '' !== $title ) : ?>
+					<h1 class="pp-app__topbar-title"><?php echo esc_html( $title ); ?></h1>
+				<?php endif; ?>
+				<span class="pp-app__greet"><?php
+					/* translators: %s: display name of the current user. */
+					printf( esc_html__( 'Hello %s', 'project-prepper' ), esc_html( $user->display_name ) );
+				?></span>
+				<time class="pp-app__clock" data-pp-clock datetime="<?php echo esc_attr( date_i18n( 'c', $now ) ); ?>"><?php echo esc_html( $clock ); ?></time>
+			</div>
 			<div class="pp-app__topbar-right">
 				<?php
 				$notifs = self::notifications( $user );
@@ -2337,11 +2383,23 @@ class MemberPortal {
 				<button type="button" class="pp-app__icon-btn pp-app__feedback-btn" data-pp-modal="pp-feedback-modal" title="<?php esc_attr_e( 'Send feedback', 'project-prepper' ); ?>"><?php esc_html_e( 'Feedback', 'project-prepper' ); ?></button>
 				<div class="pp-app__user">
 					<?php $topbar_avatar = self::avatar_url( (int) $user->ID, 'thumbnail' ); ?>
-					<?php if ( $topbar_avatar ) : ?>
-						<span class="pp-app__avatar pp-app__avatar--img"><img src="<?php echo esc_url( $topbar_avatar ); ?>" alt=""></span>
-					<?php else : ?>
-						<span class="pp-app__avatar"><?php echo esc_html( self::initials( $user->display_name ) ); ?></span>
-					<?php endif; ?>
+					<?php
+					// Klick aufs Profilbild → Dashboard im Solo-Arbeitsbereich. Der
+					// Wechsel des Arbeitsbereichs läuft im Portal grundsätzlich per
+					// POST mit Nonce (set_workspace) — also ein Formular, kein Link.
+					?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pp-app__avatar-form">
+						<?php self::action_fields( 'set_workspace' ); ?>
+						<input type="hidden" name="pp_ws" value="solo">
+						<input type="hidden" name="pp_view" value="dashboard">
+						<button type="submit" class="pp-app__avatar <?php echo $topbar_avatar ? 'pp-app__avatar--img' : ''; ?> pp-app__avatar-btn" title="<?php esc_attr_e( 'Go to your dashboard (solo workspace)', 'project-prepper' ); ?>">
+							<?php if ( $topbar_avatar ) : ?>
+								<img src="<?php echo esc_url( $topbar_avatar ); ?>" alt="">
+							<?php else : ?>
+								<?php echo esc_html( self::initials( $user->display_name ) ); ?>
+							<?php endif; ?>
+						</button>
+					</form>
 					<span class="pp-app__user-meta">
 						<span class="pp-app__user-name"><?php echo esc_html( $user->display_name ); ?></span>
 						<span class="pp-app__user-role"><?php echo esc_html( $role ); ?></span>
@@ -2581,8 +2639,6 @@ class MemberPortal {
 			</p>
 		</header>
 
-		<?php self::render_how_it_works(); ?>
-
 		<div class="pp-kpi-grid">
 			<?php
 			self::kpi_card( 'inventory', $inv_count, __( 'Inventory items', 'project-prepper' ), 'warning', 'inventory' );
@@ -2747,6 +2803,19 @@ class MemberPortal {
 	}
 
 	/** „So funktioniert die Plattform" — einklappbar (WP-nativ, ohne JS). */
+	/** Eigene Seite „So funktioniert die Plattform" (Menüpunkt statt Dashboard-Banner). */
+	private static function view_howto(): void {
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'How the platform works', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Three ideas carry everything here: your own inventory, sharing with collectives, and borrowing among members.', 'project-prepper' ); ?></p>
+		</header>
+		<div class="pp-howto">
+			<?php self::render_how_it_works(); ?>
+		</div>
+		<?php
+	}
+
 	private static function render_how_it_works(): void {
 		?>
 		<details class="pp-hiw" open>
@@ -3213,6 +3282,16 @@ class MemberPortal {
 				? __( 'Lend collective equipment to people outside the platform. Everyone in the collective sees these rentals; changing one stays with whoever set it up.', 'project-prepper' )
 				: __( 'Lend your own equipment to people outside the platform. Reservation, hand-out, return and billing — just like the app.', 'project-prepper' ) ); ?></p>
 
+			<?php // „Neuer Verleih" direkt unter der Kopfzeile (User-Wunsch), nicht mehr am Listenende. ?>
+			<?php if ( $lendable ) : ?>
+				<details class="pp-portal__add pp-portal__add--top">
+					<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New rental', 'project-prepper' ); ?></summary>
+					<?php self::rental_form( $lendable, $bundles, null, $group_id ); ?>
+				</details>
+			<?php else : ?>
+				<p class="pp-portal__hint"><?php esc_html_e( 'Add items to your inventory first — then you can lend them out.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+
 			<div class="pp-kpi-grid pp-kpi-grid--compact">
 				<?php
 				self::mini_kpi( __( 'Reserved', 'project-prepper' ), (string) (int) $kpis['reserved'], 'info' );
@@ -3435,14 +3514,6 @@ class MemberPortal {
 					: __( 'No external rentals yet. Add your first one below.', 'project-prepper' ) ); ?></p>
 			<?php endif; ?>
 
-			<?php if ( $lendable ) : ?>
-				<details class="pp-portal__add">
-					<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New rental', 'project-prepper' ); ?></summary>
-					<?php self::rental_form( $lendable, $bundles, null, $group_id ); ?>
-				</details>
-			<?php else : ?>
-				<p class="pp-portal__hint"><?php esc_html_e( 'Add items to your inventory first — then you can lend them out.', 'project-prepper' ); ?></p>
-			<?php endif; ?>
 		</section>
 		<?php
 	}

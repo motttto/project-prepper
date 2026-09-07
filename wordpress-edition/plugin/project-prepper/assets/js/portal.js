@@ -176,6 +176,36 @@
 		} );
 	} )();
 
+	/* Topbar-Uhr (v0.142.0): Der Server rendert Wochentag, Datum und Uhrzeit in
+	 * der WP-Zeitzone; hier läuft sie weiter, damit sie nach Minuten nicht
+	 * veraltet. Gleiche Zeitzone (ppPortal.tz) und Locale wie der Server — sonst
+	 * springt die Anzeige beim ersten Tick auf die Browserzeit. Ohne Intl oder
+	 * ohne Konfiguration bleibt der Servertext einfach stehen. */
+	( function () {
+		var el = document.querySelector( '[data-pp-clock]' );
+		var cfg = window.ppPortal;
+		if ( ! el || ! cfg || ! cfg.tz || ! window.Intl ) {
+			return;
+		}
+		// Datum und Uhrzeit getrennt formatieren und selbst mit „ · " verbinden —
+		// ein gemeinsamer Formatter schöbe je nach Sprache ein „um"/„at" dazwischen.
+		var fmtDate, fmtTime;
+		try {
+			fmtDate = new Intl.DateTimeFormat( cfg.locale || undefined, { timeZone: cfg.tz, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' } );
+			fmtTime = new Intl.DateTimeFormat( cfg.locale || undefined, { timeZone: cfg.tz, hour: '2-digit', minute: '2-digit' } );
+		} catch ( e ) {
+			return; // Zeitzone/Locale unbekannt (alte Browser, Offset-Zeitzone) → Servertext bleibt stehen.
+		}
+		function tick() {
+			var now = new Date();
+			el.textContent = fmtDate.format( now ) + ' · ' + fmtTime.format( now );
+		}
+		// Erst nach der ersten vollen Minute übernehmen — der Servertext ist beim
+		// Laden korrekt, und so gibt es keinen Format-Sprung direkt beim Aufbau.
+		var msToMinute = 60000 - ( Date.now() % 60000 );
+		window.setTimeout( function () { tick(); window.setInterval( tick, 60000 ); }, msToMinute );
+	} )();
+
 	/* Hover-Prefetch: lädt Portal-Seiten schon beim Draufzeigen im Hintergrund,
 	 * damit sich die Vollreload-Navigation wie eine App anfühlt. Bewusst eng
 	 * gefasst: nur same-origin Seiten-Links — niemals Aktions-/Auth-URLs

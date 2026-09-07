@@ -7885,3 +7885,11 @@ msgstr "Reservierung stornieren: {{cancel_url}}"
 #: includes/Services/Rentals.php
 msgid "The rental was changed by someone else in the meantime. Please reload."
 msgstr "Der Verleih wurde zwischenzeitlich von jemand anderem geändert. Bitte neu laden."
+
+#: includes/Frontend/MemberPortal.php
+msgid "Go to your dashboard (solo workspace)"
+msgstr "Zu deinem Dashboard (Solo-Arbeitsbereich)"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Three ideas carry everything here: your own inventory, sharing with collectives, and borrowing among members."
+msgstr "Drei Ideen tragen hier alles: dein eigenes Inventar, das Teilen mit Kollektiven und das Leihen unter Mitgliedern."

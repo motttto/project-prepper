@@ -3,6 +3,35 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧭 Release v0.142.0 2026-09-07 (Kopfzeile: Titel, Begrüßung und Uhr in der Topbar; Profilbild → Solo-Dashboard; Erklärseite als Menüpunkt; „Neuer Verleih" oben — Schema UNVERÄNDERT 0.42.0)
+> **Ausgeliefert.** Vier User-Wünsche zur Kopfzeile des Portals, ohne Datenbankänderung.
+> **Seitentitel in der Topbar:** Statt 16 View-Kopfzeilen umzubauen, puffert die Hülle den View-Inhalt
+> (`ob_start()` vor `<main>`), zieht das erste `<h1 class="pp-app__page-title">` per Regex heraus, entfernt es
+> aus dem Inhalt und gibt den Text an `render_topbar( $user, $title )`. So bleibt der Titel bei der View
+> (auch Detail-Titel aus geladenen Objekten); die `.pp-app__page-sub` bleibt als Einleitungszeile stehen
+> (`.pp-app__page-head:empty` wird ausgeblendet). Das Dashboard bekommt fest „Dashboard" — die Begrüßung
+> steht jetzt in der Topbar, nicht mehr als zweites „Hallo Name".
+> **Uhr:** Der Server rendert Wochentag, Datum und Uhrzeit per `date_i18n()` mit `current_time( 'timestamp' )`
+> (phpcs:ignore, bewusst lokaler Zeitstempel) in `<time data-pp-clock>`; `portal.js` zieht sie mit
+> `Intl.DateTimeFormat` weiter — in DERSELBEN Zeitzone (`ppPortal.tz` = `wp_timezone_string()`) und Locale
+> (`get_locale()`, `_` → `-`) wie der Server, sonst spränge die Anzeige beim ersten Tick auf die Browserzeit.
+> Datum und Zeit getrennt formatiert und mit „ · " verbunden (ein gemeinsamer Formatter schöbe je nach Sprache
+> ein „um"/„at" dazwischen); erste Übernahme erst zur nächsten vollen Minute, damit es beim Aufbau keinen
+> Format-Sprung gibt. Ohne `Intl`/Konfiguration bleibt der Servertext stehen. Unter 1024 px sind Begrüßung
+> und Uhr ausgeblendet, der Titel wird schmaler.
+> **Profilbild → Solo-Dashboard:** Der Arbeitsbereichs-Wechsel läuft im Portal grundsätzlich per POST mit
+> Nonce (`set_workspace`) — der Avatar ist deshalb ein Formular-Knopf (`.pp-app__avatar-form` /
+> `.pp-app__avatar-btn`, `pp_ws=solo`, `pp_view=dashboard`), kein Link.
+> **„So funktioniert die Plattform"** ist eine eigene View `howto` (in `current_view()` erlaubt, Menüpunkt in
+> `nav_items()` hinter „Meine/Alle Gruppen"), rendert `render_how_it_works()` aufgeklappt; das Banner ist vom
+> Dashboard entfernt.
+> **„Neuer Verleih"** (`details.pp-portal__add--top`) steht unter der Kopfzeile über den Kacheln statt am
+> Listenende — gleicher Inhalt (`rental_form()`), nur verschoben; der Hinweis ohne verleihbare Artikel wandert mit.
+> i18n: 2 neue PHP-Strings, `.po/.pot/.mo` gepflegt (1621 übersetzt, offen nur die Plugin-URI); keine
+> JS-Strings, JSON nur geprüft (admin.js 471, blocks-editor.js 13). Plugin Check: die **3** bekannten
+> by-design-ERRORs (`hidden_files`, `plugin_updater_detected`, `Updater.php:222 OffloadedContent`), keine
+> neuen ERRORs. Build `dist/project-prepper-0.142.0.zip` (1,4 MB, 128 Dateien), `update.json` auf 0.142.0.
+>
 > ## ✉️ Release v0.141.0 2026-09-07 (Storno-Link in der Reservierungsmail + Verleih-Karten, Schema UNVERÄNDERT 0.42.0)
 > **Ausgeliefert.** Erstmals kann eine Person OHNE Konto etwas an einem Verleih ändern: Der externe Leiher
 > bekommt in der Reservierungs-Mail einen Storno-Link. Neuer Endpunkt `Frontend\RentalCancel` über

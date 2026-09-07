@@ -7774,3 +7774,11 @@ msgstr ""
 #: includes/Services/Rentals.php
 msgid "The rental was changed by someone else in the meantime. Please reload."
 msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Go to your dashboard (solo workspace)"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Three ideas carry everything here: your own inventory, sharing with collectives, and borrowing among members."
+msgstr ""

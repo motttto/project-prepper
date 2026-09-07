@@ -1,9 +1,9 @@
 {
-  "version": "0.141.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.141.0/project-prepper-0.141.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.141.0",
+  "version": "0.142.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.142.0/project-prepper-0.142.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.142.0",
   "published": "2026-09-07",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "* Die Reservierungs-Mail enthält jetzt einen Storno-Link für den Leiher. Er öffnet eine Bestätigungsseite; storniert wird erst, wenn dort der Knopf gedrückt wird — Mail-Scanner und Link-Vorschauen können so nichts versehentlich stornieren. Auf diesem Weg lassen sich nur Reservierungen stornieren: Ist die Technik bereits ausgegeben, bittet die Seite den Leiher, sich an die Person zu wenden, von der er sie bekommen hat. Beide Seiten erhalten danach eine kurze E-Mail; beide Vorlagen sind im Vorlagen-Editor anpassbar.\n* Verleih-Karten zeigen das Wesentliche auf einen Blick: Stückzahl, Tage und den Endbetrag inkl. MwSt. Die Positionen stehen in festen Spalten (Artikel · Menge · Tagessatz), statt über die Zeile zu wandern.\n* Statuswechsel an einem Verleih sind jetzt atomar: Zwei gleichzeitige Anfragen können nicht mehr beide durchkommen und jede E-Mail doppelt verschicken.\n* Fix: Der Benutzername in der Kopfzeile war im Dark Mode nicht lesbar.\n* Selbst angepasste Reservierungs-Vorlagen aus der Zeit vor dem Storno-Link bekommen den Link automatisch angehängt; bei Verleihen, die im Betreiber-Backend angelegt wurden, geht die Storno-Meldung an die E-Mail-Adresse der Website.\n* Hinweis: Dieses Update ändert die Datenbank nicht."
+  "changelog": "* Der Seitentitel steht jetzt in der Kopfzeile, neben der Begrüßung und einer laufenden Uhr mit Wochentag, Datum und Uhrzeit in der Zeitzone der Website. Inhaltsseiten behalten ihre Einleitungszeile, wiederholen den Titel aber nicht mehr.\n* Ein Klick auf das Profilbild führt zum eigenen Dashboard im Solo-Arbeitsbereich — aus jedem Kollektiv mit einem Klick zurück zu den eigenen Dingen.\n* „So funktioniert die Plattform“ ist ein eigener Menüpunkt statt eines Banners, das bei jedem Dashboard-Besuch aufging.\n* „Neuer Verleih“ ist nach oben unter die Kopfzeile gewandert, über die Übersichtskacheln.\n* Hinweis: Dieses Update ändert die Datenbank nicht."
 }

@@ -3236,3 +3236,29 @@ label.pp-swatch,
 .pp-rl__qty { text-align: right; min-width: 2.5rem; }
 .pp-rl__rate { text-align: right; min-width: 6rem; }
 .pp-portal__rental-lines li.pp-rl--set { display: flex; gap: 8px; align-items: baseline; } /* Set-Kopfzeile: Chip + Name + Anzahl nebeneinander, nicht als drei Rasterzeilen */
+
+/* ==========================================================================
+   Topbar (v0.142.0): Seitentitel, Begrüßung und Uhr links; das Profilbild ist
+   ein Formular-Knopf (Solo-Dashboard). Die Topbar war vorher rechtsbündig mit
+   leerer linker Hälfte (justify-content:flex-end).
+   ========================================================================== */
+.pp-app__topbar { justify-content: space-between; }
+.pp-app__topbar-left { display: flex; align-items: baseline; gap: .35rem 1rem; flex-wrap: wrap; min-width: 0; }
+.pp-app__topbar-title { margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--pp-foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+.pp-app__greet { font-size: .88rem; color: var(--pp-muted-foreground); white-space: nowrap; }
+.pp-app__clock { font-size: .8rem; color: var(--pp-muted-foreground); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* Der Seitenkopf im Inhalt verliert sein h1 — der Untertitel bleibt als Einleitung. */
+.pp-app__page-head:empty { display: none; }
+/* Avatar als Knopf: Formular unsichtbar, Knopf sieht aus wie das Bild. */
+.pp-app__avatar-form { display: inline-flex; margin: 0; }
+.pp-app__avatar-btn { border: 0; cursor: pointer; padding: 0; font: inherit; font-weight: 600; font-size: .82rem; }
+.pp-app__avatar-btn:hover { outline: 2px solid var(--pp-primary); outline-offset: 2px; }
+.pp-app__avatar-btn img { width: 100%; height: 100%; object-fit: cover; display: block; }
+/* Erklärseite: Banner aufgeklappt, ohne Dashboard-Abstand. */
+.pp-howto .pp-hiw { margin-bottom: 0; }
+/* „Neuer Verleih" oberhalb der Kacheln. */
+.pp-portal__add--top { margin: 0 0 1rem; }
+@media (max-width: 1023px) {
+	.pp-app__greet, .pp-app__clock { display: none; }
+	.pp-app__topbar-title { max-width: 55vw; font-size: 1rem; }
+}
