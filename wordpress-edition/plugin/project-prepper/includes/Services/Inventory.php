@@ -380,7 +380,7 @@ class Inventory {
 
 	/**
 	 * @param string|null $expect Gelesener `updated_at`-Stand (Optimistic Locking,
-	 *                            v0.146.0): Ist die Zeile inzwischen anders, wird
+	 *                            v0.145.0): Ist die Zeile inzwischen anders, wird
 	 *                            NICHT geschrieben und `false` geliefert — sonst
 	 *                            überschriebe der Langsamere den Schnelleren
 	 *                            (alle 13 Spalten, Last-Write-Wins).

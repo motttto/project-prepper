@@ -241,7 +241,7 @@
 		}
 	} )();
 
-	/* Ungespeichertes Autosave-Formular (v0.146.0): Das Verwalten-Modal speichert
+	/* Ungespeichertes Autosave-Formular (v0.145.0): Das Verwalten-Modal speichert
 	 * beim SCHLIESSEN — wer stattdessen den Tab schließt oder einen Link klickt,
 	 * verlor die Änderungen kommentarlos. Jetzt fragt der Browser nach. */
 	window.addEventListener( 'beforeunload', function ( e ) {

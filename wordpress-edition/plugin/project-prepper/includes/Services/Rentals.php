@@ -568,7 +568,7 @@ class Rentals {
 			$fields['discount_type'] = in_array( (string) $data['discount_type'], self::DISCOUNT_TYPES, true ) ? (string) $data['discount_type'] : null;
 		}
 		$fields['updated_at'] = current_time( 'mysql' );
-		// Optimistic Locking (v0.146.0) — VOR dem Positions-Diff, sonst löschte
+		// Optimistic Locking (v0.145.0) — VOR dem Positions-Diff, sonst löschte
 		// ein Bearbeiter mit alter Seite Positionen, die jemand anderes gerade
 		// angelegt hat (samt bereits erteilter Freigabe).
 		$where = [ 'id' => $id ];

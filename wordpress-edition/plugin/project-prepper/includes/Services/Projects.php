@@ -222,7 +222,7 @@ class Projects {
 			$fields['owner_group_id'] = $group;
 		}
 		$fields['updated_at'] = current_time( 'mysql' );
-		// Optimistic Locking (v0.146.0): Mit gelesenem Stand nur schreiben, wenn
+		// Optimistic Locking (v0.145.0): Mit gelesenem Stand nur schreiben, wenn
 		// niemand dazwischen war — im Kollektiv bearbeiten mehrere dasselbe
 		// Projekt, und der Langsamere überschrieb bisher alle Felder des Schnelleren.
 		$where = [ 'id' => $id ];
