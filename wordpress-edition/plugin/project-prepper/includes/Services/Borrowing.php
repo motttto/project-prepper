@@ -313,18 +313,23 @@ class Borrowing {
 				}
 			}
 		}
-		$now = current_time( 'mysql' );
+		$now     = current_time( 'mysql' );
+		$changed = 0;
 		foreach ( $rows as $row ) {
 			if ( 'requested' !== $row->status ) {
 				continue;
 			}
-			$wpdb->update(
+			// Bedingt auf „requested": gleichzeitige Entscheidungen zählen nur einmal.
+			$changed += (int) $wpdb->update(
 				Schema::table( 'borrow_requests' ),
 				[ 'status' => $status, 'decided_at' => $now, 'decided_by' => $user_id ],
-				[ 'id' => (int) $row->id ],
+				[ 'id' => (int) $row->id, 'status' => 'requested' ],
 				[ '%s', '%s', '%d' ],
-				[ '%d' ]
+				[ '%d', '%s' ]
 			);
+		}
+		if ( ! $changed ) {
+			return new WP_Error( 'pp_not_pending', __( 'This request has already been decided.', 'project-prepper' ), [ 'status' => 409 ] );
 		}
 		ActivityLog::log( 'borrow_' . $status, 'item', (int) ( $req->bundle_item_id ?: $req->item_id ), [ 'request_id' => $request_id, 'lines' => count( $rows ) ] );
 		// Eine Ergebnis-Mail je Vorgang (bei Sets über die klammernde Zeile).

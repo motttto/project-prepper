@@ -7965,3 +7965,27 @@ msgstr "Gesamt inkl. USt"
 #: includes/Frontend/MemberPortal.php
 msgid "Deposit (refundable, not part of the total)"
 msgstr "Kaution (wird erstattet, nicht Teil des Gesamtbetrags)"
+
+#: includes/Settings.php
+msgid "Lending & borrowing (rentals, loan requests, approvals)"
+msgstr "Leihen & Verleihen (Verleihe, Leih-Anfragen, Freigaben)"
+
+#: includes/Settings.php
+msgid "Network (federation)"
+msgstr "Netzwerk (Föderation)"
+
+#: includes/Frontend/MemberPortal.php
+msgid "This area is switched off on this site."
+msgstr "Dieser Bereich ist auf dieser Website abgeschaltet."
+
+#: includes/Services/MemberInventory.php
+msgid "Someone else changed this in the meantime. Your changes were not saved — please reload and try again."
+msgstr "Jemand anderes hat das inzwischen geändert. Deine Änderungen wurden nicht gespeichert — bitte neu laden und noch einmal versuchen."
+
+#: admin/js/admin.js
+msgid "Features"
+msgstr "Funktionen"
+
+#: admin/js/admin.js
+msgid "Switch whole areas of the member portal off. A switched-off area disappears from the menu, its pages and actions are blocked, and its public shortcodes render nothing. Existing data is kept."
+msgstr "Ganze Bereiche des Mitglieder-Portals abschalten. Ein abgeschalteter Bereich verschwindet aus dem Menü, seine Seiten und Aktionen sind gesperrt, seine öffentlichen Shortcodes geben nichts aus. Vorhandene Daten bleiben erhalten."

@@ -378,7 +378,14 @@ class Inventory {
 		return $item_id;
 	}
 
-	public static function update_item( int $id, array $data ): bool {
+	/**
+	 * @param string|null $expect Gelesener `updated_at`-Stand (Optimistic Locking,
+	 *                            v0.146.0): Ist die Zeile inzwischen anders, wird
+	 *                            NICHT geschrieben und `false` geliefert — sonst
+	 *                            überschriebe der Langsamere den Schnelleren
+	 *                            (alle 13 Spalten, Last-Write-Wins).
+	 */
+	public static function update_item( int $id, array $data, ?string $expect = null ): bool {
 		global $wpdb;
 
 		$map = [
@@ -457,7 +464,15 @@ class Inventory {
 		$fields['updated_at'] = current_time( 'mysql' );
 		$formats[]            = '%s';
 
-		$ok = false !== $wpdb->update( Schema::table( 'items' ), $fields, [ 'id' => $id ], $formats, [ '%d' ] );
+		$where   = [ 'id' => $id ];
+		$wformat = [ '%d' ];
+		if ( null !== $expect && '' !== $expect ) {
+			$where['updated_at'] = $expect;
+			$wformat[]           = '%s';
+		}
+		$rows = $wpdb->update( Schema::table( 'items' ), $fields, $where, $formats, $wformat );
+		// Mit Erwartung zählt nur ein Treffer: 0 Zeilen = jemand anderes war schneller.
+		$ok = false !== $rows && ( null === $expect || '' === $expect || $rows > 0 );
 		if ( $ok ) {
 			ActivityLog::log( 'item_updated', 'item', $id, [ 'fields' => array_keys( $fields ) ] );
 		}

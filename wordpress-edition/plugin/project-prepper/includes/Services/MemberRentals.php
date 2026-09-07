@@ -257,7 +257,7 @@ class MemberRentals {
 	 *
 	 * @return true|WP_Error
 	 */
-	public static function update( int $id, int $user_id, array $data, ?array $items = null, array $sets = [], int $group_id = 0 ) {
+	public static function update( int $id, int $user_id, array $data, ?array $items = null, array $sets = [], int $group_id = 0, ?string $expect = null ) {
 		$rental = self::get_owned( $id, $user_id );
 		if ( ! $rental ) {
 			return new WP_Error( 'pp_forbidden', __( 'This rental is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
@@ -305,7 +305,7 @@ class MemberRentals {
 		}
 		// Owner-Felder sind nicht editierbar.
 		unset( $data['owner_user_id'], $data['owner_group_id'] );
-		return Rentals::update( $id, $data, $items );
+		return Rentals::update( $id, $data, $items, $expect );
 	}
 
 	/** Status setzen — nur am eigenen Verleih. */

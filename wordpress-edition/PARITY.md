@@ -3,6 +3,38 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🔒 Release v0.145.0 2026-09-07 (Funktionsbereiche im Backend abschaltbar; Mehrbenutzer-Härtung: Stand-Vergleich beim Speichern, Doppelklick-Schutz bei Freigaben/Leih-Entscheidungen, Checkliste postet Wunschzustand, Warnung beim Verlassen — Schema UNVERÄNDERT 0.43.0)
+> **Ausgeliefert.** Zwei Themen, **ohne** Datenbankänderung (Schema bleibt 0.43.0).
+> **Feature-Schalter (`Settings::FEATURES` = Option `pp_features`):** neun Bereiche `inventory`, `lending`, `projects`,
+> `inquiries`, `calendar`, `costs`, `polls`, `network`, `howto` — Defaults alle an (`feature_defaults()`, `feature_labels()`,
+> `features()`, `feature_on()`, `save_features()`). Backend-Karte „Funktionen" in den Einstellungen (`admin.js`; Labels kommen
+> übersetzt aus PHP, `Rest\SettingsController` liefert `features` + `feature_labels` und speichert `features`). Im Portal
+> greift der Schalter an vier Stellen: **Menü** (abgeschaltete Bereiche fehlen, Dashboard-Kacheln ebenso), **URL**
+> (`view_feature()`/`view_feature_on()` — eine nicht erreichbare View fällt still aufs Dashboard; Grundgerüst `dashboard`/
+> `collectives` immer an), **Dispatcher** (`action_feature()` ordnet Aktionen über ihr Präfix zu, z. B. `projects` ⇐
+> `project_`, `sched_`, `task_`, `checklist_`, `checkitem_`, `material_`, `team_`, `contact_`, `packlist_`, `decision_`,
+> `agreement_`, `profit_`, `cost_`; blockiert VOR der Redirect-Karte mit `pp_msg=feature_off` „Dieser Bereich ist auf
+> dieser Seite abgeschaltet") und **Shortcodes** (`inventory`/`availability` liefern `''` ohne Inventar, `request_form`
+> liefert `''` und `handle_inquiry_submit()` leitet zurück ohne Anfragen). `uninstall.php` räumt `pp_features` mit ab.
+> Daten bleiben unangetastet.
+> **Optimistic Locking:** Artikel-Verwalten-Modal, Projekt- und Verleih-Formular tragen `<input type="hidden" name="pp_seen">`
+> = gelesenes `updated_at`; `MemberPortal::seen()` liest es (Nonce wird im Dispatcher geprüft, phpcs:ignore wie
+> `rental_input()`). `Inventory::update_item()`, `MemberInventory::update()`, `Projects::update()`, `Rentals::update()` und
+> `MemberRentals::update()` bekommen `?string $expect` und hängen `updated_at = $expect` ans WHERE — 0 betroffene Zeilen ⇒
+> `MemberInventory::stale_error()` (`pp_stale`, 409) ⇒ Portal-Meldung „Jemand anderes hat das inzwischen geändert. Deine
+> Änderungen wurden nicht gespeichert — bitte neu laden und erneut versuchen." Wichtigster Fall: Verleih, wo ein veraltetes
+> Formular über den `$items`-Ersatz Positionen löschte, die ein anderes Mitglied gerade angelegt hatte.
+> **Doppelklick-Schutz:** `BookingApprovals`/`RentalApprovals` entscheiden bedingt auf `approval_status = 'pending'`,
+> `Borrowing` bedingt auf `status = 'requested'` (Update-Zähler); 0 Zeilen ⇒ `pp_not_pending` (409) „Diese Anfrage wurde
+> bereits entschieden" — vorher liefen Log und Mail doppelt (Doppelklick, Einzel- und Sammel-Ansicht, zwei Tabs).
+> **Checkliste:** `checkitem_toggle` nimmt den Wunschzustand aus `pp_checked` statt aus dem gelesenen Wert zu kippen
+> (Kippen nur noch als Fallback ohne Feld). **portal.js:** `beforeunload`-Warnung, solange ein
+> `form[data-pp-autosave][data-pp-dirty="1"]` offen ist (das Modal speichert beim Schließen, nicht beim Tippen).
+> i18n: 6 neue Strings (4 PHP, 2 admin.js), `.po/.pot/.mo` gepflegt (1645 übersetzt, offen nur die Plugin-URI), JS-JSON
+> `…-b41de59f….json` direkt gepflegt (473 Strings + Header). Plugin Check: die **3** bekannten by-design-ERRORs
+> (`hidden_files`, `plugin_updater_detected`, `Updater.php:222 OffloadedContent`), keine neuen ERRORs. Build
+> `dist/project-prepper-0.145.0.zip` (1,4 MB, 128 Dateien), `update.json` auf 0.145.0.
+>
 > ## 🧾 Release v0.144.0 2026-09-07 (Verleih wie eine Rechnung: Positionssummen, wählbare USt, Rabatt Prozent/Betrag, Gesamtbetrag; Vollbild-Modal Neu/Bearbeiten; Listen-Baukasten `.pp-list` — Schema 0.42.0 → 0.43.0)
 > **Ausgeliefert.** Verleih-Abrechnung im Portal auf Rechnungslogik umgestellt, **mit** Datenbankänderung.
 > **Schema 0.43.0:** zwei neue Spalten `pp_rentals.discount_type` (varchar 10, NULL) und `pp_rentals.discount_value`

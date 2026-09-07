@@ -174,7 +174,7 @@ class Projects {
 	 *
 	 * @return true|WP_Error
 	 */
-	public static function update( int $id, array $data ) {
+	public static function update( int $id, array $data, ?string $expect = null ) {
 		global $wpdb;
 
 		$project = self::get( $id );
@@ -222,7 +222,17 @@ class Projects {
 			$fields['owner_group_id'] = $group;
 		}
 		$fields['updated_at'] = current_time( 'mysql' );
-		$wpdb->update( Schema::table( 'projects' ), $fields, [ 'id' => $id ] );
+		// Optimistic Locking (v0.146.0): Mit gelesenem Stand nur schreiben, wenn
+		// niemand dazwischen war — im Kollektiv bearbeiten mehrere dasselbe
+		// Projekt, und der Langsamere überschrieb bisher alle Felder des Schnelleren.
+		$where = [ 'id' => $id ];
+		if ( null !== $expect && '' !== $expect ) {
+			$where['updated_at'] = $expect;
+		}
+		$rows = $wpdb->update( Schema::table( 'projects' ), $fields, $where );
+		if ( null !== $expect && '' !== $expect && ! $rows ) {
+			return MemberInventory::stale_error();
+		}
 
 		ActivityLog::log( 'project_updated', 'project', $id, [
 			'fields' => array_values( array_diff( array_keys( $fields ), [ 'updated_at' ] ) ),

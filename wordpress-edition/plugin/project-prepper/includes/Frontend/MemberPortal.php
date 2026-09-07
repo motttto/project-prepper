@@ -358,6 +358,13 @@ class MemberPortal {
 		}
 
 		$do     = sanitize_key( wp_unslash( (string) ( $_POST['pp_do'] ?? '' ) ) );
+		// Feature-Schalter: Aktionen eines abgeschalteten Bereichs laufen nicht —
+		// VOR der Redirect-Karte, sonst zeigte der Rücksprung auf eine tote View.
+		$do_feature = self::action_feature( $do );
+		if ( '' !== $do_feature && ! Settings::feature_on( $do_feature ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'feature_off', self::portal_url() ) );
+			exit;
+		}
 		$inv_id = (int) ( $_POST['pp_invitation'] ?? 0 );
 		$req_id = (int) ( $_POST['pp_request'] ?? 0 );
 		$grp_id = (int) ( $_POST['pp_group'] ?? 0 );
@@ -602,7 +609,7 @@ class MemberPortal {
 				$ok_msg = 'item_saved';
 				break;
 			case 'item_update':
-				$result = MemberInventory::update( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ), self::item_input() );
+				$result = MemberInventory::update( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ), self::item_input(), self::seen() );
 				$ok_msg = 'item_saved';
 				break;
 			case 'item_save_all':
@@ -610,7 +617,7 @@ class MemberPortal {
 				// alle Kollektiv-Freigaben zusammen (Feedback: kein eigener Button pro
 				// Abschnitt; Änderungen werden beim Schließen übernommen).
 				$pp_item = (int) ( $_POST['pp_item'] ?? 0 );
-				$result  = MemberInventory::update( get_current_user_id(), $pp_item, self::item_input() );
+				$result  = MemberInventory::update( get_current_user_id(), $pp_item, self::item_input(), self::seen() );
 				if ( ! is_wp_error( $result ) ) {
 					self::apply_share_input( get_current_user_id(), $pp_item );
 					$pp_bundle_res = self::apply_bundle_input( get_current_user_id(), $pp_item );
@@ -741,7 +748,7 @@ class MemberPortal {
 				// Vor dem Speichern merken, welche Positionen schon offen WAREN —
 				// gefragt wird nur zu neu entstandenen Freigaben.
 				$rent_before = RentalApprovals::pending_line_ids( $rent_id );
-				$result    = MemberRentals::update( $rent_id, get_current_user_id(), $in['data'], $in['items'], $in['sets'], $rent_grp );
+				$result    = MemberRentals::update( $rent_id, get_current_user_id(), $in['data'], $in['items'], $in['sets'], $rent_grp, self::seen() );
 				$ok_msg    = 'rental_updated';
 				if ( ! is_wp_error( $result ) ) {
 					$rent_new = [];
@@ -992,8 +999,13 @@ class MemberPortal {
 				// Abhaken/Enthaken — bewusst ohne Erfolgsmeldung (ok_msg 'ok').
 				$ci     = Checklists::get_item( (int) ( $_POST['pp_citem'] ?? 0 ) );
 				$in_prj = $ci && self::sub_belongs( Checklists::get( (int) $ci->checklist_id ), $proj_id );
+				// Der Wunschzustand kommt aus dem Formular (pp_checked). Vorher wurde
+				// serverseitig aus dem GELESENEN Wert gekippt — mit einer veralteten
+				// Seite hakte man dann versehentlich wieder ab, was ein anderes
+				// Mitglied gerade erledigt hatte.
+				$want   = isset( $_POST['pp_checked'] ) ? ( ! empty( $_POST['pp_checked'] ) ? 1 : 0 ) : ( empty( $ci->is_checked ) ? 1 : 0 );
 				$result = $in_prj
-					? Checklists::update_item( (int) $ci->id, [ 'is_checked' => empty( $ci->is_checked ) ? 1 : 0 ] )
+					? Checklists::update_item( (int) $ci->id, [ 'is_checked' => $want ] )
 					: self::forbidden_error();
 				break;
 			case 'checkitem_delete':
@@ -1337,6 +1349,8 @@ class MemberPortal {
 				$msg = 'bundle_unavailable';
 			} elseif ( 'pp_bundle_empty' === $code ) {
 				$msg = 'bundle_empty';
+			} elseif ( 'pp_stale' === $code ) {
+				$msg = 'stale';
 			} elseif ( 'pp_not_pending' === $code ) {
 				$msg = 'booking_decided_already';
 			} elseif ( 'pp_telegram_not_configured' === $code ) {
@@ -1474,6 +1488,8 @@ class MemberPortal {
 	private static function messages(): array {
 		return [
 			'founded'   => [ 'ok', __( 'Collective founded. You are its founder.', 'project-prepper' ) ],
+			'feature_off' => [ 'err', __( 'This area is switched off on this site.', 'project-prepper' ) ],
+			'stale'       => [ 'err', __( 'Someone else changed this in the meantime. Your changes were not saved — please reload and try again.', 'project-prepper' ) ],
 			'feedback_ok'  => [ 'ok', __( 'Thanks for your feedback!', 'project-prepper' ) ],
 			'feedback_err' => [ 'err', __( 'Please enter a message.', 'project-prepper' ) ],
 			'invited'   => [ 'ok', __( 'Invitation sent.', 'project-prepper' ) ],
@@ -1595,6 +1611,17 @@ class MemberPortal {
 	}
 
 	/** Sanitisierte Item-Felder aus dem Inventar-Formular (Nonce bereits geprüft). */
+	/**
+	 * Gelesener `updated_at`-Stand aus dem Formular (Optimistic Locking): Die
+	 * Services schreiben damit nur, wenn niemand dazwischen war. Leer = kein
+	 * Schutz (alte Formulare, Anlegen).
+	 */
+	private static function seen(): ?string {
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		$v = isset( $_POST['pp_seen'] ) ? sanitize_text_field( wp_unslash( (string) $_POST['pp_seen'] ) ) : '';
+		return '' === $v ? null : $v;
+	}
+
 	private static function item_input(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
 		$tags_raw = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_tags'] ?? '' ) ) );
@@ -2211,7 +2238,50 @@ class MemberPortal {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$view    = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : 'dashboard';
 		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'inquiries', 'calendar', 'costs', 'polls', 'network', 'collectives', 'approvals', 'howto' ];
-		return in_array( $view, $allowed, true ) ? $view : 'dashboard';
+		if ( ! in_array( $view, $allowed, true ) ) {
+			return 'dashboard';
+		}
+		// Abgeschalteter Bereich (Betreiber-Schalter): per URL nicht erreichbar,
+		// still zurück aufs Dashboard — das Menü zeigt ihn ohnehin nicht.
+		return self::view_feature_on( $view ) ? $view : 'dashboard';
+	}
+
+	/** Welcher Feature-Schalter gilt für eine View? Grundgerüst = immer an. */
+	private static function view_feature( string $view ): string {
+		$map = [ 'approvals' => 'lending' ];
+		return $map[ $view ] ?? $view;
+	}
+
+	private static function view_feature_on( string $view ): bool {
+		if ( in_array( $view, [ 'dashboard', 'collectives' ], true ) ) {
+			return true;
+		}
+		return Settings::feature_on( self::view_feature( $view ) );
+	}
+
+	/**
+	 * Feature einer Dispatcher-Aktion über ihr Präfix — die Aktionsnamen sind
+	 * bereichsweise benannt (item_*, rental_*, project_* …). Unbekannt = kein
+	 * Schalter (Governance, Profil, Arbeitsbereich).
+	 */
+	private static function action_feature( string $do ): string {
+		$prefixes = [
+			'inventory' => [ 'item_', 'category_', 'inventory_' ],
+			'lending'   => [ 'rental_', 'borrow_', 'booking_' ],
+			'projects'  => [ 'project_', 'sched_', 'task_', 'checklist_', 'checkitem_', 'material_', 'team_', 'contact_', 'packlist_', 'decision_', 'agreement_', 'profit_', 'cost_' ],
+			'inquiries' => [ 'inquiry_', 'inqteam_' ],
+			'calendar'  => [ 'calevent_', 'calendar_' ],
+			'polls'     => [ 'poll_' ],
+			'network'   => [ 'fed_' ],
+		];
+		foreach ( $prefixes as $feature => $list ) {
+			foreach ( $list as $prefix ) {
+				if ( 0 === strpos( $do, $prefix ) ) {
+					return $feature;
+				}
+			}
+		}
+		return '';
 	}
 
 	/**
@@ -2239,7 +2309,8 @@ class MemberPortal {
 		// Erklärseite als eigener Punkt (User-Wunsch): vorher klebte das Banner
 		// unbedingt und aufgeklappt über jedem Dashboard.
 		$items[] = [ 'view' => 'howto', 'icon' => 'info', 'label' => __( 'How the platform works', 'project-prepper' ) ];
-		return $items;
+		// Abgeschaltete Bereiche verschwinden aus dem Menü (Betreiber-Schalter).
+		return array_values( array_filter( $items, static fn( $it ) => self::view_feature_on( $it['view'] ) ) );
 	}
 
 	/** URL einer View auf der Portal-Seite. */
@@ -2670,6 +2741,12 @@ class MemberPortal {
 			$qa[] = [ 'icon' => 'users', 'label' => __( 'Found or join a collective', 'project-prepper' ), 'url' => self::view_url( 'collectives' ) ];
 		}
 		$qa[] = [ 'icon' => 'info', 'label' => __( 'Equipment approvals', 'project-prepper' ), 'url' => self::view_url( 'approvals' ) ];
+		// Kacheln abgeschalteter Bereiche weglassen (Ziel-View steckt in der URL).
+		$qa = array_values( array_filter( $qa, static function ( $a ) {
+			$q = [];
+			wp_parse_str( (string) wp_parse_url( $a['url'], PHP_URL_QUERY ), $q );
+			return self::view_feature_on( (string) ( $q['pp_view'] ?? 'dashboard' ) );
+		} ) );
 		?>
 		<section class="pp-app__section">
 			<div class="pp-app__section-head"><h2 class="pp-portal__subtitle"><?php esc_html_e( 'Quick actions', 'project-prepper' ); ?></h2></div>
@@ -2825,6 +2902,9 @@ class MemberPortal {
 	}
 
 	private static function kpi_card( string $view, int $value, string $label, string $tone, string $icon ): void {
+		if ( ! self::view_feature_on( $view ) ) {
+			return;
+		}
 		?>
 		<a class="pp-kpi pp-kpi--<?php echo esc_attr( $tone ); ?>" href="<?php echo esc_url( self::view_url( $view ) ); ?>">
 			<span class="pp-kpi__icon"><?php self::nav_icon( $icon ); ?></span>
@@ -3919,6 +3999,7 @@ class MemberPortal {
 			<?php self::action_fields( $rental ? 'rental_update' : 'rental_create' ); ?>
 			<?php if ( $rental ) : ?>
 				<input type="hidden" name="pp_rental" value="<?php echo (int) $rental->id; ?>">
+				<input type="hidden" name="pp_seen" value="<?php echo esc_attr( (string) ( $rental->updated_at ?? '' ) ); ?>">
 			<?php endif; ?>
 			<label><?php esc_html_e( 'Borrower name', 'project-prepper' ); ?>
 				<input type="text" name="pp_borrower" value="<?php echo esc_attr( (string) $val( 'borrower_name' ) ); ?>" required>
@@ -4946,7 +5027,7 @@ class MemberPortal {
 		// Status läuft über set_status (Projects::update whitelistet ihn bewusst nicht).
 		$status = (string) ( $data['status'] ?? '' );
 		unset( $data['status'] );
-		$res = Projects::update( $pid, $data );
+		$res = Projects::update( $pid, $data, self::seen() );
 		if ( is_wp_error( $res ) ) {
 			return $res;
 		}
@@ -5513,6 +5594,7 @@ class MemberPortal {
 			<?php self::action_fields( $do ); ?>
 			<?php if ( $p ) : ?>
 				<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+				<input type="hidden" name="pp_seen" value="<?php echo esc_attr( (string) ( $p->updated_at ?? '' ) ); ?>">
 			<?php endif; ?>
 			<label><?php esc_html_e( 'Project name', 'project-prepper' ); ?>
 				<input type="text" name="pp_name" value="<?php echo esc_attr( (string) $val( 'name' ) ); ?>" required>
@@ -6716,6 +6798,7 @@ class MemberPortal {
 									<?php self::action_fields( 'checkitem_toggle' ); ?>
 									<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
 									<input type="hidden" name="pp_citem" value="<?php echo (int) $ci->id; ?>">
+									<input type="hidden" name="pp_checked" value="<?php echo $done ? '0' : '1'; ?>">
 									<button type="submit" class="pp-checkitem__box<?php echo $done ? ' pp-checkitem__box--on' : ''; ?>" aria-label="<?php echo esc_attr( $done ? __( 'Mark as not done', 'project-prepper' ) : __( 'Mark as done', 'project-prepper' ) ); ?>"><?php echo $done ? '✓' : ''; ?></button>
 								</form>
 							<?php else : ?>
@@ -9801,6 +9884,7 @@ class MemberPortal {
 							<form class="pp-portal__form pp-item-form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-autosave>
 								<?php self::action_fields( 'item_save_all' ); ?>
 								<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
+								<input type="hidden" name="pp_seen" value="<?php echo esc_attr( (string) ( $item->updated_at ?? '' ) ); ?>">
 								<div class="pp-modal-photo">
 									<?php if ( ! empty( $item->image_url ) ) : ?>
 										<img class="pp-modal-photo__img" src="<?php echo esc_url( $item->image_url ); ?>" alt="">
@@ -10332,6 +10416,10 @@ class MemberPortal {
 
 	/** CSV-Download des eigenen Inventars (Semikolon + BOM → deutsches Excel). */
 	public static function handle_inventory_export(): void {
+		if ( ! Settings::feature_on( 'inventory' ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'feature_off', self::portal_url() ) );
+			exit;
+		}
 		$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce direkt darunter geprüft.
 		if ( ! is_user_logged_in() || ! isset( $_GET['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_GET['pp_nonce'] ), 'pp_member_export' ) ) {
@@ -10442,6 +10530,10 @@ class MemberPortal {
 
 	/** CSV-Upload → eigene Items anlegen (Bulk). */
 	public static function handle_inventory_import(): void {
+		if ( ! Settings::feature_on( 'inventory' ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'feature_off', self::portal_url() ) );
+			exit;
+		}
 		$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_member_import' ) ) {
 			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
@@ -10603,6 +10695,10 @@ class MemberPortal {
 
 	/** Foto eines eigenen Items hochladen/ersetzen oder entfernen. */
 	public static function handle_inventory_photo(): void {
+		if ( ! Settings::feature_on( 'inventory' ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'feature_off', self::portal_url() ) );
+			exit;
+		}
 		$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_member_photo' ) ) {
 			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
@@ -10787,6 +10883,10 @@ class MemberPortal {
 	 * aber als Mehrfach-Liste (document_ids) statt einzelnem Bild.
 	 */
 	public static function handle_inventory_doc(): void {
+		if ( ! Settings::feature_on( 'inventory' ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'feature_off', self::portal_url() ) );
+			exit;
+		}
 		$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		if ( ! is_user_logged_in() || ! isset( $_POST['pp_nonce'] ) || ! wp_verify_nonce( sanitize_key( $_POST['pp_nonce'] ), 'pp_member_doc' ) ) {
 			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
@@ -10854,6 +10954,10 @@ class MemberPortal {
 	 * Gate: Projekt im aktiven Gruppen-Workspace (member_owned_project).
 	 */
 	public static function handle_project_file(): void {
+		if ( ! Settings::feature_on( 'projects' ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'feature_off', self::portal_url() ) );
+			exit;
+		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nur Redirect-Ziel; Nonce folgt direkt.
 		$pid  = (int) ( $_POST['pp_project'] ?? 0 );
 		$back = add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => $pid, 'pp_tab' => 'files' ], self::portal_url() );

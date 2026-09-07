@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.144.0
+Stable tag: 0.145.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,14 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.145.0 =
+* Operators can switch whole areas of the member portal off (Settings → Features): inventory, lending & borrowing, projects, inquiries, calendar, costs, polls, network, and the how-it-works page. A switched-off area disappears from the menu, its pages fall back to the dashboard, its actions are blocked with a clear message, and its public shortcodes render nothing. Data is kept.
+* Editing is now safe with several people at once: the item, project and rental forms remember the state they were opened with, and a save is refused with a clear message if someone else changed the record in the meantime — instead of silently overwriting their work. This matters most for rentals, where an outdated form used to delete positions another member had just added.
+* Approvals and loan decisions can no longer be applied twice by a double-click or two open tabs, which used to send every notification email twice.
+* Checklist items post the intended state instead of toggling on the server, so a stale page no longer un-ticks what someone else just completed.
+* The item editor warns before the tab is closed with unsaved changes (it saves on close, not on typing).
+* Note: this update does not change the database.
 
 = 0.144.0 =
 * Rental cards read like an invoice: quantity in front of the item, rate per day, days and a line total per position; below that subtotal, discount, net, VAT and the total including VAT. The deposit is listed separately because it is refunded, not charged.

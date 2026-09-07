@@ -130,7 +130,7 @@ class MemberInventory {
 	 *
 	 * @return true|WP_Error
 	 */
-	public static function update( int $user_id, int $item_id, array $data ) {
+	public static function update( int $user_id, int $item_id, array $data, ?string $expect = null ) {
 		if ( ! self::owns( $user_id, $item_id ) ) {
 			return new WP_Error( 'pp_forbidden', __( 'This item is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
 		}
@@ -140,8 +140,15 @@ class MemberInventory {
 		}
 		// owner_user_id NICHT überschreibbar machen — bleibt beim Owner.
 		unset( $data['owner_user_id'] );
-		Inventory::update_item( $item_id, $data );
+		if ( ! Inventory::update_item( $item_id, $data, $expect ) && null !== $expect && '' !== $expect ) {
+			return self::stale_error();
+		}
 		return true;
+	}
+
+	/** Gemeinsame Konflikt-Meldung (Optimistic Locking). */
+	public static function stale_error(): WP_Error {
+		return new WP_Error( 'pp_stale', __( 'Someone else changed this in the meantime. Your changes were not saved — please reload and try again.', 'project-prepper' ), [ 'status' => 409 ] );
 	}
 
 	/**

@@ -1,6 +1,8 @@
 <?php
 namespace ProjectPrepper\Frontend;
 
+use ProjectPrepper\Settings;
+
 use ProjectPrepper\Services\Availability;
 use ProjectPrepper\Services\Inquiries;
 use ProjectPrepper\Services\Inventory;
@@ -77,6 +79,9 @@ class Shortcodes {
 	/* ---------- [pp_inventory] ---------- */
 
 	public static function inventory( $atts ): string {
+		if ( ! Settings::feature_on( 'inventory' ) ) {
+			return '';
+		}
 		$atts = shortcode_atts( [
 			'category'   => '',
 			'show_rates' => 'no',
@@ -135,6 +140,9 @@ class Shortcodes {
 	/* ---------- [pp_availability] ---------- */
 
 	public static function availability( $atts ): string {
+		if ( ! Settings::feature_on( 'inventory' ) ) {
+			return '';
+		}
 		$atts = shortcode_atts( [
 			'item'     => '',
 			'show_all' => 'no',
@@ -173,6 +181,9 @@ class Shortcodes {
 	/* ---------- [pp_request_form] ---------- */
 
 	public static function request_form( $atts ): string {
+		if ( ! Settings::feature_on( 'inquiries' ) ) {
+			return '';
+		}
 		$atts = shortcode_atts( [
 			'show_items' => 'yes',
 			'show_all'   => 'no',
@@ -191,6 +202,10 @@ class Shortcodes {
 	}
 
 	public static function handle_inquiry_submit(): void {
+		if ( ! Settings::feature_on( 'inquiries' ) ) {
+			wp_safe_redirect( wp_get_referer() ?: home_url() );
+			exit;
+		}
 		$back = wp_get_referer() ?: home_url();
 
 		// Nonce + Honeypot (Spam-Schutz).

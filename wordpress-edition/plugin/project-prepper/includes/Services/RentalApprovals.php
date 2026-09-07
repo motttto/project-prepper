@@ -99,13 +99,18 @@ class RentalApprovals {
 		if ( is_wp_error( $line ) ) {
 			return $line;
 		}
-		$wpdb->update(
+		// Bedingt auf „noch offen": zwei gleichzeitige Entscheidungen (Doppelklick,
+		// Einzel- und Sammel-Ansicht) lösten sonst Log und Mail doppelt aus.
+		$changed = $wpdb->update(
 			Schema::table( 'rental_items' ),
 			[ 'approval_status' => 'approved', 'decided_at' => current_time( 'mysql' ) ],
-			[ 'id' => $line_id ],
+			[ 'id' => $line_id, 'approval_status' => 'pending' ],
 			[ '%s', '%s' ],
-			[ '%d' ]
+			[ '%d', '%s' ]
 		);
+		if ( 1 !== (int) $changed ) {
+			return new WP_Error( 'pp_not_pending', __( 'This request has already been decided.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
 		ActivityLog::log( 'rental_line_approved', 'rental', (int) $line->rental_id, [ 'line_id' => $line_id, 'item_id' => (int) $line->item_id ] );
 		return self::decision_context( $line );
 	}

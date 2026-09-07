@@ -60,4 +60,74 @@ class Settings {
 	public static function clamp_days( $value ): int {
 		return max( 0, min( self::MAX_BUFFER_DAYS, (int) $value ) );
 	}
+
+	/* ===================== Funktionsbereiche an/aus ===================== */
+
+	/**
+	 * Feature-Schalter (v0.145.0): Jeder Funktionsbereich des Portals lässt sich
+	 * im wp-admin abschalten. Ein Schalter greift an DREI Stellen — Menü,
+	 * Ansicht per URL und Aktionen im Dispatcher — sonst wäre er nur Deko.
+	 * Dashboard und Kollektive sind Grundgerüst und nicht schaltbar.
+	 * Speicherung als EIN Array in wp_options; fehlende Schlüssel = an.
+	 */
+	const FEATURES = 'pp_features';
+
+	/** @return array<string,bool> Schlüssel → Standard (alles an). */
+	public static function feature_defaults(): array {
+		return [
+			'inventory' => true,
+			'lending'   => true,
+			'projects'  => true,
+			'inquiries' => true,
+			'calendar'  => true,
+			'costs'     => true,
+			'polls'     => true,
+			'network'   => true,
+			'howto'     => true,
+		];
+	}
+
+	/** Menschenlesbare Namen für die Einstellungsseite (Reihenfolge = Anzeige). */
+	public static function feature_labels(): array {
+		return [
+			'inventory' => __( 'Inventory', 'project-prepper' ),
+			'lending'   => __( 'Lending & borrowing (rentals, loan requests, approvals)', 'project-prepper' ),
+			'projects'  => __( 'Projects', 'project-prepper' ),
+			'inquiries' => __( 'Inquiries', 'project-prepper' ),
+			'calendar'  => __( 'Calendar', 'project-prepper' ),
+			'costs'     => __( 'Costs', 'project-prepper' ),
+			'polls'     => __( 'Polls', 'project-prepper' ),
+			'network'   => __( 'Network (federation)', 'project-prepper' ),
+			'howto'     => __( 'How the platform works', 'project-prepper' ),
+		];
+	}
+
+	/** @return array<string,bool> Gespeicherte Schalter über den Standards. */
+	public static function features(): array {
+		$saved = get_option( self::FEATURES, [] );
+		$out   = self::feature_defaults();
+		if ( is_array( $saved ) ) {
+			foreach ( $out as $key => $default ) {
+				if ( array_key_exists( $key, $saved ) ) {
+					$out[ $key ] = (bool) $saved[ $key ];
+				}
+			}
+		}
+		return $out;
+	}
+
+	/** Ist der Bereich an? Unbekannte Schlüssel gelten als an (nicht schaltbar). */
+	public static function feature_on( string $key ): bool {
+		$all = self::features();
+		return array_key_exists( $key, $all ) ? $all[ $key ] : true;
+	}
+
+	/** Speichern — nur bekannte Schlüssel, alles andere wird ignoriert. */
+	public static function save_features( array $in ): void {
+		$clean = [];
+		foreach ( array_keys( self::feature_defaults() ) as $key ) {
+			$clean[ $key ] = ! empty( $in[ $key ] );
+		}
+		update_option( self::FEATURES, $clean );
+	}
 }

@@ -60,6 +60,9 @@ class SettingsController extends BaseController {
 		if ( array_key_exists( 'public_show_rates', $json ) ) {
 			update_option( 'pp_public_show_rates', (bool) $json['public_show_rates'] );
 		}
+		if ( array_key_exists( 'features', $json ) && is_array( $json['features'] ) ) {
+			Settings::save_features( $json['features'] );
+		}
 		if ( array_key_exists( 'collective_rentals_visible', $json ) ) {
 			update_option( Settings::COLLECTIVE_RENTALS, (bool) $json['collective_rentals_visible'] );
 		}
@@ -141,6 +144,8 @@ class SettingsController extends BaseController {
 			'smtp'                     => Mailer::public_config(),
 			'delete_data_on_uninstall' => (bool) get_option( 'pp_delete_data_on_uninstall', false ),
 			'public_show_rates'        => (bool) get_option( 'pp_public_show_rates', false ),
+			'features'                 => Settings::features(),
+			'feature_labels'           => Settings::feature_labels(),
 			'collective_rentals_visible' => Settings::collective_rentals_visible(),
 			'item_time_status'         => Settings::item_time_status(),
 			'rental_buffer_before'     => Settings::buffer_before(),

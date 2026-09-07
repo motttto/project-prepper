@@ -7854,3 +7854,27 @@ msgstr ""
 #: includes/Frontend/MemberPortal.php
 msgid "Deposit (refundable, not part of the total)"
 msgstr ""
+
+#: includes/Settings.php
+msgid "Lending & borrowing (rentals, loan requests, approvals)"
+msgstr ""
+
+#: includes/Settings.php
+msgid "Network (federation)"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "This area is switched off on this site."
+msgstr ""
+
+#: includes/Services/MemberInventory.php
+msgid "Someone else changed this in the meantime. Your changes were not saved — please reload and try again."
+msgstr ""
+
+#: admin/js/admin.js
+msgid "Features"
+msgstr ""
+
+#: admin/js/admin.js
+msgid "Switch whole areas of the member portal off. A switched-off area disappears from the menu, its pages and actions are blocked, and its public shortcodes render nothing. Existing data is kept."
+msgstr ""

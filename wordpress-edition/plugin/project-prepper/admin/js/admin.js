@@ -919,6 +919,7 @@
 							email_notifications: emailToggle.checked,
 							delete_data_on_uninstall: deleteToggle.checked,
 							public_show_rates: ratesToggle.checked,
+							features: Object.keys(featureBoxes).reduce(function (acc, k) { acc[k] = featureBoxes[k].checked; return acc; }, {}),
 							collective_rentals_visible: collectiveToggle.checked,
 							item_time_status: timeStatusToggle.checked,
 							rental_buffer_before: parseInt(bufferBefore.value, 10) || 0,
@@ -1044,6 +1045,21 @@
 						}
 					})
 				])
+			]));
+
+			// Funktionsbereiche an/aus — Labels kommen aus PHP (übersetzt), damit
+			// hier keine zweite Liste gepflegt werden muss.
+			var featureBoxes = {};
+			var featureRows = Object.keys(settings.feature_labels || {}).map(function (key) {
+				var box = el("input", { type: "checkbox" });
+				box.checked = !!(settings.features && settings.features[key]);
+				featureBoxes[key] = box;
+				return el("label", { class: "pp-toggle" }, [box, el("span", { text: settings.feature_labels[key] })]);
+			});
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Features", "project-prepper") }),
+				el("div", { class: "pp-muted", style: "margin-bottom:8px", text: __("Switch whole areas of the member portal off. A switched-off area disappears from the menu, its pages and actions are blocked, and its public shortcodes render nothing. Existing data is kept.", "project-prepper") }),
+				el("div", { class: "pp-toggle-grid" }, featureRows)
 			]));
 
 			// Verleih: Sichtbarkeit im Kollektiv + Rüstzeiten rund um eine Ausleihe.

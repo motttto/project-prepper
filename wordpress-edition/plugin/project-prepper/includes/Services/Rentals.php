@@ -487,7 +487,7 @@ class Rentals {
 	 *                          nicht mehr enthaltene gelöscht.
 	 * @return true|WP_Error
 	 */
-	public static function update( int $id, array $data, ?array $items = null ) {
+	public static function update( int $id, array $data, ?array $items = null, ?string $expect = null ) {
 		global $wpdb;
 
 		$rental = self::get( $id );
@@ -568,7 +568,17 @@ class Rentals {
 			$fields['discount_type'] = in_array( (string) $data['discount_type'], self::DISCOUNT_TYPES, true ) ? (string) $data['discount_type'] : null;
 		}
 		$fields['updated_at'] = current_time( 'mysql' );
-		$wpdb->update( Schema::table( 'rentals' ), $fields, [ 'id' => $id ] );
+		// Optimistic Locking (v0.146.0) — VOR dem Positions-Diff, sonst löschte
+		// ein Bearbeiter mit alter Seite Positionen, die jemand anderes gerade
+		// angelegt hat (samt bereits erteilter Freigabe).
+		$where = [ 'id' => $id ];
+		if ( null !== $expect && '' !== $expect ) {
+			$where['updated_at'] = $expect;
+		}
+		$rows = $wpdb->update( Schema::table( 'rentals' ), $fields, $where );
+		if ( null !== $expect && '' !== $expect && ! $rows ) {
+			return MemberInventory::stale_error();
+		}
 
 		// Positions-Diff: vorhandene Zeilen (per id) aktualisieren, neue einfügen, fehlende löschen.
 		if ( null !== $items ) {
