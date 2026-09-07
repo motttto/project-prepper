@@ -24,6 +24,49 @@ class MemberInventory {
 	 * @param string $search Optionale Volltextsuche (Name/Nummer/Hersteller/Tags …).
 	 * @return array<object> Items mit owner_user_id = $user_id.
 	 */
+	/**
+	 * Zahl der eigenen, nicht ausgemusterten Artikel — nur ein COUNT, keine
+	 * Zeilen (das Dashboard lud bisher die komplette Liste samt out_now-Subquery,
+	 * um sie zu zählen).
+	 */
+	public static function own_count( int $user_id ): int {
+		global $wpdb;
+		if ( ! $user_id ) {
+			return 0;
+		}
+		return (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM %i WHERE owner_user_id = %d AND item_condition <> 'retired'",
+			Schema::table( 'items' ),
+			$user_id
+		) );
+	}
+
+	/**
+	 * Artikel, auf die das Mitglied über seine Kollektive Zugriff hat: von
+	 * ANDEREN geteilt mit irgendeiner Gruppe, in der es Mitglied ist; jeder
+	 * Artikel zählt einmal, auch wenn er mit mehreren Gruppen geteilt ist.
+	 * Ausgemusterte bleiben draußen — dieselbe Regel wie die Gruppen-Inventar-
+	 * Liste, damit Kachel und Liste dieselbe Zahl zeigen.
+	 *
+	 * @param int[] $group_ids
+	 */
+	public static function accessible_count( int $user_id, array $group_ids ): int {
+		global $wpdb;
+		$ids = array_values( array_unique( array_filter( array_map( 'intval', $group_ids ) ) ) );
+		if ( ! $user_id || ! $ids ) {
+			return 0;
+		}
+		$in = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		return (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(DISTINCT i.id)
+			 FROM %i s JOIN %i i ON i.id = s.item_id
+			 WHERE s.group_id IN ( {$in} )
+			   AND i.owner_user_id <> %d
+			   AND i.item_condition <> 'retired'", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- {$in} ist eine erzeugte %d-Platzhalterliste.
+			array_merge( [ Schema::table( 'item_group_shares' ), Schema::table( 'items' ) ], $ids, [ $user_id ] )
+		) );
+	}
+
 	public static function my_items( int $user_id, string $search = '', bool $with_retired = false ): array {
 		if ( ! $user_id ) {
 			return [];

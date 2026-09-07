@@ -3262,3 +3262,31 @@ label.pp-swatch,
 	.pp-app__greet, .pp-app__clock { display: none; }
 	.pp-app__topbar-title { max-width: 55vw; font-size: 1rem; }
 }
+
+/* ==========================================================================
+   Dashboard (v0.143.0): Schnellaktionen als Kachelraster, Gruppen kompakt im
+   Raster statt als Zeilen über die volle Breite, Profil als schmale Karte
+   daneben. Alles über Tokens, damit der Dark-Block am Dateiende nichts
+   nachziehen muss.
+   ========================================================================== */
+.pp-qa { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 24px; }
+.pp-qa__tile { display: flex; align-items: center; gap: .55rem; padding: .7rem .85rem; background: var(--pp-surface); border: 1px solid var(--pp-border); border-radius: 12px; color: var(--pp-foreground); text-decoration: none; font-size: .86rem; font-weight: 600; line-height: 1.2; min-height: 48px; }
+.pp-qa__tile:hover { border-color: var(--pp-primary); color: var(--pp-primary); }
+.pp-qa__icon { width: 30px; height: 30px; border-radius: 8px; background: var(--pp-primary-light); color: var(--pp-primary-hover); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.pp-qa__icon svg { width: 16px; height: 16px; }
+/* Untere Hälfte: Gruppen links (breit), Profil rechts (schmal); unter 900px gestapelt. */
+.pp-dash-cols { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 18px; align-items: start; }
+@media (max-width: 899px) { .pp-dash-cols { grid-template-columns: 1fr; } }
+.pp-dash-cols > .pp-app__section { margin-bottom: 0; }
+.pp-portal__groups--grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.pp-portal__groups--grid .pp-portal__group { flex-direction: column; align-items: flex-start; gap: .3rem; padding: .6rem .75rem; text-decoration: none; color: inherit; }
+.pp-portal__groups--grid .pp-portal__group:hover { border-color: var(--pp-primary); }
+.pp-portal__groups--grid .pp-portal__group-name { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+/* Profil kompakt: Avatar + Name in einer Zeile, Formulare ohne 480px-Deckel. */
+.pp-profile--compact { background: var(--pp-surface); border: 1px solid var(--pp-border); border-radius: 12px; padding: .8rem .9rem; align-items: center; }
+.pp-profile--compact .pp-profile__avatar { width: 44px; height: 44px; font-size: .85rem; }
+.pp-profile--compact .pp-portal__form { max-width: none; }
+.pp-profile--compact .pp-portal__form--inline { margin-top: 0; padding: 0; border: 0; background: none; }
+.pp-profile--compact .pp-profile__name-label { flex: 1 1 140px; font-size: .8rem; color: var(--pp-muted-foreground); }
+.pp-profile--compact .pp-profile__name-label input { width: 100%; margin-top: .2rem; }
+.pp-dash-account { margin-top: 18px; }

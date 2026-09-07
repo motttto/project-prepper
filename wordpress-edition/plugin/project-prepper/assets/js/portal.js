@@ -206,6 +206,41 @@
 		window.setTimeout( function () { tick(); window.setInterval( tick, 60000 ); }, msToMinute );
 	} )();
 
+	/* Deep-Link in ein Formular (v0.143.0): ?pp_open=<id> öffnet beim Laden das
+	 * <details> oder <dialog> mit dieser ID — damit eine Dashboard-Kachel
+	 * „Artikel anlegen" wirklich im geöffneten Formular landet und nicht nur auf
+	 * der Seite. Der Parameter wird danach aus der Adresse genommen, sonst ginge
+	 * das Formular bei jedem Reload wieder auf. */
+	( function () {
+		var id = new URLSearchParams( window.location.search ).get( 'pp_open' );
+		if ( ! id || ! /^[a-z0-9_-]+$/i.test( id ) ) {
+			return;
+		}
+		var el = document.getElementById( id );
+		if ( ! el ) {
+			return;
+		}
+		if ( el.tagName === 'DIALOG' ) {
+			if ( ! el.open && typeof el.showModal === 'function' ) {
+				el.showModal();
+			}
+		} else if ( el.tagName === 'DETAILS' ) {
+			el.open = true;
+			el.scrollIntoView( { block: 'start', behavior: 'smooth' } );
+		} else {
+			return;
+		}
+		var first = el.querySelector( 'input:not([type=hidden]):not([type=checkbox]), select, textarea' );
+		if ( first ) {
+			try { first.focus( { preventScroll: true } ); } catch ( e ) { /* egal */ }
+		}
+		if ( window.history && window.history.replaceState ) {
+			var url = new URL( window.location.href );
+			url.searchParams.delete( 'pp_open' );
+			window.history.replaceState( null, '', url.toString() );
+		}
+	} )();
+
 	/* Hover-Prefetch: lädt Portal-Seiten schon beim Draufzeigen im Hintergrund,
 	 * damit sich die Vollreload-Navigation wie eine App anfühlt. Bewusst eng
 	 * gefasst: nur same-origin Seiten-Links — niemals Aktions-/Auth-URLs

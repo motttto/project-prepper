@@ -1,9 +1,9 @@
 {
-  "version": "0.142.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.142.0/project-prepper-0.142.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.142.0",
+  "version": "0.143.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.143.0/project-prepper-0.143.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.143.0",
   "published": "2026-09-07",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "* Der Seitentitel steht jetzt in der Kopfzeile, neben der Begrüßung und einer laufenden Uhr mit Wochentag, Datum und Uhrzeit in der Zeitzone der Website. Inhaltsseiten behalten ihre Einleitungszeile, wiederholen den Titel aber nicht mehr.\n* Ein Klick auf das Profilbild führt zum eigenen Dashboard im Solo-Arbeitsbereich — aus jedem Kollektiv mit einem Klick zurück zu den eigenen Dingen.\n* „So funktioniert die Plattform“ ist ein eigener Menüpunkt statt eines Banners, das bei jedem Dashboard-Besuch aufging.\n* „Neuer Verleih“ ist nach oben unter die Kopfzeile gewandert, über die Übersichtskacheln.\n* Hinweis: Dieses Update ändert die Datenbank nicht."
+  "changelog": "* Das Dashboard zeigt zwei Inventar-Zahlen statt einer: Artikel, die dir gehören, und Artikel, auf die du über deine Kollektive zugreifen kannst. Die alte Einzelkachel zählte je nach Arbeitsbereich unterschiedlich und rechnete im Gruppen-Modus ausgemusterte Artikel mit.\n* Schnellaktionen auf dem Dashboard: Artikel anlegen, Verleih, Anfrage oder Termin starten und — innerhalb eines Kollektivs — Projekt, Umfrage oder Einladung. Jede Kachel öffnet das Formular direkt auf der Zielseite.\n* Kollektive sind kompakte Kacheln, die zum Kollektiv führen; das Profil ist eine schmale Karte daneben, und auf breiten Bildschirmen teilen sich beide eine Zeile.\n* Hinweis: Dieses Update ändert die Datenbank nicht."
 }

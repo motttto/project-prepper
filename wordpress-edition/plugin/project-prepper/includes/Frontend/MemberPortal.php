@@ -2590,9 +2590,10 @@ class MemberPortal {
 		// Arbeitsbereich-bewusst wie die App (ownerFilter): im Gruppen-Modus
 		// zählt die Inventar-Kachel den geteilten Gruppen-Pool, sonst das eigene.
 		$ws_group   = self::active_group_id( $groups );
-		$inv_count  = $ws_group > 0
-			? count( Inventory::items( [ 'shared_with_group' => $ws_group ] ) )
-			: count( MemberInventory::my_items( (int) $user->ID ) );
+		// Zwei Zahlen statt einer (User-Wunsch): was mir gehört, und worauf ich
+		// über meine Kollektive zugreifen kann — je ein COUNT, keine Zeilenlisten.
+		$inv_own    = MemberInventory::own_count( (int) $user->ID );
+		$inv_shared = MemberInventory::accessible_count( (int) $user->ID, array_map( static fn( $g ) => (int) $g->id, $groups ) );
 		$grp_count  = count( $groups );
 		$proj_count = count( self::member_projects( $groups ) );
 		$inq_count  = MemberInquiries::count_for_owner( (int) $user->ID, self::active_group_id( $groups ) );
@@ -2641,7 +2642,8 @@ class MemberPortal {
 
 		<div class="pp-kpi-grid">
 			<?php
-			self::kpi_card( 'inventory', $inv_count, __( 'Inventory items', 'project-prepper' ), 'warning', 'inventory' );
+			self::kpi_card( 'inventory', $inv_own, __( 'Own items', 'project-prepper' ), 'warning', 'inventory' );
+			self::kpi_card( 'inventory', $inv_shared, __( 'Accessible via collectives', 'project-prepper' ), 'info', 'users' );
 			self::kpi_card( 'projects', $proj_count, __( 'Projects', 'project-prepper' ), 'primary', 'projects' );
 			self::kpi_card( 'inquiries', $inq_count, __( 'Inquiries', 'project-prepper' ), 'info', 'inbox' );
 			self::kpi_card( 'collectives', $grp_count, __( 'Collectives', 'project-prepper' ), 'info', 'users' );
@@ -2649,6 +2651,34 @@ class MemberPortal {
 			self::kpi_card( 'lending', $rent_out, __( 'Active external rentals', 'project-prepper' ), 'warning', 'package' );
 			?>
 		</div>
+
+		<?php
+		// Schnellaktionen (User-Wunsch): die wichtigsten „Neu …"-Funktionen als
+		// kleine Kacheln. pp_open=<id> öffnet auf der Zielseite direkt das
+		// Formular/Modal (portal.js), statt nur die Seite zu zeigen.
+		$qa = [
+			[ 'icon' => 'inventory', 'label' => __( 'Add item', 'project-prepper' ),      'url' => add_query_arg( [ 'pp_view' => 'inventory', 'pp_open' => 'pp-item-new' ], self::portal_url() ) ],
+			[ 'icon' => 'package',   'label' => __( 'New rental', 'project-prepper' ),    'url' => add_query_arg( [ 'pp_view' => 'lending', 'pp_open' => 'pp-rental-new' ], self::portal_url() ) ],
+			[ 'icon' => 'inbox',     'label' => __( 'New inquiry', 'project-prepper' ),   'url' => add_query_arg( [ 'pp_view' => 'inquiries', 'pp_open' => 'pp-inquiry-new' ], self::portal_url() ) ],
+			[ 'icon' => 'calendar',  'label' => __( 'New event', 'project-prepper' ),     'url' => add_query_arg( [ 'pp_view' => 'calendar', 'pp_open' => 'pp-event-create' ], self::portal_url() ) ],
+		];
+		if ( $ws_group > 0 ) {
+			$qa[] = [ 'icon' => 'projects',  'label' => __( 'New project', 'project-prepper' ),     'url' => add_query_arg( [ 'pp_view' => 'projects', 'pp_open' => 'pp-project-new' ], self::portal_url() ) ];
+			$qa[] = [ 'icon' => 'clipboard', 'label' => __( 'New poll', 'project-prepper' ),        'url' => add_query_arg( [ 'pp_view' => 'polls', 'pp_open' => 'pp-poll-create' ], self::portal_url() ) ];
+			$qa[] = [ 'icon' => 'users',     'label' => __( 'Invite a member', 'project-prepper' ), 'url' => add_query_arg( [ 'pp_view' => 'collectives', 'pp_group' => $ws_group, 'pp_open' => 'pp-invite-member' ], self::portal_url() ) ];
+		} else {
+			$qa[] = [ 'icon' => 'users', 'label' => __( 'Found or join a collective', 'project-prepper' ), 'url' => self::view_url( 'collectives' ) ];
+		}
+		$qa[] = [ 'icon' => 'info', 'label' => __( 'Equipment approvals', 'project-prepper' ), 'url' => self::view_url( 'approvals' ) ];
+		?>
+		<section class="pp-app__section">
+			<div class="pp-app__section-head"><h2 class="pp-portal__subtitle"><?php esc_html_e( 'Quick actions', 'project-prepper' ); ?></h2></div>
+			<div class="pp-qa">
+				<?php foreach ( $qa as $a ) : ?>
+					<a class="pp-qa__tile" href="<?php echo esc_url( $a['url'] ); ?>"><span class="pp-qa__icon"><?php self::nav_icon( $a['icon'] ); ?></span><span><?php echo esc_html( $a['label'] ); ?></span></a>
+				<?php endforeach; ?>
+			</div>
+		</section>
 
 		<?php self::render_my_invitations( $user ); ?>
 
@@ -2704,6 +2734,7 @@ class MemberPortal {
 			</section>
 		<?php endif; ?>
 
+		<div class="pp-dash-cols">
 		<section class="pp-app__section">
 			<div class="pp-app__section-head">
 				<h2 class="pp-portal__subtitle">
@@ -2721,16 +2752,16 @@ class MemberPortal {
 				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::view_url( 'collectives' ) ); ?>"><?php esc_html_e( 'Manage', 'project-prepper' ); ?></a>
 			</div>
 			<?php if ( $groups ) : ?>
-				<ul class="pp-portal__groups">
+				<ul class="pp-portal__groups pp-portal__groups--grid">
 					<?php foreach ( $groups as $g ) : ?>
-						<li class="pp-portal__group">
+						<li><a class="pp-portal__group" href="<?php echo esc_url( add_query_arg( [ 'pp_view' => 'collectives', 'pp_group' => (int) $g->id ], self::portal_url() ) ); ?>">
 							<span class="pp-portal__group-name"><?php echo esc_html( $g->name ); ?></span>
 							<?php if ( 'founder' === $g->member_role ) : ?>
 								<span class="pp-portal__tag"><?php esc_html_e( 'Founder', 'project-prepper' ); ?></span>
 							<?php else : ?>
 								<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Member', 'project-prepper' ); ?></span>
 							<?php endif; ?>
-						</li>
+						</a></li>
 					<?php endforeach; ?>
 				</ul>
 			<?php else : ?>
@@ -2743,7 +2774,7 @@ class MemberPortal {
 				<h2 class="pp-portal__subtitle"><?php esc_html_e( 'My profile', 'project-prepper' ); ?></h2>
 			</div>
 			<?php $prof_avatar = self::avatar_url( (int) $user->ID, 'thumbnail' ); ?>
-			<div class="pp-profile">
+			<div class="pp-profile pp-profile--compact">
 				<span class="pp-profile__avatar">
 					<?php if ( $prof_avatar ) : ?>
 						<img src="<?php echo esc_url( $prof_avatar ); ?>" alt="">
@@ -2781,8 +2812,9 @@ class MemberPortal {
 				</div>
 			</div>
 		</section>
+		</div>
 
-		<section class="pp-app__section">
+		<section class="pp-app__section pp-dash-account">
 			<div class="pp-app__section-head">
 				<h2 class="pp-portal__subtitle"><?php esc_html_e( 'Account & data', 'project-prepper' ); ?></h2>
 			</div>
@@ -3284,7 +3316,7 @@ class MemberPortal {
 
 			<?php // „Neuer Verleih" direkt unter der Kopfzeile (User-Wunsch), nicht mehr am Listenende. ?>
 			<?php if ( $lendable ) : ?>
-				<details class="pp-portal__add pp-portal__add--top">
+				<details class="pp-portal__add pp-portal__add--top" id="pp-rental-new">
 					<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New rental', 'project-prepper' ); ?></summary>
 					<?php self::rental_form( $lendable, $bundles, null, $group_id ); ?>
 				</details>
@@ -5729,7 +5761,7 @@ class MemberPortal {
 		<?php endif; ?>
 
 		<?php if ( self::active_group_id( $groups ) > 0 ) : ?>
-			<details class="pp-portal__add" style="margin-top:1rem">
+			<details class="pp-portal__add" id="pp-project-new" style="margin-top:1rem">
 				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New project', 'project-prepper' ); ?></summary>
 				<?php self::project_form( 'project_create', null ); ?>
 			</details>
@@ -9258,7 +9290,7 @@ class MemberPortal {
 				<?php endforeach; ?>
 			</div>
 
-			<details class="pp-portal__add" style="margin-top:.75rem">
+			<details class="pp-portal__add" id="pp-invite-member" style="margin-top:.75rem">
 				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Invite a member', 'project-prepper' ); ?></summary>
 				<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 					<?php self::action_fields( 'invite' ); ?>
@@ -10117,7 +10149,7 @@ class MemberPortal {
 			<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export (CSV)', 'project-prepper' ); ?></a>
 			<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-xlsx-export="<?php echo esc_url( $export_url ); ?>" data-pp-xlsx-name="mein-inventar-<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>"><?php esc_html_e( 'Export (Excel)', 'project-prepper' ); ?></button>
 			<span class="pp-inv-tools__spacer"></span>
-			<details class="pp-portal__add pp-inv-tools__new">
+			<details class="pp-portal__add pp-inv-tools__new" id="pp-item-new">
 				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Add item', 'project-prepper' ); ?></summary>
 				<?php self::item_form( 'item_create', $categories, $conditions, null, $groups, $bundle_candidates ); ?>
 			</details>

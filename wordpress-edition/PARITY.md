@@ -3,6 +3,37 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## ⚡ Release v0.143.0 2026-09-07 (Dashboard: eigene + über Kollektive zugängliche Artikel, Schnellaktionen als Kacheln, Gruppen als Raster, Profil kompakt — Schema UNVERÄNDERT 0.42.0)
+> **Ausgeliefert.** Drei User-Wünsche zum Dashboard des Portals, ohne Datenbankänderung.
+> **Zwei Inventar-Zahlen statt einer:** Die alte Kachel zählte je nach Arbeitsbereich etwas anderes (Solo:
+> `MemberInventory::my_items()`, Gruppe: `Inventory::items( [ 'shared_with_group' ] )` — dort OHNE
+> Ausgemustert-Filter) und lud dafür jedes Mal die komplette Zeilenliste samt `out_now`-Subquery, nur um sie
+> zu zählen. Jetzt zwei reine COUNTs in `Services\MemberInventory`: `own_count( $user_id )` (eigene, nicht
+> ausgemusterte Artikel) und `accessible_count( $user_id, $group_ids )` (`COUNT(DISTINCT i.id)` über
+> `item_group_shares` ⋈ `items` für alle Gruppen des Mitglieds, nur FREMDE Artikel, nicht ausgemustert —
+> dieselbe Regel wie die Gruppen-Inventar-Liste, damit Kachel und Liste dieselbe Zahl zeigen; ein Artikel
+> zählt einmal, auch wenn er mit mehreren Gruppen geteilt ist). Die `IN (…)`-Liste ist eine erzeugte
+> `%d`-Platzhalterliste mit `phpcs:ignore InterpolatedNotPrepared`, gleiches Muster wie
+> `Availability::timeline()`. Kacheln „Eigene Artikel" und „Über Kollektive zugänglich" (beide → Inventar).
+> **Schnellaktionen:** `$qa`-Liste im Dashboard → `.pp-qa`-Raster (`auto-fill, minmax(150px, 1fr)`) aus
+> `.pp-qa__tile` mit `nav_icon()`. Immer: „Artikel hinzufügen", „Neuer Verleih", „Neue Anfrage", „Neuer
+> Termin"; im Gruppen-Arbeitsbereich zusätzlich „Neues Projekt", „Neue Umfrage", „Mitglied einladen" (mit
+> `pp_group`), sonst „Kollektiv gründen oder beitreten"; dazu immer „Freigaben". **`pp_open=<id>`**
+> (portal.js): öffnet beim Laden das `<details>` (open + `scrollIntoView`) bzw. `<dialog>` (`showModal()`) mit
+> dieser ID, fokussiert das erste Feld und entfernt den Parameter per `history.replaceState` — sonst ginge das
+> Formular bei jedem Reload wieder auf. ID-Whitelist `^[a-z0-9_-]+$`, unbekannte IDs tun nichts. Neue IDs:
+> `pp-item-new`, `pp-rental-new`, `pp-project-new`, `pp-invite-member`; die Dialoge `pp-inquiry-new`,
+> `pp-event-create`, `pp-poll-create` hatten ihre IDs schon.
+> **Untere Hälfte:** `.pp-dash-cols` (`minmax(0, 2fr) minmax(260px, 1fr)`, unter 900 px gestapelt): links die
+> Kollektive als Raster `.pp-portal__groups--grid` (170-px-Kacheln, jede ein `<a class="pp-portal__group">`
+> auf `pp_view=collectives&pp_group=<id>`, Name mit Ellipsis, Gründer/Mitglied-Tag), rechts das Profil als
+> `.pp-profile--compact` (44-px-Avatar, Inline-Formulare ohne 480-px-Deckel). „Konto & Daten" darunter
+> (`.pp-dash-account`). Alles über Tokens — der Dark-Block am CSS-Ende brauchte nichts Neues.
+> i18n: 4 neue PHP-Strings, `.po/.pot/.mo` gepflegt (1625 übersetzt, offen nur die Plugin-URI); keine
+> JS-Strings, JSON nur geprüft (admin.js 471, blocks-editor.js 13). Plugin Check: die **3** bekannten
+> by-design-ERRORs (`hidden_files`, `plugin_updater_detected`, `Updater.php:222 OffloadedContent`), keine
+> neuen ERRORs. Build `dist/project-prepper-0.143.0.zip` (1,4 MB, 128 Dateien), `update.json` auf 0.143.0.
+>
 > ## 🧭 Release v0.142.0 2026-09-07 (Kopfzeile: Titel, Begrüßung und Uhr in der Topbar; Profilbild → Solo-Dashboard; Erklärseite als Menüpunkt; „Neuer Verleih" oben — Schema UNVERÄNDERT 0.42.0)
 > **Ausgeliefert.** Vier User-Wünsche zur Kopfzeile des Portals, ohne Datenbankänderung.
 > **Seitentitel in der Topbar:** Statt 16 View-Kopfzeilen umzubauen, puffert die Hülle den View-Inhalt

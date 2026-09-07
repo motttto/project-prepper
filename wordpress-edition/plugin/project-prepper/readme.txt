@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.142.0
+Stable tag: 0.143.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,12 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.143.0 =
+* The dashboard shows two inventory numbers instead of one: items you own, and items you can reach through your collectives. The old single tile counted differently depending on the workspace and included retired items in group mode.
+* Quick actions on the dashboard: add an item, start a rental, inquiry or event, and — inside a collective — a project, a poll or an invitation. Each tile opens the form directly on the target page.
+* Collectives are compact tiles that link to the collective, the profile is a slim card beside them, and the two share a row on wide screens.
+* Note: this update does not change the database.
 
 = 0.142.0 =
 * The page title now sits in the top bar, next to the greeting and a live clock showing weekday, date and time in the site's time zone. Content pages keep their intro line but no longer repeat the title.

@@ -7782,3 +7782,19 @@ msgstr ""
 #: includes/Frontend/MemberPortal.php
 msgid "Three ideas carry everything here: your own inventory, sharing with collectives, and borrowing among members."
 msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Own items"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Accessible via collectives"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Quick actions"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Found or join a collective"
+msgstr ""
