@@ -7798,3 +7798,59 @@ msgstr ""
 #: includes/Frontend/MemberPortal.php
 msgid "Found or join a collective"
 msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Discount"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "none"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "percent"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "amount (€)"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Discount value"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Rate/day"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Days"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Total"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Flat rental fee (replaces line totals)"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Subtotal"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Discount (%s %%)"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "VAT %s %%"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Total incl. VAT"
+msgstr ""
+
+#: includes/Frontend/MemberPortal.php
+msgid "Deposit (refundable, not part of the total)"
+msgstr ""

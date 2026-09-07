@@ -1,9 +1,9 @@
 {
-  "version": "0.143.0",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.143.0/project-prepper-0.143.0.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.143.0",
+  "version": "0.144.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.144.0/project-prepper-0.144.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.144.0",
   "published": "2026-09-07",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "* Das Dashboard zeigt zwei Inventar-Zahlen statt einer: Artikel, die dir gehören, und Artikel, auf die du über deine Kollektive zugreifen kannst. Die alte Einzelkachel zählte je nach Arbeitsbereich unterschiedlich und rechnete im Gruppen-Modus ausgemusterte Artikel mit.\n* Schnellaktionen auf dem Dashboard: Artikel anlegen, Verleih, Anfrage oder Termin starten und — innerhalb eines Kollektivs — Projekt, Umfrage oder Einladung. Jede Kachel öffnet das Formular direkt auf der Zielseite.\n* Kollektive sind kompakte Kacheln, die zum Kollektiv führen; das Profil ist eine schmale Karte daneben, und auf breiten Bildschirmen teilen sich beide eine Zeile.\n* Hinweis: Dieses Update ändert die Datenbank nicht."
+  "changelog": "* Verleih-Karten lesen sich wie eine Rechnung: Stückzahl vor dem Artikel, Tagessatz, Tage und eine Zeilensumme je Position; darunter Zwischensumme, Rabatt, Netto, USt und der Gesamtbetrag inkl. USt. Die Kaution steht getrennt, weil sie zurückgezahlt und nicht berechnet wird.\n* Die USt ist je Verleih wählbar (19 / 7 / 0 %), ein Rabatt kann als Prozentsatz oder fester Betrag gegeben werden. Eine Leihgebühr-Pauschale von 0,00 € gilt jetzt als Pauschale, statt stillschweigend auf die Summe der Tagessätze zurückzufallen.\n* „Neuer Verleih“ und „Verleih bearbeiten“ öffnen als Vollbild-Dialog mit Platz für die Artikelauswahl.\n* Ein Listen-Vokabular fürs Portal: Die Rechnung nutzt einen gemeinsamen Listen-Baukasten, und die Inventar-Listen wurden an dieselbe Kopfzeile, denselben Zeilenrhythmus und dieselben Trennlinien angeglichen.\n* Hinweis: Dieses Update ändert die Datenbank (Schema 0.42.0 → 0.43.0): zwei neue Spalten in der Verleih-Tabelle für den Rabatt. Bestehende Verleihe werden nicht verändert."
 }

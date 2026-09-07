@@ -3290,3 +3290,57 @@ label.pp-swatch,
 .pp-profile--compact .pp-profile__name-label { flex: 1 1 140px; font-size: .8rem; color: var(--pp-muted-foreground); }
 .pp-profile--compact .pp-profile__name-label input { width: 100%; margin-top: .2rem; }
 .pp-dash-account { margin-top: 18px; }
+
+/* ==========================================================================
+   Listen-Baukasten .pp-list (v0.144.0): EINE Zeilen-/Zellen-Grammatik für alle
+   Listen des Portals — zuerst für die Verleih-Abrechnung, die Inventar-Zeilen
+   folgen. Zeile = flex, Zellen mit --grow (Text) oder --num (rechtsbündig,
+   Tabellenziffern). Kopfzeile, Gruppenzeile (Set) und Unterzeile (Set-Teil)
+   sind Modifier derselben Zeile. Fußblock für Summen.
+   ========================================================================== */
+.pp-list { display: flex; flex-direction: column; border: 1px solid var(--pp-border); border-radius: 10px; overflow: hidden; background: var(--pp-surface); margin: .5rem 0; }
+.pp-list__row { display: flex; align-items: baseline; gap: .75rem; padding: .45rem .75rem; border-top: 1px solid var(--pp-border); font-size: .88rem; }
+.pp-list__row:first-child { border-top: 0; }
+.pp-list__head { background: var(--pp-muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .04em; color: var(--pp-muted-foreground); font-weight: 600; }
+.pp-list__row--group { background: var(--pp-muted); font-weight: 600; }
+.pp-list__row--sub .pp-list__cell--grow { padding-left: 1.1rem; color: var(--pp-muted-foreground); }
+.pp-list__cell { min-width: 0; }
+.pp-list__cell--grow { flex: 1 1 auto; display: flex; flex-wrap: wrap; gap: .25rem .5rem; align-items: baseline; }
+.pp-list__cell--num { flex: 0 0 6.5rem; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pp-list__head .pp-list__cell--num { flex-basis: 6.5rem; }
+.pp-list__qty { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pp-list__foot { border-top: 2px solid var(--pp-border); padding: .5rem .75rem; display: flex; flex-direction: column; gap: .2rem; align-items: flex-end; }
+.pp-list__sum { display: flex; gap: 1.5rem; justify-content: space-between; width: min(100%, 22rem); font-size: .88rem; }
+.pp-list__sum--muted { color: var(--pp-muted-foreground); }
+.pp-list__sum--total { font-weight: 700; font-size: 1.05rem; border-top: 1px solid var(--pp-border); padding-top: .3rem; margin-top: .2rem; }
+.pp-list__sum .pp-list__cell--num { flex: 0 0 auto; }
+@media (max-width: 640px) {
+	.pp-list__head { display: none; }
+	.pp-list__row { flex-wrap: wrap; }
+	.pp-list__cell--num { flex-basis: auto; }
+	.pp-list__cell--num::before { content: attr(data-label); color: var(--pp-muted-foreground); margin-right: .3rem; }
+}
+
+/* Vollbild-Modal (v0.144.0): <dialog> hat UA-Grenzen (max-width/height calc(100% - 6px - 2em)),
+ * die müssen explizit fallen. Kopf bleibt oben, der Body scrollt. */
+.pp-modal--full { width: 100vw; height: 100vh; max-width: none; max-height: none; border: 0; border-radius: 0; }
+.pp-modal--full .pp-modal-body { flex: 1 1 auto; overflow: auto; }
+.pp-modal--full .pp-modal-body > .pp-portal__form { max-width: 1100px; margin: 0 auto; }
+.pp-modal--full .pp-modal-body > .pp-rental-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: .75rem 1rem; align-content: start; }
+.pp-modal--full .pp-modal-body > .pp-rental-form > .pp-portal__rental-items,
+.pp-modal--full .pp-modal-body > .pp-rental-form > textarea,
+.pp-modal--full .pp-modal-body > .pp-rental-form > label:has(textarea),
+.pp-modal--full .pp-modal-body > .pp-rental-form > button { grid-column: 1 / -1; }
+.pp-portal__form-row--3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .6rem; }
+/* Die ältere Flex-Regel für rental-lines bleibt für alte Aufrufer; die Rechnung nutzt .pp-list. */
+
+/* Inventar-Listen an den Listen-Baukasten angeglichen (v0.144.0): gleiche
+ * Kopfzeile (gedämpfter Hintergrund, Kapitälchen), gleicher Zeilenrhythmus,
+ * gleiche Trennlinien und Hover wie .pp-list — die Spaltenraster bleiben, weil
+ * sie die Tabellenlogik tragen. Damit sehen Verleih-Abrechnung, Mein Inventar
+ * und Kollektiv-Inventar wie EINE Liste aus. */
+.pp-inv-row { padding: .45rem .75rem; font-size: .88rem; }
+.pp-inv-row--head { background: var(--pp-muted); border-bottom: 1px solid var(--pp-border); border-radius: 10px 10px 0 0; font-weight: 600; }
+.pp-inv-row--click:hover, .pp-ginv__row:hover { background: var(--pp-muted); }
+.pp-portal__item--row:last-child, .pp-ginv__row:last-child { border-bottom: 0; }
+.pp-inv-list, .pp-ginv { border: 1px solid var(--pp-border); border-radius: 10px; overflow: hidden; background: var(--pp-surface); }

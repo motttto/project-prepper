@@ -298,30 +298,76 @@ class Rentals {
 		return $rental;
 	}
 
+	/** Erlaubte Rabattarten — Prozent vom Zwischenbetrag oder fester Betrag. */
+	const DISCOUNT_TYPES = [ 'percent', 'amount' ];
+
 	/**
-	 * Kostenrechnung (§9.4): Brutto = Leihgebühr, Fallback Σ Tagessatz × Tage × Menge;
-	 * Netto/USt ausgewiesen; Kaution = durchlaufender Posten (steuerfrei).
+	 * Abrechnung wie eine Rechnung (v0.43.0): Positionen mit Zeilensumme,
+	 * Zwischensumme, Rabatt, Netto/USt, Gesamtbetrag. Kaution bleibt ein
+	 * durchlaufender Posten (steuerfrei, nicht im Gesamtbetrag).
+	 *
+	 *   Zeilensumme  = Tagessatz × Tage × Menge
+	 *   Zwischensumme = Σ Zeilensummen — ODER die Leihgebühr, wenn gesetzt
+	 *                   (Pauschalpreis; auch 0,00 € ist dann eine Pauschale,
+	 *                   der frühere Falsy-Check fiel bei 0 auf die Summe zurück)
+	 *   Rabatt        = Prozent vom Zwischenbetrag oder fester Betrag (nie > Zwischensumme)
+	 *   Gesamt (brutto) = Zwischensumme − Rabatt; Netto/USt daraus herausgerechnet
+	 *
+	 * Offene Freigaben zählen mit — der Slot ist gehalten, und eine abgelehnte
+	 * Position wird gelöscht ({@see RentalApprovals::reject}).
 	 */
 	private static function billing( object $rental ): array {
-		$days = max( 1, (int) ( ( strtotime( $rental->date_to ) - strtotime( $rental->date_from ) ) / DAY_IN_SECONDS ) + 1 );
-
-		$gross = null !== $rental->rental_fee ? (float) $rental->rental_fee : 0.0;
-		if ( ! $gross ) {
-			foreach ( $rental->items as $line ) {
-				$gross += (float) ( $line->daily_rate ?? 0 ) * $days * (int) $line->quantity;
-			}
+		$days  = max( 1, (int) ( ( strtotime( $rental->date_to ) - strtotime( $rental->date_from ) ) / DAY_IN_SECONDS ) + 1 );
+		$lines = [];
+		$sum   = 0.0;
+		foreach ( (array) $rental->items as $line ) {
+			$rate  = null !== ( $line->daily_rate ?? null ) ? (float) $line->daily_rate : null;
+			$qty   = max( 1, (int) $line->quantity );
+			$total = null !== $rate ? round( $rate * $days * $qty, 2 ) : 0.0;
+			$sum  += $total;
+			$lines[] = [
+				'item_id'         => (int) $line->item_id,
+				'name'            => (string) ( $line->item_name ?: '#' . (int) $line->item_id ),
+				'quantity'        => $qty,
+				'daily_rate'      => $rate,
+				'days'            => $days,
+				'total'           => $total,
+				'bundle_item_id'  => (int) ( $line->bundle_item_id ?? 0 ),
+				'approval_status' => (string) ( $line->approval_status ?? 'approved' ),
+				'item_owner_id'   => (int) ( $line->item_owner_id ?? 0 ),
+			];
 		}
 
-		$vat_rate = null !== $rental->vat_rate ? (float) $rental->vat_rate : 19.0;
+		$flat     = null !== ( $rental->rental_fee ?? null );
+		$subtotal = $flat ? (float) $rental->rental_fee : $sum;
+
+		$dtype = in_array( (string) ( $rental->discount_type ?? '' ), self::DISCOUNT_TYPES, true ) ? (string) $rental->discount_type : null;
+		$dval  = null !== ( $rental->discount_value ?? null ) ? (float) $rental->discount_value : 0.0;
+		$discount = 0.0;
+		if ( 'percent' === $dtype ) {
+			$discount = round( $subtotal * max( 0.0, min( 100.0, $dval ) ) / 100, 2 );
+		} elseif ( 'amount' === $dtype ) {
+			$discount = round( max( 0.0, min( $dval, $subtotal ) ), 2 );
+		}
+
+		$gross    = round( max( 0.0, $subtotal - $discount ), 2 );
+		$vat_rate = null !== ( $rental->vat_rate ?? null ) ? (float) $rental->vat_rate : 19.0;
 		$net      = $gross / ( 1 + $vat_rate / 100 );
 
 		return [
-			'days'     => $days,
-			'gross'    => round( $gross, 2 ),
-			'net'      => round( $net, 2 ),
-			'vat'      => round( $gross - $net, 2 ),
-			'vat_rate' => $vat_rate,
-			'deposit'  => null !== $rental->deposit_amount ? (float) $rental->deposit_amount : 0.0,
+			'days'           => $days,
+			'lines'          => $lines,
+			'lines_total'    => round( $sum, 2 ),
+			'flat'           => $flat,
+			'subtotal'       => round( $subtotal, 2 ),
+			'discount_type'  => $dtype,
+			'discount_value' => $dval,
+			'discount'       => $discount,
+			'gross'          => $gross,
+			'net'            => round( $net, 2 ),
+			'vat'            => round( $gross - $net, 2 ),
+			'vat_rate'       => $vat_rate,
+			'deposit'        => null !== ( $rental->deposit_amount ?? null ) ? (float) $rental->deposit_amount : 0.0,
 		];
 	}
 
@@ -385,6 +431,8 @@ class Rentals {
 			'deposit_amount' => isset( $data['deposit_amount'] ) && '' !== $data['deposit_amount'] ? (float) $data['deposit_amount'] : null,
 			'rental_fee'     => isset( $data['rental_fee'] ) && '' !== $data['rental_fee'] ? (float) $data['rental_fee'] : null,
 			'vat_rate'       => isset( $data['vat_rate'] ) && '' !== $data['vat_rate'] ? (float) $data['vat_rate'] : null,
+			'discount_type'  => in_array( (string) ( $data['discount_type'] ?? '' ), self::DISCOUNT_TYPES, true ) ? (string) $data['discount_type'] : null,
+			'discount_value' => isset( $data['discount_value'] ) && '' !== $data['discount_value'] ? (float) $data['discount_value'] : null,
 			'notes'          => $data['notes'] ?? '',
 			'owner_user_id'  => ! empty( $data['owner_user_id'] ) ? (int) $data['owner_user_id'] : null,
 			'owner_group_id' => ! empty( $data['owner_group_id'] ) ? (int) $data['owner_group_id'] : null,
@@ -510,10 +558,14 @@ class Rentals {
 				$fields[ $key ] = (string) $data[ $key ];
 			}
 		}
-		foreach ( [ 'deposit_amount', 'rental_fee', 'vat_rate' ] as $key ) {
+		foreach ( [ 'deposit_amount', 'rental_fee', 'vat_rate', 'discount_value' ] as $key ) {
 			if ( array_key_exists( $key, $data ) ) {
 				$fields[ $key ] = '' !== $data[ $key ] && null !== $data[ $key ] ? (float) $data[ $key ] : null;
 			}
+		}
+		if ( array_key_exists( 'discount_type', $data ) ) {
+			// Nur bekannte Arten; alles andere (leer, „none") = kein Rabatt.
+			$fields['discount_type'] = in_array( (string) $data['discount_type'], self::DISCOUNT_TYPES, true ) ? (string) $data['discount_type'] : null;
 		}
 		$fields['updated_at'] = current_time( 'mysql' );
 		$wpdb->update( Schema::table( 'rentals' ), $fields, [ 'id' => $id ] );

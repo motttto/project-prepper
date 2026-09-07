@@ -26,7 +26,9 @@ class Schema {
 	// 0.42.0: KEINE Strukturänderung — nur ein einmaliger Datenlauf, der
 	// Alt-Verleihe ihrem Kollektiv zuordnet ({@see upgrade_data}). Die Version
 	// ist hier der Auslöser, damit er genau einmal passiert.
-	const VERSION    = '0.42.0';
+	// 0.43.0: rentals.discount_type/discount_value — Rabatt am Verleih (Prozent
+	// oder Betrag), additiv via dbDelta, DEFAULT NULL = kein Rabatt.
+	const VERSION    = '0.43.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -161,6 +163,8 @@ class Schema {
 			deposit_amount decimal(10,2) DEFAULT NULL,
 			rental_fee decimal(10,2) DEFAULT NULL,
 			vat_rate decimal(5,2) DEFAULT NULL,
+			discount_type varchar(10) DEFAULT NULL,
+			discount_value decimal(10,2) DEFAULT NULL,
 			notes text,
 			owner_user_id bigint(20) unsigned DEFAULT NULL,
 			owner_group_id bigint(20) unsigned DEFAULT NULL,

@@ -3,6 +3,34 @@
 > Stand: 2026-06-13, Plugin v0.24.0 / Theme v0.2.0, Frontend-Optik an Web-App angeglichen
 > Gepflegt vom Agenten `wp-parity` (.claude/agents/wp-parity.md). App = Referenz, WP = Ziel.
 
+> ## 🧾 Release v0.144.0 2026-09-07 (Verleih wie eine Rechnung: Positionssummen, wählbare USt, Rabatt Prozent/Betrag, Gesamtbetrag; Vollbild-Modal Neu/Bearbeiten; Listen-Baukasten `.pp-list` — Schema 0.42.0 → 0.43.0)
+> **Ausgeliefert.** Verleih-Abrechnung im Portal auf Rechnungslogik umgestellt, **mit** Datenbankänderung.
+> **Schema 0.43.0:** zwei neue Spalten `pp_rentals.discount_type` (varchar 10, NULL) und `pp_rentals.discount_value`
+> (decimal 10,2, NULL), additiv via dbDelta, NULL = kein Rabatt; Bestandszeilen bleiben unverändert. Auf der zweiten
+> wp-env-Instanz verifiziert (`pp_schema_version` = 0.43.0, `SHOW COLUMNS FROM wp_pp_rentals LIKE 'discount%'` = 2 Zeilen).
+> **Rechnung (`Rentals::billing()`, hängt als `$rental->billing` an jedem geladenen Verleih):** Zeilensumme = Tagessatz ×
+> Tage × Menge; Zwischensumme = Σ Zeilensummen ODER die Leihgebühr, wenn gesetzt — `null !== rental_fee` statt Falsy-Check,
+> damit **0,00 € eine Pauschale ist** und nicht mehr still auf die Tagessatz-Summe zurückfällt; Rabatt = Prozent vom
+> Zwischenbetrag (0–100 geklemmt) oder fester Betrag (nie > Zwischensumme), `Rentals::DISCOUNT_TYPES = ['percent','amount']`,
+> alles andere = kein Rabatt; Gesamt (brutto) = Zwischensumme − Rabatt, Netto/USt daraus herausgerechnet, USt-Satz je
+> Verleih (19/7/0, Default 19). Kaution bleibt durchlaufender Posten (nicht im Gesamtbetrag). Offene Freigaben zählen mit
+> (Slot ist gehalten). `create()`/`update()` nehmen `discount_type`/`discount_value` an (leere Zahl → NULL, gleiches Muster
+> wie `deposit_amount`/`rental_fee`/`vat_rate`); `Rest\RentalsController` reicht beide Felder in POST/PUT durch.
+> **Portal:** Verleih-Karte als `.pp-list.pp-list--invoice` (Kopfzeile Artikel · Satz/Tag · Tage · Summe; Set-Zeile
+> `--group` mit Chip, Teile `--sub`; Menge als `.pp-list__qty` vor dem Namen), Fuß `.pp-list__foot` mit Zwischensumme bzw.
+> „Pauschale (ersetzt Zeilensummen)", Rabatt (bei Prozent mit Satz), Netto/USt gedämpft, Gesamt inkl. USt hervorgehoben,
+> Kaution gedämpft und ausdrücklich „nicht Teil des Gesamtbetrags". Formulare Neu/Bearbeiten: `<select name="pp_vat">`
+> (19/7/0), `pp_discount_type` (Prozent/Betrag) + `pp_discount`; beide `<dialog>` jetzt `.pp-modal--full`.
+> **CSS:** neuer Block „Listen-Baukasten `.pp-list`" (Zeile/Zelle, `--grow`/`--num` mit rechtsbündigen Zahlen, Kopf, Fuß,
+> Summenzeilen `--muted`/`--total`); `.pp-modal--full` überschreibt die UA-Grenzen von `<dialog>` (`max-width/height:
+> calc(100% − 6px − 2em)`), damit das Formular Platz für den Artikel-Picker hat; Inventar-Listen an dieselbe Kopfzeile,
+> Zeilenhöhe und Trennlinien angeglichen. Die ältere Flex-Regel für `pp-portal__rental-lines` bleibt für alte Aufrufer.
+> Alles über Tokens, Dark-Block unverändert.
+> i18n: 14 neue PHP-Strings, `.po/.pot/.mo` gepflegt (1639 übersetzt, offen nur die Plugin-URI); keine JS-Strings, JSON
+> nur geprüft (admin.js 471, blocks-editor.js 13). Plugin Check: die **3** bekannten by-design-ERRORs (`hidden_files`,
+> `plugin_updater_detected`, `Updater.php:222 OffloadedContent`), keine neuen ERRORs. Build
+> `dist/project-prepper-0.144.0.zip` (1,4 MB, 128 Dateien), `update.json` auf 0.144.0.
+>
 > ## ⚡ Release v0.143.0 2026-09-07 (Dashboard: eigene + über Kollektive zugängliche Artikel, Schnellaktionen als Kacheln, Gruppen als Raster, Profil kompakt — Schema UNVERÄNDERT 0.42.0)
 > **Ausgeliefert.** Drei User-Wünsche zum Dashboard des Portals, ohne Datenbankänderung.
 > **Zwei Inventar-Zahlen statt einer:** Die alte Kachel zählte je nach Arbeitsbereich etwas anderes (Solo:

@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.143.0
+Stable tag: 0.144.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.144.0 =
+* Rental cards read like an invoice: quantity in front of the item, rate per day, days and a line total per position; below that subtotal, discount, net, VAT and the total including VAT. The deposit is listed separately because it is refunded, not charged.
+* VAT is selectable per rental (19 / 7 / 0 %), and a discount can be given as a percentage or a fixed amount. A flat rental fee of 0.00 € now counts as a flat fee instead of silently falling back to the sum of the daily rates.
+* "New rental" and "Edit rental" open as a full-screen dialog with room for the item picker.
+* One list vocabulary for the portal: the invoice uses a shared list component, and the inventory lists were aligned to the same header, row rhythm and dividers.
+* Note: this update changes the database (schema 0.42.0 → 0.43.0): two new columns on the rentals table for the discount. Existing rentals are not modified.
 
 = 0.143.0 =
 * The dashboard shows two inventory numbers instead of one: items you own, and items you can reach through your collectives. The old single tile counted differently depending on the workspace and included retired items in group mode.

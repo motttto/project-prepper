@@ -7909,3 +7909,59 @@ msgstr "Schnellaktionen"
 #: includes/Frontend/MemberPortal.php
 msgid "Found or join a collective"
 msgstr "Kollektiv gründen oder beitreten"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Discount"
+msgstr "Rabatt"
+
+#: includes/Frontend/MemberPortal.php
+msgid "none"
+msgstr "kein"
+
+#: includes/Frontend/MemberPortal.php
+msgid "percent"
+msgstr "Prozent"
+
+#: includes/Frontend/MemberPortal.php
+msgid "amount (€)"
+msgstr "Betrag (€)"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Discount value"
+msgstr "Rabattwert"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Rate/day"
+msgstr "€/Tag"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Days"
+msgstr "Tage"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Total"
+msgstr "Summe"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Flat rental fee (replaces line totals)"
+msgstr "Pauschale Leihgebühr (ersetzt die Positionssummen)"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Subtotal"
+msgstr "Zwischensumme"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Discount (%s %%)"
+msgstr "Rabatt (%s %%)"
+
+#: includes/Frontend/MemberPortal.php
+msgid "VAT %s %%"
+msgstr "USt %s %%"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Total incl. VAT"
+msgstr "Gesamt inkl. USt"
+
+#: includes/Frontend/MemberPortal.php
+msgid "Deposit (refundable, not part of the total)"
+msgstr "Kaution (wird erstattet, nicht Teil des Gesamtbetrags)"

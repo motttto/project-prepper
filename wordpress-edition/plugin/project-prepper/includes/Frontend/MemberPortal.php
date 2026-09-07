@@ -3314,12 +3314,20 @@ class MemberPortal {
 				? __( 'Lend collective equipment to people outside the platform. Everyone in the collective sees these rentals; changing one stays with whoever set it up.', 'project-prepper' )
 				: __( 'Lend your own equipment to people outside the platform. Reservation, hand-out, return and billing — just like the app.', 'project-prepper' ) ); ?></p>
 
-			<?php // „Neuer Verleih" direkt unter der Kopfzeile (User-Wunsch), nicht mehr am Listenende. ?>
+			<?php // „Neuer Verleih" direkt unter der Kopfzeile, als Vollbild-Modal (User-Wunsch). ?>
 			<?php if ( $lendable ) : ?>
-				<details class="pp-portal__add pp-portal__add--top" id="pp-rental-new">
-					<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New rental', 'project-prepper' ); ?></summary>
-					<?php self::rental_form( $lendable, $bundles, null, $group_id ); ?>
-				</details>
+				<p class="pp-portal__add--top">
+					<button type="button" class="pp-portal__btn pp-portal__btn--sm" data-pp-modal="pp-rental-new"><?php esc_html_e( 'New rental', 'project-prepper' ); ?></button>
+				</p>
+				<dialog class="pp-modal pp-modal--portal pp-modal--full" id="pp-rental-new">
+					<div class="pp-modal-header">
+						<h2 class="pp-modal__title"><?php esc_html_e( 'New rental', 'project-prepper' ); ?></h2>
+						<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+					</div>
+					<div class="pp-modal-body">
+						<?php self::rental_form( $lendable, $bundles, null, $group_id ); ?>
+					</div>
+				</dialog>
 			<?php else : ?>
 				<p class="pp-portal__hint"><?php esc_html_e( 'Add items to your inventory first — then you can lend them out.', 'project-prepper' ); ?></p>
 			<?php endif; ?>
@@ -3421,77 +3429,85 @@ class MemberPortal {
 							<?php endif; ?>
 						</div>
 
-						<?php if ( $full->items ) : ?>
-							<ul class="pp-portal__rental-lines">
-								<?php
-								// Set-Positionen unter ihrem Set gruppieren (Marker
-								// bundle_item_id) — verliehen werden die Teile, angezeigt
-								// wird die Herkunft.
-								$pp_shown_sets = [];
-								foreach ( $full->items as $line ) :
-									$pp_bid = (int) ( $line->bundle_item_id ?? 0 );
-									if ( $pp_bid > 0 && ! isset( $pp_shown_sets[ $pp_bid ] ) ) :
-										$pp_shown_sets[ $pp_bid ] = true;
-										$pp_set_item  = Inventory::get_item( $pp_bid );
-										$pp_set_parts = Bundles::parts( $pp_bid );
-										$pp_set_count = self::bundle_line_sets( $full->items, $pp_bid, $pp_set_parts );
-										?>
-										<li class="pp-rl--set">
-											<span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span>
-											<?php echo esc_html( $pp_set_item ? $pp_set_item->name : ( '#' . $pp_bid ) ); ?>
-											<?php if ( $pp_set_count > 1 ) : ?>
-												<span class="pp-portal__item-meta"><?php echo (int) $pp_set_count; ?>×</span>
-											<?php endif; ?>
-										</li>
-										<?php
-									endif;
+						<?php
+						// Positionen wie eine Rechnung (v0.43.0): Anzahl vor dem Namen,
+						// Tagessatz, Tage, Zeilensumme; darunter Zwischensumme, Rabatt,
+						// Netto/USt, Gesamt. Gemeinsamer Listen-Baukasten .pp-list, den
+						// auch das Inventar nutzt. Geld nur, wo es den Betrachter angeht.
+						$pp_money      = 'item_owner' !== $pp_relation;
+						$pp_shown_sets = [];
+						?>
+						<div class="pp-list pp-list--invoice">
+							<div class="pp-list__row pp-list__head">
+								<span class="pp-list__cell pp-list__cell--grow"><?php esc_html_e( 'Item', 'project-prepper' ); ?></span>
+								<?php if ( $pp_money ) : ?>
+									<span class="pp-list__cell pp-list__cell--num"><?php esc_html_e( 'Rate/day', 'project-prepper' ); ?></span>
+									<span class="pp-list__cell pp-list__cell--num"><?php esc_html_e( 'Days', 'project-prepper' ); ?></span>
+									<span class="pp-list__cell pp-list__cell--num"><?php esc_html_e( 'Total', 'project-prepper' ); ?></span>
+								<?php endif; ?>
+							</div>
+							<?php foreach ( $bill['lines'] as $pp_i => $pp_l ) :
+								$line   = $full->items[ $pp_i ];
+								$pp_bid = (int) $pp_l['bundle_item_id'];
+								if ( $pp_bid > 0 && ! isset( $pp_shown_sets[ $pp_bid ] ) ) :
+									$pp_shown_sets[ $pp_bid ] = true;
+									$pp_set_item  = Inventory::get_item( $pp_bid );
+									$pp_set_count = self::bundle_line_sets( $full->items, $pp_bid, Bundles::parts( $pp_bid ) );
 									?>
-									<li class="<?php echo esc_attr( $pp_bid > 0 ? 'pp-portal__rental-line--part' : '' ); ?>">
-										<span class="pp-rl__name">
-											<span><?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?></span>
-											<?php
-											// Fremder Artikel aus dem Kollektiv-Pool: Eigentümer + Freigabe-Stand.
-											$pp_line_owner = (int) ( $line->item_owner_id ?? 0 );
-											if ( $pp_line_owner > 0 && $pp_line_owner !== $uid ) :
-												$pp_lo = get_userdata( $pp_line_owner );
-												?>
-												<span class="pp-portal__item-meta"><?php
-													/* translators: %s: owner name of the shared item. */
-													printf( esc_html__( 'by %s', 'project-prepper' ), esc_html( $pp_lo ? $pp_lo->display_name : '—' ) );
-												?></span>
-											<?php endif; ?>
-											<?php self::approval_chip( $line ); ?>
-										</span>
-										<span class="pp-rl__qty"><?php echo (int) $line->quantity; ?>×</span>
-										<span class="pp-rl__rate"><?php echo ( null !== $line->daily_rate && 'item_owner' !== $pp_relation ) ? esc_html( number_format_i18n( (float) $line->daily_rate, 2 ) . ' €/' . __( 'day', 'project-prepper' ) ) : ''; ?></span>
-									</li>
-								<?php endforeach; ?>
-							</ul>
-						<?php endif; ?>
+									<div class="pp-list__row pp-list__row--group">
+										<span class="pp-list__cell pp-list__cell--grow"><span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span> <?php echo (int) $pp_set_count; ?>× <?php echo esc_html( $pp_set_item ? $pp_set_item->name : ( '#' . $pp_bid ) ); ?></span>
+									</div>
+								<?php endif; ?>
+								<div class="pp-list__row <?php echo $pp_bid > 0 ? 'pp-list__row--sub' : ''; ?>">
+									<span class="pp-list__cell pp-list__cell--grow">
+										<span class="pp-list__qty"><?php echo (int) $pp_l['quantity']; ?>×</span>
+										<span class="pp-list__name"><?php echo esc_html( $pp_l['name'] ); ?></span>
+										<?php
+										$pp_line_owner = (int) $pp_l['item_owner_id'];
+										if ( $pp_line_owner > 0 && $pp_line_owner !== $uid ) :
+											$pp_lo = get_userdata( $pp_line_owner );
+											?>
+											<span class="pp-portal__item-meta"><?php
+												/* translators: %s: owner name of the shared item. */
+												printf( esc_html__( 'by %s', 'project-prepper' ), esc_html( $pp_lo ? $pp_lo->display_name : '—' ) );
+											?></span>
+										<?php endif; ?>
+										<?php self::approval_chip( $line ); ?>
+									</span>
+									<?php if ( $pp_money ) : ?>
+										<span class="pp-list__cell pp-list__cell--num"><?php echo null !== $pp_l['daily_rate'] ? esc_html( number_format_i18n( (float) $pp_l['daily_rate'], 2 ) . ' €' ) : '—'; ?></span>
+										<span class="pp-list__cell pp-list__cell--num"><?php echo (int) $pp_l['days']; ?></span>
+										<span class="pp-list__cell pp-list__cell--num"><?php echo null !== $pp_l['daily_rate'] ? esc_html( number_format_i18n( (float) $pp_l['total'], 2 ) . ' €' ) : '—'; ?></span>
+									<?php endif; ?>
+								</div>
+							<?php endforeach; ?>
 
-						<div class="pp-portal__item-meta pp-portal__rental-bill">
-							<?php
-							// Die Tage stehen bereits in der Summenzeile; hier nur noch die
-							// Aufschlüsselung. Geld nur im eigenen Vorgang und im Kollektiv
-							// (dort ist die Abrechnung gemeinsame Sache). Steckt bloß eigenes
-							// Equipment in einem fremden, privaten Verleih, geht der Eigentümer
-							// die Preisgestaltung des Anlegers nichts an.
-							if ( 'item_owner' !== $pp_relation ) :
-							/* translators: %s: net amount in euro. */
-							echo esc_html( sprintf( __( 'Net %s €', 'project-prepper' ), number_format_i18n( (float) $bill['net'], 2 ) ) );
-							echo ' · ';
-							/* translators: 1: VAT amount, 2: VAT rate percent. */
-							echo esc_html( sprintf( __( 'VAT %1$s € (%2$s%%)', 'project-prepper' ), number_format_i18n( (float) $bill['vat'], 2 ), number_format_i18n( (float) $bill['vat_rate'], 0 ) ) );
-							echo ' · ';
-							/* translators: %s: gross amount in euro. */
-							echo '<strong>' . esc_html( sprintf( __( 'Gross %s €', 'project-prepper' ), number_format_i18n( (float) $bill['gross'], 2 ) ) ) . '</strong>';
-							if ( (float) $bill['deposit'] > 0 ) {
-								echo ' · ';
-								/* translators: %s: deposit amount in euro. */
-								echo esc_html( sprintf( __( 'Deposit %s €', 'project-prepper' ), number_format_i18n( (float) $bill['deposit'], 2 ) ) );
-							}
-							endif;
-							?>
+							<?php if ( $pp_money ) : ?>
+								<div class="pp-list__foot">
+									<?php if ( $bill['flat'] ) : ?>
+										<div class="pp-list__sum"><span><?php esc_html_e( 'Flat rental fee (replaces line totals)', 'project-prepper' ); ?></span><span class="pp-list__cell--num"><?php echo esc_html( number_format_i18n( (float) $bill['subtotal'], 2 ) ); ?> €</span></div>
+									<?php else : ?>
+										<div class="pp-list__sum"><span><?php esc_html_e( 'Subtotal', 'project-prepper' ); ?></span><span class="pp-list__cell--num"><?php echo esc_html( number_format_i18n( (float) $bill['subtotal'], 2 ) ); ?> €</span></div>
+									<?php endif; ?>
+									<?php if ( $bill['discount'] > 0 ) : ?>
+										<div class="pp-list__sum"><span><?php
+											echo esc_html( 'percent' === $bill['discount_type']
+												/* translators: %s: discount percentage. */
+												? sprintf( __( 'Discount (%s %%)', 'project-prepper' ), number_format_i18n( (float) $bill['discount_value'], 0 ) )
+												: __( 'Discount', 'project-prepper' ) );
+										?></span><span class="pp-list__cell--num">− <?php echo esc_html( number_format_i18n( (float) $bill['discount'], 2 ) ); ?> €</span></div>
+									<?php endif; ?>
+									<div class="pp-list__sum pp-list__sum--muted"><span><?php esc_html_e( 'Net', 'project-prepper' ); ?></span><span class="pp-list__cell--num"><?php echo esc_html( number_format_i18n( (float) $bill['net'], 2 ) ); ?> €</span></div>
+									<div class="pp-list__sum pp-list__sum--muted"><span><?php
+										/* translators: %s: VAT rate percent. */
+										echo esc_html( sprintf( __( 'VAT %s %%', 'project-prepper' ), number_format_i18n( (float) $bill['vat_rate'], 0 ) ) );
+									?></span><span class="pp-list__cell--num"><?php echo esc_html( number_format_i18n( (float) $bill['vat'], 2 ) ); ?> €</span></div>
+									<div class="pp-list__sum pp-list__sum--total"><span><?php esc_html_e( 'Total incl. VAT', 'project-prepper' ); ?></span><span class="pp-list__cell--num"><?php echo esc_html( number_format_i18n( (float) $bill['gross'], 2 ) ); ?> €</span></div>
+									<?php if ( (float) $bill['deposit'] > 0 ) : ?>
+										<div class="pp-list__sum pp-list__sum--muted"><span><?php esc_html_e( 'Deposit (refundable, not part of the total)', 'project-prepper' ); ?></span><span class="pp-list__cell--num"><?php echo esc_html( number_format_i18n( (float) $bill['deposit'], 2 ) ); ?> €</span></div>
+									<?php endif; ?>
+								</div>
+							<?php endif; ?>
 						</div>
 
 						<?php if ( 'item_owner' !== $pp_relation && '' !== trim( (string) $full->notes ) ) : ?>
@@ -3521,7 +3537,7 @@ class MemberPortal {
 						<div class="pp-portal__actions">
 							<?php if ( in_array( $full->status, [ 'reserved', 'active' ], true ) && $pp_lendable ) : ?>
 								<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-rental-edit-<?php echo (int) $full->id; ?>"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></button>
-								<dialog class="pp-modal pp-modal--portal pp-modal--wide" id="pp-rental-edit-<?php echo (int) $full->id; ?>">
+								<dialog class="pp-modal pp-modal--portal pp-modal--full" id="pp-rental-edit-<?php echo (int) $full->id; ?>">
 									<div class="pp-modal-header">
 										<h2 class="pp-modal__title"><?php echo esc_html( sprintf( /* translators: %s: rental number. */ __( 'Edit rental %s', 'project-prepper' ), $full->rental_number ) ); ?></h2>
 										<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
@@ -3929,6 +3945,30 @@ class MemberPortal {
 					<input type="number" name="pp_fee" min="0" step="0.01" placeholder="<?php esc_attr_e( 'auto from daily rates', 'project-prepper' ); ?>" value="<?php echo esc_attr( null !== ( $rental->rental_fee ?? null ) ? number_format( (float) $rental->rental_fee, 2, '.', '' ) : '' ); ?>">
 				</label>
 			</div>
+			<?php
+			// Rechnungs-Felder (v0.43.0): USt wählbar, Rabatt als Prozent oder Betrag.
+			$pp_vat_cur = null !== ( $rental->vat_rate ?? null ) ? (float) $rental->vat_rate : 19.0;
+			$pp_dt_cur  = (string) ( $rental->discount_type ?? '' );
+			?>
+			<div class="pp-portal__form-row pp-portal__form-row--3">
+				<label><?php esc_html_e( 'VAT', 'project-prepper' ); ?>
+					<select name="pp_vat">
+						<?php foreach ( [ 19, 7, 0 ] as $pp_v ) : ?>
+							<option value="<?php echo (int) $pp_v; ?>" <?php selected( (int) round( $pp_vat_cur ), $pp_v ); ?>><?php echo (int) $pp_v; ?> %</option>
+						<?php endforeach; ?>
+					</select>
+				</label>
+				<label><?php esc_html_e( 'Discount', 'project-prepper' ); ?>
+					<select name="pp_discount_type">
+						<option value="" <?php selected( $pp_dt_cur, '' ); ?>><?php esc_html_e( 'none', 'project-prepper' ); ?></option>
+						<option value="percent" <?php selected( $pp_dt_cur, 'percent' ); ?>><?php esc_html_e( 'percent', 'project-prepper' ); ?></option>
+						<option value="amount" <?php selected( $pp_dt_cur, 'amount' ); ?>><?php esc_html_e( 'amount (€)', 'project-prepper' ); ?></option>
+					</select>
+				</label>
+				<label><?php esc_html_e( 'Discount value', 'project-prepper' ); ?>
+					<input type="number" name="pp_discount" min="0" step="0.01" placeholder="0" value="<?php echo esc_attr( null !== ( $rental->discount_value ?? null ) ? number_format( (float) $rental->discount_value, 2, '.', '' ) : '' ); ?>">
+				</label>
+			</div>
 
 			<fieldset class="pp-portal__rental-items" data-pp-picker>
 				<legend><?php esc_html_e( 'Items to lend out', 'project-prepper' ); ?></legend>
@@ -4138,6 +4178,11 @@ class MemberPortal {
 			'date_to'        => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
 			'deposit_amount' => '' !== (string) ( $_POST['pp_deposit'] ?? '' ) ? (float) $_POST['pp_deposit'] : '',
 			'rental_fee'     => '' !== (string) ( $_POST['pp_fee'] ?? '' ) ? (float) $_POST['pp_fee'] : '',
+			// USt kommt immer mit (Select) — auch 0 wird als 0.00 gespeichert, nicht als
+			// NULL (NULL hieße „Standard 19 %"). Rabatt: Art leer = kein Rabatt.
+			'vat_rate'       => isset( $_POST['pp_vat'] ) ? (float) $_POST['pp_vat'] : '',
+			'discount_type'  => sanitize_key( wp_unslash( (string) ( $_POST['pp_discount_type'] ?? '' ) ) ),
+			'discount_value' => '' !== (string) ( $_POST['pp_discount'] ?? '' ) ? (float) $_POST['pp_discount'] : '',
 			'notes'          => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_notes'] ?? '' ) ) ),
 		];
 		$items = [];

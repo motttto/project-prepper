@@ -73,7 +73,10 @@ class RentalsController extends BaseController {
 		$data['borrower_email']   = sanitize_email( (string) ( $json['borrower_email'] ?? '' ) );
 		$data['borrower_address'] = sanitize_textarea_field( (string) ( $json['borrower_address'] ?? '' ) );
 		$data['notes']            = sanitize_textarea_field( (string) ( $json['notes'] ?? '' ) );
-		foreach ( [ 'deposit_amount', 'rental_fee', 'vat_rate' ] as $key ) {
+		if ( array_key_exists( 'discount_type', $json ) ) {
+			$data['discount_type'] = in_array( (string) $json['discount_type'], Rentals::DISCOUNT_TYPES, true ) ? (string) $json['discount_type'] : '';
+		}
+		foreach ( [ 'deposit_amount', 'rental_fee', 'vat_rate', 'discount_value' ] as $key ) {
 			$data[ $key ] = isset( $json[ $key ] ) && '' !== $json[ $key ] ? (float) $json[ $key ] : '';
 		}
 
@@ -100,7 +103,10 @@ class RentalsController extends BaseController {
 		if ( array_key_exists( 'notes', $json ) ) {
 			$data['notes'] = sanitize_textarea_field( (string) $json['notes'] );
 		}
-		foreach ( [ 'deposit_amount', 'rental_fee', 'vat_rate' ] as $key ) {
+		if ( array_key_exists( 'discount_type', $json ) ) {
+			$data['discount_type'] = in_array( (string) $json['discount_type'], Rentals::DISCOUNT_TYPES, true ) ? (string) $json['discount_type'] : '';
+		}
+		foreach ( [ 'deposit_amount', 'rental_fee', 'vat_rate', 'discount_value' ] as $key ) {
 			if ( array_key_exists( $key, $json ) ) {
 				$data[ $key ] = '' !== $json[ $key ] && null !== $json[ $key ] ? (float) $json[ $key ] : '';
 			}
