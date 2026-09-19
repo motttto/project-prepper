@@ -15,7 +15,7 @@ require_once __DIR__ . '/includes/Capabilities.php';
 
 if ( get_option( 'pp_delete_data_on_uninstall' ) ) {
 	global $wpdb;
-	foreach ( [ 'rental_items', 'rentals', 'units', 'items', 'categories', 'activity_log' ] as $pp_table ) {
+	foreach ( [ 'rental_items', 'rentals', 'units', 'item_field_values', 'item_field_defs', 'items', 'categories', 'activity_log' ] as $pp_table ) {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- bewusste Schema-Löschung beim Uninstall (Opt-in via Option).
 		$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', \ProjectPrepper\Schema::table( $pp_table ) ) );
 	}

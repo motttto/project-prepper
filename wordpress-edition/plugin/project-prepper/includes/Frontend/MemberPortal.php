@@ -7,6 +7,7 @@ use ProjectPrepper\Settings;
 use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance as Governance;
 use ProjectPrepper\Services\Inventory;
+use ProjectPrepper\Services\ItemFields;
 use ProjectPrepper\Services\Feedback;
 use ProjectPrepper\Services\MemberInventory;
 use ProjectPrepper\Services\MemberInquiries;
@@ -597,6 +598,7 @@ class MemberPortal {
 				$result = MemberInventory::create( get_current_user_id(), self::item_input() );
 				if ( ! is_wp_error( $result ) ) {
 					self::apply_share_input( get_current_user_id(), (int) $result );
+					$pp_field_res  = self::apply_custom_field_input( get_current_user_id(), (int) $result );
 					$pp_bundle_res = self::apply_bundle_input( get_current_user_id(), (int) $result );
 					$pp_photo_res  = self::process_item_photo_input( get_current_user_id(), (int) $result );
 					if ( is_wp_error( $pp_bundle_res ) ) {
@@ -605,6 +607,8 @@ class MemberPortal {
 					} elseif ( is_wp_error( $pp_photo_res ) ) {
 						// Artikel + Freigaben sind gespeichert — nur das Foto schlug fehl.
 						$result = $pp_photo_res;
+					} elseif ( is_wp_error( $pp_field_res ) ) {
+						$result = $pp_field_res;
 					}
 				}
 				$ok_msg = 'item_saved';
@@ -621,12 +625,15 @@ class MemberPortal {
 				$result  = MemberInventory::update( get_current_user_id(), $pp_item, self::item_input(), self::seen() );
 				if ( ! is_wp_error( $result ) ) {
 					self::apply_share_input( get_current_user_id(), $pp_item );
+					$pp_field_res  = self::apply_custom_field_input( get_current_user_id(), $pp_item );
 					$pp_bundle_res = self::apply_bundle_input( get_current_user_id(), $pp_item );
 					$pp_photo_res  = self::process_item_photo_input( get_current_user_id(), $pp_item );
 					if ( is_wp_error( $pp_bundle_res ) ) {
 						$result = $pp_bundle_res;
 					} elseif ( is_wp_error( $pp_photo_res ) ) {
 						$result = $pp_photo_res;
+					} elseif ( is_wp_error( $pp_field_res ) ) {
+						$result = $pp_field_res;
 					}
 				}
 				$ok_msg = 'item_saved';
@@ -1350,6 +1357,8 @@ class MemberPortal {
 				$msg = 'bundle_unavailable';
 			} elseif ( 'pp_bundle_empty' === $code ) {
 				$msg = 'bundle_empty';
+			} elseif ( 'pp_field_limit' === $code ) {
+				$msg = 'field_limit';
 			} elseif ( 'pp_stale' === $code ) {
 				$msg = 'stale';
 			} elseif ( 'pp_not_pending' === $code ) {
@@ -1490,6 +1499,7 @@ class MemberPortal {
 		return [
 			'founded'   => [ 'ok', __( 'Collective founded. You are its founder.', 'project-prepper' ) ],
 			'feature_off' => [ 'err', __( 'This area is switched off on this site.', 'project-prepper' ) ],
+			'field_limit' => [ 'err', __( 'The item was saved, but the new field was not: the maximum number of custom fields is reached. Ask the operators to tidy up.', 'project-prepper' ) ],
 			'stale'       => [ 'err', __( 'Someone else changed this in the meantime. Your changes were not saved — please reload and try again.', 'project-prepper' ) ],
 			'feedback_ok'  => [ 'ok', __( 'Thanks for your feedback!', 'project-prepper' ) ],
 			'feedback_err' => [ 'err', __( 'Please enter a message.', 'project-prepper' ) ],
@@ -3120,6 +3130,8 @@ class MemberPortal {
 						<span class="pp-col pp-col--act"></span>
 					</div>
 					<?php
+					// Eigene Felder (ItemFields): Werte aller Artikel in einem Query.
+					$pp_cf_map = ItemFields::values_for( array_map( static fn( $pp_i ) => (int) $pp_i->id, $items ) );
 					foreach ( $items as $item ) :
 						$is_mine  = ( (int) ( $item->owner_user_id ?? 0 ) === $uid );
 						$owner    = $is_mine ? null : get_userdata( (int) ( $item->owner_user_id ?? 0 ) );
@@ -3214,6 +3226,7 @@ class MemberPortal {
 											printf( esc_html__( 'Owner: %1$s · %2$d available', 'project-prepper' ), esc_html( $owner_lb ), (int) $pp_avail );
 											?>
 										</p>
+										<?php self::custom_field_list( $pp_cf_map[ (int) $item->id ] ?? [] ); ?>
 										<?php if ( $pp_parts ) : ?>
 											<p class="pp-portal__hint"><?php echo esc_html( Bundles::parts_label( $pp_parts ) ); ?></p>
 											<label><?php esc_html_e( 'Number of sets', 'project-prepper' ); ?>
@@ -9816,6 +9829,7 @@ class MemberPortal {
 					<span class="pp-col pp-col--loc"><?php esc_html_e( 'Location', 'project-prepper' ); ?></span>
 					<span class="pp-col pp-col--manage"></span>
 				</div>
+				<?php ItemFields::values_for( array_map( static fn( $pp_i ) => (int) $pp_i->id, $items ) ); // Eigene Felder: ein Query für alle Modals. ?>
 				<?php foreach ( $items as $item ) : ?>
 					<?php
 					$shared = $groups ? MemberInventory::shared_group_ids( (int) $item->id ) : [];
@@ -10130,6 +10144,97 @@ class MemberPortal {
 				<textarea name="pp_description" rows="2"><?php echo esc_textarea( (string) $val( 'description' ) ); ?></textarea>
 			</label>
 		<?php
+		self::item_custom_fields( $item );
+	}
+
+	/**
+	 * Eigene Felder im Artikel-Formular (Services\ItemFields): erst die
+	 * vorhandenen, instanzweiten Felder als normale Eingaben, dann „Feld
+	 * hinzufügen" — Bezeichnung + Wert im SELBEN Formular (kein eigener
+	 * Speichern-Button). Das neue Feld erscheint danach bei allen Mitgliedern.
+	 */
+	private static function item_custom_fields( ?object $item ): void {
+		$item_id = $item ? (int) $item->id : 0;
+		$values  = $item_id ? ( ItemFields::values_for( [ $item_id ] )[ $item_id ] ?? [] ) : [];
+		foreach ( ItemFields::defs() as $fid => $def ) :
+			?>
+			<label><?php echo esc_html( (string) $def->label ); ?>
+				<input type="text" name="pp_cf[<?php echo (int) $fid; ?>]" maxlength="<?php echo (int) ItemFields::MAX_VALUE_LEN; ?>" value="<?php echo esc_attr( (string) ( $values[ $fid ] ?? '' ) ); ?>">
+			</label>
+			<?php
+		endforeach;
+		if ( count( ItemFields::defs() ) >= ItemFields::MAX_DEFS ) {
+			return;
+		}
+		?>
+		<details class="pp-cf-new">
+			<summary class="pp-cf-new__head"><?php esc_html_e( 'Add a field', 'project-prepper' ); ?></summary>
+			<p class="pp-portal__hint"><?php esc_html_e( 'Missing a detail? Name a new field and fill it in. The field then appears in the item form of all members.', 'project-prepper' ); ?></p>
+			<div class="pp-cf-new__rows" data-pp-cf-rows>
+				<div class="pp-cf-new__row">
+					<input type="text" name="pp_cf_new_label[]" maxlength="<?php echo (int) ItemFields::MAX_LABEL_LEN; ?>" placeholder="<?php esc_attr_e( 'Field name, e.g. Weight', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Field name', 'project-prepper' ); ?>">
+					<input type="text" name="pp_cf_new_value[]" maxlength="<?php echo (int) ItemFields::MAX_VALUE_LEN; ?>" placeholder="<?php esc_attr_e( 'Value for this item', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Value for this item', 'project-prepper' ); ?>">
+				</div>
+			</div>
+			<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-cf-add><?php esc_html_e( 'Another field', 'project-prepper' ); ?></button>
+		</details>
+		<?php
+	}
+
+	/**
+	 * Ausgefüllte eigene Felder eines Artikels als Liste — für alle, die den
+	 * Artikel sehen, aber nicht bearbeiten (Kollektiv-Inventar, Leih-Anfrage).
+	 *
+	 * @param array<int,string> $values field_id => value.
+	 */
+	private static function custom_field_list( array $values ): void {
+		$rows = ItemFields::labelled( $values );
+		if ( ! $rows ) {
+			return;
+		}
+		?>
+		<dl class="pp-cf-list">
+			<?php foreach ( $rows as $label => $value ) : ?>
+				<div class="pp-cf-list__row"><dt><?php echo esc_html( $label ); ?></dt><dd><?php echo esc_html( $value ); ?></dd></div>
+			<?php endforeach; ?>
+		</dl>
+		<?php
+	}
+
+	/**
+	 * Eigene-Felder-Eingaben anwenden (Anlegen + Verwalten-Modal). Die
+	 * Eigentümer-Prüfung ist vorher in MemberInventory::create()/update() gelaufen.
+	 *
+	 * @return true|\WP_Error Fehler nur, wenn ein NEUES Feld nicht angelegt werden konnte.
+	 */
+	private static function apply_custom_field_input( int $user_id, int $item_id ) {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		$values = [];
+		foreach ( (array) wp_unslash( $_POST['pp_cf'] ?? [] ) as $fid => $value ) {
+			$values[ (int) $fid ] = is_scalar( $value ) ? (string) $value : '';
+		}
+		$labels     = array_values( (array) wp_unslash( $_POST['pp_cf_new_label'] ?? [] ) );
+		$new_values = array_values( (array) wp_unslash( $_POST['pp_cf_new_value'] ?? [] ) );
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		$error = null;
+		foreach ( $labels as $i => $label ) {
+			if ( ! is_scalar( $label ) || '' === ItemFields::clean_label( (string) $label ) ) {
+				continue;
+			}
+			$fid = ItemFields::create_def( $user_id, (string) $label );
+			if ( is_wp_error( $fid ) ) {
+				$error = $fid;
+				continue;
+			}
+			$new_value = isset( $new_values[ $i ] ) && is_scalar( $new_values[ $i ] ) ? (string) $new_values[ $i ] : '';
+			// Gleiche Bezeichnung wie ein vorhandenes Feld: dessen Eingabe nicht
+			// mit einem leeren „neuen" Wert überschreiben.
+			if ( '' !== trim( $new_value ) || ! isset( $values[ $fid ] ) ) {
+				$values[ $fid ] = $new_value;
+			}
+		}
+		ItemFields::save_values( $item_id, $values );
+		return $error ?? true;
 	}
 
 	/**
@@ -10466,6 +10571,10 @@ class MemberPortal {
 		$user = wp_get_current_user();
 		$uid  = (int) $user->ID;
 
+		$pp_my_items = MemberInventory::my_items( $uid );
+		// Eigene Felder aller Artikel in EINEM Query vorladen (Cache in ItemFields).
+		ItemFields::values_for( array_map( static fn( $pp_i ) => (int) $pp_i->id, $pp_my_items ) );
+
 		$data = [
 			'exported_at' => gmdate( 'c' ),
 			'profile'     => [
@@ -10486,8 +10595,10 @@ class MemberPortal {
 					'location'         => $it->location ?? '',
 					'cost_per_day'     => $it->cost_per_day ?? null,
 					'tags'             => (array) ( $it->tags ?? [] ),
+					// Eigene Felder: Bezeichnung => Wert (values_for() cached je Request).
+					'custom_fields'    => ItemFields::labelled( ItemFields::values_for( [ (int) $it->id ] )[ (int) $it->id ] ?? [] ),
 				];
-			}, MemberInventory::my_items( $uid ) ),
+			}, $pp_my_items ),
 			'groups'      => array_map( static function ( $g ) {
 				return [
 					'name' => $g->name,

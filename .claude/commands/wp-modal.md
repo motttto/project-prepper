@@ -49,6 +49,16 @@ Der Fallback `75vw` in beiden Stylesheets muss zum PHP-Standard passen — wer
 6. **`display` nur für `[open]`** setzen (`.pp-modal[open] { display:flex }`) — sonst sind alle
    Dialoge gleichzeitig sichtbar.
 7. **Keine Icons ungefragt** in Modal-Titel oder -Buttons (UI-Regel des Projekts).
+8. **Aktionen gehören in die Fußleiste** (`.pp-modal-footer`), nicht ans Ende des scrollenden Bodys:
+   links Destruktives (Löschen, eigenes `<form data-pp-discard-ok>`), rechts
+   `.pp-modal-footer__actions` mit Hinweis · „Schließen" (ghost) · „Speichern" (primär, ganz rechts).
+   Der Speichern-Button liegt außerhalb des Formulars und wird per `form="<form-id>"` gebunden.
+9. **Speicherlogik nicht nachbauen** — `portal.js` regelt sie zentral für `form[data-pp-autosave]`:
+   Änderungs-Flag `data-pp-dirty` wird beim eigenen Absenden gelöscht (sonst fragt `beforeunload`
+   bei jedem Speichern „Seite verlassen?"), `data-pp-submitting` sperrt Doppelklicks (zweiter POST
+   trüge den alten `pp_seen` → falsche Konfliktmeldung), andere Formulare im selben Modal fragen bei
+   offenen Änderungen mit dem Text aus `data-pp-unsaved-msg` nach, und der Backdrop schließt nur,
+   wenn auch der Mausdruck dort begann.
 
 ---
 

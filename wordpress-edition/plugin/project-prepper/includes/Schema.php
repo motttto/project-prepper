@@ -28,7 +28,10 @@ class Schema {
 	// ist hier der Auslöser, damit er genau einmal passiert.
 	// 0.43.0: rentals.discount_type/discount_value — Rabatt am Verleih (Prozent
 	// oder Betrag), additiv via dbDelta, DEFAULT NULL = kein Rabatt.
-	const VERSION    = '0.43.0';
+	// 0.44.0: Eigene Artikel-Felder — item_field_defs (instanzweite Definitionen,
+	// von Mitgliedern angelegt) + item_field_values (Wert je Artikel+Feld). Zwei
+	// neue Tabellen via dbDelta, keine Datenmigration.
+	const VERSION    = '0.44.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -78,6 +81,8 @@ class Schema {
 		$g_inv_v    = self::table( 'group_invitation_votes' );
 		$item_share = self::table( 'item_group_shares' );
 		$bundle_p   = self::table( 'item_bundle_parts' );
+		$field_defs = self::table( 'item_field_defs' );
+		$field_vals = self::table( 'item_field_values' );
 		$borrows    = self::table( 'borrow_requests' );
 		$fed_in     = self::table( 'fed_borrow_in' );
 		$fed_out    = self::table( 'fed_borrow_out' );
@@ -328,6 +333,28 @@ class Schema {
 			PRIMARY KEY  (id),
 			UNIQUE KEY bundle_part (bundle_item_id,part_item_id),
 			KEY part_item_id (part_item_id)
+		) {$charset};" );
+
+		// Eigene Artikel-Felder (v0.44.0, Services\ItemFields): Definition gilt für
+		// die ganze Instanz, der Wert hängt am Artikel. UNIQUE (item_id, field_id)
+		// macht das Speichern zum Upsert.
+		dbDelta( "CREATE TABLE {$field_defs} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			label varchar(60) NOT NULL,
+			created_by bigint(20) unsigned NOT NULL DEFAULT 0,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id)
+		) {$charset};" );
+
+		dbDelta( "CREATE TABLE {$field_vals} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			item_id bigint(20) unsigned NOT NULL,
+			field_id bigint(20) unsigned NOT NULL,
+			value text NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY item_field (item_id,field_id),
+			KEY field_id (field_id)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$p_lists} (

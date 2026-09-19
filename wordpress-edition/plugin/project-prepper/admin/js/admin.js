@@ -1095,6 +1095,63 @@
 				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("Standard width of every popup in the member portal and in this backend. On phones popups always use the full width; full-screen forms and the image viewer keep their own size.", "project-prepper") })
 			]));
 
+			// Eigene Artikel-Felder: Mitglieder legen sie im Portal an (Artikel-Formular
+			// → „Feld hinzufügen"), sie gelten für alle. Hier räumt der Betreiber auf —
+			// eigene Buttons je Zeile, unabhängig vom „Speichern" der Seite.
+			var itemFieldsBox = el("div");
+			function renderItemFields(list) {
+				itemFieldsBox.innerHTML = "";
+				if (!list.length) {
+					itemFieldsBox.appendChild(el("div", { class: "pp-muted", text: __("No custom fields yet.", "project-prepper") }));
+					return;
+				}
+				var table = el("table", { class: "pp-table" });
+				table.appendChild(el("thead", {}, [el("tr", {}, [
+					el("th", { text: __("Field", "project-prepper") }),
+					el("th", { text: __("Added by", "project-prepper") }),
+					el("th", { text: __("Items using it", "project-prepper") }),
+					el("th")
+				])]));
+				var tbody = el("tbody");
+				list.forEach(function (f) {
+					var label = el("input", { type: "text", maxlength: "60" });
+					label.value = f.label;
+					tbody.appendChild(el("tr", {}, [
+						el("td", {}, [label]),
+						el("td", { text: f.created_by || "—" }),
+						el("td", { text: String(f.items) }),
+						el("td", { style: "text-align:right; white-space:nowrap" }, [
+							el("button", {
+								class: "pp-btn pp-btn-sm", text: __("Rename", "project-prepper"),
+								onclick: function () {
+									api("/item-fields/" + f.id, { method: "PUT", body: JSON.stringify({ label: label.value }) })
+										.then(function (updated) { renderItemFields(updated); toast(__("Field renamed.", "project-prepper")); })
+										.catch(function (e) { toast(e.message, "error"); });
+								}
+							}),
+							document.createTextNode(" "),
+							el("button", {
+								class: "pp-btn pp-btn-sm pp-btn-danger", text: __("Delete", "project-prepper"),
+								onclick: function () {
+									if (!confirm(sprintf(__("Delete the field “%1$s”? Its values on %2$d items are deleted for all members.", "project-prepper"), f.label, f.items))) return;
+									api("/item-fields/" + f.id, { method: "DELETE" })
+										.then(function (updated) { renderItemFields(updated); toast(__("Field deleted.", "project-prepper")); })
+										.catch(function (e) { toast(e.message, "error"); });
+								}
+							})
+						])
+					]));
+				});
+				table.appendChild(tbody);
+				itemFieldsBox.appendChild(table);
+			}
+			api("/item-fields").then(renderItemFields).catch(function (e) { toast(e.message, "error"); });
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Custom item fields", "project-prepper") }),
+				el("div", { class: "pp-muted", style: "margin-bottom:8px", text: __("Every member can add fields to the item form in the portal; a new field then appears for all members. Rename or remove fields here — deleting a field deletes its values on all items.", "project-prepper") }),
+				itemFieldsBox
+			]));
+
 			// Öffentliches Frontend
 			var ratesToggle = el("input", { type: "checkbox" });
 			ratesToggle.checked = settings.public_show_rates;

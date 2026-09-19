@@ -56,6 +56,21 @@
 		if ( form ) { form.setAttribute( 'data-pp-dirty', '1' ); }
 	} );
 
+	/* Eigene Felder: „Weiteres Feld" klont die leere Eingabezeile (Bezeichnung +
+	 * Wert). Ohne JS bleibt es bei einer Zeile je Speichern. */
+	document.addEventListener( 'click', function ( e ) {
+		var add = e.target.closest ? e.target.closest( '[data-pp-cf-add]' ) : null;
+		if ( ! add ) { return; }
+		var box  = add.parentNode.querySelector( '[data-pp-cf-rows]' );
+		var rows = box ? box.children : [];
+		if ( ! rows.length || rows.length >= 10 ) { return; }
+		var row    = rows[ 0 ].cloneNode( true );
+		var inputs = row.querySelectorAll( 'input' );
+		for ( var i = 0; i < inputs.length; i++ ) { inputs[ i ].value = ''; }
+		box.appendChild( row );
+		if ( inputs.length ) { inputs[ 0 ].focus(); }
+	} );
+
 	/* Autosave-Formular absenden (mit HTML-Validierung: ein leerer Pflicht-Name
 	 * hält das Modal offen). form.submit() feuert KEIN submit-Event — dort muss
 	 * das Änderungs-Flag von Hand weg, sonst fragt beforeunload nach. */

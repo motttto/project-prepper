@@ -486,6 +486,7 @@ class Inventory {
 			return false;
 		}
 		$wpdb->delete( Schema::table( 'units' ), [ 'item_id' => $id ], [ '%d' ] );
+		ItemFields::delete_for_item( $id );
 		$ok = false !== $wpdb->delete( Schema::table( 'items' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {
 			ActivityLog::log( 'item_deleted', 'item', $id, [ 'name' => $item->name, 'inventory_number' => $item->inventory_number ] );

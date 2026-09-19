@@ -3187,6 +3187,20 @@ label.pp-swatch,
 
 /* „Set-Inhalt" im vereinten Artikel-Formular (Anlegen + Verwalten-Modal). */
 .pp-modal-body > .pp-portal__form > .pp-bundle-edit { grid-column: 1 / -1; }
+/* Eigene Felder (Services\ItemFields): „Feld hinzufügen" im Artikel-Formular
+   und die Werte-Liste für alle, die den Artikel nur ansehen. */
+.pp-modal-body > .pp-portal__form > .pp-cf-new,
+.pp-modal-body > .pp-portal__form > .pp-cf-list { grid-column: 1 / -1; }
+.pp-cf-new { border-top: 1px solid var(--pp-muted); padding-top: .85rem; }
+.pp-cf-new__head { cursor: pointer; font-weight: 600; font-size: .9rem; list-style: none; }
+.pp-cf-new__head::-webkit-details-marker { display: none; }
+.pp-cf-new__rows { display: grid; gap: .4rem; margin: .5rem 0; }
+.pp-cf-new__row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: .5rem; }
+.pp-cf-new__row input { width: 100%; min-width: 0; }
+.pp-cf-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr)); gap: .4rem .9rem; margin: 0; }
+.pp-cf-list__row { min-width: 0; }
+.pp-cf-list dt { font-size: .74rem; color: var(--pp-muted-foreground); }
+.pp-cf-list dd { margin: 0; font-size: .88rem; color: var(--pp-foreground); overflow-wrap: anywhere; }
 .pp-bundle-edit { border-top: 1px solid var(--pp-muted); padding-top: .85rem; }
 .pp-bundle-edit__head { cursor: pointer; font-weight: 600; font-size: .9rem; list-style: none; }
 .pp-bundle-edit__head::-webkit-details-marker { display: none; }
