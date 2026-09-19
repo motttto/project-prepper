@@ -27,8 +27,9 @@ Föderation, Telegram). Je Schalter eine Zeile, je Wirkungsort eine Spalte:
 | Querverweise | Links/Buttons in ANDEREN Bereichen, die in den abgeschalteten führen (Projekt → Verleih, Inventar → Ausleihen, Benachrichtigungs-Glocke) |
 | Feeds & Mails | iCal-Feed, E-Mails, Telegram zeigen nichts aus dem abgeschalteten Bereich |
 
-Gegenprobe in der wp-env: Schalter per `Settings::save_features()` aus, Proben fahren, **danach den
-Ausgangszustand exakt wiederherstellen** (vorher `get_option( 'pp_features' )` sichern).
+Gegenprobe in der wp-env: Schalter NUR prozess-lokal umlegen —
+`pp_audit_option( 'pp_features', [ 'lending' => false ] + (array) get_option( 'pp_features', [] ) )` —
+nie `Settings::save_features()`/`update_option()`: andere Agenten laufen parallel auf derselben Datenbank.
 Für Wert-Einstellungen: wird der Getter überall benutzt, oder liest irgendwo jemand die Option direkt
 bzw. rechnet mit einem festen Wert? Grenzwerte (0, Maximum, Unsinn) beim Speichern UND beim Lesen.
 Stimmen die Standardwerte in PHP, JS und CSS überein (z. B. Modal-Breite 75)?
@@ -52,4 +53,4 @@ Stimmen die Standardwerte in PHP, JS und CSS überein (z. B. Modal-Breite 75)?
 ## Bericht
 
 Schalter-Matrix (Schalter × Wirkungsort: greift / greift nicht / n/a), Liste der ungemappten `pp_do`,
-Liste der Fehlercodes ohne Meldung, dann Befunde. Einstellungen zurückgesetzt? Im Bericht bestätigen.
+Liste der Fehlercodes ohne Meldung, dann Befunde. Kürzel `define( 'PP_AUDIT_TAG', 'SWITCH' )`.

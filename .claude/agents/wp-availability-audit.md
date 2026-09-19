@@ -29,8 +29,8 @@ Equipment wird doppelt vergeben — der teuerste Fehler, den die Plattform mache
 Für JEDEN der vier Wege einzeln, dann gemischt:
 - Zeitraum-Kanten: identisch · überlappend vorn/hinten · eingeschlossen · direkt anschließend
   (Rückgabe Tag X, Abholung Tag X) · ein Tag Lücke.
-- Rüstzeiten 0/0, 1/0, 0/2, 2/2 (`pp_rental_buffer_before/after` per `update_option`, danach
-  zurücksetzen!) — der anschließende Tag muss mit Puffer belegt, ohne frei sein.
+- Rüstzeiten 0/0, 1/0, 0/2, 2/2 — NUR prozess-lokal per `pp_audit_option( 'pp_rental_buffer_before', 1 )`
+  (nie `update_option`, andere Agenten laufen parallel) — der anschließende Tag muss mit Puffer belegt, ohne frei sein.
 - Mengen: 1+1+1 = voll, die vierte Buchung scheitert; Teilmenge frei wird korrekt gemeldet.
 - Monats-/Jahreswechsel, ungültige Bereiche (`is_valid_range`).
 - **Dreifach-Vergleich** je Probe: `available_quantity()` für heute == Menge − `out_now` aus der
@@ -43,5 +43,5 @@ Logik prüfst. Föderation: wenn sich ein entfernter Partner nicht simulieren l�
 
 ## Bericht
 
-Tabelle „Weg × Probe → erwartet / geliefert", darunter Befunde. Einstellungen und Optionen auf den
-Ausgangswert zurücksetzen, `pp_audit_cleanup()`, beides im Bericht bestätigen.
+Tabelle „Weg × Probe → erwartet / geliefert", darunter Befunde. `pp_audit_cleanup()` am Ende und im
+Bericht bestätigen (Kürzel `define( 'PP_AUDIT_TAG', 'AVAIL' )`).

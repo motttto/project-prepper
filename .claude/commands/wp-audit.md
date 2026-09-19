@@ -37,6 +37,18 @@ Reihenfolge bei knapper Zeit: access → flow → availability → state → lif
 6. **Vorherigen Bericht lesen**, falls vorhanden: erledigte Funde als „behoben" bestätigen statt neu
    zu melden; offene Funde mit ihrer alten ID weiterführen.
 
+## Parallelbetrieb (mehrere Agenten, eine Datenbank)
+
+- **Eigenes Kürzel setzen**, bevor die Bibliothek geladen wird: `define( 'PP_AUDIT_TAG', 'FLOW' );`
+  → Daten heißen `ZZ-AUDIT-FLOW …`, und `pp_audit_cleanup()` räumt NUR die eigenen ab.
+  Wegwerf-Objekte, die du ohne `pp_audit_item()` anlegst (Verleih, Projekt, Anfrage, eigenes Feld),
+  bekommen denselben Namensanfang `PP_AUDIT_PREFIX`.
+- **Nie `update_option()` für Schalter, Puffer oder Einstellungen.** Stattdessen prozess-lokal:
+  `pp_audit_option( 'pp_rental_buffer_after', 2 )` bzw. `pp_audit_option( 'pp_features', [...] )` —
+  wirkt nur im eigenen Skriptlauf und muss nicht zurückgesetzt werden.
+- Testskripte im Container eindeutig benennen (`/tmp/<kürzel>-….php`).
+- Bestandsdaten anderer (auch fremde `ZZ-AUDIT-*`) nicht anfassen; tauchen sie in Zählungen auf, herausrechnen.
+
 ## Setup
 
 ```bash

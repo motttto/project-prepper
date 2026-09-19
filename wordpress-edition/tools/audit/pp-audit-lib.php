@@ -19,7 +19,34 @@ if ( false === strpos( (string) home_url(), 'localhost' ) ) {
 	exit( 1 );
 }
 
-const PP_AUDIT_PREFIX = 'ZZ-AUDIT';
+/*
+ * Parallelbetrieb: Jeder Agent setzt VOR dem require sein Kürzel —
+ *   define( 'PP_AUDIT_TAG', 'FLOW' );
+ * Dann heißen seine Daten „ZZ-AUDIT-FLOW …" und pp_audit_cleanup() räumt NUR
+ * diese ab. Ohne Tag wird alles mit ZZ-AUDIT entfernt (Einzellauf/Generalputz).
+ */
+define( 'PP_AUDIT_PREFIX', 'ZZ-AUDIT' . ( defined( 'PP_AUDIT_TAG' ) && '' !== PP_AUDIT_TAG ? '-' . preg_replace( '/[^A-Z0-9]/', '', strtoupper( (string) PP_AUDIT_TAG ) ) : '' ) );
+
+/**
+ * Option NUR für diesen PHP-Prozess überschreiben (pre_option-Filter) — nie
+ * update_option(): parallele Agenten teilen sich die Datenbank, ein global
+ * umgelegter Schalter oder Puffer verfälscht die Proben der anderen.
+ * Beispiel: pp_audit_option( 'pp_rental_buffer_after', 2 );
+ *           pp_audit_option( 'pp_features', [ 'lending' => false ] + get_option( 'pp_features', [] ) );
+ * Zurücknehmen: pp_audit_option( 'pp_rental_buffer_after', null );
+ */
+function pp_audit_option( string $name, $value ): void {
+	static $hooks = [];
+	if ( isset( $hooks[ $name ] ) ) {
+		remove_filter( 'pre_option_' . $name, $hooks[ $name ], 10 );
+		unset( $hooks[ $name ] );
+	}
+	if ( null === $value ) {
+		return;
+	}
+	$hooks[ $name ] = static function () use ( $value ) { return $value; };
+	add_filter( 'pre_option_' . $name, $hooks[ $name ], 10 );
+}
 
 /**
  * Portal-Aktion wie ein Formular-POST auslösen. wp_safe_redirect()+exit würde
