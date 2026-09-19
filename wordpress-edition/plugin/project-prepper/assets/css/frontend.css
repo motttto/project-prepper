@@ -1239,7 +1239,8 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-modal {
 	width: var(--pp-modal-width, 75vw);
 	max-width: 96vw;
-	max-height: 85vh;
+	max-height: 90vh;
+	max-height: 90dvh;
 	padding: 0;
 	border: 1px solid var(--pp-border, var(--pp-border));
 	border-radius: 12px;
@@ -1377,8 +1378,6 @@ a.pp-front-card-media { text-decoration: none; }
 	-webkit-overflow-scrolling: touch;
 	scrollbar-width: thin;
 }
-.pp-proj-tabs::-webkit-scrollbar { height: 4px; }
-.pp-proj-tabs::-webkit-scrollbar-thumb { background: var(--pp-border); border-radius: 2px; }
 .pp-proj-tabs__tab {
 	flex: none;
 	padding: .45rem .8rem;
@@ -3204,7 +3203,8 @@ label.pp-swatch,
 .pp-bundle-edit { border-top: 1px solid var(--pp-muted); padding-top: .85rem; }
 .pp-bundle-edit__head { cursor: pointer; font-weight: 600; font-size: .9rem; list-style: none; }
 .pp-bundle-edit__head::-webkit-details-marker { display: none; }
-.pp-bundle-edit__list { display: grid; gap: .35rem; margin-top: .5rem; max-height: 16rem; overflow-y: auto; }
+/* Mehrspaltig statt eigener Scrollbox — im Modal scrollt NUR der Body (Skill /wp-css). */
+.pp-bundle-edit__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: .35rem .9rem; margin-top: .5rem; }
 .pp-portal__form label.pp-bundle-edit__row { flex-direction: row; align-items: center; gap: .6rem; font-weight: 400; }
 .pp-bundle-edit__row input[type="number"] { width: 72px; flex: none; }
 .pp-bundle-edit__name small { color: var(--pp-muted-foreground); }
@@ -3381,3 +3381,29 @@ label.pp-swatch,
 .pp-inv-row--click:hover, .pp-ginv__row:hover { background: var(--pp-muted); }
 .pp-portal__item--row:last-child, .pp-ginv__row:last-child { border-bottom: 0; }
 .pp-inv-list, .pp-ginv { border: 1px solid var(--pp-border); border-radius: 10px; overflow: hidden; background: var(--pp-surface); }
+
+/* ==========================================================================
+   Scrollbars (Skill /wp-css): erst vermeiden, und wo sie bleiben müssen,
+   unauffällig. Bewusst am DATEIENDE, damit die Regeln alles davor überstimmen.
+   1. Native Flächen (Scrollbalken, Datumswähler, Selects) folgen dem Theme —
+      ohne color-scheme zeichnet der Browser im Dark Mode HELLE Balken.
+   2. Balken schmal und in Tokenfarben; die Spur bleibt durchsichtig.
+      scrollbar-color vererbt sich, scrollbar-width nicht (daher `*`).
+   3. Offenes Modal sperrt das Scrollen der Seite dahinter (sonst zwei Balken
+      nebeneinander); die reservierte Rinne verhindert den Layout-Sprung.
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+	.pp-front,
+	.pp-app { color-scheme: dark; }
+	html:has(body.pp-app-body) { color-scheme: dark; }
+}
+.pp-front,
+.pp-app {
+	scrollbar-color: var(--pp-border) transparent;
+	scrollbar-color: color-mix(in srgb, var(--pp-muted-foreground) 45%, transparent) transparent;
+}
+.pp-front *,
+.pp-app * { scrollbar-width: thin; }
+html:has(body.pp-app-body) { scrollbar-gutter: stable; }
+html:has(dialog.pp-modal[open]) { overflow: hidden; }
+
