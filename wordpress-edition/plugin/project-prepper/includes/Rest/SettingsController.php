@@ -77,6 +77,9 @@ class SettingsController extends BaseController {
 		if ( array_key_exists( 'rental_buffer_after', $json ) ) {
 			update_option( Settings::BUFFER_AFTER, Settings::clamp_days( $json['rental_buffer_after'] ) );
 		}
+		if ( array_key_exists( 'modal_width', $json ) ) {
+			update_option( Settings::MODAL_WIDTH, Settings::clamp_modal_width( $json['modal_width'] ) );
+		}
 		if ( array_key_exists( 'smtp', $json ) && is_array( $json['smtp'] ) ) {
 			Mailer::save( $json['smtp'] );
 		}
@@ -151,6 +154,9 @@ class SettingsController extends BaseController {
 			'rental_buffer_before'     => Settings::buffer_before(),
 			'rental_buffer_after'      => Settings::buffer_after(),
 			'max_buffer_days'          => Settings::MAX_BUFFER_DAYS,
+			'modal_width'              => Settings::modal_width(),
+			'modal_width_min'          => Settings::MODAL_WIDTH_MIN,
+			'modal_width_max'          => Settings::MODAL_WIDTH_MAX,
 			'ical_url'                 => rest_url( self::REST_NAMESPACE . '/calendar.ics' ) . '?token=' . CalendarController::token(),
 		];
 	}

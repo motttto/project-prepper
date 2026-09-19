@@ -179,6 +179,7 @@ class MemberPortal {
 	public static function register_assets(): void {
 		// Portal nutzt das gemeinsame Frontend-Stylesheet (enthält die .pp-portal-Regeln).
 		wp_register_style( 'pp-frontend', PP_PLUGIN_URL . 'assets/css/frontend.css', [], PP_VERSION );
+		\ProjectPrepper\Settings::attach_modal_width( 'pp-frontend' );
 		// Kleine progressive Erweiterung (z. B. „+ Option" beim Umfrage-Anlegen).
 		wp_register_script( 'pp-portal', PP_PLUGIN_URL . 'assets/js/portal.js', [], PP_VERSION, true );
 		// Live-Suche für alle Suchmasken (auch im öffentlichen Inventar nutzbar).

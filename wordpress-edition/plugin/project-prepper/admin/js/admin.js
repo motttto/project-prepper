@@ -924,6 +924,7 @@
 							item_time_status: timeStatusToggle.checked,
 							rental_buffer_before: parseInt(bufferBefore.value, 10) || 0,
 							rental_buffer_after: parseInt(bufferAfter.value, 10) || 0,
+							modal_width: parseInt(modalWidth.value, 10) || 0,
 							smtp: {
 								enabled: smtpToggle.checked,
 								host: smtpHost.value.trim(),
@@ -1083,6 +1084,15 @@
 					field(__("Turnaround after a rental (days)", "project-prepper"), bufferAfter)
 				]),
 				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("Time an item needs around a booking — preparing and testing beforehand, checking and charging afterwards. Those days count as booked everywhere availability is calculated. 0 turns it off.", "project-prepper") })
+			]));
+
+			// Darstellung: Standardbreite aller Popups (Portal + Backend).
+			var modalWidth = el("input", { type: "number", min: String(settings.modal_width_min || 40), max: String(settings.modal_width_max || 100), step: "5", style: "width:90px" });
+			modalWidth.value = settings.modal_width || 75;
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Appearance", "project-prepper") }),
+				field(__("Popup width (% of the window)", "project-prepper"), modalWidth),
+				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("Standard width of every popup in the member portal and in this backend. On phones popups always use the full width; full-screen forms and the image viewer keep their own size.", "project-prepper") })
 			]));
 
 			// Öffentliches Frontend

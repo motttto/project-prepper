@@ -55,6 +55,7 @@ class Shortcodes {
 
 	public static function register_assets(): void {
 		wp_register_style( 'pp-frontend', PP_PLUGIN_URL . 'assets/css/frontend.css', [], PP_VERSION );
+		\ProjectPrepper\Settings::attach_modal_width( 'pp-frontend' );
 		// Live-Suche der öffentlichen Inventarliste (gemeinsames Script mit dem Portal).
 		wp_register_script( 'pp-live-search', PP_PLUGIN_URL . 'assets/js/live-search.js', [], PP_VERSION, true );
 	}

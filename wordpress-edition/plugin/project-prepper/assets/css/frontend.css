@@ -1232,10 +1232,13 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-inv-row--click:hover .pp-manage-btn { border-color: var(--pp-primary, var(--pp-primary)); color: var(--pp-primary, var(--pp-primary)); }
 .pp-portal__manage-body { padding: .4rem .4rem .9rem; }
 
-/* Detail-Modal (Inventar bearbeiten/teilen) — natives <dialog>, 1:1 an das
- * Supabase-App-Modal: max-w-2xl, rounded-xl, --shadow-lg, px-6/py-4 Header. */
+/* Modal-Standard (Skill /wp-modal) — natives <dialog>. EINE Breite für alle
+ * Popups: --pp-modal-width kommt aus wp-admin → Einstellungen → Darstellung
+ * (Settings::modal_width(), Standard 75 % der Fensterbreite). Keine eigenen
+ * Breiten je Modal; Ausnahmen sind nur --full (Vollbild) und --lightbox. */
 .pp-modal {
-	width: min(672px, 94vw);
+	width: var(--pp-modal-width, 75vw);
+	max-width: 96vw;
 	max-height: 85vh;
 	padding: 0;
 	border: 1px solid var(--pp-border, var(--pp-border));
@@ -1246,9 +1249,8 @@ a.pp-front-card-media { text-decoration: none; }
 	box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
 	overflow: hidden;
 }
-/* Breite Variante: Modals mit Artikel-Liste (Verleih bearbeiten) brauchen Platz
- * für Foto + Name + Verfügbarkeit + Menge + €/Tag. */
-.pp-modal--wide { width: min(920px, 96vw); }
+/* Auf dem Handy immer volle Breite — 75 % von 375 px wären unbenutzbar. */
+@media (max-width: 767px) { .pp-modal { width: 96vw; } }
 /* WICHTIG: display NUR fürs geöffnete Modal — sonst überschreibt es die Browser-
  * Regel `dialog:not([open]){display:none}` und ALLE Modals werden gleichzeitig
  * sichtbar. Flex-Column = Kopf/Footer fix, Body scrollt. */
@@ -1303,8 +1305,14 @@ a.pp-front-card-media { text-decoration: none; }
 /* App space-y-6 zwischen Modal-Sektionen. */
 .pp-modal-body > * + * { margin-top: 1.5rem; }
 
-/* Edit-Formular im Modal: 2-Spalten-Raster wie das App-Modal. */
-.pp-modal-body > .pp-portal__form { display: grid; grid-template-columns: 1fr 1fr; gap: .7rem .9rem; }
+/* Formular im Modal: füllt die Modal-Breite (kein 480px-Deckel wie auf der
+ * Seite) und verteilt die Felder selbst — 2 Spalten im schmalen, 3–4 im breiten
+ * Modal, 1 auf dem Handy. Volle Zeilen setzen `grid-column: 1 / -1`. */
+.pp-modal-body > .pp-portal__form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr)); gap: .7rem .9rem; max-width: none; }
+/* Auch verschachtelte Formulare (in .pp-modal-section) ohne Seiten-Deckel. */
+.pp-modal .pp-portal__form { max-width: none; }
+.pp-modal-body > .pp-portal__form > .pp-portal__hint,
+.pp-modal-body > .pp-portal__form > p { grid-column: 1 / -1; margin: 0; }
 .pp-modal-body > .pp-portal__form > label { display: flex; flex-direction: column; gap: .25rem; font-size: .78rem; color: var(--pp-muted-foreground); min-width: 0; }
 .pp-modal-body > .pp-portal__form > label input,
 .pp-modal-body > .pp-portal__form > label select,

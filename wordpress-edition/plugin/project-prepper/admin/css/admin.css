@@ -454,9 +454,11 @@
 	border-radius: 12px;
 	box-shadow: var(--pp-shadow-lg, 0 10px 15px -3px rgb(0 0 0 / 0.2));
 	width: 100%;
-	max-width: 720px;
+	/* Gleiche Standardbreite wie im Portal (Settings::modal_width(), Skill /wp-modal). */
+	max-width: var(--pp-modal-width, 75vw);
 	font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
+@media (max-width: 782px) { .pp-modal { max-width: none; } }
 
 .pp-modal-header {
 	display: flex;

@@ -61,6 +61,47 @@ class Settings {
 		return max( 0, min( self::MAX_BUFFER_DAYS, (int) $value ) );
 	}
 
+	/* ===================== Darstellung: Modal-Breite ===================== */
+
+	/**
+	 * Standardbreite aller Popups/Modals in Prozent der Fensterbreite. EIN Wert
+	 * für Portal (<dialog class="pp-modal">) und Backend (admin.js openModal) —
+	 * ausgegeben als CSS-Variable `--pp-modal-width`, die Stylesheets tragen
+	 * denselben Standard als Fallback. Vollbild (`--full`) und Lightbox sind
+	 * bewusste Ausnahmen und lesen die Variable nicht.
+	 */
+	const MODAL_WIDTH = 'pp_modal_width';
+
+	const MODAL_WIDTH_DEFAULT = 75;
+	const MODAL_WIDTH_MIN     = 40;
+	const MODAL_WIDTH_MAX     = 100;
+
+	public static function modal_width(): int {
+		return self::clamp_modal_width( get_option( self::MODAL_WIDTH, self::MODAL_WIDTH_DEFAULT ) );
+	}
+
+	/** Wert für die Speicherung säubern; Unsinn (0, leer) fällt auf den Standard. */
+	public static function clamp_modal_width( $value ): int {
+		$value = (int) $value;
+		if ( $value <= 0 ) {
+			return self::MODAL_WIDTH_DEFAULT;
+		}
+		return max( self::MODAL_WIDTH_MIN, min( self::MODAL_WIDTH_MAX, $value ) );
+	}
+
+	/**
+	 * Hängt die Variable an ein registriertes Stylesheet. Je Handle nur einmal —
+	 * `pp-frontend` wird an zwei Stellen registriert, beide rufen hier an.
+	 */
+	public static function attach_modal_width( string $handle ): void {
+		static $done = [];
+		if ( isset( $done[ $handle ] ) ) {
+			return;
+		}
+		$done[ $handle ] = true;
+		wp_add_inline_style( $handle, ':root{--pp-modal-width:' . self::modal_width() . 'vw}' );
+	}
+
 	/* ===================== Funktionsbereiche an/aus ===================== */
 
 	/**
