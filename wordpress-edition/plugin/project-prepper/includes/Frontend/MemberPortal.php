@@ -2341,7 +2341,10 @@ class MemberPortal {
 
 			<?php
 			$active       = self::active_group_id( $groups );
-			$active_label = __( 'Solo', 'project-prepper' );
+			// Persönlicher Arbeitsbereich trägt den Namen des Users statt „Solo"
+			// (User-Wunsch) — so liest sich der Umschalter wie eine Liste von Namen.
+			$solo_label   = '' !== trim( (string) $user->display_name ) ? (string) $user->display_name : __( 'Solo', 'project-prepper' );
+			$active_label = $solo_label;
 			$active_logo  = null;
 			foreach ( $groups as $g ) {
 				if ( (int) $g->id === $active ) {
@@ -2364,7 +2367,7 @@ class MemberPortal {
 				</summary>
 				<div class="pp-app__ws-menu">
 					<?php
-					$ws_options = [ [ 'ws' => 'solo', 'label' => __( 'Solo', 'project-prepper' ), 'is' => ( 0 === $active ), 'logo' => null ] ];
+					$ws_options = [ [ 'ws' => 'solo', 'label' => $solo_label, 'is' => ( 0 === $active ), 'logo' => null ] ];
 					foreach ( $groups as $g ) {
 						$ws_options[] = [
 							'ws'    => (string) (int) $g->id,
@@ -2714,7 +2717,8 @@ class MemberPortal {
 					/* translators: %s: active group name. */
 					printf( esc_html__( 'Group: %s', 'project-prepper' ), esc_html( $gname ) );
 				} elseif ( $grp_count > 0 ) {
-					esc_html_e( 'Solo workspace', 'project-prepper' );
+					// Wie im Umschalter: der persönliche Bereich heißt wie der User.
+					echo esc_html( __( 'Workspace', 'project-prepper' ) . ': ' . $user->display_name );
 				} else {
 					esc_html_e( 'Welcome to your collective platform.', 'project-prepper' );
 				}
