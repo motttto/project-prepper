@@ -41,3 +41,6 @@ wordpress-edition/00_NO_UPLOAD_SECRET/
 
 # Private Aufgabenliste des Users (bleibt lokal)
 00_task_input.txt
+
+# Audit-Berichte der Prüf-Agenten (Skill /wp-audit) — enthalten ggf. Sicherheitsfunde, Repo ist public!
+wordpress-edition/audits/
