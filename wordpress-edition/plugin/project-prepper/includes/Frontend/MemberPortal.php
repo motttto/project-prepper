@@ -2711,7 +2711,7 @@ class MemberPortal {
 			</p>
 		</header>
 
-		<div class="pp-kpi-grid">
+		<div class="pp-kpi-grid pp-kpi-grid--dash">
 			<?php
 			self::kpi_card( 'inventory', $inv_own, __( 'Own items', 'project-prepper' ), 'warning', 'inventory' );
 			self::kpi_card( 'inventory', $inv_shared, __( 'Accessible via collectives', 'project-prepper' ), 'info', 'users' );

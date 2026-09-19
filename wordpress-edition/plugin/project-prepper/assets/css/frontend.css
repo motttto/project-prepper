@@ -3269,11 +3269,20 @@ label.pp-swatch,
    daneben. Alles über Tokens, damit der Dark-Block am Dateiende nichts
    nachziehen muss.
    ========================================================================== */
-.pp-qa { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-bottom: 24px; }
-.pp-qa__tile { display: flex; align-items: center; gap: .55rem; padding: .7rem .85rem; background: var(--pp-surface); border: 1px solid var(--pp-border); border-radius: 12px; color: var(--pp-foreground); text-decoration: none; font-size: .86rem; font-weight: 600; line-height: 1.2; min-height: 48px; }
+/* Kennzahlen des Dashboards kompakt (User-Wunsch „mehr Übersichtlichkeit"):
+   Icon links, Zahl + Beschriftung daneben — alle Kacheln passen in eine Zeile. */
+.pp-kpi-grid--dash { gap: 8px; margin-bottom: 18px; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.pp-kpi-grid--dash .pp-kpi { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: .6rem; row-gap: 2px; align-items: center; padding: .55rem .7rem; border-radius: 12px; }
+.pp-kpi-grid--dash .pp-kpi__icon { grid-row: 1 / span 2; width: 30px; height: 30px; border-radius: 8px; }
+.pp-kpi-grid--dash .pp-kpi__icon svg { width: 16px; height: 16px; }
+.pp-kpi-grid--dash .pp-kpi__value { font-size: 1.15rem; align-self: end; }
+.pp-kpi-grid--dash .pp-kpi__label { font-size: .74rem; line-height: 1.2; align-self: start; }
+/* Schnellaktionen als schmale Chips in Inhaltsbreite statt fester Kachelbreite. */
+.pp-qa { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+.pp-qa__tile { display: inline-flex; align-items: center; gap: .45rem; padding: .35rem .7rem .35rem .4rem; background: var(--pp-surface); border: 1px solid var(--pp-border); border-radius: 10px; color: var(--pp-foreground); text-decoration: none; font-size: .8rem; font-weight: 600; line-height: 1.2; min-height: 36px; }
 .pp-qa__tile:hover { border-color: var(--pp-primary); color: var(--pp-primary); }
-.pp-qa__icon { width: 30px; height: 30px; border-radius: 8px; background: var(--pp-primary-light); color: var(--pp-primary-hover); display: inline-flex; align-items: center; justify-content: center; flex: none; }
-.pp-qa__icon svg { width: 16px; height: 16px; }
+.pp-qa__icon { width: 24px; height: 24px; border-radius: 6px; background: var(--pp-primary-light); color: var(--pp-primary-hover); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.pp-qa__icon svg { width: 14px; height: 14px; }
 /* Untere Hälfte: Gruppen links (breit), Profil rechts (schmal); unter 900px gestapelt. */
 .pp-dash-cols { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 18px; align-items: start; }
 @media (max-width: 899px) { .pp-dash-cols { grid-template-columns: 1fr; } }
