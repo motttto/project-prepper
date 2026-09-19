@@ -56,16 +56,86 @@
 		if ( form ) { form.setAttribute( 'data-pp-dirty', '1' ); }
 	} );
 
-	/* Dialog schließen — mit ungespeicherten Änderungen erst speichern (Submit
-	 * mit HTML-Validierung: ein leerer Pflicht-Name hält das Modal offen). */
+	/* Autosave-Formular absenden (mit HTML-Validierung: ein leerer Pflicht-Name
+	 * hält das Modal offen). form.submit() feuert KEIN submit-Event — dort muss
+	 * das Änderungs-Flag von Hand weg, sonst fragt beforeunload nach. */
+	function submitAutosave( form ) {
+		if ( typeof form.requestSubmit === 'function' ) {
+			form.requestSubmit();
+			return;
+		}
+		if ( form.hasAttribute( 'data-pp-submitting' ) ) { return; }
+		form.setAttribute( 'data-pp-submitting', '1' );
+		form.removeAttribute( 'data-pp-dirty' );
+		form.submit();
+	}
+
+	/* Dialog schließen — mit ungespeicherten Änderungen erst speichern. */
 	function closeDialog( dlg ) {
 		var form = autosaveForm( dlg );
 		if ( form && form.hasAttribute( 'data-pp-dirty' ) ) {
-			if ( typeof form.requestSubmit === 'function' ) { form.requestSubmit(); } else { form.submit(); }
+			submitAutosave( form );
 			return;
 		}
 		dlg.close();
 	}
+
+	/* Speicherlogik des Modals (User-Meldung „komische Popups aus dem Browser"):
+	 * 1. Das EIGENE Speichern ist kein Verlassen mit ungespeicherten Änderungen —
+	 *    ohne das Löschen des Flags fragte beforeunload bei JEDEM Speichern
+	 *    „Seite verlassen?".
+	 * 2. Doppelklick auf „Speichern" schickte zwei POSTs; der zweite trug den
+	 *    alten Stand (pp_seen) und endete mit „jemand anderes hat geändert",
+	 *    obwohl der erste gespeichert hatte.
+	 * 3. Ein ANDERES Formular im selben Modal (Dokument hochladen/entfernen) lädt
+	 *    die Seite neu und verwirft offene Änderungen — statt des Browser-Popups
+	 *    eine klare Rückfrage (Text kommt übersetzt aus data-pp-unsaved-msg).
+	 *    Löschen fragt schon selbst nach und überspringt das (data-pp-discard-ok).
+	 * Läuft in der Bubble-Phase: ein abgebrochenes onsubmit="return confirm()"
+	 * ist hier bereits als defaultPrevented sichtbar. */
+	document.addEventListener( 'submit', function ( e ) {
+		var form = e.target;
+		if ( e.defaultPrevented || ! form || 'FORM' !== form.tagName ) { return; }
+		if ( form.hasAttribute( 'data-pp-autosave' ) ) {
+			if ( form.hasAttribute( 'data-pp-submitting' ) ) {
+				e.preventDefault();
+				return;
+			}
+			form.setAttribute( 'data-pp-submitting', '1' );
+			form.removeAttribute( 'data-pp-dirty' );
+			return;
+		}
+		var dlg   = form.closest ? form.closest( 'dialog' ) : null;
+		var dirty = dlg ? dlg.querySelector( 'form[data-pp-autosave][data-pp-dirty]' ) : null;
+		if ( ! dirty ) { return; }
+		if ( ! form.hasAttribute( 'data-pp-discard-ok' ) ) {
+			var msg = dirty.getAttribute( 'data-pp-unsaved-msg' );
+			if ( msg && ! window.confirm( msg ) ) {
+				e.preventDefault();
+				return;
+			}
+		}
+		dirty.removeAttribute( 'data-pp-dirty' );
+	} );
+
+	// Zurück-Taste holt die Seite aus dem bfcache — samt gesetzter Sperre; ohne
+	// Reset ließe sich das Formular danach nie wieder absenden.
+	window.addEventListener( 'pageshow', function ( e ) {
+		if ( ! e.persisted ) { return; }
+		var locked = document.querySelectorAll( 'form[data-pp-submitting]' );
+		for ( var i = 0; i < locked.length; i++ ) { locked[ i ].removeAttribute( 'data-pp-submitting' ); }
+	} );
+
+	// Backdrop-Klick zählt nur, wenn auch das DRÜCKEN der Maus auf dem Backdrop
+	// lag. Wer Text in einem Feld markiert und die Maus außerhalb loslässt,
+	// erzeugt einen Klick auf den <dialog> — das schloss (und speicherte) bisher.
+	var downOnBackdrop = false;
+	document.addEventListener( 'mousedown', function ( e ) {
+		downOnBackdrop = false;
+		if ( 'DIALOG' !== e.target.tagName || ! e.target.classList.contains( 'pp-modal' ) ) { return; }
+		var r = e.target.getBoundingClientRect();
+		downOnBackdrop = ! ( e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom );
+	} );
 
 	document.addEventListener( 'click', function ( e ) {
 		var closeBtn = e.target.closest( '[data-pp-modal-close]' );
@@ -78,7 +148,8 @@
 		if ( 'DIALOG' === e.target.tagName && e.target.classList.contains( 'pp-modal' ) ) {
 			var r = e.target.getBoundingClientRect();
 			var inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
-			if ( ! inside ) { closeDialog( e.target ); }
+			if ( ! inside && downOnBackdrop ) { closeDialog( e.target ); }
+			downOnBackdrop = false;
 			return;
 		}
 		var trigger = e.target.closest( '[data-pp-modal]' );
@@ -107,7 +178,7 @@
 		var form = 'DIALOG' === dlg.tagName ? autosaveForm( dlg ) : null;
 		if ( form && form.hasAttribute( 'data-pp-dirty' ) ) {
 			e.preventDefault();
-			if ( typeof form.requestSubmit === 'function' ) { form.requestSubmit(); } else { form.submit(); }
+			submitAutosave( form );
 		}
 	}, true );
 

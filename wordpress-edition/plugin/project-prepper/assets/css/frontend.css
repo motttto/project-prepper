@@ -1342,6 +1342,12 @@ a.pp-front-card-media { text-decoration: none; }
 /* Footer: fix unten, Schließen rechts, Löschen links */
 .pp-modal-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex: none; padding: .8rem 1.5rem; border-top: 1px solid var(--pp-border); background: var(--pp-surface); }
 .pp-modal-footer__del { color: var(--pp-destructive, var(--pp-destructive)); }
+/* Rechte Seite der Fußleiste: Hinweis · Schließen · Speichern (Skill /wp-modal). */
+.pp-modal-footer > form { margin: 0; }
+.pp-modal-footer .pp-portal__btn { margin-top: 0; }
+.pp-modal-footer__actions { display: flex; align-items: center; justify-content: flex-end; gap: .6rem; margin-left: auto; min-width: 0; }
+.pp-modal-footer__hint { margin: 0; font-size: .75rem; text-align: right; }
+@media (max-width: 767px) { .pp-modal-footer__hint { display: none; } .pp-modal-footer { padding: .7rem 1rem; } }
 
 /* Reiches Gruppen-Teilen im Item-Modal (Pendant zum App-Sharing-Modal):
  * Konditionen erscheinen erst, wenn die Gruppe angehakt ist — rein per :has(). */

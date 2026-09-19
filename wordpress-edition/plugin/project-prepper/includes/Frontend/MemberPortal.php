@@ -9882,7 +9882,7 @@ class MemberPortal {
 							// pro Abschnitt): Foto, Stammdaten und Kollektiv-Freigaben
 							// werden zusammen gespeichert — beim Klick auf „Speichern"
 							// oder automatisch beim Schließen (portal.js, data-pp-autosave). ?>
-							<form class="pp-portal__form pp-item-form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-autosave>
+							<form class="pp-portal__form pp-item-form" id="pp-item-form-<?php echo (int) $item->id; ?>" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-autosave data-pp-unsaved-msg="<?php esc_attr_e( 'You have unsaved changes to this item. They are lost if you continue — save first?', 'project-prepper' ); ?>">
 								<?php self::action_fields( 'item_save_all' ); ?>
 								<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
 								<input type="hidden" name="pp_seen" value="<?php echo esc_attr( (string) ( $item->updated_at ?? '' ) ); ?>">
@@ -9900,10 +9900,6 @@ class MemberPortal {
 								<?php self::item_fields( $categories, $conditions, $item ); ?>
 								<?php self::item_bundle_fields( $bundle_candidates, $bundles_map[ (int) $item->id ] ?? [], $item ); ?>
 								<?php self::item_share_fields( $groups, $groups ? MemberInventory::share_settings( (int) $item->id ) : [] ); ?>
-								<div class="pp-item-form__save">
-									<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
-									<span class="pp-portal__hint"><?php esc_html_e( 'Changes are also saved automatically when you close this window.', 'project-prepper' ); ?></span>
-								</div>
 							</form>
 							<details class="pp-modal-section">
 								<summary class="pp-modal-section__head"><?php esc_html_e( 'Documents', 'project-prepper' ); ?><?php if ( ! empty( $item->documents ) ) : ?> (<?php echo (int) count( $item->documents ); ?>)<?php endif; ?></summary>
@@ -9936,12 +9932,18 @@ class MemberPortal {
 							</details>
 						</div>
 						<div class="pp-modal-footer">
-							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this item?', 'project-prepper' ) ); ?>');">
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-discard-ok onsubmit="return confirm('<?php echo esc_js( __( 'Delete this item?', 'project-prepper' ) ); ?>');">
 								<?php self::action_fields( 'item_delete' ); ?>
 								<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
 								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-modal-footer__del"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
 							</form>
-							<button type="button" class="pp-portal__btn pp-portal__btn--sm" data-pp-modal-close><?php esc_html_e( 'Close', 'project-prepper' ); ?></button>
+							<?php // Speichern sitzt in der Fußleiste (immer sichtbar, kein Scrollen);
+							// das form-Attribut bindet den Button ans Formular im Body. ?>
+							<div class="pp-modal-footer__actions">
+								<span class="pp-portal__hint pp-modal-footer__hint"><?php esc_html_e( 'Changes are also saved automatically when you close this window.', 'project-prepper' ); ?></span>
+								<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal-close><?php esc_html_e( 'Close', 'project-prepper' ); ?></button>
+								<button type="submit" form="pp-item-form-<?php echo (int) $item->id; ?>" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+							</div>
 						</div>
 						</dialog>
 					</div>
