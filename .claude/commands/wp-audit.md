@@ -14,7 +14,8 @@ Anleitung, wie man sie startet.
 | `wp-switch-message-audit` | Greifen Feature-Schalter überall, hat jeder Fehler eine verständliche Meldung? |
 
 **Starten:** einzeln per Agent-Tool (`subagent_type: wp-access-audit` …) oder alle sechs parallel in
-EINER Nachricht. `wp-flow-test` legt Daten an — nicht zweimal gleichzeitig laufen lassen.
+EINER Nachricht. Bricht ein Lauf am Limit ab: NICHT neu starten, sondern per `SendMessage` an die
+Agent-ID fortsetzen (Kontext bleibt erhalten). Ein abgebrochener Lauf heißt „ungeprüft", nie „sauber". `wp-flow-test` legt Daten an — nicht zweimal gleichzeitig laufen lassen.
 Reihenfolge bei knapper Zeit: access → flow → availability → state → lifecycle → switch.
 
 ---
@@ -34,6 +35,10 @@ Reihenfolge bei knapper Zeit: access → flow → availability → state → lif
 5. **Bericht NICHT ins Repo.** Das Repo ist öffentlich — Sicherheitsfunde gehören nicht in Commits.
    Bericht nach `wordpress-edition/audits/JJJJ-MM-TT-<agent>.md` (Ordner ist gitignored) und als
    Zusammenfassung in die Abschlussnachricht.
+7. **Früh und laufend sichern.** Die Berichtsdatei gleich nach der Inventur anlegen (erste Zeile
+   „ZWISCHENSTAND — Lauf noch nicht abgeschlossen") und nach jedem Prüfblock fortschreiben; die Zeile
+   erst am Ende entfernen. Ein Lauf kann jederzeit am Nutzungslimit abreißen — beim ersten Großlauf
+   (6 Agenten parallel) brachen alle sechs ab, BEVOR ein einziger Bericht existierte.
 6. **Vorherigen Bericht lesen**, falls vorhanden: erledigte Funde als „behoben" bestätigen statt neu
    zu melden; offene Funde mit ihrer alten ID weiterführen.
 
