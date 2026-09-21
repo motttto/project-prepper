@@ -352,9 +352,15 @@ class Borrowing {
 		}
 		// Set-Anfrage: der ganze Vorgang wird abgebrochen, nicht eine Teil-Zeile.
 		foreach ( self::siblings( $req ) as $row ) {
-			if ( 'requested' === $row->status ) {
-				$wpdb->update( Schema::table( 'borrow_requests' ), [ 'status' => 'cancelled' ], [ 'id' => (int) $row->id ], [ '%s' ], [ '%d' ] );
-			}
+			// Status in der WHERE-Bedingung: Eine Genehmigung, die zwischen Lesen
+			// und Schreiben eintrifft, darf nicht überschrieben werden.
+			$wpdb->update(
+				Schema::table( 'borrow_requests' ),
+				[ 'status' => 'cancelled' ],
+				[ 'id' => (int) $row->id, 'status' => 'requested' ],
+				[ '%s' ],
+				[ '%d', '%s' ]
+			);
 		}
 		return true;
 	}
@@ -374,9 +380,13 @@ class Borrowing {
 		}
 		// Set-Leihe: alle Teile kommen gemeinsam zurück.
 		foreach ( self::siblings( $req ) as $row ) {
-			if ( 'approved' === $row->status ) {
-				$wpdb->update( Schema::table( 'borrow_requests' ), [ 'status' => 'returned' ], [ 'id' => (int) $row->id ], [ '%s' ], [ '%d' ] );
-			}
+			$wpdb->update(
+				Schema::table( 'borrow_requests' ),
+				[ 'status' => 'returned' ],
+				[ 'id' => (int) $row->id, 'status' => 'approved' ],
+				[ '%s' ],
+				[ '%d', '%s' ]
+			);
 		}
 		ActivityLog::log( 'borrow_returned', 'item', (int) ( $req->bundle_item_id ?: $req->item_id ), [ 'request_id' => $request_id ] );
 		return true;

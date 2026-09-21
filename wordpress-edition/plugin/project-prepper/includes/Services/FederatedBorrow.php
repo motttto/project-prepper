@@ -189,13 +189,18 @@ class FederatedBorrow {
 			return new WP_Error( 'pp_no_units', __( 'No units of this item are free in that period.', 'project-prepper' ), [ 'status' => 409 ] );
 		}
 
-		$wpdb->update(
+		// Bedingt auf „noch offen": Zwei gleichzeitige Entscheidungen schrieben
+		// sonst beide ihren Status und protokollierten beide.
+		$changed = $wpdb->update(
 			Schema::table( 'fed_borrow_in' ),
 			[ 'status' => $map[ $decision ], 'decided_at' => current_time( 'mysql' ) ],
-			[ 'id' => $request_id ],
+			[ 'id' => $request_id, 'status' => 'requested' ],
 			[ '%s', '%s' ],
-			[ '%d' ]
+			[ '%d', '%s' ]
 		);
+		if ( 1 !== (int) $changed ) {
+			return new WP_Error( 'pp_fed_closed', __( 'This request has already been decided.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
 		ActivityLog::log( 'fed_borrow_decided', 'item', (int) $req->item_id, [ 'request_id' => $request_id, 'status' => $map[ $decision ] ] );
 		return true;
 	}
@@ -229,9 +234,9 @@ class FederatedBorrow {
 		$wpdb->update(
 			Schema::table( 'fed_borrow_in' ),
 			[ 'status' => 'returned' ],
-			[ 'id' => $request_id ],
+			[ 'id' => $request_id, 'status' => 'approved' ],
 			[ '%s' ],
-			[ '%d' ]
+			[ '%d', '%s' ]
 		);
 		ActivityLog::log( 'fed_borrow_returned', 'item', (int) $req->item_id, [ 'request_id' => $request_id ] );
 		return true;
