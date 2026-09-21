@@ -327,6 +327,16 @@ class GroupGovernance {
 	}
 
 	/**
+	 * Offene Abstimmung erneut auswerten — nachdem sich der Kreis der aktiven
+	 * Mitglieder geändert hat (Löschung, Austritt). Ohne diesen Anstoß bliebe
+	 * eine Einladung ewig offen, weil auf die Stimme einer Person gewartet wird,
+	 * die es nicht mehr gibt.
+	 */
+	public static function reresolve( int $invitation_id ): void {
+		self::resolve( $invitation_id );
+	}
+
+	/**
 	 * Auflösung: eine Ablehnung → rejected; alle aktiven Mitglieder approve →
 	 * approved + Beitritt. Sonst bleibt es bei `voting`.
 	 *

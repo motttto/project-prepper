@@ -24,6 +24,10 @@ class Users {
 
 	public static function init(): void {
 		add_action( 'wp_login', [ self::class, 'record_login' ], 10, 2 );
+		// Gelöschte Nutzer hinterließen bisher Mitgliedschaften, Stimmen und
+		// Inventar-Freigaben. Folge: Einladungs-Votings und Beschlüsse warteten
+		// dauerhaft auf jemanden, den es nicht mehr gibt.
+		add_action( 'deleted_user', [ self::class, 'purge_plugin_data' ], 10, 1 );
 	}
 
 	public static function record_login( $user_login, $user = null ): void {
@@ -34,6 +38,63 @@ class Users {
 	}
 
 	/** Die drei verwaltbaren Rollen (Schlüssel → Label). */
+	/**
+	 * Plugin-Daten eines gelöschten WordPress-Nutzers aufräumen.
+	 *
+	 * Bewusst NICHT gelöscht werden Vorgänge mit Belegcharakter (Verleihe,
+	 * Projekte, Anfragen) — sie bleiben als Historie lesbar. Entfernt wird, was
+	 * andere Mitglieder blockieren würde: Mitgliedschaften, Stimmen und die
+	 * Freigaben seines Inventars (ohne Eigentümer könnte niemand mehr über eine
+	 * Leihanfrage entscheiden).
+	 */
+	public static function purge_plugin_data( int $user_id ): void {
+		global $wpdb;
+		if ( $user_id <= 0 ) {
+			return;
+		}
+		$t = static fn( string $name ) => Schema::table( $name );
+
+		// Betroffene offene Abstimmungen merken, BEVOR die Stimmen verschwinden.
+		$invitations = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
+			'SELECT DISTINCT invitation_id FROM %i WHERE voter_id = %d',
+			$t( 'group_invitation_votes' ),
+			$user_id
+		) ) );
+		$decisions = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
+			'SELECT DISTINCT decision_id FROM %i WHERE user_id = %d',
+			$t( 'project_decision_votes' ),
+			$user_id
+		) ) );
+
+		$removed = [
+			'group_members'          => (int) $wpdb->delete( $t( 'group_members' ), [ 'user_id' => $user_id ], [ '%d' ] ),
+			'group_invitation_votes' => (int) $wpdb->delete( $t( 'group_invitation_votes' ), [ 'voter_id' => $user_id ], [ '%d' ] ),
+			'project_decision_votes' => (int) $wpdb->delete( $t( 'project_decision_votes' ), [ 'user_id' => $user_id ], [ '%d' ] ),
+			'project_poll_votes'     => (int) $wpdb->delete( $t( 'project_poll_votes' ), [ 'user_id' => $user_id ], [ '%d' ] ),
+		];
+
+		// Freigaben seines Inventars zurückziehen (die Artikel selbst bleiben).
+		$item_ids = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare(
+			'SELECT id FROM %i WHERE owner_user_id = %d',
+			$t( 'items' ),
+			$user_id
+		) ) );
+		if ( $item_ids ) {
+			$in                      = implode( ',', $item_ids );
+			$removed['item_group_shares'] = (int) $wpdb->query( "DELETE FROM `{$t( 'item_group_shares' )}` WHERE item_id IN ({$in})" ); // phpcs:ignore WordPress.DB -- nur geprüfte Integer.
+		}
+
+		// Jetzt erneut auswerten: Ohne seine Stimme kann Einstimmigkeit erreicht sein.
+		foreach ( $invitations as $invitation_id ) {
+			Services\GroupGovernance::reresolve( $invitation_id );
+		}
+		foreach ( $decisions as $decision_id ) {
+			Services\Decisions::reresolve( $decision_id );
+		}
+
+		Services\ActivityLog::log( 'user_data_purged', 'user', $user_id, array_filter( $removed ) );
+	}
+
 	public static function roles(): array {
 		return [
 			'administrator' => __( 'Administrator', 'project-prepper' ),

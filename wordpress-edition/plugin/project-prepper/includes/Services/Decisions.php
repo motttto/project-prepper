@@ -375,6 +375,13 @@ class Decisions {
 	 * 045) portiert. Wird nur ausgeführt, solange der Beschluss 'open' ist.
 	 * total_active = Anzahl aktiver Gruppenmitglieder.
 	 */
+	/**
+	 * Offenen Beschluss erneut auswerten — siehe GroupGovernance::reresolve().
+	 */
+	public static function reresolve( int $decision_id ): void {
+		self::resolve( $decision_id );
+	}
+
 	private static function resolve( int $decision_id ): void {
 		global $wpdb;
 
