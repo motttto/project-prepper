@@ -27,7 +27,10 @@ class ItemDetail {
 		add_action( 'init', [ self::class, 'register_rewrite' ] );
 		add_filter( 'query_vars', [ self::class, 'register_query_var' ] );
 		add_filter( 'pre_handle_404', [ self::class, 'prevent_404' ], 10, 2 );
-		add_action( 'template_redirect', [ self::class, 'maybe_render' ] );
+		// Priorität 20: NACH MemberPortal::restrict_public_to_portal (10). Sonst
+		// rendert diese Seite und beendet die Anfrage, bevor die Sperre „keine
+		// öffentliche Außendarstellung außer dem Login" überhaupt läuft.
+		add_action( 'template_redirect', [ self::class, 'maybe_render' ], 20 );
 	}
 
 	public static function register_rewrite(): void {
@@ -64,6 +67,12 @@ class ItemDetail {
 		// Gesperrte Artikel (defekt, in Wartung, verschollen, ausgemustert) nur für
 		// eingeloggte User mit Inventar-Leserecht — gleiche Liste wie überall sonst.
 		if ( Inventory::is_blocked( $item->condition ?? '' ) && ! current_user_can( Capabilities::VIEW_INVENTORY ) ) {
+			return null;
+		}
+		// Privat = mit keinem Kollektiv geteilt: nur für Betreiber sichtbar. Ohne
+		// diese Prüfung war jeder Artikel über seine fortlaufende Inventarnummer
+		// durchzählbar und anonym lesbar.
+		if ( ! Inventory::is_shared( (int) $item->id ) && ! current_user_can( Capabilities::VIEW_INVENTORY ) ) {
 			return null;
 		}
 		return $item;

@@ -222,6 +222,13 @@ class Inventory {
 			$where_params[] = Schema::table( 'item_group_shares' );
 			$where_params[] = (int) $args['shared_with_group'];
 		}
+		if ( ! empty( $args['shared_only'] ) ) {
+			// Öffentliche Flächen: nur Artikel, die ihr Eigentümer mit mindestens
+			// EINEM Kollektiv geteilt hat. Was mit niemandem geteilt ist, ist privat
+			// und gehört weder ins öffentliche Frontend noch in die Föderation.
+			$where[]        = 'i.id IN ( SELECT s.item_id FROM %i s )';
+			$where_params[] = Schema::table( 'item_group_shares' );
+		}
 		if ( ! empty( $args['usable_only'] ) ) {
 			// Öffentliches Frontend: zeigt nur, was tatsächlich einsatzbereit ist —
 			// also nichts Gesperrtes (defekt, in Wartung, verschollen, ausgemustert).
@@ -289,6 +296,23 @@ class Inventory {
 			$params
 		);
 		return array_map( [ self::class, 'decode_item' ], $wpdb->get_results( $sql ) ?: [] ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql ist oben via prepare() aufgebaut.
+	}
+
+	/**
+	 * Ist der Artikel mit mindestens einem Kollektiv geteilt?
+	 *
+	 * Das ist die Grenze zwischen „privat" und „öffentlich sichtbar": Ein Artikel,
+	 * den sein Eigentümer mit niemandem teilt, taucht nirgends außerhalb seines
+	 * eigenen Inventars auf — auch nicht auf der öffentlichen Artikelseite, im
+	 * öffentlichen Inventar-Shortcode oder im Föderations-Katalog.
+	 */
+	public static function is_shared( int $item_id ): bool {
+		global $wpdb;
+		return (bool) $wpdb->get_var( $wpdb->prepare(
+			'SELECT 1 FROM %i WHERE item_id = %d LIMIT 1',
+			Schema::table( 'item_group_shares' ),
+			$item_id
+		) );
 	}
 
 	public static function get_item( int $id ): ?object {

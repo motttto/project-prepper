@@ -1,6 +1,7 @@
 <?php
 namespace ProjectPrepper\Frontend;
 
+use ProjectPrepper\Capabilities;
 use ProjectPrepper\Settings;
 
 use ProjectPrepper\Services\Availability;
@@ -51,6 +52,22 @@ class Shortcodes {
 		add_action( 'admin_post_nopriv_pp_inquiry', [ self::class, 'handle_inquiry_submit' ] );
 
 		add_action( 'wp_enqueue_scripts', [ self::class, 'register_assets' ] );
+	}
+
+	/**
+	 * Artikel für eine ÖFFENTLICHE Fläche auflösen. Ein Artikel, den sein
+	 * Eigentümer mit keinem Kollektiv geteilt hat, ist privat: hier gibt es
+	 * weder seinen Namen noch eine Auskunft über seine Verfügbarkeit.
+	 */
+	private static function public_item_by_id( int $item_id ): ?object {
+		$item = Inventory::get_item( $item_id );
+		if ( ! $item ) {
+			return null;
+		}
+		if ( ! Inventory::is_shared( $item_id ) && ! current_user_can( Capabilities::VIEW_INVENTORY ) ) {
+			return null;
+		}
+		return $item;
 	}
 
 	public static function register_assets(): void {
@@ -106,6 +123,8 @@ class Shortcodes {
 			'category_id' => $category_id,
 			'search'      => $search,
 			'usable_only' => 'yes' !== $atts['show_all'],
+			// Öffentliche Seite: nur Geteiltes (siehe public_item_by_id()).
+			'shared_only' => ! current_user_can( Capabilities::VIEW_INVENTORY ),
 		] ) );
 
 		return self::render_template( 'inventory-list.php', [
@@ -157,7 +176,7 @@ class Shortcodes {
 
 		$result = null;
 		if ( $item_id && Availability::is_valid_range( $from, $to ) ) {
-			$item = Inventory::get_item( $item_id );
+			$item = self::public_item_by_id( (int) $item_id );
 			if ( $item ) {
 				$result = [
 					'item_name' => $item->name,
@@ -171,7 +190,11 @@ class Shortcodes {
 			'item_id'    => $item_id,
 			'items'      => $atts['item'] ? [] : array_map(
 				[ self::class, 'public_item' ],
-				Inventory::items( 'yes' === $atts['show_all'] ? [] : [ 'usable_only' => true ] )
+				Inventory::items( array_filter( [
+					'usable_only' => 'yes' !== $atts['show_all'],
+					// Auswahl-Liste einer öffentlichen Seite: nur Geteiltes.
+					'shared_only' => ! current_user_can( Capabilities::VIEW_INVENTORY ),
+				] ) )
 			),
 			'from'       => $from,
 			'to'         => $to,
@@ -195,7 +218,11 @@ class Shortcodes {
 		return self::render_template( 'request-form.php', [
 			'items'   => 'yes' === $atts['show_items'] ? array_map(
 				[ self::class, 'public_item' ],
-				Inventory::items( 'yes' === $atts['show_all'] ? [] : [ 'usable_only' => true ] )
+				Inventory::items( array_filter( [
+					'usable_only' => 'yes' !== $atts['show_all'],
+					// Auswahl-Liste einer öffentlichen Seite: nur Geteiltes.
+					'shared_only' => ! current_user_can( Capabilities::VIEW_INVENTORY ),
+				] ) )
 			) : [],
 			'success' => 'ok' === $state,
 			'error'   => 'error' === $state,
@@ -220,7 +247,7 @@ class Shortcodes {
 		$items     = [];
 		$raw_items = array_map( 'intval', (array) ( $_POST['pp_items'] ?? [] ) );
 		foreach ( $raw_items as $item_id ) {
-			$item = Inventory::get_item( $item_id );
+			$item = self::public_item_by_id( (int) $item_id );
 			if ( $item ) {
 				$items[] = [ 'item_id' => $item_id, 'quantity' => 1, 'name' => $item->name ];
 			}

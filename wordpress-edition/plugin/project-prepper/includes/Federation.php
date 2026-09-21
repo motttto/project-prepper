@@ -190,7 +190,9 @@ class Federation {
 	 * @return array<array<string,mixed>>
 	 */
 	public static function public_inventory( int $limit = 200 ): array {
-		$items      = Inventory::items( [ 'usable_only' => true ] );
+		// Nur mit einem Kollektiv geteilte Artikel reisen in die Föderation —
+		// privates Inventar einzelner Mitglieder bleibt in dieser Instanz.
+		$items      = Inventory::items( [ 'usable_only' => true, 'shared_only' => true ] );
 		// Sets (docs/07) bleiben aus dem föderierten Katalog: Ein Set hat keinen
 		// eigenen Bestand — buchbar sind seine Teile, und die kennt die anfragende
 		// Instanz nicht. Föderierte Set-Expansion ist bewusst nicht vorgesehen.
