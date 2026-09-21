@@ -294,7 +294,12 @@ class MemberRentals {
 			// entscheidet, ob eine bereits erteilte Freigabe erneut eingeholt wird.
 			$existing_qty = [];
 			foreach ( (array) $rental->items as $ex ) {
-				$existing_qty[ (int) $ex->id ] = (int) $ex->quantity;
+				// Menge UND Artikel: der Guard erkennt daran, ob eine mitgeschickte
+				// Positions-ID wirklich zu diesem Verleih und zu diesem Artikel gehört.
+				$existing_qty[ (int) $ex->id ] = [
+					'quantity' => (int) $ex->quantity,
+					'item_id'  => (int) $ex->item_id,
+				];
 			}
 			$period_changed = ( ! empty( $data['date_from'] ) && (string) $data['date_from'] !== (string) $rental->date_from )
 				|| ( ! empty( $data['date_to'] ) && (string) $data['date_to'] !== (string) $rental->date_to );
@@ -455,6 +460,10 @@ class MemberRentals {
 			return new WP_Error( 'pp_no_items', __( 'Pick at least one item.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
 		$lendable = self::lendable_items( $user_id, $group_id );
+		// Sets werden über ihre TEILE verliehen (expand_sets). Ein Set, das als
+		// normale Position hereinkommt, stammt aus manipuliertem POST — es würde
+		// seine Teile nicht belegen und wäre danach noch einmal verleihbar.
+		$bundles  = Bundles::for_items( array_map( static fn( $l ) => (int) ( $l['item_id'] ?? 0 ), $items ) );
 		$out      = [];
 		foreach ( $items as $line ) {
 			$item_id = (int) ( $line['item_id'] ?? 0 );
@@ -472,13 +481,36 @@ class MemberRentals {
 			if ( ! $item_id || ! isset( $lendable[ $item_id ] ) ) {
 				return new WP_Error( 'pp_not_your_item', __( 'You can only lend out your own items or equipment shared with your collective.', 'project-prepper' ), [ 'status' => 403 ] );
 			}
+			if ( ! empty( $bundles[ $item_id ] ) ) {
+				return new WP_Error( 'pp_bundle_line', __( 'Sets are lent out through their parts — please pick the set itself.', 'project-prepper' ), [ 'status' => 400 ] );
+			}
 			$pool_item = $lendable[ $item_id ];
 			$owner_id  = (int) ( $pool_item->owner_user_id ?? $pool_item->shared_by ?? 0 );
 			// Freigabepflicht exakt wie bei der Projekt-Buchung: fremder Artikel UND
 			// die Freigabe des Eigentümers trägt `requires_approval`. Eigene Artikel
 			// und frei geteilte gehen sofort durch.
 			$needs   = $owner_id > 0 && $owner_id !== $user_id && ! empty( $pool_item->requires_approval );
+			// Fremdes Equipment: Der Tagessatz steht in der Freigabe des Eigentümers,
+			// nicht im Formular des Anlegers — sonst ließe sich ein 50-€-Artikel mit
+			// 0,01 € abrechnen, ohne dass der Eigentümer es je zu sehen bekommt.
+			if ( $owner_id > 0 && $owner_id !== $user_id ) {
+				$share_rate         = $pool_item->share_daily_rate ?? null;
+				$line['daily_rate'] = ( null === $share_rate || '' === $share_rate ) ? '' : (float) $share_rate;
+			}
+			// Eine mitgeschickte Positions-ID zählt nur, wenn sie WIRKLICH zu diesem
+			// Verleih gehört UND auf denselben Artikel zeigt. Andernfalls ist es eine
+			// neue Zeile: Mit einer erfundenen ID galt die Position sonst als
+			// „bestehend", blieb ohne Freigabe-Status und landete über den
+			// Spalten-Default als `approved` in der Datenbank; mit der ID einer
+			// bereits freigegebenen Zeile ließ sie sich auf einen anderen Artikel
+			// umbiegen.
 			$line_id = (int) ( $line['id'] ?? 0 );
+			$known   = $line_id > 0 ? ( $existing[ $line_id ] ?? null ) : null;
+			if ( $line_id > 0 && ( ! is_array( $known ) || (int) $known['item_id'] !== $item_id ) ) {
+				$line_id = 0;
+				$known   = null;
+				unset( $line['id'] );
+			}
 			if ( ! $needs ) {
 				if ( ! $line_id ) {
 					// Neue Zeile ohne Freigabepflicht → ausdrücklich freigegeben.
@@ -499,7 +531,7 @@ class MemberRentals {
 			// Eigentümer erneut fragen. Erneut gefragt wird nur bei einer
 			// „materiellen" Änderung, die ihn schlechter stellt: mehr Stück oder ein
 			// anderer Zeitraum (dieselbe Regel wie BookingApprovals::is_material_change).
-			$old_qty  = (int) ( $existing[ $line_id ] ?? 0 );
+			$old_qty  = (int) ( $known['quantity'] ?? 0 );
 			$new_qty  = max( 1, (int) ( $line['quantity'] ?? 1 ) );
 			if ( $period_changed || ( $old_qty > 0 && $new_qty > $old_qty ) ) {
 				$line['approval_status'] = 'pending';
