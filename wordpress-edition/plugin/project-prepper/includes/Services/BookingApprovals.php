@@ -126,7 +126,17 @@ class BookingApprovals {
 			return $line;
 		}
 		$context = self::decision_context( $line );
-		$wpdb->delete( Schema::table( 'project_items' ), [ 'id' => $line_id ], [ '%d' ] );
+		// Bedingt auf „noch offen" — wie in approve(). Zwei gleichzeitige
+		// Ablehnungen (Doppelklick, Einzel- und Sammel-Ansicht) verschickten
+		// sonst zwei Mails und schrieben zwei Protokollzeilen.
+		$deleted = $wpdb->delete(
+			Schema::table( 'project_items' ),
+			[ 'id' => $line_id, 'approval_status' => 'pending' ],
+			[ '%d', '%s' ]
+		);
+		if ( 1 !== (int) $deleted ) {
+			return new WP_Error( 'pp_not_pending', __( 'This request has already been decided.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
 		ActivityLog::log( 'booking_rejected', 'project', (int) $line->project_id, [ 'line_id' => $line_id, 'item_id' => (int) $line->item_id ] );
 		return $context;
 	}

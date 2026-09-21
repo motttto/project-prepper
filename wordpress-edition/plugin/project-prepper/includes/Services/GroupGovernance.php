@@ -353,8 +353,20 @@ class GroupGovernance {
 				continue;
 			}
 			if ( 'reject' === $v->vote ) {
-				$wpdb->update( Schema::table( 'group_invitations' ), [ 'status' => 'rejected', 'resolved_at' => current_time( 'mysql' ) ], [ 'id' => $invitation_id ], [ '%s', '%s' ], [ '%d' ] );
-				ActivityLog::log( 'group_invitation_rejected', 'group', (int) $inv->group_id, [ 'invitation_id' => $invitation_id ] );
+				// Bedingt auf `voting`: Sonst überholen sich zwei gleichzeitige
+				// Auflösungen (eine Ablehnung, die letzte Zustimmung) — beide
+				// schrieben ihren Status und beide protokollierten, die Einladung
+				// galt am Ende als abgelehnt UND angenommen.
+				$claimed = $wpdb->update(
+					Schema::table( 'group_invitations' ),
+					[ 'status' => 'rejected', 'resolved_at' => current_time( 'mysql' ) ],
+					[ 'id' => $invitation_id, 'status' => 'voting' ],
+					[ '%s', '%s' ],
+					[ '%d', '%s' ]
+				);
+				if ( $claimed ) {
+					ActivityLog::log( 'group_invitation_rejected', 'group', (int) $inv->group_id, [ 'invitation_id' => $invitation_id ] );
+				}
 				return true;
 			}
 			if ( 'approve' === $v->vote ) {
@@ -372,13 +384,30 @@ class GroupGovernance {
 	/** Einladung genehmigen + Eingeladene/n als Mitglied aufnehmen. */
 	private static function approve_and_join( object $inv ) {
 		global $wpdb;
+		$table = Schema::table( 'group_invitations' );
+		// Den Zustandswechsel ZUERST beanspruchen und erst danach aufnehmen: Wer
+		// die Zeile nicht von `voting` auf `approved` dreht, nimmt auch niemanden
+		// auf. Andernfalls konnte eine gleichzeitige Ablehnung überholt werden und
+		// die Person war trotzdem Mitglied.
+		$claimed = $wpdb->update(
+			$table,
+			[ 'status' => 'approved', 'resolved_at' => current_time( 'mysql' ) ],
+			[ 'id' => (int) $inv->id, 'status' => 'voting' ],
+			[ '%s', '%s' ],
+			[ '%d', '%s' ]
+		);
+		if ( ! $claimed ) {
+			return true; // Ein anderer Vorgang hat die Einladung bereits aufgelöst.
+		}
 		if ( $inv->invited_user_id ) {
 			$res = Groups::add_member( (int) $inv->group_id, (int) $inv->invited_user_id, 'member' );
 			if ( is_wp_error( $res ) ) {
+				// Aufnahme gescheitert → Einladung zurück in die Abstimmung, damit
+				// kein „angenommen" ohne Mitgliedschaft stehen bleibt.
+				$wpdb->update( $table, [ 'status' => 'voting', 'resolved_at' => null ], [ 'id' => (int) $inv->id ], [ '%s', '%s' ], [ '%d' ] );
 				return $res;
 			}
 		}
-		$wpdb->update( Schema::table( 'group_invitations' ), [ 'status' => 'approved', 'resolved_at' => current_time( 'mysql' ) ], [ 'id' => (int) $inv->id ], [ '%s', '%s' ], [ '%d' ] );
 		ActivityLog::log( 'group_invitation_approved', 'group', (int) $inv->group_id, [ 'invitation_id' => (int) $inv->id, 'user_id' => (int) $inv->invited_user_id ] );
 		return true;
 	}

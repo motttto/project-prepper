@@ -419,8 +419,8 @@ class Rentals {
 		}
 
 		$now = current_time( 'mysql' );
-		$wpdb->insert( Schema::table( 'rentals' ), [
-			'rental_number'  => Numbering::next_rental_number(),
+		$row = [
+			'rental_number'  => '',
 			'borrower_name'  => $data['borrower_name'],
 			'borrower_email' => $data['borrower_email'] ?? '',
 			'borrower_phone' => $data['borrower_phone'] ?? '',
@@ -439,8 +439,22 @@ class Rentals {
 			'created_by'     => get_current_user_id() ?: null,
 			'created_at'     => $now,
 			'updated_at'     => $now,
-		] );
-		$rental_id = (int) $wpdb->insert_id;
+		];
+		// Die Nummer kommt aus MAX()+1 und kann mit einem gleichzeitigen Vorgang
+		// kollidieren (UNIQUE-Key). Unbeachtet lieferte der Insert dann still eine
+		// 0 zurück: Der Verleih existierte nicht, seine Positionen landeten aber
+		// mit rental_id = 0 in der Datenbank. Also: erneut versuchen, und wenn es
+		// dreimal scheitert, ehrlich scheitern.
+		$rental_id = 0;
+		for ( $attempt = 0; $attempt < 3 && $rental_id <= 0; $attempt++ ) {
+			$row['rental_number'] = Numbering::next_rental_number();
+			if ( false !== $wpdb->insert( Schema::table( 'rentals' ), $row ) ) {
+				$rental_id = (int) $wpdb->insert_id;
+			}
+		}
+		if ( $rental_id <= 0 ) {
+			return new WP_Error( 'pp_save_failed', __( 'The rental could not be saved. Please try again.', 'project-prepper' ), [ 'status' => 500 ] );
+		}
 
 		foreach ( $items as $line ) {
 			$wpdb->insert( Schema::table( 'rental_items' ), [

@@ -139,8 +139,8 @@ class Projects {
 		}
 
 		$now = current_time( 'mysql' );
-		$wpdb->insert( Schema::table( 'projects' ), [
-			'project_number' => Numbering::next_project_number(),
+		$row = [
+			'project_number' => '',
 			'name'           => trim( (string) $data['name'] ),
 			'status'         => $status,
 			'date_start'     => $dates['start'],
@@ -157,8 +157,19 @@ class Projects {
 			'created_by'     => get_current_user_id() ?: null,
 			'created_at'     => $now,
 			'updated_at'     => $now,
-		] );
-		$project_id = (int) $wpdb->insert_id;
+		];
+				// Wie beim Verleih: Nummern-Kollision (UNIQUE) darf nicht still in einer
+		// 0 enden — sonst hängen Zeilen an einem Projekt, das es nicht gibt.
+		$project_id = 0;
+		for ( $attempt = 0; $attempt < 3 && $project_id <= 0; $attempt++ ) {
+			$row['project_number'] = Numbering::next_project_number();
+			if ( false !== $wpdb->insert( Schema::table( 'projects' ), $row ) ) {
+				$project_id = (int) $wpdb->insert_id;
+			}
+		}
+		if ( $project_id <= 0 ) {
+			return new WP_Error( 'pp_save_failed', __( 'The project could not be saved. Please try again.', 'project-prepper' ), [ 'status' => 500 ] );
+		}
 
 		ActivityLog::log( 'project_created', 'project', $project_id, [
 			'name'   => trim( (string) $data['name'] ),
@@ -304,13 +315,23 @@ class Projects {
 			}
 		}
 
-		$wpdb->update(
+		// Bedingt auf den GELESENEN Status (wie Rentals::set_status): Sonst
+		// überholen sich zwei gleichzeitige Wechsel — der Endstatus „abgesagt"
+		// ließ sich wiederbeleben, und Protokoll wie Hook liefen doppelt. Ein
+		// Wechsel auf denselben Status schreibt und protokolliert gar nichts mehr.
+		if ( $status === (string) $project->status ) {
+			return true;
+		}
+		$changed = $wpdb->update(
 			Schema::table( 'projects' ),
 			[ 'status' => $status, 'updated_at' => current_time( 'mysql' ) ],
-			[ 'id' => $id ],
+			[ 'id' => $id, 'status' => $project->status ],
 			[ '%s', '%s' ],
-			[ '%d' ]
+			[ '%d', '%s' ]
 		);
+		if ( 1 !== (int) $changed ) {
+			return new WP_Error( 'pp_bad_state', __( 'The status changed in the meantime. Please reload and try again.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
 
 		ActivityLog::log( 'project_status_changed', 'project', $id, [ 'from' => $project->status, 'to' => $status ] );
 

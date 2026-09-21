@@ -1382,7 +1382,16 @@ class MemberPortal {
 			} elseif ( 'pp_forbidden' === $code ) {
 				$msg = 'forbidden';
 			} else {
-				$msg = 'error';
+				// Unbekannter Code: Die Dienste liefern längst einen übersetzten,
+				// verständlichen Satz — den zeigen wir, statt auf „Etwas ist
+				// schiefgelaufen" zurückzufallen. Der Text reist über ein kurzes
+				// Transient (nicht über die URL) bis zur nächsten Seite.
+				$detail = trim( (string) $result->get_error_message() );
+				$msg    = 'error';
+				if ( '' !== $detail ) {
+					set_transient( self::MSG_TRANSIENT . get_current_user_id(), $detail, MINUTE_IN_SECONDS );
+					$msg = 'detail';
+				}
 			}
 		} else {
 			$msg = $ok_msg;
@@ -9165,6 +9174,9 @@ class MemberPortal {
 		wp_nonce_field( 'pp_collective', 'pp_nonce' );
 	}
 
+	/** Präfix des Transients, über das eine Dienst-Fehlermeldung die Weiterleitung überlebt. */
+	const MSG_TRANSIENT = 'pp_msg_detail_';
+
 	private static function render_message(): void {
 		// phpcs:ignore WordPress.Security.NonceVerification -- reine Anzeige eines Status-Codes
 		$code = isset( $_GET['pp_msg'] ) ? sanitize_key( wp_unslash( $_GET['pp_msg'] ) ) : '';
@@ -9181,6 +9193,20 @@ class MemberPortal {
 				esc_html( sprintf( _n( '%d item imported.', '%d items imported.', $n, 'project-prepper' ), $n ) )
 			);
 			return;
+		}
+		// Durchgereichte Fehlermeldung eines Dienstes (siehe Dispatcher).
+		if ( 'detail' === $code ) {
+			$key  = self::MSG_TRANSIENT . get_current_user_id();
+			$text = (string) get_transient( $key );
+			delete_transient( $key );
+			if ( '' !== $text ) {
+				printf(
+					'<div class="pp-portal__notice pp-portal__notice--err">%s</div>',
+					esc_html( $text )
+				);
+				return;
+			}
+			$code = 'error'; // Transient abgelaufen → Sammelmeldung.
 		}
 		$map = self::messages();
 		if ( ! isset( $map[ $code ] ) ) {
