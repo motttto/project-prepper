@@ -80,7 +80,13 @@ Gruppe 23 ist (`Groups::user_groups()` prüfen).
 | `pp_rest( $user, 'GET', '/items', $body )` | REST als User → `[ status, data ]` |
 | `pp_render( $user, 'inventory', $get, $solo )` | Portal-Ansicht als HTML (zum Prüfen, was jemand SIEHT) |
 | `pp_audit_item( $owner, 'Name', $qty, $share_group, $requires_approval )` | Wegwerf-Artikel anlegen |
-| `pp_audit_cleanup()` | alles mit `ZZ-AUDIT` entfernen (auch abhängige Zeilen, generisch über `item_id`/`rental_id`/`project_id`) |
+| `pp_audit_track( 'rentals', $id )` | selbst angelegtes Objekt vormerken (`items`/`rentals`/`projects`/`inquiries`/`item_field_defs`/`attachments`) |
+| `pp_audit_cleanup()` | alles mit `ZZ-AUDIT` entfernen (abhängige Zeilen generisch über `item_id`/`part_item_id`/`bundle_item_id`/`rental_id`/`project_id`/`inquiry_id`/`field_id`) |
+
+⚠️ **Was du selbst anlegst, sofort `pp_audit_track()`n** — sonst findet das Aufräumen es nicht mehr,
+sobald der Test es über den Plugin-Weg gelöscht hat, und seine Kindzeilen bleiben liegen (genau so
+blieben im ersten Großlauf Leih-Anfragen, Föderations- und Team-Zeilen zurück). `pp_audit_item()`
+merkt sich selbst vor. Hochgeladene Medien als `attachments` vormerken — das Plugin räumt sie nicht ab.
 
 Der Dispatcher ist `MemberPortal::handle_collective_action()` (ein `pp_do` je Aktion, Nonce
 `pp_collective`). Weitere Einstiege: die übrigen `admin_post_*`-Handler und `includes/Rest/*`.

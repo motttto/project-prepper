@@ -103,6 +103,29 @@ function pp_render( int $user_id, string $view, array $get = [], bool $solo = fa
 	return $html;
 }
 
+/**
+ * Angelegtes Wegwerf-Objekt vormerken, damit pp_audit_cleanup() es auch dann
+ * noch abräumen kann, wenn der Test es selbst schon gelöscht hat — über den
+ * Namen ist es dann nicht mehr auffindbar, seine Kindzeilen bleiben aber liegen
+ * (Lehre aus dem LIFE-Lauf: genau so blieben Leih-Anfragen, Föderations-Zeilen
+ * und Team-Zeilen zurück).
+ *
+ * @param string $kind items | rentals | projects | inquiries | item_field_defs | attachments
+ */
+function pp_audit_track( string $kind, int $id ): int {
+	$reg = &pp_audit_registry();
+	if ( $id > 0 && ! in_array( $id, $reg[ $kind ] ?? [], true ) ) {
+		$reg[ $kind ][] = $id;
+	}
+	return $id;
+}
+
+/** @return array<string,array<int>> Referenz auf die Merkliste. */
+function &pp_audit_registry(): array {
+	static $reg = [];
+	return $reg;
+}
+
 /** Wegwerf-Artikel anlegen (optional mit Gruppe geteilt). @return int Artikel-ID. */
 function pp_audit_item( int $owner_id, string $suffix, int $quantity = 1, int $share_group = 0, bool $requires_approval = false ): int {
 	wp_set_current_user( $owner_id );
@@ -114,6 +137,7 @@ function pp_audit_item( int $owner_id, string $suffix, int $quantity = 1, int $s
 	if ( is_wp_error( $id ) ) {
 		throw new RuntimeException( 'pp_audit_item: ' . $id->get_error_message() );
 	}
+	pp_audit_track( 'items', (int) $id );
 	if ( $share_group > 0 ) {
 		\ProjectPrepper\Services\MemberInventory::set_share( $owner_id, (int) $id, $share_group, [
 			'daily_rate'        => null,
@@ -155,24 +179,40 @@ function pp_audit_cleanup(): array {
 		}
 	};
 
-	$items = $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM %i WHERE name LIKE %s', $t( 'items' ), $like ) );
-	$purge( $items, [ 'item_id', 'part_item_id', 'bundle_item_id' ] );
-	$rentals = $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM %i WHERE borrower_name LIKE %s', $t( 'rentals' ), $like ) );
-	$purge( $rentals, [ 'rental_id' ] );
-	$projects = $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM %i WHERE name LIKE %s', $t( 'projects' ), $like ) );
-	$purge( $projects, [ 'project_id' ] );
-	$fields = $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM %i WHERE label LIKE %s', $t( 'item_field_defs' ), $like ) );
-	$purge( $fields, [ 'field_id' ] );
-
-	foreach ( [ 'items' => [ 'name', $items ], 'rentals' => [ 'borrower_name', $rentals ], 'projects' => [ 'name', $projects ], 'item_field_defs' => [ 'label', $fields ] ] as $name => $spec ) {
-		if ( $spec[1] ) {
-			$n = (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE %i LIKE %s', $t( $name ), $spec[0], $like ) );
-			$deleted[ $t( $name ) ] = ( $deleted[ $t( $name ) ] ?? 0 ) + $n;
+	// Je Objektart: per Namen gefundene UND vorgemerkte IDs (pp_audit_track) —
+	// letztere greifen auch bei Objekten, die der Test selbst gelöscht hat.
+	$reg  = pp_audit_registry();
+	$kinds = [
+		'items'           => [ 'name',          [ 'item_id', 'part_item_id', 'bundle_item_id' ] ],
+		'rentals'         => [ 'borrower_name', [ 'rental_id' ] ],
+		'projects'        => [ 'name',          [ 'project_id' ] ],
+		// Anfragen haben ZWEI Namensspalten: `name` (Kunde, von create() gesetzt)
+		// und `title` (Betreff) — je nach Testweg steht das Präfix in einer davon.
+		'inquiries'       => [ [ 'name', 'title' ], [ 'inquiry_id' ] ],
+		'item_field_defs' => [ 'label',         [ 'field_id' ] ],
+	];
+	foreach ( $kinds as $table => $spec ) {
+		$found = array_map( 'intval', $reg[ $table ] ?? [] );
+		foreach ( (array) $spec[0] as $col ) {
+			$found = array_merge( $found, array_map( 'intval', $wpdb->get_col(
+				$wpdb->prepare( 'SELECT id FROM %i WHERE %i LIKE %s', $t( $table ), $col, $like )
+			) ) );
+		}
+		$ids = array_values( array_unique( $found ) );
+		$purge( $ids, $spec[1] );
+		if ( $ids ) {
+			$in = implode( ',', $ids );
+			$n  = (int) $wpdb->query( "DELETE FROM `{$t( $table )}` WHERE id IN ({$in})" ); // phpcs:ignore
+			if ( $n ) {
+				$deleted[ $t( $table ) ] = ( $deleted[ $t( $table ) ] ?? 0 ) + $n;
+			}
 		}
 	}
-	$n = (int) $wpdb->query( $wpdb->prepare( 'DELETE FROM %i WHERE title LIKE %s', $t( 'inquiries' ), $like ) );
-	if ( $n ) {
-		$deleted[ $t( 'inquiries' ) ] = $n;
+	// Vorgemerkte Medien (Fotos, Dokumente) — das Plugin räumt sie nicht ab.
+	foreach ( $reg['attachments'] ?? [] as $att ) {
+		if ( wp_delete_attachment( (int) $att, true ) ) {
+			$deleted['attachments'] = ( $deleted['attachments'] ?? 0 ) + 1;
+		}
 	}
 	return $deleted;
 }
