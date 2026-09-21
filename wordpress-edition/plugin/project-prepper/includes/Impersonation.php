@@ -26,6 +26,20 @@ class Impersonation {
 		add_action( 'admin_post_pp_impersonate', [ self::class, 'handle_start' ] );
 		add_action( 'admin_post_pp_impersonate_stop', [ self::class, 'handle_stop' ] );
 		add_action( 'admin_post_nopriv_pp_impersonate_stop', [ self::class, 'handle_stop' ] );
+		// Abmelden beendet die Impersonation. Ohne diesen Haken überlebten Cookie
+		// und Transient das Logout: Der NÄCHSTE Login im selben Browser — auch ein
+		// ganz anderes Konto — bekam Banner und „Zurück zu deinem Konto" zu sehen
+		// und wäre mit einem Klick der Betreiber gewesen.
+		add_action( 'wp_logout', [ self::class, 'handle_logout' ] );
+	}
+
+	/** Cookie + serverseitige Sitzung beim Abmelden verwerfen. */
+	public static function handle_logout(): void {
+		$token = self::cookie_token();
+		if ( '' !== $token ) {
+			delete_transient( self::TRANS . $token );
+		}
+		self::clear_cookie();
 	}
 
 	/** Darf der aktuelle Operator diesen Ziel-User ansehen? */
@@ -81,7 +95,9 @@ class Impersonation {
 
 		$orig  = get_current_user_id();
 		$token = wp_generate_password( 43, false, false );
-		set_transient( self::TRANS . $token, $orig, 2 * HOUR_IN_SECONDS );
+		// Die Sitzung merkt sich BEIDE Seiten: Sie gilt nur, solange genau dieser
+		// Ziel-User angemeldet ist ({@see pending_original}).
+		set_transient( self::TRANS . $token, [ 'orig' => $orig, 'target' => $target_id ], 2 * HOUR_IN_SECONDS );
 		self::set_cookie( $token );
 
 		ActivityLog::log( 'impersonation_started', 'user', $target_id, [ 'by' => $orig ] );
@@ -122,8 +138,19 @@ class Impersonation {
 		if ( '' === $token ) {
 			return 0;
 		}
-		$orig = get_transient( self::TRANS . $token );
-		return $orig ? (int) $orig : 0;
+		$data = get_transient( self::TRANS . $token );
+		// Nur das neue Format (orig + target) ist gültig. Eine Sitzung aus der Zeit
+		// vor dieser Bindung wird verworfen — sie ließe sich nicht an den
+		// angesehenen User knüpfen. Folge: eine im Moment des Updates laufende
+		// Impersonation endet, der Betreiber meldet sich neu an.
+		if ( ! is_array( $data ) || empty( $data['orig'] ) || empty( $data['target'] ) ) {
+			return 0;
+		}
+		// Kernprüfung: Die Rückkehr gilt nur für genau den angesehenen User.
+		if ( (int) $data['target'] !== get_current_user_id() ) {
+			return 0;
+		}
+		return (int) $data['orig'];
 	}
 
 	public static function is_active(): bool {
