@@ -23,6 +23,14 @@ class Projects {
 
 	const STATUSES = [ 'draft', 'planned', 'confirmed', 'running', 'done', 'cancelled' ];
 
+	/**
+	 * Diese Status binden Equipment (identisch mit dem Projekt-Zweig in
+	 * {@see Availability::available_quantity}). Erst beim Wechsel HIERHIN wird
+	 * eine Buchung für andere Vorgänge wirksam — deshalb wird genau dann
+	 * geprüft, ob der Bestand die Zeilen überhaupt hergibt.
+	 */
+	const RESERVING_STATUSES = [ 'confirmed', 'running' ];
+
 	// Nur diese Projekt-Stati blockieren Inventar (gespiegelt in Availability).
 	const BLOCKING_STATUSES = [ 'confirmed', 'running' ];
 
@@ -169,8 +177,9 @@ class Projects {
 	 * Stammdaten bearbeiten — nur übergebene Keys werden geändert.
 	 *
 	 * Bewusst in jedem Status erlaubt (auch done/cancelled bleiben z. B. für
-	 * Notizen korrigierbar). Achtung: Eine Änderung des Projekt-Zeitraums
-	 * re-validiert geerbte Buchungszeiträume NICHT (dokumentierte Lücke).
+	 * Notizen korrigierbar). Verschiebt sich der Zeitraum eines Projekts, das
+	 * gerade Equipment bindet (confirmed/running), werden die geerbten
+	 * Buchungszeiträume gegen den NEUEN Zeitraum durchgerechnet.
 	 *
 	 * @return true|WP_Error
 	 */
@@ -191,6 +200,22 @@ class Projects {
 		$dates = self::validate_dates( $start, $end );
 		if ( is_wp_error( $dates ) ) {
 			return $dates;
+		}
+
+		// Verschobener Zeitraum: Zeilen OHNE eigene Termine erben ihn — sie würden
+		// sonst ungeprüft in einen fremd belegten Zeitraum wandern. Nur nötig,
+		// solange das Projekt überhaupt bindet; in draft/planned darf frei geplant
+		// werden, spätestens das Bestätigen rechnet nach.
+		$period_changed = (string) $project->date_start !== (string) ( $dates['start'] ?? '' )
+			|| (string) $project->date_end !== (string) ( $dates['end'] ?? '' );
+		if ( $period_changed && in_array( (string) $project->status, self::RESERVING_STATUSES, true ) ) {
+			$probe             = clone $project;
+			$probe->date_start = $dates['start'];
+			$probe->date_end   = $dates['end'];
+			$check             = self::check_lines( $probe );
+			if ( is_wp_error( $check ) ) {
+				return $check;
+			}
 		}
 
 		$fields = [];
@@ -266,6 +291,17 @@ class Projects {
 				__( 'Cancelled projects cannot change status.', 'project-prepper' ),
 				[ 'status' => 409 ]
 			);
+		}
+
+		// Erst der Wechsel nach confirmed/running macht die Buchungen für andere
+		// Vorgänge wirksam. Ohne diese Prüfung ließ sich ein Projekt mit beliebig
+		// überbuchten Zeilen bestätigen — das Equipment war danach doppelt vergeben.
+		if ( in_array( $status, self::RESERVING_STATUSES, true )
+			&& ! in_array( (string) $project->status, self::RESERVING_STATUSES, true ) ) {
+			$check = self::check_lines( $project );
+			if ( is_wp_error( $check ) ) {
+				return $check;
+			}
 		}
 
 		$wpdb->update(
@@ -602,6 +638,24 @@ class Projects {
 		// blockiert die Buchung nichts → kein Guard nötig.
 		$eff_from = '' !== $line_from ? $line_from : (string) $project->date_start;
 		$eff_to   = '' !== $line_to ? $line_to : (string) $project->date_end;
+		if ( '' === $eff_from || '' === $eff_to ) {
+			// Ohne Zeitraum belegt die Zeile nichts — aber mehr Stück als es gibt
+			// ergibt nie Sinn, und sobald das Projekt Termine bekommt, wird die
+			// Zeile wirksam. Deshalb hier wenigstens die harte Bestandsgrenze.
+			$stock = (int) ( $line_item->quantity ?? 0 );
+			if ( $qty > $stock ) {
+				return new WP_Error(
+					'pp_not_available',
+					sprintf(
+						/* translators: 1: item name, 2: available quantity */
+						__( '"%1$s" is only available %2$d× in this period.', 'project-prepper' ),
+						$line_item->name,
+						$stock
+					),
+					[ 'status' => 409 ]
+				);
+			}
+		}
 		if ( '' !== $eff_from && '' !== $eff_to ) {
 			$available = Availability::available_quantity( $item_id, $eff_from, $eff_to, 0, (int) $project->id );
 
@@ -651,6 +705,39 @@ class Projects {
 			'date_from' => '' !== $line_from ? $line_from : null,
 			'date_to'   => '' !== $line_to ? $line_to : null,
 		];
+	}
+
+	/**
+	 * ALLE Buchungszeilen des Projekts gegen den Zeitraum dieses Projekt-Objekts
+	 * prüfen. Zeilen mit eigenem Zeitraum behalten ihn, alle anderen erben den
+	 * übergebenen — so lässt sich ein VERSCHOBENER Zeitraum vorab durchrechnen,
+	 * indem ein Projekt-Objekt mit den neuen Daten hereingereicht wird.
+	 *
+	 * @return true|WP_Error Erste Kollision als Fehler.
+	 */
+	public static function check_lines( object $project ) {
+		global $wpdb;
+		$lines = $wpdb->get_results( $wpdb->prepare(
+			'SELECT id, item_id, quantity, date_from, date_to FROM %i WHERE project_id = %d',
+			Schema::table( 'project_items' ),
+			(int) $project->id
+		) ) ?: [];
+		foreach ( $lines as $line ) {
+			$res = self::validate_line(
+				$project,
+				[
+					'item_id'   => (int) $line->item_id,
+					'quantity'  => (int) $line->quantity,
+					'date_from' => (string) ( $line->date_from ?? '' ),
+					'date_to'   => (string) ( $line->date_to ?? '' ),
+				],
+				(int) $line->id
+			);
+			if ( is_wp_error( $res ) ) {
+				return $res;
+			}
+		}
+		return true;
 	}
 
 	/**
