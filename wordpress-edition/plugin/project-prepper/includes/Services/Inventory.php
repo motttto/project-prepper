@@ -503,12 +503,39 @@ class Inventory {
 		return $ok;
 	}
 
-	public static function delete_item( int $id ): bool {
+	/**
+	 * Artikel löschen.
+	 *
+	 * Verweigert, solange der Artikel in einem OFFENEN Vorgang steckt: Eine
+	 * verwaiste Position wurde sonst weiter abgerechnet, und eine verwaiste
+	 * offene Freigabe ließ sich von niemandem mehr entscheiden — der Verleih
+	 * bzw. das Projekt blieb dauerhaft gesperrt. Abgeschlossene Vorgänge
+	 * behalten ihre Positionen bewusst (die Abrechnung muss lesbar bleiben).
+	 *
+	 * @return true|false|WP_Error false = unbekannt, WP_Error = in Benutzung.
+	 */
+	public static function delete_item( int $id ) {
 		global $wpdb;
 		$item = self::get_item( $id );
 		if ( ! $item ) {
 			return false;
 		}
+		$open = self::open_usage( $id );
+		if ( $open ) {
+			return new WP_Error(
+				'pp_item_in_use',
+				sprintf(
+					/* translators: %s: item name. */
+					__( '"%s" is part of an ongoing rental, booking or loan and cannot be deleted. Finish or cancel those first.', 'project-prepper' ),
+					$item->name
+				),
+				[ 'status' => 409 ]
+			);
+		}
+		// Freigaben und Set-Stücklisten gehören zum Artikel — bisher räumte sie
+		// nur der Portal-Weg ab, der REST-Weg ließ sie stehen.
+		$wpdb->delete( Schema::table( 'item_group_shares' ), [ 'item_id' => $id ], [ '%d' ] );
+		Bundles::delete_for_item( $id );
 		$wpdb->delete( Schema::table( 'units' ), [ 'item_id' => $id ], [ '%d' ] );
 		ItemFields::delete_for_item( $id );
 		$ok = false !== $wpdb->delete( Schema::table( 'items' ), [ 'id' => $id ], [ '%d' ] );
@@ -516,6 +543,64 @@ class Inventory {
 			ActivityLog::log( 'item_deleted', 'item', $id, [ 'name' => $item->name, 'inventory_number' => $item->inventory_number ] );
 		}
 		return $ok;
+	}
+
+	/**
+	 * Steckt der Artikel in einem laufenden Vorgang? Dieselben Status wie die
+	 * Verfügbarkeitsrechnung ({@see Availability::available_quantity}) plus die
+	 * noch offenen Freigaben und Leih-Anfragen.
+	 *
+	 * @return bool
+	 */
+	public static function open_usage( int $item_id ): bool {
+		global $wpdb;
+		$checks = [
+			// Verleih: reserviert oder ausgegeben.
+			$wpdb->prepare(
+				'SELECT 1 FROM %i li JOIN %i r ON r.id = li.rental_id
+				 WHERE li.item_id = %d AND r.status IN ( \'reserved\', \'active\' ) LIMIT 1',
+				Schema::table( 'rental_items' ),
+				Schema::table( 'rentals' ),
+				$item_id
+			),
+			// Projekt: bestätigt oder laufend.
+			$wpdb->prepare(
+				'SELECT 1 FROM %i pi JOIN %i p ON p.id = pi.project_id
+				 WHERE pi.item_id = %d AND p.status IN ( \'confirmed\', \'running\' ) LIMIT 1',
+				Schema::table( 'project_items' ),
+				Schema::table( 'projects' ),
+				$item_id
+			),
+			// Kollektiv-Leihe: angefragt oder laufend.
+			$wpdb->prepare(
+				'SELECT 1 FROM %i WHERE item_id = %d AND status IN ( \'requested\', \'approved\' ) LIMIT 1',
+				Schema::table( 'borrow_requests' ),
+				$item_id
+			),
+			// Föderation: angefragt oder laufend.
+			$wpdb->prepare(
+				'SELECT 1 FROM %i WHERE item_id = %d AND status IN ( \'requested\', \'approved\' ) LIMIT 1',
+				Schema::table( 'fed_borrow_in' ),
+				$item_id
+			),
+			// Noch offene Freigaben — sie wären sonst von niemandem entscheidbar.
+			$wpdb->prepare(
+				'SELECT 1 FROM %i WHERE item_id = %d AND approval_status = \'pending\' LIMIT 1',
+				Schema::table( 'rental_items' ),
+				$item_id
+			),
+			$wpdb->prepare(
+				'SELECT 1 FROM %i WHERE item_id = %d AND approval_status = \'pending\' LIMIT 1',
+				Schema::table( 'project_items' ),
+				$item_id
+			),
+		];
+		foreach ( $checks as $sql ) {
+			if ( $wpdb->get_var( $sql ) ) { // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- oben via prepare() gebaut.
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/* ---------- KPIs (§8.5) ---------- */

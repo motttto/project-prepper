@@ -106,8 +106,11 @@ class ItemsController extends BaseController {
 	}
 
 	public function delete( WP_REST_Request $request ) {
-		Inventory::delete_item( (int) $request['id'] );
-		return new WP_REST_Response( [ 'deleted' => true ] );
+		$deleted = Inventory::delete_item( (int) $request['id'] );
+		if ( is_wp_error( $deleted ) ) {
+			return $deleted;
+		}
+		return new WP_REST_Response( [ 'deleted' => (bool) $deleted ] );
 	}
 
 	public function stats(): WP_REST_Response {

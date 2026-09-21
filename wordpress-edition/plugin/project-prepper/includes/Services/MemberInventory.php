@@ -212,10 +212,13 @@ class MemberInventory {
 		if ( ! self::owns( $user_id, $item_id ) ) {
 			return new WP_Error( 'pp_forbidden', __( 'This item is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
 		}
-		$wpdb->delete( Schema::table( 'item_group_shares' ), [ 'item_id' => $item_id ], [ '%d' ] );
-		// Set-Stücklisten beidseitig aufräumen (als Set UND als Teil, docs/07 §4.7).
-		Bundles::delete_for_item( $item_id );
-		Inventory::delete_item( $item_id );
+		// Freigaben und Stücklisten räumt jetzt Inventory::delete_item() selbst ab
+		// (damit der REST-Weg dasselbe tut) — inklusive der Prüfung, ob der
+		// Artikel noch in einem laufenden Vorgang steckt.
+		$deleted = Inventory::delete_item( $item_id );
+		if ( is_wp_error( $deleted ) ) {
+			return $deleted;
+		}
 		ActivityLog::log( 'member_item_deleted', 'item', $item_id, [ 'owner' => $user_id ] );
 		return true;
 	}
