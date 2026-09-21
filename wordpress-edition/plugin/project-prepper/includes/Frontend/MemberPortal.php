@@ -2285,14 +2285,22 @@ class MemberPortal {
 	 * Schalter (Governance, Profil, Arbeitsbereich).
 	 */
 	private static function action_feature( string $do ): string {
+		// WICHTIG: Jedes Präfix muss zu einem `case` im Verteiler oben passen — ein
+		// Präfix, das keine Aktion trifft, macht den Schalter wirkungslos. Genau das
+		// war hier der Fall: Die Karte nannte `calevent_`/`calendar_`, die Aktionen
+		// heißen `event_*`/`calgroup_*`; `team_` statt `crew_`; `fed_` trifft
+		// `fedborrow_*` nicht; und `poll_` sind die Umfragen INNERHALB eines
+		// Projekts, während die eigenständigen `gpoll_*` heißen — der Schalter
+		// „Umfragen" wirkte dadurch vertauscht.
 		$prefixes = [
 			'inventory' => [ 'item_', 'category_', 'inventory_' ],
 			'lending'   => [ 'rental_', 'borrow_', 'booking_' ],
-			'projects'  => [ 'project_', 'sched_', 'task_', 'checklist_', 'checkitem_', 'material_', 'team_', 'contact_', 'packlist_', 'decision_', 'agreement_', 'profit_', 'cost_' ],
+			// Projekt-Reiter inkl. Crew, angehängter Dateien und Projekt-Umfragen.
+			'projects'  => [ 'project_', 'sched_', 'task_', 'checklist_', 'checkitem_', 'material_', 'crew_', 'contact_', 'file_detach', 'decision_', 'profit_', 'cost_', 'poll_' ],
 			'inquiries' => [ 'inquiry_', 'inqteam_' ],
-			'calendar'  => [ 'calevent_', 'calendar_' ],
-			'polls'     => [ 'poll_' ],
-			'network'   => [ 'fed_' ],
+			'calendar'  => [ 'event_', 'calgroup_', 'ical_' ],
+			'polls'     => [ 'gpoll_' ],
+			'network'   => [ 'fed_', 'fedborrow_' ],
 		];
 		foreach ( $prefixes as $feature => $list ) {
 			foreach ( $list as $prefix ) {
