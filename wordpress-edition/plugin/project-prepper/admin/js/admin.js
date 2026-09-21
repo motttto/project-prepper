@@ -1133,6 +1133,7 @@
 							el("button", {
 								class: "pp-btn pp-btn-sm pp-btn-danger", text: __("Delete", "project-prepper"),
 								onclick: function () {
+									/* translators: 1: label of the custom field, 2: number of items that carry a value for it. */
 									if (!confirm(sprintf(__("Delete the field “%1$s”? Its values on %2$d items are deleted for all members.", "project-prepper"), f.label, f.items))) return;
 									api("/item-fields/" + f.id, { method: "DELETE" })
 										.then(function (updated) { renderItemFields(updated); toast(__("Field deleted.", "project-prepper")); })

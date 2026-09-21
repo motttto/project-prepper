@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.145.0
+Stable tag: 0.146.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,22 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.146.0 =
+* Custom item fields: every member can add a field to the item form — label and value in the same step. The field definition is site-wide, so from then on it shows up for everyone, and the value belongs to the item and is visible to everyone who can see that item (including the borrow request in the collective inventory and the GDPR export). An existing label is reused instead of duplicated, 40 fields at most. Only the operator can rename or delete a field, under Settings → Custom fields.
+* One popup width for the whole plugin, adjustable under Settings → Appearance (default: 75 % of the window). Forms inside a dialog now use the full width instead of a fixed two-column grid, and Save sits in the footer of the manage dialog next to Delete and Close — saving there no longer triggers a "leave page?" warning, and a double-click can no longer produce a bogus conflict message.
+* Dashboard tiles are more compact (icon next to the figure, quick actions as slim chips), the workspace switcher shows your display name instead of "Solo", and scrollbars were pushed back across the portal — among them the light scrollbar that showed up in dark mode, plus date pickers and selects that stayed light there.
+* Security and data integrity (result of a logic audit of the whole plugin):
+* — Private inventory was publicly reachable: the item detail page ran before the portal lock and ended the request. Publicly visible is now only what is shared with at least one collective — on the detail page, in the equipment list, the availability check, the request form and the federation catalogue.
+* — Someone else's equipment could be put into a rental without the owner's approval, and its daily rate could be picked freely in the form. A position now only counts as existing if it belongs to that rental and points at the same item, the daily rate of a foreign item comes from the owner's share, and a set as a plain position is refused (sets are lent out through their parts).
+* — Viewing the portal as another member ("impersonation") survived logging out: cookie and server-side session outlived the logout, so the next account in the same browser saw the banner and could have become operator with one click. Logging out now ends it, and the session is bound to the member being viewed.
+* — Availability was not checked when a project was confirmed or its period moved, and bookings without a period accepted any quantity. Both are checked now; planning in draft stays free.
+* — Simultaneous bookings could hand out the same single unit more than once. Creating and editing rentals and project bookings, and approving collective and federated loans, now run one at a time.
+* — Status changes claimed their transition instead of writing blindly: no more double emails or double log lines from a double-click or two open tabs, no more group invitation that ends in membership although it was rejected in the meantime, and rental and project numbers no longer collide silently.
+* — Items that are part of an ongoing rental, booking, loan or open approval can no longer be deleted; finished records keep their positions as a receipt.
+* — The feature switches did not take effect for 19 actions (the calendar had none at all) and the "Polls" switch worked on the wrong set of actions.
+* — Deleting a WordPress user left their memberships, votes and shares behind, so an open invitation vote or decision waited forever for someone who no longer exists. Those are cleaned up now and affected votes are re-evaluated; items, rentals and projects stay as history.
+* Note: this update changes the database (schema 0.43.0 → 0.44.0): two new tables for the custom item fields. They are added automatically, no existing data is touched.
 
 = 0.145.0 =
 * Operators can switch whole areas of the member portal off (Settings → Features): inventory, lending & borrowing, projects, inquiries, calendar, costs, polls, network, and the how-it-works page. A switched-off area disappears from the menu, its pages fall back to the dashboard, its actions are blocked with a clear message, and its public shortcodes render nothing. Data is kept.

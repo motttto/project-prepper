@@ -7989,3 +7989,137 @@ msgstr "Funktionen"
 #: admin/js/admin.js
 msgid "Switch whole areas of the member portal off. A switched-off area disappears from the menu, its pages and actions are blocked, and its public shortcodes render nothing. Existing data is kept."
 msgstr "Ganze Bereiche des Mitglieder-Portals abschalten. Ein abgeschalteter Bereich verschwindet aus dem Menü, seine Seiten und Aktionen sind gesperrt, seine öffentlichen Shortcodes geben nichts aus. Vorhandene Daten bleiben erhalten."
+
+#: includes/Frontend/MemberPortal.php:1511
+msgid "The item was saved, but the new field was not: the maximum number of custom fields is reached. Ask the operators to tidy up."
+msgstr "Der Artikel wurde gespeichert, das neue Feld nicht: Die Höchstzahl eigener Felder ist erreicht. Bitte die Betreiber, aufzuräumen."
+
+#: includes/Frontend/MemberPortal.php:9937
+msgid "You have unsaved changes to this item. They are lost if you continue — save first?"
+msgstr "Du hast ungespeicherte Änderungen an diesem Artikel. Sie gehen verloren, wenn du fortfährst — erst speichern?"
+
+#: includes/Frontend/MemberPortal.php:10209
+msgid "Add a field"
+msgstr "Feld hinzufügen"
+
+#: includes/Frontend/MemberPortal.php:10210
+msgid "Missing a detail? Name a new field and fill it in. The field then appears in the item form of all members."
+msgstr "Fehlt eine Angabe? Benenne ein neues Feld und fülle es aus. Das Feld erscheint danach im Artikel-Formular aller Mitglieder."
+
+#: includes/Frontend/MemberPortal.php:10213
+msgid "Field name, e.g. Weight"
+msgstr "Feldname, z. B. Gewicht"
+
+#: includes/Frontend/MemberPortal.php:10213
+msgid "Field name"
+msgstr "Feldname"
+
+#: includes/Frontend/MemberPortal.php:10214
+msgid "Value for this item"
+msgstr "Wert für diesen Artikel"
+
+#: includes/Frontend/MemberPortal.php:10217
+msgid "Another field"
+msgstr "Weiteres Feld"
+
+#. translators: %s: item name.
+#: includes/Services/Inventory.php:529
+#, php-format
+msgid "\"%s\" is part of an ongoing rental, booking or loan and cannot be deleted. Finish or cancel those first."
+msgstr "„%s“ ist Teil eines laufenden Verleihs, einer Buchung oder Leihe und kann nicht gelöscht werden. Schließe diese Vorgänge zuerst ab oder storniere sie."
+
+#: includes/Services/ItemFields.php:59
+#: includes/Services/ItemFields.php:96
+msgid "Please enter a name for the new field."
+msgstr "Bitte gib einen Namen für das neue Feld an."
+
+#: includes/Services/ItemFields.php:67
+msgid "The maximum number of custom fields is reached. Ask the operators to tidy up."
+msgstr "Die Höchstzahl eigener Felder ist erreicht. Bitte die Betreiber, aufzuräumen."
+
+#: includes/Services/ItemFields.php:81
+msgid "The field could not be created."
+msgstr "Das Feld konnte nicht angelegt werden."
+
+#: includes/Services/ItemFields.php:92
+#: includes/Services/ItemFields.php:112
+msgid "Only operators can change custom fields."
+msgstr "Nur Betreiber können eigene Felder ändern."
+
+#: includes/Services/ItemFields.php:100
+msgid "A field with this name already exists."
+msgstr "Ein Feld mit diesem Namen gibt es bereits."
+
+#: includes/Services/ItemFields.php:116
+msgid "Field not found."
+msgstr "Feld nicht gefunden."
+
+#: includes/Services/MemberRentals.php:485
+msgid "Sets are lent out through their parts — please pick the set itself."
+msgstr "Sets werden über ihre Teile verliehen — bitte wähle das Set über die Set-Auswahl aus."
+
+#: includes/Services/Projects.php:171
+msgid "The project could not be saved. Please try again."
+msgstr "Das Projekt konnte nicht gespeichert werden. Bitte versuche es erneut."
+
+#: includes/Services/Projects.php:333
+msgid "The status changed in the meantime. Please reload and try again."
+msgstr "Der Status hat sich inzwischen geändert. Bitte lade die Seite neu und versuche es erneut."
+
+#: includes/Services/Rentals.php:461
+msgid "The rental could not be saved. Please try again."
+msgstr "Der Verleih konnte nicht gespeichert werden. Bitte versuche es erneut."
+
+#: admin/js/admin.js:1093
+msgid "Appearance"
+msgstr "Darstellung"
+
+#: admin/js/admin.js:1094
+msgid "Popup width (% of the window)"
+msgstr "Popup-Breite (% der Fensterbreite)"
+
+#: admin/js/admin.js:1095
+msgid "Standard width of every popup in the member portal and in this backend. On phones popups always use the full width; full-screen forms and the image viewer keep their own size."
+msgstr "Standardbreite aller Popups im Mitglieder-Portal und in diesem Backend. Auf dem Handy nutzen Popups immer die volle Breite; Vollbild-Formulare und die Bildansicht behalten ihre eigene Größe."
+
+#: admin/js/admin.js:1105
+msgid "No custom fields yet."
+msgstr "Noch keine eigenen Felder."
+
+#: admin/js/admin.js:1110
+msgid "Field"
+msgstr "Feld"
+
+#: admin/js/admin.js:1111
+msgid "Added by"
+msgstr "Angelegt von"
+
+#: admin/js/admin.js:1112
+msgid "Items using it"
+msgstr "Artikel mit diesem Feld"
+
+#: admin/js/admin.js:1125
+msgid "Rename"
+msgstr "Umbenennen"
+
+#: admin/js/admin.js:1128
+msgid "Field renamed."
+msgstr "Feld umbenannt."
+
+#. translators: 1: label of the custom field, 2: number of items that carry a value for it.
+#: admin/js/admin.js:1137
+#, js-format
+msgid "Delete the field “%1$s”? Its values on %2$d items are deleted for all members."
+msgstr "Feld „%1$s“ löschen? Die Werte an %2$d Artikeln werden für alle Mitglieder gelöscht."
+
+#: admin/js/admin.js:1139
+msgid "Field deleted."
+msgstr "Feld gelöscht."
+
+#: admin/js/admin.js:1151
+msgid "Custom item fields"
+msgstr "Eigene Artikel-Felder"
+
+#: admin/js/admin.js:1152
+msgid "Every member can add fields to the item form in the portal; a new field then appears for all members. Rename or remove fields here — deleting a field deletes its values on all items."
+msgstr "Jedes Mitglied kann im Portal Felder zum Artikel-Formular hinzufügen; ein neues Feld erscheint danach bei allen Mitgliedern. Hier lassen sich Felder umbenennen oder entfernen — ein gelöschtes Feld löscht seine Werte an allen Artikeln."
