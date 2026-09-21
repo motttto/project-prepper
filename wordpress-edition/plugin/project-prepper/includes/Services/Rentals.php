@@ -379,6 +379,11 @@ class Rentals {
 	 * @return int|WP_Error
 	 */
 	public static function create( array $data, array $items ) {
+		// Buchungen serialisieren (Skill /wp-audit, AVAIL-04).
+		return Locking::serialized( static fn() => self::create_locked( $data, $items ) );
+	}
+
+	private static function create_locked( array $data, array $items ) {
 		global $wpdb;
 
 		if ( empty( $data['borrower_name'] ) ) {
@@ -502,6 +507,11 @@ class Rentals {
 	 * @return true|WP_Error
 	 */
 	public static function update( int $id, array $data, ?array $items = null, ?string $expect = null ) {
+		// Buchungen serialisieren (Skill /wp-audit, AVAIL-04).
+		return Locking::serialized( static fn() => self::update_locked( $id, $data, $items, $expect ) );
+	}
+
+	private static function update_locked( int $id, array $data, ?array $items = null, ?string $expect = null ) {
 		global $wpdb;
 
 		$rental = self::get( $id );

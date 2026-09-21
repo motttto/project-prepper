@@ -487,6 +487,11 @@ class Projects {
 	 * @return int|WP_Error
 	 */
 	public static function add_item( int $project_id, array $line ) {
+		// Buchungen serialisieren (Skill /wp-audit, AVAIL-04).
+		return Locking::serialized( static fn() => self::add_item_locked( $project_id, $line ) );
+	}
+
+	private static function add_item_locked( int $project_id, array $line ) {
 		global $wpdb;
 
 		$project = self::get( $project_id );
@@ -535,6 +540,11 @@ class Projects {
 	 * @return true|WP_Error
 	 */
 	public static function update_item( int $project_id, int $line_id, array $line ) {
+		// Buchungen serialisieren (Skill /wp-audit, AVAIL-04).
+		return Locking::serialized( static fn() => self::update_item_locked( $project_id, $line_id, $line ) );
+	}
+
+	private static function update_item_locked( int $project_id, int $line_id, array $line ) {
 		global $wpdb;
 
 		$project = self::get( $project_id );

@@ -157,6 +157,11 @@ class FederatedBorrow {
 	 * @return true|WP_Error
 	 */
 	public static function decide( int $user_id, int $request_id, string $decision ) {
+		// Buchungen serialisieren (Skill /wp-audit, AVAIL-04).
+		return Locking::serialized( static fn() => self::decide_locked( $user_id, $request_id, $decision ) );
+	}
+
+	private static function decide_locked( int $user_id, int $request_id, string $decision ) {
 		global $wpdb;
 
 		$map = [ 'approve' => 'approved', 'decline' => 'declined' ];

@@ -272,6 +272,11 @@ class Borrowing {
 
 	/** Eigentümer nimmt an. @return true|WP_Error */
 	public static function approve( int $user_id, int $request_id ) {
+		// Buchungen serialisieren (Skill /wp-audit, AVAIL-04).
+		return Locking::serialized( static fn() => self::approve_locked( $user_id, $request_id ) );
+	}
+
+	private static function approve_locked( int $user_id, int $request_id ) {
 		return self::decide( $user_id, $request_id, 'approved' );
 	}
 
