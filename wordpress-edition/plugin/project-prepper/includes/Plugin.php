@@ -43,6 +43,7 @@ class Plugin {
 		Frontend\ItemDetail::init();
 		Frontend\MemberPortal::init();
 		Frontend\RentalCancel::init();
+		Frontend\OfferDocument::init();
 		Frontend\MemberAuth::init();
 		Services\SetTemplates::init();
 		Services\ItemImages::init();

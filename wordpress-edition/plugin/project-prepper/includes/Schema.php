@@ -44,7 +44,8 @@ class Schema {
 	// (Mitbearbeiter). Alles additiv via dbDelta; dazu ein einmaliger Datenlauf,
 	// der fehlende projects.created_by aus dem Aktivitätsprotokoll nachträgt.
 	// 0.46.0: rentals.event_name — Name der Veranstaltung am Verleih (User-Wunsch),
-	// additiv via dbDelta, DEFAULT '' = keine Angabe.
+	// additiv via dbDelta, DEFAULT '' = keine Angabe; rental_offers — individuelle
+	// Angebote aus einem Verleih (Positionen als JSON, alles editierbar).
 	const VERSION    = '0.46.0';
 	const OPTION_KEY = 'pp_schema_version';
 
@@ -99,6 +100,7 @@ class Schema {
 		$field_vals = self::table( 'item_field_values' );
 		$item_imgs  = self::table( 'item_images' );
 		$set_tpls   = self::table( 'set_templates' );
+		$offers     = self::table( 'rental_offers' );
 		$set_lines  = self::table( 'set_template_lines' );
 		$borrows    = self::table( 'borrow_requests' );
 		$fed_in     = self::table( 'fed_borrow_in' );
@@ -417,6 +419,34 @@ class Schema {
 		// optional ein bevorzugtes Gerät); die konkreten Geräte wählt man erst
 		// beim Einbuchen aus dem Pool — Buchung, Freigaben und Verfügbarkeit
 		// laufen danach über die normalen Buchungszeilen.
+		// Angebote aus einem Verleih (0.46.0): ein Verleih kann mehrere haben
+		// (Varianten, Nachfassen). Alles ist frei editierbar — Aussteller,
+		// Empfänger, Nummer, Datum, USt, Positionen (JSON: desc, qty, days, rate).
+		// Keine Verbindung zu Verfügbarkeit oder Freigaben: ein Angebot ist ein
+		// Dokument, keine Buchung.
+		dbDelta( "CREATE TABLE {$offers} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			rental_id bigint(20) unsigned NOT NULL,
+			offer_number varchar(40) NOT NULL DEFAULT '',
+			offer_date date DEFAULT NULL,
+			valid_until date DEFAULT NULL,
+			issuer text,
+			recipient text,
+			subject varchar(190) NOT NULL DEFAULT '',
+			intro text,
+			outro text,
+			price_mode varchar(10) NOT NULL DEFAULT 'gross',
+			vat_key varchar(10) NOT NULL DEFAULT '19',
+			discount_type varchar(10) DEFAULT NULL,
+			discount_value decimal(10,2) DEFAULT NULL,
+			line_items longtext,
+			created_by bigint(20) unsigned DEFAULT NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY rental_id (rental_id)
+		) {$charset};" );
+
 		dbDelta( "CREATE TABLE {$set_tpls} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			owner_group_id bigint(20) unsigned DEFAULT NULL,

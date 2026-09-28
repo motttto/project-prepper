@@ -3592,6 +3592,44 @@ label.pp-swatch--auto,
 .pp-modal--full .pp-rental-form select,
 .pp-modal--full .pp-rental-form textarea { background: var(--pp-surface); }
 
+/* Angebote aus einem Verleih (v0.148.0): Liste in der Verleih-Karte und der
+ * Editor im Vollbild — Raster wie das Verleih-Formular, Positionen als Tabelle,
+ * die auf dem Handy zu Karten umbricht (kein Scrollen, Skill /wp-css). */
+.pp-offers { border-top: 1px solid var(--pp-border); margin-top: .75rem; padding-top: .6rem; }
+.pp-offers__head { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+.pp-offers__list { list-style: none; margin: .5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .35rem; }
+.pp-offers__row { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem .6rem; }
+.pp-offers__row form { margin: 0; }
+.pp-offers__num { font-weight: 600; }
+.pp-offers__meta { color: var(--pp-muted-foreground); font-size: .85rem; flex: 1 1 auto; }
+.pp-modal--full .pp-modal-body > .pp-offer-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: .75rem 1rem; align-content: start; }
+.pp-modal--full .pp-modal-body > .pp-offer-form > .pp-offer-form__wide { grid-column: 1 / -1; }
+@media (min-width: 700px) {
+	.pp-modal--full .pp-modal-body > .pp-offer-form > .pp-offer-form__half { grid-column: span 2; }
+}
+.pp-modal--full .pp-offer-form input:not([type="checkbox"]):not([type="radio"]),
+.pp-modal--full .pp-offer-form select,
+.pp-modal--full .pp-offer-form textarea { background: var(--pp-surface); }
+.pp-offer-lines { border: 1px solid var(--pp-border); border-radius: 10px; padding: 10px 12px; margin: 0; background: var(--pp-surface); }
+.pp-offer-lines legend { font-size: .85rem; font-weight: 600; padding: 0 4px; }
+.pp-offer-line { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem 4.5rem 7rem 7rem 2.4rem; gap: .4rem; align-items: start; margin-bottom: .35rem; }
+.pp-offer-line--head { font-size: .72rem; font-weight: 600; color: var(--pp-muted-foreground); text-transform: uppercase; letter-spacing: .02em; }
+.pp-offer-line input, .pp-offer-line textarea { width: 100%; min-width: 0; }
+.pp-offer-line input[data-pp-offer-rate], .pp-offer-line input[data-pp-offer-qty], .pp-offer-line input[data-pp-offer-days] { text-align: right; }
+.pp-offer-line__desc { resize: vertical; min-height: 2.2rem; }
+.pp-offer-line__total { align-self: center; text-align: right; font-variant-numeric: tabular-nums; }
+.pp-offer-line__rm { align-self: center; padding-inline: .4rem; }
+.pp-offer-sums { display: flex; flex-direction: column; gap: .2rem; margin-left: auto; min-width: min(320px, 100%); background: var(--pp-surface); border: 1px solid var(--pp-border); border-radius: 10px; padding: .6rem .8rem; font-variant-numeric: tabular-nums; }
+.pp-offer-sums > div { display: flex; justify-content: space-between; gap: 1rem; }
+.pp-offer-sums__total { border-top: 1px solid var(--pp-border); padding-top: .3rem; font-weight: 700; }
+@media (max-width: 640px) {
+	.pp-offer-line { grid-template-columns: repeat(3, minmax(0, 1fr)) 2.4rem; }
+	.pp-offer-line > .pp-offer-line__desc { grid-column: 1 / -1; }
+	.pp-offer-line--head { display: none; }
+	.pp-offer-line__total { grid-column: 1 / 4; }
+	.pp-offer-line { border-bottom: 1px solid var(--pp-border); padding-bottom: .4rem; }
+}
+
 /* ==========================================================================
    Handy: kein Überlauf nach rechts (v0.148.0, Skill /wp-css „umbrechen statt
    schieben"). Bewusst hinter den Komponenten-Regeln, damit sie greifen.
