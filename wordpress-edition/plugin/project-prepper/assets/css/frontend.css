@@ -3438,6 +3438,8 @@ label.pp-swatch--auto,
 .pp-profile--compact .pp-profile__avatar { width: 44px; height: 44px; font-size: .85rem; }
 .pp-profile--compact .pp-portal__form { max-width: none; }
 .pp-profile--compact .pp-portal__form--inline { margin-top: 0; padding: 0; border: 0; background: none; }
+/* Name + Telefon + Speichern: auf schmalen Breiten umbrechen statt überlaufen. */
+.pp-profile--compact .pp-portal__form--inline { flex-wrap: wrap; align-items: flex-end; }
 .pp-profile--compact .pp-profile__name-label { flex: 1 1 140px; font-size: .8rem; color: var(--pp-muted-foreground); }
 .pp-profile--compact .pp-profile__name-label input { width: 100%; margin-top: .2rem; }
 .pp-dash-account { margin-top: 18px; }

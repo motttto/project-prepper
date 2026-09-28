@@ -22,6 +22,42 @@ class Users {
 
 	const META_LAST_LOGIN = 'pp_last_login';
 
+	/**
+	 * Telefonnummer eines Mitglieds (optional, im Portal-Profil gepflegt). Geht
+	 * nur in die Übergabe-Mails an die Mitglieder, mit denen man etwas verleiht
+	 * oder leiht — nirgends öffentlich. Wie alle pp_*-User-Metas räumt WordPress
+	 * sie beim Löschen des Kontos mit weg (wp_delete_user löscht alle Metas).
+	 */
+	const META_PHONE = 'pp_phone';
+
+	/** Höchstlänge der Telefonnummer (reichlich für +49 … mit Durchwahl). */
+	const PHONE_MAX_LEN = 40;
+
+	/** Hinterlegte Telefonnummer oder ''. */
+	public static function phone( int $user_id ): string {
+		return $user_id > 0 ? trim( (string) get_user_meta( $user_id, self::META_PHONE, true ) ) : '';
+	}
+
+	/**
+	 * Telefonnummer säubern: nur Ziffern, Leerzeichen und + - / ( ) . — alles
+	 * andere fällt weg, Leerraum wird zusammengezogen, gekappt auf PHONE_MAX_LEN.
+	 */
+	public static function sanitize_phone( string $raw ): string {
+		$clean = preg_replace( '/[^0-9+\-\/().\s]/u', '', sanitize_text_field( $raw ) );
+		$clean = trim( (string) preg_replace( '/\s+/', ' ', (string) $clean ) );
+		return mb_substr( $clean, 0, self::PHONE_MAX_LEN );
+	}
+
+	/** Speichern bzw. — bei leerer Eingabe — entfernen. */
+	public static function save_phone( int $user_id, string $raw ): void {
+		$phone = self::sanitize_phone( $raw );
+		if ( '' === $phone ) {
+			delete_user_meta( $user_id, self::META_PHONE );
+		} else {
+			update_user_meta( $user_id, self::META_PHONE, $phone );
+		}
+	}
+
 	public static function init(): void {
 		add_action( 'wp_login', [ self::class, 'record_login' ], 10, 2 );
 		// Gelöschte Nutzer hinterließen bisher Mitgliedschaften, Stimmen und

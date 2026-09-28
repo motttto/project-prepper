@@ -600,6 +600,10 @@ class MemberPortal {
 					$result = new \WP_Error( 'pp_missing_name', __( 'Please enter a display name.', 'project-prepper' ) );
 				} else {
 					$result = wp_update_user( [ 'ID' => get_current_user_id(), 'display_name' => $new_name ] );
+					// Telefon (optional) nur, wenn das Formular das Feld trägt — leer = entfernen.
+					if ( ! is_wp_error( $result ) && isset( $_POST['pp_phone'] ) ) {
+						\ProjectPrepper\Users::save_phone( get_current_user_id(), sanitize_text_field( wp_unslash( (string) $_POST['pp_phone'] ) ) );
+					}
 				}
 				$ok_msg = 'profile_saved';
 				break;
@@ -3062,8 +3066,12 @@ class MemberPortal {
 						<label class="pp-profile__name-label"><?php esc_html_e( 'Display name', 'project-prepper' ); ?>
 							<input type="text" name="pp_name" value="<?php echo esc_attr( $user->display_name ); ?>" required>
 						</label>
-						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save name', 'project-prepper' ); ?></button>
+						<label class="pp-profile__name-label"><?php esc_html_e( 'Phone (optional)', 'project-prepper' ); ?>
+							<input type="tel" name="pp_phone" maxlength="<?php echo (int) \ProjectPrepper\Users::PHONE_MAX_LEN; ?>" autocomplete="tel" value="<?php echo esc_attr( \ProjectPrepper\Users::phone( (int) $user->ID ) ); ?>">
+						</label>
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
 					</form>
+					<p class="pp-portal__hint"><?php esc_html_e( 'Your phone number is only shared by email with the members involved when equipment is handed out or returned, so you can arrange the hand-over.', 'project-prepper' ); ?></p>
 					<details class="pp-portal__edit">
 						<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Profile photo', 'project-prepper' ); ?></summary>
 						<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -11316,6 +11324,7 @@ class MemberPortal {
 			'profile'     => [
 				'display_name' => $user->display_name,
 				'email'        => $user->user_email,
+				'phone'        => \ProjectPrepper\Users::phone( $uid ),
 				'registered'   => $user->user_registered,
 			],
 			'inventory'   => array_map( static function ( $it ) {

@@ -922,6 +922,7 @@
 							features: Object.keys(featureBoxes).reduce(function (acc, k) { acc[k] = featureBoxes[k].checked; return acc; }, {}),
 							collective_rentals_visible: collectiveToggle.checked,
 							item_time_status: timeStatusToggle.checked,
+							handover_notifications: handoverToggle.checked,
 							rental_buffer_before: parseInt(bufferBefore.value, 10) || 0,
 							rental_buffer_after: parseInt(bufferAfter.value, 10) || 0,
 							modal_width: parseInt(modalWidth.value, 10) || 0,
@@ -1068,6 +1069,8 @@
 			collectiveToggle.checked = settings.collective_rentals_visible;
 			var timeStatusToggle = el("input", { type: "checkbox" });
 			timeStatusToggle.checked = settings.item_time_status;
+			var handoverToggle = el("input", { type: "checkbox" });
+			handoverToggle.checked = settings.handover_notifications !== false;
 			var maxBuffer = String(settings.max_buffer_days || 30);
 			var bufferBefore = el("input", { type: "number", min: "0", max: maxBuffer, style: "width:90px" });
 			bufferBefore.value = settings.rental_buffer_before || 0;
@@ -1079,6 +1082,8 @@
 				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("A rental set up in a collective’s workspace appears for every member of that collective — in their lending list, calendar and iCal subscription. Editing, handing out and cancelling stay with whoever set it up. Turn this off and every rental stays private to its creator. Independently of this setting, members always see rentals that contain equipment of their own.", "project-prepper") }),
 				el("label", { class: "pp-toggle", style: "margin-top:14px" }, [timeStatusToggle, el("span", { text: __("Show free/booked periods on each item", "project-prepper") })]),
 				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("Inventory lists show when an item is next out and when it is free again — not just whether it is out today.", "project-prepper") }),
+				el("label", { class: "pp-toggle", style: "margin-top:14px" }, [handoverToggle, el("span", { text: __("Notify owners about hand-out and return", "project-prepper") })]),
+				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("When equipment is handed out or returned, the members involved get an email with each other’s contact details (name, email, phone if set in the profile) so they can arrange the hand-over: owner and borrower of a loan within a collective, and the owners of the equipment plus whoever set up an external rental. Needs email notifications to be on.", "project-prepper") }),
 				el("div", { class: "pp-row", style: "margin-top:14px; gap:16px; align-items:flex-end" }, [
 					field(__("Turnaround before a rental (days)", "project-prepper"), bufferBefore),
 					field(__("Turnaround after a rental (days)", "project-prepper"), bufferAfter)

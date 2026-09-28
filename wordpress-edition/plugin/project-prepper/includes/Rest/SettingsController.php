@@ -69,6 +69,9 @@ class SettingsController extends BaseController {
 		if ( array_key_exists( 'item_time_status', $json ) ) {
 			update_option( Settings::ITEM_TIME_STATUS, (bool) $json['item_time_status'] );
 		}
+		if ( array_key_exists( 'handover_notifications', $json ) ) {
+			update_option( Settings::HANDOVER_MAILS, (bool) $json['handover_notifications'] );
+		}
 		// Rüstzeiten: gedeckelt gespeichert, damit ein Tippfehler („30000 Tage")
 		// nicht das gesamte Inventar dauerhaft blockiert.
 		if ( array_key_exists( 'rental_buffer_before', $json ) ) {
@@ -151,6 +154,7 @@ class SettingsController extends BaseController {
 			'feature_labels'           => Settings::feature_labels(),
 			'collective_rentals_visible' => Settings::collective_rentals_visible(),
 			'item_time_status'         => Settings::item_time_status(),
+			'handover_notifications'   => Settings::handover_notifications(),
 			'rental_buffer_before'     => Settings::buffer_before(),
 			'rental_buffer_after'      => Settings::buffer_after(),
 			'max_buffer_days'          => Settings::MAX_BUFFER_DAYS,

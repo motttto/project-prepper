@@ -10,6 +10,8 @@ use ProjectPrepper\Services\RentalApprovals;
 use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Services\Bundles;
 use ProjectPrepper\Frontend\MemberPortal;
+use ProjectPrepper\Settings;
+use ProjectPrepper\Users;
 
 defined( 'ABSPATH' ) || exit;
 
@@ -36,6 +38,11 @@ class Notifications {
 		add_action( 'pp_group_voting_reminder', [ self::class, 'on_voting_reminder' ], 10, 2 );
 		add_action( 'pp_borrow_requested', [ self::class, 'on_borrow_requested' ], 10, 1 );
 		add_action( 'pp_borrow_decided', [ self::class, 'on_borrow_decided' ], 10, 2 );
+		// Übergabe-Mails (Betreiber-Schalter Settings::handover_notifications):
+		// Eigentümer bekommt bei der Zusage die Kontaktdaten des Leihers, bei der
+		// Rückgabe beide Seiten eine Bestätigung mit dem Kontakt der Gegenseite.
+		add_action( 'pp_borrow_decided', [ self::class, 'on_borrow_handover' ], 20, 2 );
+		add_action( 'pp_borrow_returned', [ self::class, 'on_borrow_returned' ], 10, 3 );
 		// Freigabe-Workflow für Technik-Buchungen (an Eigentümer / an Anfrager).
 		add_action( 'pp_booking_approval_requested', [ self::class, 'on_booking_requested' ], 10, 3 );
 		add_action( 'pp_booking_approval_decided', [ self::class, 'on_booking_decided' ], 10, 1 );
@@ -82,6 +89,21 @@ class Notifications {
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
 				'body'    => __( "Hello {{borrower_name}},\n\nthe return for {{rental_number}} has been confirmed. Thank you!\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
+			// Übergabe-Mails an die beteiligten MITGLIEDER (Eigentümer der Geräte +
+			// Anleger, ohne die Person, die den Status geändert hat) — mit den
+			// Kontaktdaten des externen Leihers und eines Ansprechpartners.
+			'rental_active_team' => [
+				/* translators: Email subject. Keep the {{rental_number}}, {{borrower_name}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'Handed out: {{rental_number}} to {{borrower_name}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello {{recipient_name}},\n\nthe equipment for rental {{rental_number}} has been handed out to {{borrower_name}} ({{date_from}} to {{date_to}}).\n\nItems:\n{{items}}\n\nBorrower:\n{{borrower_name}}\nEmail: {{borrower_email}}\nPhone: {{borrower_phone}}\n\nYour contact for this rental:\n{{contact_name}}\nEmail: {{contact_email}}\nPhone: {{contact_phone}}\n\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
+			'rental_returned_team' => [
+				/* translators: Email subject. Keep the {{rental_number}}, {{borrower_name}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'Returned: {{rental_number}} from {{borrower_name}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello {{recipient_name}},\n\nthe equipment for rental {{rental_number}} ({{borrower_name}}, {{date_from}} to {{date_to}}) has been returned.\n\nItems:\n{{items}}\n\nBorrower:\n{{borrower_name}}\nEmail: {{borrower_email}}\nPhone: {{borrower_phone}}\n\nYour contact for this rental:\n{{contact_name}}\nEmail: {{contact_email}}\nPhone: {{contact_phone}}\n\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
 			'inquiry_received' => [
 				/* translators: Email subject. Keep the {{name}} and {{site_name}} placeholders unchanged. */
 				'subject' => __( 'New inquiry from {{name}} — {{site_name}}', 'project-prepper' ),
@@ -109,8 +131,20 @@ class Notifications {
 			'borrow_decided' => [
 				/* translators: Email subject. Keep the {{item_name}} and {{status}} placeholders unchanged. */
 				'subject' => __( 'Your borrow request for {{item_name}} was {{status}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. {{owner_contact}} expands to the owner's contact details for arranging the hand-over (only on approval, otherwise nothing). */
+				'body'    => __( "Hello,\n\nyour request to borrow \"{{item_name}}\" ({{date_from}} to {{date_to}}) was {{status}}.{{owner_contact}}\n\nDetails:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
+			'borrow_handover_owner' => [
+				/* translators: Email subject. Keep the {{item_name}}, {{requester_name}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'Arrange the hand-over: {{item_name}} for {{requester_name}} — {{site_name}}', 'project-prepper' ),
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
-				'body'    => __( "Hello,\n\nyour request to borrow \"{{item_name}}\" ({{date_from}} to {{date_to}}) was {{status}}.\n\nDetails:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+				'body'    => __( "Hello {{owner_name}},\n\nyou approved the request from {{requester_name}} to borrow \"{{item_name}}\" ({{date_from}} to {{date_to}}). Please arrange the hand-over directly:\n\n{{contact_name}}\nEmail: {{contact_email}}\nPhone: {{contact_phone}}\n\nOnce the equipment is back, mark the loan as returned in the portal:\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+			],
+			'borrow_returned' => [
+				/* translators: Email subject. Keep the {{item_name}} and {{site_name}} placeholders unchanged. */
+				'subject' => __( 'Returned: {{item_name}} — {{site_name}}', 'project-prepper' ),
+				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
+				'body'    => __( "Hello {{recipient_name}},\n\nthe loan of \"{{item_name}}\" ({{date_from}} to {{date_to}}) was marked as returned by {{actor_name}}.\n\nIf anything is missing or damaged, please get in touch directly:\n{{contact_name}}\nEmail: {{contact_email}}\nPhone: {{contact_phone}}\n\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
 			'booking_requested' => [
 				/* translators: Email subject. Keep the {{item_name}} and {{site_name}} placeholders unchanged. */
@@ -168,6 +202,8 @@ class Notifications {
 			'rental_reserved'  => __( 'Rental: reservation confirmed', 'project-prepper' ),
 			'rental_active'    => __( 'Rental: equipment handed out', 'project-prepper' ),
 			'rental_returned'  => __( 'Rental: return confirmed', 'project-prepper' ),
+			'rental_active_team'   => __( 'Rental: equipment handed out (to the members involved)', 'project-prepper' ),
+			'rental_returned_team' => __( 'Rental: return confirmed (to the members involved)', 'project-prepper' ),
 			'rental_cancelled' => __( 'Rental: cancelled by the borrower (to borrower)', 'project-prepper' ),
 			'rental_cancelled_by_borrower' => __( 'Rental: cancelled by the borrower (to the member who set it up)', 'project-prepper' ),
 			'inquiry_received' => __( 'Inquiry received (operator)', 'project-prepper' ),
@@ -175,6 +211,8 @@ class Notifications {
 			'group_vote_reminder' => __( 'Group: reminder to vote on a new member', 'project-prepper' ),
 			'borrow_requested' => __( 'Borrow request (to owner)', 'project-prepper' ),
 			'borrow_decided'   => __( 'Borrow decision (to requester)', 'project-prepper' ),
+			'borrow_handover_owner' => __( 'Borrow approved: arrange the hand-over (to owner)', 'project-prepper' ),
+			'borrow_returned'  => __( 'Borrow returned (to owner and borrower)', 'project-prepper' ),
 			'booking_requested' => __( 'Equipment approval request (to owner)', 'project-prepper' ),
 			'booking_decided'   => __( 'Equipment approval decision (to requester)', 'project-prepper' ),
 			'booking_requested_list' => __( 'Equipment approval request — several items in one email (to owner)', 'project-prepper' ),
@@ -424,15 +462,104 @@ class Notifications {
 		}
 		$status_text = 'approved' === $status ? __( 'approved', 'project-prepper' ) : __( 'declined', 'project-prepper' );
 		$tpl         = self::templates()['borrow_decided'];
+		// Zusage: Kontakt des Eigentümers für die Übergabe (Betreiber-Schalter).
+		$owner_contact = '';
+		if ( 'approved' === $status && Settings::handover_notifications() ) {
+			$owner = $req->owner_id ? get_userdata( (int) $req->owner_id ) : null;
+			if ( $owner ) {
+				$owner_contact = self::contact_block( __( 'Please arrange the hand-over with the owner:', 'project-prepper' ), $owner );
+			}
+		}
 		$vars        = [
+			'item_name'     => self::borrow_item_label( $req ),
+			'status'        => $status_text,
+			'date_from'     => $req->date_from ? mysql2date( 'd.m.Y', $req->date_from ) : '—',
+			'date_to'       => $req->date_to ? mysql2date( 'd.m.Y', $req->date_to ) : '—',
+			'owner_contact' => $owner_contact,
+			'portal_url'    => MemberPortal::portal_url(),
+			'site_name'     => get_bloginfo( 'name' ),
+		];
+		$body = (string) $tpl['body'];
+		// Selbst angepasste (bzw. einmal im Backend gespeicherte) Vorlagen aus der
+		// Zeit vor dem Kontaktblock kennen den Platzhalter nicht — dann hängen wir
+		// ihn an, statt die Kontaktdaten still wegzulassen (wie beim Storno-Link).
+		if ( '' !== $owner_contact && false === strpos( $body, '{{owner_contact}}' ) ) {
+			$body .= '{{owner_contact}}';
+		}
+		wp_mail( $requester->user_email, self::render( $tpl['subject'], $vars ), self::render( $body, $vars ) );
+	}
+
+	/**
+	 * Zusage einer Kollektiv-Leihe → Mail an den EIGENTÜMER „Ausgabe vereinbaren"
+	 * mit Kontakt des Leihers, Gegenstand und Zeitraum. Bei Sets läuft der Hook je
+	 * Vorgang einmal (klammernde Zeile) — also eine Mail je Set, nicht je Teil.
+	 */
+	public static function on_borrow_handover( int $request_id, string $status ): void {
+		if ( 'approved' !== $status || ! self::enabled() || ! Settings::handover_notifications() ) {
+			return;
+		}
+		$req = Borrowing::get( $request_id );
+		if ( ! $req || ! $req->owner_id ) {
+			return;
+		}
+		$owner     = get_userdata( (int) $req->owner_id );
+		$requester = get_userdata( (int) $req->requester_id );
+		if ( ! $owner || ! $requester || ! is_email( $owner->user_email ) ) {
+			return;
+		}
+		$vars = array_merge( [
+			'owner_name'     => $owner->display_name,
+			'requester_name' => $requester->display_name,
+			'item_name'      => self::borrow_item_label( $req ),
+			'date_from'      => $req->date_from ? mysql2date( 'd.m.Y', $req->date_from ) : '—',
+			'date_to'        => $req->date_to ? mysql2date( 'd.m.Y', $req->date_to ) : '—',
+			'portal_url'     => add_query_arg( [ 'pp_view' => 'lending', 'pp_tab' => 'requests' ], MemberPortal::portal_url() ),
+			'site_name'      => get_bloginfo( 'name' ),
+		], self::contact_vars( $requester ) );
+		self::mail_template( $owner->user_email, 'borrow_handover_owner', $vars );
+	}
+
+	/**
+	 * Kollektiv-Leihe zurückgegeben → Bestätigung an Eigentümer UND Leiher, jeweils
+	 * mit dem Kontakt der Gegenseite (falls etwas fehlt oder kaputt ist).
+	 *
+	 * Doppelt-Schutz: Der Hook kann bei einem gleichzeitigen Zurückgeben eines
+	 * Sets von zwei Aufrufen kommen (jeder mit seinen umgestellten Zeilen). Gemailt
+	 * wird nur von dem Aufruf, der die klammernde Zeile selbst umgestellt hat.
+	 *
+	 * @param int[] $row_ids Vom auslösenden Aufruf umgestellte Zeilen.
+	 */
+	public static function on_borrow_returned( int $request_id, int $actor_id = 0, array $row_ids = [] ): void {
+		if ( ! self::enabled() || ! Settings::handover_notifications() ) {
+			return;
+		}
+		if ( ! in_array( $request_id, array_map( 'intval', $row_ids ), true ) ) {
+			return;
+		}
+		$req = Borrowing::get( $request_id );
+		if ( ! $req || ! $req->owner_id ) {
+			return;
+		}
+		$owner     = get_userdata( (int) $req->owner_id );
+		$requester = get_userdata( (int) $req->requester_id );
+		if ( ! $owner || ! $requester ) {
+			return;
+		}
+		$actor = $actor_id > 0 ? get_userdata( $actor_id ) : null;
+		$base  = [
 			'item_name'  => self::borrow_item_label( $req ),
-			'status'     => $status_text,
 			'date_from'  => $req->date_from ? mysql2date( 'd.m.Y', $req->date_from ) : '—',
 			'date_to'    => $req->date_to ? mysql2date( 'd.m.Y', $req->date_to ) : '—',
-			'portal_url' => MemberPortal::portal_url(),
+			'actor_name' => $actor ? $actor->display_name : get_bloginfo( 'name' ),
+			// Zurückgegebene Vorgänge stehen in der Historie unter „Meine Leihen".
+			'portal_url' => add_query_arg( [ 'pp_view' => 'lending', 'pp_tab' => 'borrows' ], MemberPortal::portal_url() ),
 			'site_name'  => get_bloginfo( 'name' ),
 		];
-		wp_mail( $requester->user_email, self::render( $tpl['subject'], $vars ), self::render( $tpl['body'], $vars ) );
+		foreach ( [ [ $owner, $requester ], [ $requester, $owner ] ] as $pair ) {
+			list( $to, $other ) = $pair;
+			$vars = array_merge( $base, [ 'recipient_name' => $to->display_name ], self::contact_vars( $other ) );
+			self::mail_template( (string) $to->user_email, 'borrow_returned', $vars );
+		}
 	}
 
 	/**
@@ -693,7 +820,126 @@ class Notifications {
 		$key = [ 'active' => 'rental_active', 'returned' => 'rental_returned' ][ $to ] ?? null;
 		if ( $key ) {
 			self::send_for_rental( $rental_id, $key );
+			self::send_rental_team( $rental_id, $to );
 		}
+	}
+
+	/**
+	 * Ausgabe/Rückgabe eines externen Verleihs an die beteiligten MITGLIEDER:
+	 * die Eigentümer der (freigegebenen) Positionen und die Person, die den
+	 * Verleih angelegt hat — ohne die Person, die den Status gerade geändert hat
+	 * (die weiß es schon). Jede Mail trägt die Kontaktdaten des externen Leihers
+	 * und einen Ansprechpartner: den Anleger, bzw. für den Anleger selbst die
+	 * Person, die geändert hat (etwa der Betreiber im Backend).
+	 *
+	 * Der Hook feuert je echtem Statuswechsel genau einmal (bedingtes UPDATE in
+	 * Rentals::set_status) — keine Doppel-Mails bei Doppelklick.
+	 */
+	private static function send_rental_team( int $rental_id, string $status ): void {
+		if ( ! self::enabled() || ! Settings::handover_notifications() ) {
+			return;
+		}
+		$key    = 'active' === $status ? 'rental_active_team' : 'rental_returned_team';
+		$rental = Rentals::get( $rental_id );
+		if ( ! $rental ) {
+			return;
+		}
+		$actor_id   = (int) get_current_user_id();
+		$creator_id = (int) ( $rental->owner_user_id ?? 0 );
+		$recipients = [];
+		$item_lines = [];
+		foreach ( (array) $rental->items as $line ) {
+			// Was noch auf die Freigabe seines Eigentümers wartet, ging nicht raus.
+			if ( 'approved' !== (string) ( $line->approval_status ?? 'approved' ) ) {
+				continue;
+			}
+			$item_lines[] = sprintf( '- %s× %s (%s)', (int) $line->quantity, $line->item_name ?: '#' . (int) $line->item_id, $line->inventory_number ?: '—' );
+			$owner_id     = (int) ( $line->item_owner_id ?? 0 );
+			if ( $owner_id > 0 ) {
+				$recipients[ $owner_id ] = true;
+			}
+		}
+		if ( $creator_id > 0 ) {
+			$recipients[ $creator_id ] = true;
+		}
+		unset( $recipients[ $actor_id ] );
+		if ( ! $recipients || ! $item_lines ) {
+			return;
+		}
+		$creator = $creator_id > 0 ? ( get_userdata( $creator_id ) ?: null ) : null;
+		$actor   = $actor_id > 0 ? ( get_userdata( $actor_id ) ?: null ) : null;
+		$base    = [
+			'rental_number'  => $rental->rental_number,
+			'borrower_name'  => $rental->borrower_name,
+			'borrower_email' => '' !== trim( (string) $rental->borrower_email ) ? (string) $rental->borrower_email : '—',
+			'borrower_phone' => '' !== trim( (string) $rental->borrower_phone ) ? (string) $rental->borrower_phone : '—',
+			'date_from'      => mysql2date( 'd.m.Y', $rental->date_from ),
+			'date_to'        => mysql2date( 'd.m.Y', $rental->date_to ),
+			'items'          => implode( "\n", $item_lines ),
+			'portal_url'     => add_query_arg( 'pp_view', 'lending', MemberPortal::portal_url() ),
+			'site_name'      => get_bloginfo( 'name' ),
+		];
+		foreach ( array_keys( $recipients ) as $uid ) {
+			$user = get_userdata( (int) $uid );
+			if ( ! $user || ! is_email( $user->user_email ) ) {
+				continue;
+			}
+			$contact = ( (int) $uid === $creator_id ) ? $actor : $creator;
+			if ( ! $contact ) {
+				$contact = $creator ?: $actor;
+			}
+			$vars = array_merge( $base, [ 'recipient_name' => $user->display_name ], self::contact_vars( $contact ) );
+			self::mail_template( $user->user_email, $key, $vars );
+		}
+	}
+
+	/**
+	 * Kontakt-Platzhalter {{contact_name}}/{{contact_email}}/{{contact_phone}}.
+	 * Ohne Person (im Backend angelegt, niemand angemeldet) springt der Betreiber
+	 * ein — wie beim Storno-Hinweis. Fehlendes Telefon steht als „—" da.
+	 */
+	private static function contact_vars( ?\WP_User $user ): array {
+		if ( ! $user ) {
+			return [
+				'contact_name'  => get_bloginfo( 'name' ),
+				'contact_email' => (string) get_option( 'admin_email' ),
+				'contact_phone' => '—',
+			];
+		}
+		$phone = Users::phone( (int) $user->ID );
+		return [
+			'contact_name'  => $user->display_name,
+			'contact_email' => is_email( $user->user_email ) ? $user->user_email : '—',
+			'contact_phone' => '' !== $phone ? $phone : '—',
+		];
+	}
+
+	/**
+	 * Kontaktblock als EIN Platzhalter-Wert (für Vorlagen, die ihn nur manchmal
+	 * brauchen, z. B. die Leih-Entscheidung nur bei Zusage). Beginnt mit einer
+	 * Leerzeile, damit er direkt hinter einem Satz stehen kann.
+	 */
+	private static function contact_block( string $intro, \WP_User $user ): string {
+		$lines = [ $intro, $user->display_name ];
+		if ( is_email( $user->user_email ) ) {
+			/* translators: %s: email address, part of the contact block in emails. */
+			$lines[] = sprintf( __( 'Email: %s', 'project-prepper' ), $user->user_email );
+		}
+		$phone = Users::phone( (int) $user->ID );
+		if ( '' !== $phone ) {
+			/* translators: %s: phone number, part of the contact block in emails. */
+			$lines[] = sprintf( __( 'Phone: %s', 'project-prepper' ), $phone );
+		}
+		return "\n\n" . implode( "\n", $lines );
+	}
+
+	/** Vorlage rendern und verschicken (still, wenn Adresse oder Vorlage fehlt). */
+	private static function mail_template( string $to, string $key, array $vars ): void {
+		$tpl = self::templates()[ $key ] ?? null;
+		if ( ! $tpl || ! is_email( $to ) ) {
+			return;
+		}
+		wp_mail( $to, self::render( (string) $tpl['subject'], $vars ), self::render( (string) $tpl['body'], $vars ) );
 	}
 
 	private static function send_for_rental( int $rental_id, string $template_key ): void {

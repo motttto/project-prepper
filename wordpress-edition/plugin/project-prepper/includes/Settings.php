@@ -33,8 +33,20 @@ class Settings {
 	/** Obergrenze je Rüstzeit — bewahrt vor Tippfehlern, die das Inventar lahmlegen. */
 	const MAX_BUFFER_DAYS = 30;
 
+	/**
+	 * Übergabe-Mails: Bei Ausgabe und Rückgabe bekommen die beteiligten Mitglieder
+	 * eine Mail mit den Kontaktdaten der Gegenseite (Eigentümer ↔ Leiher bei der
+	 * Kollektiv-Leihe; Eigentümer + Anleger beim externen Verleih). Aus = wie vor
+	 * dem Feature: nur die bisherigen Mails, ohne Kontaktblock.
+	 */
+	const HANDOVER_MAILS = 'pp_handover_notifications';
+
 	public static function collective_rentals_visible(): bool {
 		return (bool) get_option( self::COLLECTIVE_RENTALS, true );
+	}
+
+	public static function handover_notifications(): bool {
+		return (bool) get_option( self::HANDOVER_MAILS, true );
 	}
 
 	public static function item_time_status(): bool {
