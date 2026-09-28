@@ -919,6 +919,20 @@ class MemberPortal {
 					self::notify_new_booking( self::active_workspace_group(), $proj_id );
 				}
 				break;
+			case 'project_tpl_book':
+				// Set-Vorlage einbuchen: je Zeile das gewählte Gerät aus dem Pool,
+				// alles-oder-nichts (Gates + Freigaben in member_book_template).
+				$result = self::member_book_template( $proj_id );
+				if ( is_string( $result ) ) {
+					$ok_msg = $result;
+					$result = true;
+				} else {
+					$ok_msg = 'booking_saved';
+				}
+				if ( ! is_wp_error( $result ) ) {
+					self::notify_new_booking( self::active_workspace_group(), $proj_id );
+				}
+				break;
 			case 'project_item_update':
 				$result = self::member_update_booking( $proj_id, (int) ( $_POST['pp_line'] ?? 0 ) );
 				// String-Rückgabe = eigener Erfolgs-Meldungscode (Re-Approval).
@@ -5885,6 +5899,178 @@ class MemberPortal {
 	}
 
 	/**
+	 * Set-Vorlage ins Projekt einbuchen (Feedback „Systembundles"): je
+	 * Vorlagen-Zeile ein Gerät aus dem buchbaren Pool (auch verschiedener
+	 * Eigentümer), gebucht als ganz normale Zeilen im Projektzeitraum —
+	 * Verfügbarkeit, Freigaben und Packliste laufen wie bei jeder Buchung.
+	 * Alles-oder-nichts: scheitert eine Zeile, werden die schon angelegten
+	 * wieder entfernt. Sets aus dem Pool sind nicht wählbar (sie buchen sich
+	 * über ihre Teile selbst).
+	 *
+	 * @return true|string|\WP_Error 'booking_pending' = Freigaben angefragt.
+	 */
+	private static function member_book_template( int $pid ) {
+		$p = self::member_editable_project( $pid );
+		if ( ! $p ) {
+			return self::project_denied( $pid );
+		}
+		$uid = get_current_user_id();
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		$tpl  = SetTemplates::get( (int) ( $_POST['pp_tpl'] ?? 0 ) );
+		$sel  = is_array( $_POST['pp_tplsel'] ?? null ) ? wp_unslash( $_POST['pp_tplsel'] ) : [];
+		$qtys = is_array( $_POST['pp_tplqty'] ?? null ) ? wp_unslash( $_POST['pp_tplqty'] ) : [];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		if ( ! $tpl || ! SetTemplates::can_use( $uid, $tpl ) ) {
+			return new \WP_Error( 'pp_forbidden', __( 'You are not allowed to change this template.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$pool    = self::bookable_pool( $p );
+		$bundles = Bundles::for_items( array_keys( $pool ) );
+		$wanted  = [];
+		foreach ( $tpl->lines as $line ) {
+			$iid = (int) ( $sel[ (int) $line->id ] ?? 0 );
+			if ( $iid <= 0 ) {
+				continue; // Zeile bewusst weggelassen.
+			}
+			if ( ! isset( $pool[ $iid ] ) || isset( $bundles[ $iid ] ) ) {
+				return new \WP_Error( 'pp_forbidden', Projects::is_solo( $p )
+					? __( 'Only your own equipment can be booked for a personal project.', 'project-prepper' )
+					: __( 'Only equipment shared with this collective can be booked.', 'project-prepper' ), [ 'status' => 403 ] );
+			}
+			$wanted[ $iid ] = ( $wanted[ $iid ] ?? 0 ) + max( 1, (int) ( $qtys[ (int) $line->id ] ?? $line->quantity ) );
+		}
+		if ( ! $wanted ) {
+			return new \WP_Error( 'pp_no_selection', __( 'Please tick at least one item to book.', 'project-prepper' ) );
+		}
+		$created          = [];
+		$pending_by_owner = [];
+		/* translators: %s: name of the set template. */
+		$note = sprintf( __( 'From set template “%s”', 'project-prepper' ), $tpl->name );
+		foreach ( $wanted as $iid => $qty ) {
+			$pool_item = $pool[ $iid ];
+			$owner_id  = (int) ( $pool_item->shared_by ?? 0 );
+			$needs     = $owner_id > 0 && $owner_id !== $uid && ! empty( $pool_item->requires_approval );
+			$line      = [ 'item_id' => $iid, 'quantity' => $qty, 'date_from' => '', 'date_to' => '', 'notes' => $note ];
+			if ( $needs ) {
+				$line['approval_status'] = 'pending';
+				$line['requested_by']    = $uid;
+			}
+			$res = Projects::add_item( $pid, $line );
+			if ( is_wp_error( $res ) ) {
+				foreach ( $created as $cid ) {
+					Projects::remove_item( $pid, $cid );
+				}
+				return $res;
+			}
+			$created[] = (int) $res;
+			if ( $needs ) {
+				$pending_by_owner[ $owner_id ][] = (int) $res;
+			}
+		}
+		foreach ( $pending_by_owner as $po_owner => $po_lines ) {
+			do_action( 'pp_booking_approvals_requested', $po_lines, (int) $po_owner, $uid );
+		}
+		return $pending_by_owner ? 'booking_pending' : true;
+	}
+
+	/**
+	 * Dialoge „Set-Vorlage einbuchen" im Technik-Reiter: je Vorlage ein Dialog
+	 * mit einer Auswahl je Zeile — passende Geräte zuerst (bevorzugtes vorne,
+	 * mit freier Stückzahl im Projektzeitraum), danach alle übrigen des Pools.
+	 *
+	 * @param array<object>     $templates
+	 * @param array<int,object> $pool
+	 */
+	private static function render_template_book_modals( object $p, array $templates, array $pool ): void {
+		$bundles    = Bundles::for_items( array_keys( $pool ) );
+		$items      = array_values( array_filter( $pool, static fn( $it ) => ! isset( $bundles[ (int) $it->id ] ) ) );
+		usort( $items, static fn( $a, $b ) => strcasecmp( (string) $a->name, (string) $b->name ) );
+		$has_period = '' !== (string) $p->date_start && '' !== (string) $p->date_end;
+		$free_cache = [];
+		$free       = static function ( object $it ) use ( $p, $has_period, &$free_cache ): ?int {
+			if ( ! $has_period ) {
+				return null;
+			}
+			$id = (int) $it->id;
+			if ( ! isset( $free_cache[ $id ] ) ) {
+				$free_cache[ $id ] = Inventory::is_blocked( $it->item_condition ?? '' ) ? 0 : Availability::available_quantity( $id, (string) $p->date_start, (string) $p->date_end, 0, (int) $p->id );
+			}
+			return $free_cache[ $id ];
+		};
+		foreach ( $templates as $tpl ) :
+			$form_id = 'pp-tplbook-' . (int) $tpl->id . '-form';
+			?>
+			<dialog class="pp-modal pp-modal--portal" id="pp-tplbook-<?php echo (int) $tpl->id; ?>">
+				<div class="pp-modal-header">
+					<h2 class="pp-modal__title"><?php echo esc_html( $tpl->name ); ?></h2>
+					<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+				</div>
+				<div class="pp-modal-body">
+					<form class="pp-portal__form" id="<?php echo esc_attr( $form_id ); ?>" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+						<?php self::action_fields( 'project_tpl_book' ); ?>
+						<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+						<input type="hidden" name="pp_tpl" value="<?php echo (int) $tpl->id; ?>">
+						<?php if ( '' !== trim( (string) $tpl->description ) ) : ?>
+							<p class="pp-portal__hint"><?php echo esc_html( (string) $tpl->description ); ?></p>
+						<?php endif; ?>
+						<p class="pp-portal__hint"><?php esc_html_e( 'Pick one device per line — booked for the whole project period. Devices of other members may need their approval, as with every booking.', 'project-prepper' ); ?></p>
+						<div class="pp-tpl-edit">
+							<?php foreach ( $tpl->lines as $line ) :
+								$matches   = SetTemplates::matches( $line, $items );
+								$match_ids = array_map( static fn( $m ) => (int) $m->id, $matches );
+								$others    = array_values( array_filter( $items, static fn( $it ) => ! in_array( (int) $it->id, $match_ids, true ) ) );
+								// Vorauswahl: das erste passende Gerät, das die Stückzahl frei hat.
+								$pre = 0;
+								foreach ( $matches as $m ) {
+									$f = $free( $m );
+									if ( null === $f || $f >= (int) $line->quantity ) {
+										$pre = (int) $m->id;
+										break;
+									}
+								}
+								?>
+								<div class="pp-units-edit__row pp-tpl-edit__row">
+									<input type="number" class="pp-tpl-edit__qty" name="pp_tplqty[<?php echo (int) $line->id; ?>]" min="1" max="999" value="<?php echo (int) $line->quantity; ?>" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>">
+									<span class="pp-tpl-edit__label"><?php echo esc_html( $line->label ); ?></span>
+									<select name="pp_tplsel[<?php echo (int) $line->id; ?>]" aria-label="<?php echo esc_attr( $line->label ); ?>">
+										<option value="0"><?php esc_html_e( '— leave out —', 'project-prepper' ); ?></option>
+										<?php foreach ( [ [ __( 'Matching', 'project-prepper' ), $matches ], [ __( 'Other devices', 'project-prepper' ), $others ] ] as [ $pp_glabel, $pp_list ] ) : ?>
+											<?php if ( $pp_list ) : ?>
+												<optgroup label="<?php echo esc_attr( $pp_glabel ); ?>">
+													<?php foreach ( $pp_list as $it ) :
+														$f   = $pp_list === $matches ? $free( $it ) : null;
+														$lbl = $it->name . ' · ' . $it->inventory_number;
+														if ( '' !== (string) ( $it->owner_name ?? '' ) ) {
+															$lbl .= ' · ' . $it->owner_name;
+														}
+														if ( null !== $f ) {
+															/* translators: %d: free pieces in the project period. */
+															$lbl .= ' · ' . sprintf( __( '%d free', 'project-prepper' ), (int) $f );
+														}
+														?>
+														<option value="<?php echo (int) $it->id; ?>" <?php selected( $pre, (int) $it->id ); ?>><?php echo esc_html( $lbl ); ?></option>
+													<?php endforeach; ?>
+												</optgroup>
+											<?php endif; ?>
+										<?php endforeach; ?>
+									</select>
+								</div>
+							<?php endforeach; ?>
+						</div>
+					</form>
+				</div>
+				<div class="pp-modal-footer">
+					<span></span>
+					<div class="pp-modal-footer__actions">
+						<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal-close><?php esc_html_e( 'Cancel', 'project-prepper' ); ?></button>
+						<button type="submit" form="<?php echo esc_attr( $form_id ); ?>" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Book template', 'project-prepper' ); ?></button>
+					</div>
+				</div>
+			</dialog>
+			<?php
+		endforeach;
+	}
+
+	/**
 	 * Buchungszeile ändern (Menge/Zeitraum/Notiz — der Artikel bleibt). Löst bei
 	 * einer MATERIELLEN Änderung (Menge erhöht ODER Zeitraum geändert) an einer
 	 * bereits freigegebenen Zeile eines fremden, freigabepflichtigen Artikels eine
@@ -7053,6 +7239,16 @@ class MemberPortal {
 				<section class="pp-card">
 					<h3 class="pp-card__title"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></h3>
 					<p class="pp-portal__hint"><?php esc_html_e( 'Tick every item you want and set its quantity — you can book several at once.', 'project-prepper' ); ?></p>
+					<?php $pp_templates = SetTemplates::for_workspace( Projects::workspace_of( $p ), Projects::is_solo( $p ) ? (int) $p->owner_user_id : 0 ); ?>
+					<?php if ( $pp_templates ) : ?>
+						<div class="pp-tpl-book">
+							<span class="pp-portal__hint"><?php esc_html_e( 'Or add a set template:', 'project-prepper' ); ?></span>
+							<?php foreach ( $pp_templates as $pp_tpl ) : ?>
+								<button type="button" class="pp-portal__chip" data-pp-modal="pp-tplbook-<?php echo (int) $pp_tpl->id; ?>"><?php echo esc_html( $pp_tpl->name ); ?></button>
+							<?php endforeach; ?>
+						</div>
+						<?php self::render_template_book_modals( $p, $pp_templates, $pool ); ?>
+					<?php endif; ?>
 					<form class="pp-portal__form pp-book-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-live data-pp-live-scope>
 						<?php self::action_fields( 'project_item_add' ); ?>
 						<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
