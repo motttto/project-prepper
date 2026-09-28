@@ -39,8 +39,10 @@ class Schema {
 	// (Set-Vorlagen je Kollektiv/Mitglied), items.is_consumable (Verbrauchs-
 	// material, Bestand sinkt nach Rückgabe/Projektabschluss) und
 	// project_items.consumed_at (Einmal-Marker dafür), rental_items.unit_ids +
-	// project_items.unit_ids (gewählte Exemplare je Position, JSON-Liste).
-	// Alles additiv via dbDelta.
+	// project_items.unit_ids (gewählte Exemplare je Position, JSON-Liste),
+	// projects.owner_user_id (Solo-Projekte) und project_members.can_edit
+	// (Mitbearbeiter). Alles additiv via dbDelta; dazu ein einmaliger Datenlauf,
+	// der fehlende projects.created_by aus dem Aktivitätsprotokoll nachträgt.
 	const VERSION    = '0.45.0';
 	const OPTION_KEY = 'pp_schema_version';
 

@@ -410,7 +410,7 @@ class MemberPortal {
 				? self::member_operable_project( $proj_id )
 				: self::member_editable_project( $proj_id );
 			if ( ! $sub_gate ) {
-				$sub_msg = self::member_operable_project( $proj_id ) ? 'project_readonly' : 'error';
+				$sub_msg = self::member_operable_project( $proj_id ) ? 'project_readonly' : 'forbidden';
 				wp_safe_redirect( add_query_arg( 'pp_msg', $sub_msg, $back ) );
 				exit;
 			}
