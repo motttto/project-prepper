@@ -3567,6 +3567,44 @@ label.pp-swatch--auto,
 .pp-inv-list, .pp-ginv { border: 1px solid var(--pp-border); border-radius: 10px; overflow: hidden; background: var(--pp-surface); }
 
 /* ==========================================================================
+   Handy: kein Überlauf nach rechts (v0.148.0, Skill /wp-css „umbrechen statt
+   schieben"). Bewusst hinter den Komponenten-Regeln, damit sie greifen.
+   ========================================================================== */
+
+/* Ein <fieldset> hat im Browser die Mindestbreite seines INHALTS
+ * (min-inline-size: min-content) — eine breite Artikelzeile schob damit das
+ * ganze Verleih-Formular über den Rand. Im Portal bestimmt das Raster die Breite. */
+.pp-app fieldset,
+.pp-front fieldset { min-width: 0; min-inline-size: 0; }
+
+/* Lange Gerätenamen umbrechen statt die Zeile zu verbreitern. */
+.pp-book-item__name { overflow-wrap: anywhere; }
+
+/* Kalender-Leiste (Monat und Woche): „Heute" und Monat/Woche rutschen auf dem
+ * Handy in eine zweite Zeile, statt 90 px über den Rand zu ragen. */
+.pp-cal__bar { flex-wrap: wrap; row-gap: 6px; }
+
+/* Obere Leiste auf sehr kleinen Handys (320 px): Name und Rolle neben dem
+ * Avatar entfallen (der Avatar bleibt, ein Tipp darauf führt ins Profil), der
+ * Seitentitel kürzt sich mit „…" statt 55 % der Breite zu reservieren. */
+@media (max-width: 360px) {
+	.pp-app__user-meta { display: none; }
+	.pp-app__topbar { gap: 8px; }
+	.pp-app__topbar-left { flex: 1 1 auto; }
+	.pp-app__topbar-title { max-width: none; min-width: 0; }
+	.pp-app__topbar-right { flex: none; gap: 4px; }
+}
+
+/* Artikel-Zeile der Auswahl-Listen (Verleih, Projekt-Buchung): auf schmalen
+ * Bildschirmen steht der Artikel oben über die volle Breite, Menge und Tagessatz
+ * darunter rechtsbündig — nebeneinander passten sie nicht auf ein Handy. */
+@media (max-width: 560px) {
+	.pp-book-item { flex-wrap: wrap; }
+	.pp-portal__form label.pp-book-item__pick { flex: 1 1 100%; }
+	.pp-book-item > .pp-book-item__qty { margin-left: auto; }
+}
+
+/* ==========================================================================
    Scrollbars (Skill /wp-css): erst vermeiden, und wo sie bleiben müssen,
    unauffällig. Bewusst am DATEIENDE, damit die Regeln alles davor überstimmen.
    1. Native Flächen (Scrollbalken, Datumswähler, Selects) folgen dem Theme —
