@@ -9,6 +9,7 @@ use ProjectPrepper\Services\GroupGovernance as Governance;
 use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Services\ItemFields;
 use ProjectPrepper\Services\ItemImages;
+use ProjectPrepper\Services\Units;
 use ProjectPrepper\Services\Feedback;
 use ProjectPrepper\Services\MemberInventory;
 use ProjectPrepper\Services\MemberInquiries;
@@ -608,6 +609,7 @@ class MemberPortal {
 				$result = MemberInventory::create( get_current_user_id(), self::item_input() );
 				if ( ! is_wp_error( $result ) ) {
 					self::apply_share_input( get_current_user_id(), (int) $result );
+					self::apply_unit_input( get_current_user_id(), (int) $result );
 					$pp_field_res  = self::apply_custom_field_input( get_current_user_id(), (int) $result );
 					$pp_bundle_res = self::apply_bundle_input( get_current_user_id(), (int) $result );
 					$pp_photo_res  = self::process_item_photo_input( get_current_user_id(), (int) $result );
@@ -635,6 +637,7 @@ class MemberPortal {
 				$result  = MemberInventory::update( get_current_user_id(), $pp_item, self::item_input(), self::seen() );
 				if ( ! is_wp_error( $result ) ) {
 					self::apply_share_input( get_current_user_id(), $pp_item );
+					self::apply_unit_input( get_current_user_id(), $pp_item );
 					$pp_field_res  = self::apply_custom_field_input( get_current_user_id(), $pp_item );
 					$pp_bundle_res = self::apply_bundle_input( get_current_user_id(), $pp_item );
 					$pp_photo_res  = self::process_item_photo_input( get_current_user_id(), $pp_item );
@@ -656,6 +659,7 @@ class MemberPortal {
 				$pp_item = (int) ( $_POST['pp_item'] ?? 0 );
 				$result  = MemberInventory::edit_details( get_current_user_id(), $pp_item, self::item_input(), self::seen() );
 				if ( ! is_wp_error( $result ) ) {
+					self::apply_unit_input( get_current_user_id(), $pp_item );
 					$pp_field_res = self::apply_custom_field_input( get_current_user_id(), $pp_item );
 					$pp_photo_res = self::process_item_photo_input( get_current_user_id(), $pp_item );
 					if ( is_wp_error( $pp_photo_res ) ) {
@@ -3210,6 +3214,7 @@ class MemberPortal {
 		// Kollektivs und Zusatzfotos jeweils in EINER Abfrage.
 		$pp_shares = MemberInventory::group_shares( $group_id );
 		$pp_extras = ItemImages::extras_for( array_map( static fn( $it ) => (int) $it->id, $items ) );
+		$pp_units  = Units::for_items( array_map( static fn( $it ) => (int) $it->id, $items ) );
 		$pp_cats   = [ 'own' => MemberInventory::own_categories( $uid ), 'templates' => MemberInventory::template_categories() ];
 		?>
 		<header class="pp-app__page-head">
@@ -3377,6 +3382,7 @@ class MemberPortal {
 							'share'      => $pp_share,
 							'custom'     => $pp_cf_map[ (int) $item->id ] ?? [],
 							'gallery'    => ItemImages::gallery( $item, $pp_extras[ (int) $item->id ] ?? [] ),
+							'units'      => $pp_units[ (int) $item->id ] ?? [],
 							'qty'        => (int) $pp_qty_col,
 							'avail'      => (int) $pp_avail,
 							'parts'      => $pp_parts,
@@ -3525,6 +3531,7 @@ class MemberPortal {
 						<?php endif; ?>
 					<?php endforeach; ?>
 					<?php self::custom_field_list( $ctx['custom'] ?? [] ); ?>
+					<?php self::unit_list( $ctx['units'] ?? [], $labels ); ?>
 				<?php endif; ?>
 				<?php if ( ! empty( $item->documents ) ) : ?>
 					<div class="pp-idetail__text">
@@ -3550,6 +3557,9 @@ class MemberPortal {
 						<input type="hidden" name="pp_seen" value="<?php echo esc_attr( (string) ( $item->updated_at ?? '' ) ); ?>">
 						<?php self::item_fields( $ctx['categories'] ?? [], $labels, $item, ! $is_mine ); ?>
 						<?php self::item_photo_fields( $ctx['gallery'] ?? [] ); ?>
+						<?php if ( empty( $ctx['parts'] ) ) : ?>
+							<?php self::item_unit_fields( $ctx['units'] ?? [], $labels ); ?>
+						<?php endif; ?>
 					</form>
 				<?php endif; ?>
 			</div>
@@ -10176,6 +10186,7 @@ class MemberPortal {
 				</div>
 				<?php ItemFields::values_for( array_map( static fn( $pp_i ) => (int) $pp_i->id, $items ) ); // Eigene Felder: ein Query für alle Modals. ?>
 				<?php $pp_extras = ItemImages::extras_for( array_map( static fn( $pp_i ) => (int) $pp_i->id, $items ) ); // Zusatzfotos: ein Query für alle Modals. ?>
+				<?php $pp_units = Units::for_items( array_map( static fn( $pp_i ) => (int) $pp_i->id, $items ) ); // Exemplare: ein Query für alle Modals. ?>
 				<?php foreach ( $items as $item ) : ?>
 					<?php
 					$shared = $groups ? MemberInventory::shared_group_ids( (int) $item->id ) : [];
@@ -10248,6 +10259,9 @@ class MemberPortal {
 								<input type="hidden" name="pp_seen" value="<?php echo esc_attr( (string) ( $item->updated_at ?? '' ) ); ?>">
 								<?php self::item_fields( $categories, $conditions, $item ); ?>
 								<?php self::item_photo_fields( ItemImages::gallery( $item, $pp_extras[ (int) $item->id ] ?? [] ) ); ?>
+								<?php if ( ! $pp_parts ) : ?>
+									<?php self::item_unit_fields( $pp_units[ (int) $item->id ] ?? [], $conditions ); ?>
+								<?php endif; ?>
 								<?php self::item_bundle_fields( $bundle_candidates, $bundles_map[ (int) $item->id ] ?? [], $item ); ?>
 								<?php self::item_share_fields( $groups, $groups ? MemberInventory::share_settings( (int) $item->id ) : [] ); ?>
 							</form>
@@ -10409,6 +10423,7 @@ class MemberPortal {
 			<?php endif; ?>
 			<?php self::item_fields( $categories, $conditions, $item ); ?>
 			<?php self::item_photo_fields( [] ); ?>
+			<?php self::item_unit_fields( [], $conditions ); ?>
 			<?php self::item_bundle_fields( $bundle_candidates, [], $item ); ?>
 			<?php self::item_share_fields( $groups, [], $preshare_gid ); ?>
 			<?php if ( '' === $form_id ) : ?>
@@ -10442,6 +10457,93 @@ class MemberPortal {
 				</div>
 			</div>
 		</dialog>
+		<?php
+	}
+
+	/**
+	 * Abschnitt „Exemplare" des Artikel-Formulars (Feedback: „Einzelgeräte einem
+	 * Artikel zuordnen"): einzelne Stücke benennen, mit Seriennummer, Zustand und
+	 * Notiz; drei leere Zeilen für neue Exemplare. Ausgewertet von
+	 * apply_unit_input() → Units::save_from_form().
+	 *
+	 * @param array<object>        $units      Bestehende Exemplare.
+	 * @param array<string,string> $conditions Zustands-Labels.
+	 */
+	private static function item_unit_fields( array $units, array $conditions ): void {
+		$row = static function ( string $name, ?object $unit ) use ( $conditions ): void {
+			$cond = $unit ? (string) $unit->unit_condition : 'good';
+			?>
+			<div class="pp-units-edit__row">
+				<span class="pp-units-edit__num"><?php echo $unit ? '#' . (int) $unit->unit_number : esc_html__( 'New', 'project-prepper' ); ?></span>
+				<input type="text" name="<?php echo esc_attr( $name ); ?>[label]" value="<?php echo esc_attr( $unit ? (string) $unit->label : '' ); ?>" placeholder="<?php esc_attr_e( 'Name, e.g. Isco 25 mm 2.8', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Name', 'project-prepper' ); ?>" maxlength="190">
+				<input type="text" name="<?php echo esc_attr( $name ); ?>[serial_number]" value="<?php echo esc_attr( $unit ? (string) $unit->serial_number : '' ); ?>" placeholder="<?php esc_attr_e( 'Serial number', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Serial number', 'project-prepper' ); ?>" maxlength="190">
+				<select name="<?php echo esc_attr( $name ); ?>[condition]" aria-label="<?php esc_attr_e( 'Condition', 'project-prepper' ); ?>">
+					<?php foreach ( $conditions as $pp_key => $pp_label ) : ?>
+						<option value="<?php echo esc_attr( $pp_key ); ?>" <?php selected( $cond, $pp_key ); ?>><?php echo esc_html( $pp_label ); ?></option>
+					<?php endforeach; ?>
+				</select>
+				<input type="text" name="<?php echo esc_attr( $name ); ?>[notes]" value="<?php echo esc_attr( $unit ? (string) $unit->notes : '' ); ?>" placeholder="<?php esc_attr_e( 'Note', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Note', 'project-prepper' ); ?>">
+				<?php if ( $unit ) : ?>
+					<label class="pp-units-edit__rm"><input type="checkbox" name="<?php echo esc_attr( $name ); ?>[remove]" value="1"> <?php esc_html_e( 'Remove', 'project-prepper' ); ?></label>
+				<?php endif; ?>
+			</div>
+			<?php
+		};
+		?>
+		<details class="pp-units-edit" <?php echo $units ? 'open' : ''; ?>>
+			<summary class="pp-units-edit__head"><?php esc_html_e( 'Individual pieces', 'project-prepper' ); ?><?php if ( $units ) : ?> (<?php echo (int) count( $units ); ?>)<?php endif; ?></summary>
+			<input type="hidden" name="pp_units_present" value="1">
+			<p class="pp-portal__hint"><?php esc_html_e( 'Name single pieces (e.g. two different lenses of the same kind) to pick a specific one when booking. Bookings still work by quantity; pieces marked broken, in maintenance or lost do not count as available.', 'project-prepper' ); ?></p>
+			<div class="pp-units-edit__list">
+				<?php foreach ( $units as $pp_unit ) : ?>
+					<?php $row( 'pp_unit[' . (int) $pp_unit->id . ']', $pp_unit ); ?>
+				<?php endforeach; ?>
+				<?php for ( $pp_i = 0; $pp_i < 3; $pp_i++ ) : ?>
+					<?php $row( 'pp_unit_new[' . $pp_i . ']', null ); ?>
+				<?php endfor; ?>
+			</div>
+		</details>
+		<?php
+	}
+
+	/**
+	 * Exemplar-Eingaben anwenden (Anlegen, Verwalten-Modal, Kollektiv-Bearbeiten).
+	 * Fehlt der Abschnitts-Marker, bleiben die Exemplare unangetastet.
+	 */
+	private static function apply_unit_input( int $user_id, int $item_id ): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		if ( empty( $_POST['pp_units_present'] ) || ! MemberInventory::can_edit( $user_id, $item_id ) ) {
+			return;
+		}
+		$existing = is_array( $_POST['pp_unit'] ?? null ) ? wp_unslash( $_POST['pp_unit'] ) : [];
+		$new      = is_array( $_POST['pp_unit_new'] ?? null ) ? wp_unslash( $_POST['pp_unit_new'] ) : [];
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		Units::save_from_form( $item_id, $existing, $new );
+	}
+
+	/**
+	 * Exemplare zum Ansehen (Kollektiv-Detail): Name, Seriennummer, Zustand.
+	 *
+	 * @param array<object> $units
+	 */
+	private static function unit_list( array $units, array $conditions ): void {
+		if ( ! $units ) {
+			return;
+		}
+		?>
+		<div class="pp-idetail__text">
+			<h3 class="pp-idetail__head"><?php esc_html_e( 'Individual pieces', 'project-prepper' ); ?></h3>
+			<ul class="pp-unit-list">
+				<?php foreach ( $units as $pp_unit ) : ?>
+					<li class="pp-unit-list__row<?php echo Units::is_blocked( $pp_unit ) ? ' is-blocked' : ''; ?>">
+						<span class="pp-unit-list__name"><?php echo esc_html( Units::label( $pp_unit ) ); ?></span>
+						<?php if ( '' !== trim( (string) $pp_unit->serial_number ) ) : ?><small class="pp-portal__item-num"><?php echo esc_html( (string) $pp_unit->serial_number ); ?></small><?php endif; ?>
+						<span class="pp-unit-list__cond"><?php echo esc_html( (string) ( $conditions[ $pp_unit->unit_condition ] ?? $pp_unit->unit_condition ) ); ?></span>
+						<?php if ( '' !== trim( (string) $pp_unit->notes ) ) : ?><span class="pp-unit-list__note"><?php echo esc_html( (string) $pp_unit->notes ); ?></span><?php endif; ?>
+					</li>
+				<?php endforeach; ?>
+			</ul>
+		</div>
 		<?php
 	}
 

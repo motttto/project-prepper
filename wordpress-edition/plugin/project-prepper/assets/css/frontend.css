@@ -3268,6 +3268,26 @@ label.pp-swatch--auto,
 .pp-gallery__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .pp-gallery__thumb.is-active { border-color: var(--pp-primary); }
 
+/* Exemplare (Einzelgeräte) im Artikel-Formular: eine Zeile je Stück, die
+ * Felder brechen um statt zu scrollen (Skill /wp-css). */
+.pp-modal-body > .pp-portal__form > .pp-units-edit { grid-column: 1 / -1; }
+.pp-units-edit { border-top: 1px solid var(--pp-muted); padding-top: .85rem; }
+.pp-units-edit__head { cursor: pointer; font-weight: 600; font-size: .9rem; }
+.pp-units-edit__list { display: flex; flex-direction: column; gap: .4rem; margin-top: .5rem; }
+.pp-units-edit__row { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .6rem; }
+.pp-units-edit__row > input[type="text"] { flex: 1 1 160px; min-width: 0; }
+.pp-units-edit__row > select { flex: 0 1 150px; min-width: 0; }
+.pp-units-edit__num { flex: none; min-width: 2.6rem; font-size: .78rem; color: var(--pp-muted-foreground); }
+.pp-portal__form label.pp-units-edit__rm { display: inline-flex; flex-direction: row; align-items: center; gap: .3rem; font-size: .8rem; color: var(--pp-muted-foreground); }
+
+/* Exemplare zum Ansehen (Kollektiv-Detail). */
+.pp-unit-list { list-style: none; margin: .25rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: .3rem .9rem; }
+.pp-unit-list__row { display: flex; flex-wrap: wrap; align-items: baseline; gap: .15rem .5rem; min-width: 0; }
+.pp-unit-list__name { font-weight: 600; }
+.pp-unit-list__cond { font-size: .78rem; color: var(--pp-muted-foreground); }
+.pp-unit-list__row.is-blocked .pp-unit-list__cond { color: var(--pp-destructive); }
+.pp-unit-list__note { flex-basis: 100%; font-size: .8rem; color: var(--pp-muted-foreground); }
+
 /* Artikel-Detail: Fotos und Angaben nebeneinander, sobald die Breite reicht
  * (Auto-Raster, keine feste Spaltenzahl — die Modal-Breite ist einstellbar);
  * Freitexte darunter über die volle Breite. */

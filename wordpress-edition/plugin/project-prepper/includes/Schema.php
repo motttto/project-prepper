@@ -33,7 +33,9 @@ class Schema {
 	// neue Tabellen via dbDelta, keine Datenmigration.
 	// 0.45.0: Feedback-Runde 2026-09 — item_images (Zusatzfotos je Artikel; das
 	// Titelbild bleibt items.image_id), item_group_shares.members_can_edit
-	// (Kollektiv-Mitglieder dürfen Angaben bearbeiten). Alles additiv via dbDelta.
+	// (Kollektiv-Mitglieder dürfen Angaben bearbeiten), groups.color (Farbe im
+	// Arbeitsbereich-Umschalter, '' = automatisch), units.label/serial_number
+	// (Exemplare im Portal benennen). Alles additiv via dbDelta.
 	const VERSION    = '0.45.0';
 	const OPTION_KEY = 'pp_schema_version';
 
@@ -153,6 +155,8 @@ class Schema {
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			item_id bigint(20) unsigned NOT NULL,
 			unit_number int(11) NOT NULL,
+			label varchar(190) NOT NULL DEFAULT '',
+			serial_number varchar(190) NOT NULL DEFAULT '',
 			unit_condition varchar(20) NOT NULL DEFAULT 'good',
 			notes text,
 			PRIMARY KEY  (id),

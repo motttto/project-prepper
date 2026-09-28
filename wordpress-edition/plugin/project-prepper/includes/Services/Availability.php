@@ -157,7 +157,12 @@ class Availability {
 			$from
 		) );
 
-		return max( 0, (int) $item->quantity - $rented - $booked - $borrowed - $federated );
+		// Gesperrte Exemplare (defekt, Wartung, verschollen, ausgemustert — Schema
+		// 0.45.0) fehlen im Regal wie ein Stück, das unterwegs ist. Dieselbe Regel
+		// steht im out_now-Subquery von Inventory::items().
+		$blocked_units = Units::blocked_count( $item_id );
+
+		return max( 0, (int) $item->quantity - $rented - $booked - $borrowed - $federated - $blocked_units );
 	}
 
 	/**

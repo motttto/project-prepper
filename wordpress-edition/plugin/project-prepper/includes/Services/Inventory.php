@@ -249,7 +249,8 @@ class Inventory {
 		// reserved/active-Verleihen, confirmed/running-Projekt-Buchungen,
 		// genehmigten Kollektiv-Leihen UND genehmigten föderierten Leihen
 		// (gleiche vier Zweige wie Availability::available_quantity), als ein
-		// Subquery-JOIN — kein N+1.
+		// Subquery-JOIN — kein N+1. Dazu gesperrte Exemplare (0.45.0): sie fehlen
+		// im Regal genauso und stehen ebenfalls in available_quantity().
 		// Platzhalter-Reihenfolge folgt dem SQL von oben nach unten.
 		$params = array_merge(
 			[ $items, $cats ],                            // FROM %i i, LEFT JOIN %i c
@@ -257,6 +258,7 @@ class Inventory {
 			[ $p_items, $projs, $out_to, $out_from ],         // Projekt-Zweig der UNION
 			[ $borrows, $out_to, $out_from ],                 // Kollektiv-Leih-Zweig
 			[ $fed_in, $out_to, $out_from ],                  // Föderierter Leih-Zweig
+			[ Schema::table( 'units' ) ],                     // Gesperrte Exemplare
 			$where_params                                 // WHERE
 		);
 		$sql = $wpdb->prepare(
@@ -288,6 +290,10 @@ class Inventory {
 						FROM %i fb
 						WHERE fb.status = 'approved'
 						  AND fb.date_from <= %s AND fb.date_to >= %s
+						UNION ALL
+						SELECT un.item_id, 1
+						FROM %i un
+						WHERE un.unit_condition IN ('" . implode( "','", self::BLOCKED_CONDITIONS ) . "')
 					) u
 					GROUP BY u.item_id
 				) o ON o.item_id = i.id
