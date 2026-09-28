@@ -70,21 +70,20 @@ class ConsumableStock {
 	 */
 	public static function on_borrow_returned( int $request_id, int $actor_id = 0, array $row_ids = [] ): void {
 		global $wpdb;
-		$row_ids = array_values( array_filter( array_map( 'intval', $row_ids ) ) );
-		if ( ! $row_ids ) {
-			return;
-		}
-		$in   = implode( ',', array_fill( 0, count( $row_ids ), '%d' ) );
-		$rows = $wpdb->get_results( $wpdb->prepare(
-			"SELECT b.id, b.item_id, b.quantity
-			 FROM %i b
-			 INNER JOIN %i i ON i.id = b.item_id
-			 WHERE b.status = 'returned' AND i.is_consumable = 1 AND b.id IN ({$in})
-			 ORDER BY b.id ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $in besteht nur aus %d-Platzhaltern.
-			array_merge( [ Schema::table( 'borrow_requests' ), Schema::table( 'items' ) ], $row_ids )
-		) ) ?: [];
-		foreach ( $rows as $row ) {
-			self::deduct( (int) $row->item_id, max( 1, (int) $row->quantity ), 'borrow', $request_id, [ 'line_id' => (int) $row->id ] );
+		// Wenige Zeilen (eine, bei Sets je Teil eine) — je Zeile eine Abfrage.
+		foreach ( array_unique( array_filter( array_map( 'intval', $row_ids ) ) ) as $row_id ) {
+			$row = $wpdb->get_row( $wpdb->prepare(
+				"SELECT b.id, b.item_id, b.quantity
+				 FROM %i b
+				 INNER JOIN %i i ON i.id = b.item_id
+				 WHERE b.id = %d AND b.status = 'returned' AND i.is_consumable = 1",
+				Schema::table( 'borrow_requests' ),
+				Schema::table( 'items' ),
+				$row_id
+			) );
+			if ( $row ) {
+				self::deduct( (int) $row->item_id, max( 1, (int) $row->quantity ), 'borrow', $request_id, [ 'line_id' => (int) $row->id ] );
+			}
 		}
 	}
 
