@@ -2090,9 +2090,25 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 	transition: box-shadow .15s, transform .15s;
 }
 .pp-proj-card:hover { box-shadow: 0 10px 15px -3px rgb(0 0 0 / .08); transform: translateY(-1px); }
-.pp-proj-card__head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
-.pp-proj-card__name { font-weight: 600; font-size: 1rem; }
-.pp-proj-card__meta { font-size: .85rem; color: var(--pp-muted-foreground); }
+.pp-proj-card__head { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; min-width: 0; flex-wrap: wrap; }
+.pp-proj-card__name { font-weight: 600; font-size: 1rem; overflow-wrap: anywhere; }
+.pp-proj-card__meta { display: block; font-size: .85rem; color: var(--pp-muted-foreground); }
+/* Projekte der Kollektive im Solo-Arbeitsbereich: Karte als Button (POST
+ * set_workspace), sieht aus wie die verlinkte Karte. */
+.pp-proj-card-form { margin: 0; }
+.pp-proj-card--switch { width: 100%; text-align: left; font: inherit; cursor: pointer; }
+/* Gleicher Hover-Lift wie die Link-Karte (die allgemeine Button-Regel wäre sonst spezifischer). */
+.pp-app__main .pp-proj-card.pp-proj-card--switch:hover:not(:disabled) {
+	box-shadow: inset 0 0 0 1px rgba(var(--pp-glow), .35),
+		0 10px 15px -3px rgb(0 0 0 / .08),
+		0 0 8px 0 rgba(var(--pp-glow), .12);
+	transform: translateY(-1px);
+	border-color: transparent;
+}
+.pp-proj-coll__name { margin: 14px 0 6px; font-size: .9rem; font-weight: 600; color: var(--pp-muted-foreground); }
+/* Hinweis „gehört zu einem anderen Arbeitsbereich" im Projekt-Detail. */
+.pp-proj-ws-note { align-items: center; margin-bottom: 1rem; }
+.pp-proj-ws-note .pp-portal__hint { margin: 0; padding: 0; border: 0; flex: 1 1 16rem; }
 .pp-proj-card__num {
 	position: absolute;
 	top: 14px;

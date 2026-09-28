@@ -582,7 +582,13 @@
 				}));
 				var tbody = el("tbody");
 				projects.forEach(function (project) {
-					var owner = project.owner_group_id ? (groupNames[project.owner_group_id] || ("#" + project.owner_group_id)) : __("Site level", "project-prepper");
+					// Solo-Projekte (owner_user_id, keine Gruppe) gehören einem Mitglied — nicht der Site-Ebene.
+					var owner = project.owner_group_id
+						? (groupNames[project.owner_group_id] || ("#" + project.owner_group_id))
+						: (project.owner_user_id
+							/* translators: %s: display name of the member owning a personal project */
+							? sprintf(__("Personal: %s", "project-prepper"), project.owner_user_name || ("#" + project.owner_user_id))
+							: __("Site level", "project-prepper"));
 					tbody.appendChild(el("tr", null, [
 						el("td", null, [el("code", { text: project.project_number })]),
 						el("td", { text: project.name }),

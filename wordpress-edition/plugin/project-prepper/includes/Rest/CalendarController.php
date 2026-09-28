@@ -209,12 +209,15 @@ class CalendarController extends BaseController {
 		}
 
 		// Dieselben abgeleiteten Quellen wie die Kalender-Ansicht des Portals
-		// (MemberPortal::calendar_events): Projekte der eigenen Kollektive, deren
-		// Zeitplan-Einträge, Kollektiv-Ausleihen und externe Verleihe. Ohne sie
-		// enthielt der Feed nur die von Hand angelegten Termine.
+		// (MemberPortal::calendar_events): Projekte der eigenen Kollektive und die
+		// eigenen Solo-Projekte, deren Zeitplan-Einträge, Kollektiv-Ausleihen und
+		// externe Verleihe. Ohne sie enthielt der Feed nur die von Hand angelegten
+		// Termine. Fremde Solo-Projekte liefert Projects::all() Nicht-Admins gar
+		// nicht erst; die Bedingung unten schließt sie auch für Admins aus.
 		foreach ( Projects::all() as $p ) {
-			$gid = (int) ( $p->owner_group_id ?? 0 );
-			if ( ! in_array( $gid, $group_ids, true ) ) {
+			$gid     = (int) ( $p->owner_group_id ?? 0 );
+			$is_solo = Projects::is_solo_owner( $p, $user_id );
+			if ( ! $is_solo && ! ( $gid > 0 && in_array( $gid, $group_ids, true ) ) ) {
 				continue;
 			}
 			$start = (string) ( $p->date_start ?? '' );

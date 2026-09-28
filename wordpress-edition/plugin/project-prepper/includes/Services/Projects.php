@@ -1,6 +1,7 @@
 <?php
 namespace ProjectPrepper\Services;
 
+use ProjectPrepper\Capabilities;
 use ProjectPrepper\Schema;
 use WP_Error;
 
@@ -21,6 +22,14 @@ defined( 'ABSPATH' ) || exit;
  * (siehe Availability::available_quantity). Der Guard beim Anlegen/Ändern
  * von Buchungszeilen prüft trotzdem in jedem Status, damit Konflikte früh
  * sichtbar werden.
+ *
+ * Eigentum (Solo XOR Kollektiv, wie Inventar/Anfragen): owner_group_id =
+ * Kollektiv-Projekt, owner_user_id = Solo-Projekt (bucht aus dem eigenen
+ * Inventar), beide NULL = Site-Ebene (Altbestand/Betreiber). Wer sehen,
+ * bearbeiten, löschen oder „bedienen" (Packliste, Abhaken) darf, entscheiden
+ * AUSSCHLIESSLICH die Helfer can_view/can_edit/can_delete/can_operate — das
+ * Portal nutzt dieselben Helfer für seine Gates und die Anzeige, die
+ * schreibenden Methoden hier prüfen sie zusätzlich selbst.
  */
 class Projects {
 
@@ -49,20 +58,27 @@ class Projects {
 			$params[] = $args['status'];
 		}
 
-		// Gruppen-Zugriffsfilter (additiv, v0.10.0): Nicht-Admins sehen Projekte
-		// mit owner_group_id nur, wenn sie Mitglied der Gruppe sind; Site-Ebene
-		// (NULL) bleibt sichtbar (Cap-gesteuert wie bisher). Admins sehen alles.
-		// Ein WHERE, kein N+1. Default (alles NULL) bleibt damit unverändert.
+		// Zugriffsfilter — dieselbe Regel wie {@see can_view()}, als EIN WHERE
+		// (kein N+1). Nicht-Admins sehen:
+		//  - Kollektiv-Projekte nur ihrer eigenen Gruppen,
+		//  - Solo-Projekte (owner_user_id, keine Gruppe) nur, wenn sie ihnen gehören,
+		//  - Alt-/Betreiber-Projekte der Site-Ebene (beide NULL) wie bisher.
+		// Ohne die Solo-Bedingung fiele jedes Solo-Projekt unter „keine Gruppe"
+		// und wäre für alle sichtbar. Admins sehen alles.
 		$user_id = get_current_user_id();
 		if ( ! Groups::user_is_admin( $user_id ) ) {
+			$scope = [ '(IFNULL(p.owner_group_id, 0) = 0 AND IFNULL(p.owner_user_id, 0) = 0)' ];
+			if ( $user_id > 0 ) {
+				$scope[]  = '(IFNULL(p.owner_group_id, 0) = 0 AND p.owner_user_id = %d)';
+				$params[] = $user_id;
+			}
 			$group_ids = Groups::user_group_ids( $user_id );
 			if ( $group_ids ) {
 				$placeholders = implode( ',', array_fill( 0, count( $group_ids ), '%d' ) );
-				$where[]      = '(p.owner_group_id IS NULL OR p.owner_group_id IN (' . $placeholders . '))';
+				$scope[]      = 'p.owner_group_id IN (' . $placeholders . ')';
 				$params       = array_merge( $params, $group_ids );
-			} else {
-				$where[] = 'p.owner_group_id IS NULL';
 			}
+			$where[] = '(' . implode( ' OR ', $scope ) . ')';
 		}
 
 		array_unshift( $params, $lines, $projects );
@@ -86,10 +102,10 @@ class Projects {
 		if ( ! $project ) {
 			return null;
 		}
-		// Gruppen-Zugriff (v0.10.0): Nicht-Mitglieder eines Gruppen-Projekts
-		// behandeln wir wie „nicht gefunden" (kein Leak). Site-Ebene + Admins
-		// unverändert. Default (owner_group_id NULL) → true → wie bisher.
-		if ( ! Groups::user_can_access_project( $project, get_current_user_id() ) ) {
+		// Zugriff ({@see can_view()}): Nicht-Mitglieder eines Kollektiv-Projekts
+		// und Fremde bei einem Solo-Projekt behandeln wir wie „nicht gefunden"
+		// (kein Leak). Site-Ebene + Admins unverändert.
+		if ( ! self::can_view( $project, get_current_user_id() ) ) {
 			return null;
 		}
 		$project->items        = self::items_for( $id );
@@ -140,6 +156,14 @@ class Projects {
 		if ( is_wp_error( $group ) ) {
 			return $group;
 		}
+		// Solo XOR Kollektiv: ein Gruppen-Projekt hat nie einen Solo-Eigentümer.
+		$owner = null;
+		if ( null === $group ) {
+			$owner = self::sanitize_owner_user( $data['owner_user_id'] ?? null );
+			if ( is_wp_error( $owner ) ) {
+				return $owner;
+			}
+		}
 
 		$now = current_time( 'mysql' );
 		$row = [
@@ -157,11 +181,12 @@ class Projects {
 			'budget_planned' => $budget,
 			'revenue_actual' => $revenue,
 			'owner_group_id' => $group,
+			'owner_user_id'  => $owner,
 			'created_by'     => get_current_user_id() ?: null,
 			'created_at'     => $now,
 			'updated_at'     => $now,
 		];
-				// Wie beim Verleih: Nummern-Kollision (UNIQUE) darf nicht still in einer
+		// Wie beim Verleih: Nummern-Kollision (UNIQUE) darf nicht still in einer
 		// 0 enden — sonst hängen Zeilen an einem Projekt, das es nicht gibt.
 		$project_id = 0;
 		for ( $attempt = 0; $attempt < 3 && $project_id <= 0; $attempt++ ) {
@@ -177,6 +202,7 @@ class Projects {
 		ActivityLog::log( 'project_created', 'project', $project_id, [
 			'name'   => trim( (string) $data['name'] ),
 			'status' => $status,
+			'solo'   => null !== $owner,
 		] );
 
 		/**
@@ -203,6 +229,9 @@ class Projects {
 		$project = self::get( $id );
 		if ( ! $project ) {
 			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		if ( ! self::can_edit( $project, get_current_user_id() ) ) {
+			return self::edit_denied();
 		}
 		if ( array_key_exists( 'name', $data ) && '' === trim( (string) $data['name'] ) ) {
 			return new WP_Error( 'pp_missing_name', __( 'Project name is required.', 'project-prepper' ), [ 'status' => 400 ] );
@@ -259,6 +288,11 @@ class Projects {
 				return $group;
 			}
 			$fields['owner_group_id'] = $group;
+			// Solo XOR Kollektiv: wandert ein (Solo-)Projekt in eine Gruppe,
+			// verliert es seinen Solo-Eigentümer.
+			if ( null !== $group ) {
+				$fields['owner_user_id'] = null;
+			}
 		}
 		$fields['updated_at'] = current_time( 'mysql' );
 		// Optimistic Locking (v0.145.0): Mit gelesenem Stand nur schreiben, wenn
@@ -294,6 +328,9 @@ class Projects {
 		$project = self::get( $id );
 		if ( ! $project ) {
 			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		if ( ! self::can_edit( $project, get_current_user_id() ) ) {
+			return self::edit_denied();
 		}
 		if ( ! in_array( $status, self::STATUSES, true ) ) {
 			return new WP_Error( 'pp_invalid_status', __( 'Invalid status.', 'project-prepper' ), [ 'status' => 400 ] );
@@ -346,8 +383,16 @@ class Projects {
 		return true;
 	}
 
+	/**
+	 * Projekt samt allen Unterlisten löschen. Gate {@see can_delete()} für den
+	 * aktuellen User — der Service schützt sich selbst, nicht nur das Portal.
+	 */
 	public static function delete( int $id ): bool {
 		global $wpdb;
+		$project = self::get( $id );
+		if ( ! $project || ! self::can_delete( $project, get_current_user_id() ) ) {
+			return false;
+		}
 		$checklist_ids = $wpdb->get_col( $wpdb->prepare(
 			'SELECT id FROM %i WHERE project_id = %d',
 			Schema::table( 'project_checklists' ),
@@ -414,6 +459,146 @@ class Projects {
 		return $ok;
 	}
 
+	/* ---------- Eigentum & Rechte (zentrale Stelle für Portal UND Services) ---------- */
+
+	/**
+	 * Nur die Projektzeile (ohne Unterlisten) — für Rechte-Prüfungen in heißen
+	 * Pfaden. Prüft SELBST keinen Zugriff; Aufrufer nutzen die can_*-Helfer.
+	 */
+	public static function row( int $id ): ?object {
+		global $wpdb;
+		if ( $id <= 0 ) {
+			return null;
+		}
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM %i WHERE id = %d',
+			Schema::table( 'projects' ),
+			$id
+		) ) ?: null;
+	}
+
+	/** Arbeitsbereich des Projekts: Gruppen-ID, 0 = Solo (bzw. Site-Ebene). */
+	public static function workspace_of( object $p ): int {
+		return max( 0, (int) ( $p->owner_group_id ?? 0 ) );
+	}
+
+	/** Solo-Projekt = keine Gruppe, aber ein persönlicher Eigentümer. */
+	public static function is_solo( object $p ): bool {
+		return self::workspace_of( $p ) <= 0 && (int) ( $p->owner_user_id ?? 0 ) > 0;
+	}
+
+	/** Gehört das Solo-Projekt diesem User? */
+	public static function is_solo_owner( object $p, int $user_id ): bool {
+		return $user_id > 0 && self::is_solo( $p ) && (int) $p->owner_user_id === $user_id;
+	}
+
+	/**
+	 * Darf $user_id das Projekt SEHEN? Admin (Groups::user_is_admin) immer;
+	 * Kollektiv-Projekt: aktives Mitglied der Gruppe; Solo-Projekt: nur der
+	 * Eigentümer; Site-Ebene (Altbestand ohne Eigentümer): wie bisher
+	 * Cap-gesteuert (true). Gleiche Regel wie der WHERE-Filter in {@see all()}.
+	 */
+	public static function can_view( object $p, int $user_id ): bool {
+		return Groups::user_can_access_project( $p, $user_id );
+	}
+
+	/**
+	 * Darf $user_id das Projekt BEARBEITEN (Stammdaten, Status, Buchungen,
+	 * Unterlisten)? Admin immer; Solo: nur der Eigentümer; Kollektiv: jedes
+	 * aktive Mitglied; Site-Ebene: wie bisher über die Cap pp_projects_edit
+	 * (nur Backend/REST — im Portal gibt es diese Projekte nicht).
+	 */
+	public static function can_edit( object $p, int $user_id ): bool {
+		if ( $user_id <= 0 ) {
+			return false;
+		}
+		if ( Groups::user_is_admin( $user_id ) ) {
+			return true;
+		}
+		$group_id = self::workspace_of( $p );
+		if ( $group_id <= 0 ) {
+			return self::is_solo( $p )
+				? self::is_solo_owner( $p, $user_id )
+				: user_can( $user_id, Capabilities::EDIT_PROJECTS );
+		}
+		return Groups::is_member( $group_id, $user_id );
+	}
+
+	/** Darf $user_id das Projekt löschen? (Regeln wie {@see can_edit()}.) */
+	public static function can_delete( object $p, int $user_id ): bool {
+		return self::can_edit( $p, $user_id );
+	}
+
+	/**
+	 * Betrieb statt Planung: Packliste (gepackt/getestet), Checklisten abhaken,
+	 * eigene Aufgaben annehmen/ablehnen. Admin; Solo-Eigentümer; jedes aktive
+	 * Mitglied des Kollektivs.
+	 */
+	public static function can_operate( object $p, int $user_id ): bool {
+		if ( $user_id <= 0 ) {
+			return false;
+		}
+		if ( Groups::user_is_admin( $user_id ) ) {
+			return true;
+		}
+		$group_id = self::workspace_of( $p );
+		if ( $group_id <= 0 ) {
+			return self::is_solo( $p )
+				? self::is_solo_owner( $p, $user_id )
+				: user_can( $user_id, Capabilities::EDIT_PROJECTS );
+		}
+		return Groups::is_member( $group_id, $user_id );
+	}
+
+	/**
+	 * DSGVO-Export (Portal „Meine Daten"): die eigenen Solo-Projekte und die
+	 * selbst angelegten Kollektiv-Projekte — Kernfelder, ohne Unterlisten.
+	 *
+	 * @return array<array<string,mixed>>
+	 */
+	public static function export_for_user( int $user_id ): array {
+		global $wpdb;
+		if ( $user_id <= 0 ) {
+			return [];
+		}
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT project_number, name, status, date_start, date_end, venue_name, client_name, notes,
+			        owner_group_id, owner_user_id, created_by, created_at
+			 FROM %i WHERE owner_user_id = %d OR created_by = %d ORDER BY id ASC',
+			Schema::table( 'projects' ),
+			$user_id,
+			$user_id
+		) ) ?: [];
+		$names = [];
+		$out   = [];
+		foreach ( $rows as $r ) {
+			$gid = (int) ( $r->owner_group_id ?? 0 );
+			if ( $gid > 0 && ! isset( $names[ $gid ] ) ) {
+				$g             = Groups::get( $gid );
+				$names[ $gid ] = $g ? (string) $g->name : '';
+			}
+			$out[] = [
+				'project_number' => (string) $r->project_number,
+				'name'           => (string) $r->name,
+				'status'         => (string) $r->status,
+				'date_start'     => $r->date_start,
+				'date_end'       => $r->date_end,
+				'venue'          => (string) $r->venue_name,
+				'client'         => (string) $r->client_name,
+				'notes'          => (string) ( $r->notes ?? '' ),
+				'workspace'      => $gid > 0 ? $names[ $gid ] : 'personal',
+				'created_by_me'  => (int) $r->created_by === $user_id,
+				'created_at'     => (string) $r->created_at,
+			];
+		}
+		return $out;
+	}
+
+	/** Einheitlicher Fehler, wenn Sehen erlaubt, Ändern aber nicht. */
+	public static function edit_denied(): WP_Error {
+		return new WP_Error( 'pp_project_readonly', __( 'You are not allowed to change this project.', 'project-prepper' ), [ 'status' => 403 ] );
+	}
+
 	/* ---------- Buchungszeilen ---------- */
 
 	public static function items_for( int $project_id ): array {
@@ -447,6 +632,12 @@ class Projects {
 		global $wpdb;
 		if ( ! isset( self::LINE_FLAGS[ $flag ] ) ) {
 			return new WP_Error( 'pp_bad_flag', __( 'Unknown status.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		// Packliste ist Betrieb, nicht Planung: gepackt/getestet darf jedes
+		// Mitglied mit Zugriff setzen ({@see can_operate()}).
+		$project = self::row( $project_id );
+		if ( ! $project || ! self::can_operate( $project, get_current_user_id() ) ) {
+			return self::edit_denied();
 		}
 		$existing = self::get_item_line( $project_id, $line_id );
 		if ( ! $existing ) {
@@ -502,6 +693,9 @@ class Projects {
 		if ( ! $project ) {
 			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
+		if ( ! self::can_edit( $project, get_current_user_id() ) ) {
+			return self::edit_denied();
+		}
 
 		$validated = self::validate_line( $project, $line, 0 );
 		if ( is_wp_error( $validated ) ) {
@@ -554,6 +748,9 @@ class Projects {
 		$project = self::get( $project_id );
 		if ( ! $project ) {
 			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		if ( ! self::can_edit( $project, get_current_user_id() ) ) {
+			return self::edit_denied();
 		}
 		$existing = self::get_item_line( $project_id, $line_id );
 		if ( ! $existing ) {
@@ -609,6 +806,10 @@ class Projects {
 	 */
 	public static function remove_item( int $project_id, int $line_id ) {
 		global $wpdb;
+		$project = self::row( $project_id );
+		if ( ! $project || ! self::can_edit( $project, get_current_user_id() ) ) {
+			return self::edit_denied();
+		}
 		$existing = self::get_item_line( $project_id, $line_id );
 		if ( ! $existing ) {
 			return new WP_Error( 'pp_not_found', __( 'Line item not found.', 'project-prepper' ), [ 'status' => 404 ] );
@@ -841,6 +1042,29 @@ class Projects {
 			return new WP_Error( 'pp_forbidden_group', __( 'You are not a member of this group.', 'project-prepper' ), [ 'status' => 403 ] );
 		}
 		return $group_id;
+	}
+
+	/**
+	 * Solo-Eigentümer validieren. Leer/0 → NULL (Site-Ebene, wie bisher über
+	 * REST). Gesetzt → ein existierender User, und nur man selbst (Admins dürfen
+	 * für andere anlegen) — sonst könnte man jemandem ein Projekt „unterschieben".
+	 *
+	 * @param mixed $value
+	 * @return int|null|WP_Error
+	 */
+	private static function sanitize_owner_user( $value ) {
+		$owner = (int) $value;
+		if ( $owner <= 0 ) {
+			return null;
+		}
+		if ( ! get_userdata( $owner ) ) {
+			return new WP_Error( 'pp_invalid_user', __( 'Unknown user.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$user_id = get_current_user_id();
+		if ( $owner !== $user_id && ! Groups::user_is_admin( $user_id ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'You can only create projects for yourself.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		return $owner;
 	}
 
 	/**

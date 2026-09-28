@@ -174,7 +174,11 @@ class Groups {
 
 	/**
 	 * Gruppe + Mitgliedschaften löschen. Projekte dieser Gruppe werden NICHT
-	 * gelöscht, sondern auf owner_group_id=NULL zurückgesetzt (= Site-Ebene).
+	 * gelöscht: Jedes wandert als Solo-Projekt zu seinem Ersteller
+	 * (owner_user_id = created_by). Nur Projekte ohne bekannten Ersteller fallen
+	 * auf die Site-Ebene zurück (nur Betreiber sehen sie noch). Früher landeten
+	 * ALLE auf der Site-Ebene — mit Solo-Projekten hieße „keine Gruppe" sonst
+	 * „für niemanden sichtbar" bzw. vorher „für alle Cap-Inhaber sichtbar".
 	 *
 	 * @return true|WP_Error
 	 */
@@ -185,7 +189,14 @@ class Groups {
 			return new WP_Error( 'pp_not_found', __( 'Group not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 
-		// Projekte der Gruppe auf Site-Ebene zurückfallen lassen (nicht löschen!).
+		// Projekte mit Ersteller → dessen Solo-Arbeitsbereich (nicht löschen!).
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Plugin-eigene Tabelle, eine Mengen-Aktualisierung.
+		$wpdb->query( $wpdb->prepare(
+			'UPDATE %i SET owner_user_id = created_by, owner_group_id = NULL WHERE owner_group_id = %d AND created_by IS NOT NULL AND created_by > 0',
+			Schema::table( 'projects' ),
+			$id
+		) );
+		// Rest (Ersteller unbekannt) → Site-Ebene wie bisher.
 		$wpdb->update(
 			Schema::table( 'projects' ),
 			[ 'owner_group_id' => null ],
@@ -379,17 +390,20 @@ class Groups {
 	}
 
 	/**
-	 * Darf $user_id auf ein Projekt zugreifen?
+	 * Darf $user_id ein Projekt sehen? (Die Lese-Regel hinter
+	 * {@see Projects::can_view()} — dort sitzen auch die Schreib-Regeln.)
 	 *
-	 * true wenn: Admin (siehe user_is_admin) ODER Projekt ist Site-Ebene
-	 * (owner_group_id IS NULL → wie bisher Cap-gesteuert) ODER User ist Mitglied
-	 * der besitzenden Gruppe.
+	 * true wenn: Admin (siehe user_is_admin) ODER User ist Mitglied der
+	 * besitzenden Gruppe ODER es ist SEIN Solo-Projekt (owner_user_id) ODER das
+	 * Projekt ist Site-Ebene ohne jeden Eigentümer (Altbestand, wie bisher
+	 * Cap-gesteuert). Ein Solo-Projekt fällt ausdrücklich NICHT unter „keine
+	 * Gruppe = Site-Ebene" — sonst sähe es jeder.
 	 *
-	 * Achtung: prüft NUR die Gruppen-Dimension. Die Grund-Capability
+	 * Achtung: prüft NUR die Eigentums-Dimension. Die Grund-Capability
 	 * (pp_projects_view/_edit) gilt zusätzlich und wird in den REST-Routen
 	 * separat erzwungen.
 	 *
-	 * @param object|int $project Projekt-Objekt (mit ->owner_group_id) oder ID.
+	 * @param object|int $project Projekt-Objekt (mit ->owner_group_id/->owner_user_id) oder ID.
 	 */
 	public static function user_can_access_project( $project, int $user_id ): bool {
 		if ( self::user_is_admin( $user_id ) ) {
@@ -398,7 +412,7 @@ class Groups {
 		if ( ! is_object( $project ) ) {
 			global $wpdb;
 			$project = $wpdb->get_row( $wpdb->prepare(
-				'SELECT owner_group_id FROM %i WHERE id = %d',
+				'SELECT owner_group_id, owner_user_id FROM %i WHERE id = %d',
 				Schema::table( 'projects' ),
 				(int) $project
 			) );
@@ -407,10 +421,14 @@ class Groups {
 			}
 		}
 		$group_id = isset( $project->owner_group_id ) ? (int) $project->owner_group_id : 0;
-		if ( ! $group_id ) {
-			return true; // Site-Ebene: Cap-gesteuert (wie bisher).
+		if ( $group_id > 0 ) {
+			return self::is_member( $group_id, $user_id );
 		}
-		return self::is_member( $group_id, $user_id );
+		$owner = isset( $project->owner_user_id ) ? (int) $project->owner_user_id : 0;
+		if ( $owner > 0 ) {
+			return $user_id > 0 && $owner === $user_id; // Solo-Projekt: nur der Eigentümer.
+		}
+		return true; // Site-Ebene ohne Eigentümer: Cap-gesteuert (wie bisher).
 	}
 
 	/* ===================== Intern ===================== */

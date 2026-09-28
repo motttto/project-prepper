@@ -82,6 +82,11 @@ class Users {
 	 * andere Mitglieder blockieren würde: Mitgliedschaften, Stimmen und die
 	 * Freigaben seines Inventars (ohne Eigentümer könnte niemand mehr über eine
 	 * Leihanfrage entscheiden).
+	 *
+	 * Projekte im Einzelnen: SOLO-Projekte des Gelöschten bleiben als Historie
+	 * stehen (owner_user_id zeigt ins Leere) — im Portal sieht sie niemand mehr,
+	 * Betreiber weiter im Backend. Sie blockieren nur seine eigenen Artikel, die
+	 * nach dem Entzug der Freigaben ohnehin niemand mehr buchen kann.
 	 */
 	public static function purge_plugin_data( int $user_id ): void {
 		global $wpdb;

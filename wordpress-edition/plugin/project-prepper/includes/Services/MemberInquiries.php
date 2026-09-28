@@ -153,16 +153,14 @@ class MemberInquiries {
 	}
 
 	/**
-	 * Lifecycle Anfrage→Projekt (docs/06 §10.1): aus einer Gruppen-Anfrage ein
-	 * Gruppen-Projekt erzeugen und die Anfrage auf „won" setzen. Nur im
-	 * Gruppen-Arbeitsbereich (Solo hat kein Projekt-Modell → Buchhaltung bleibt).
+	 * Lifecycle Anfrage→Projekt (docs/06 §10.1): aus einer Anfrage ein Projekt
+	 * im SELBEN Arbeitsbereich erzeugen und die Anfrage auf „won" setzen —
+	 * Gruppen-Anfrage → Kollektiv-Projekt, Solo-Anfrage → Solo-Projekt des
+	 * Anfrage-Eigentümers (seit es Solo-Projekte gibt).
 	 *
 	 * @return int|WP_Error Neue Projekt-ID.
 	 */
 	public static function to_project( int $id, int $user_id, int $group_id ) {
-		if ( $group_id <= 0 ) {
-			return new WP_Error( 'pp_solo_no_project', __( 'Solo inquiries cannot become a project — switch to a group workspace.', 'project-prepper' ), [ 'status' => 400 ] );
-		}
 		$inq = self::get_owned( $id, $user_id, $group_id );
 		if ( ! $inq ) {
 			return new WP_Error( 'pp_forbidden', __( 'This inquiry is not yours.', 'project-prepper' ), [ 'status' => 403 ] );
@@ -189,7 +187,10 @@ class MemberInquiries {
 			'notes'          => $inq->message,
 			'budget_planned' => null !== $budget ? (string) $budget : '',
 			'revenue_actual' => null !== $revenue ? (string) $revenue : '',
-			'owner_group_id' => $group_id,
+			// Solo XOR Kollektiv — wie die Anfrage selbst (get_owned hat oben
+			// sichergestellt, dass sie in diesem Arbeitsbereich dem User gehört).
+			'owner_group_id' => $group_id > 0 ? $group_id : null,
+			'owner_user_id'  => $group_id > 0 ? null : $user_id,
 		] );
 		if ( is_wp_error( $project_id ) ) {
 			return $project_id;

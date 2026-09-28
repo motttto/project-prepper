@@ -501,9 +501,18 @@ class ProjectsController extends BaseController {
 	/* ---------- Projekte ---------- */
 
 	public function index( WP_REST_Request $request ): WP_REST_Response {
-		return new WP_REST_Response( Projects::all( [
+		$rows = Projects::all( [
 			'status' => sanitize_text_field( (string) $request->get_param( 'status' ) ),
-		] ) );
+		] );
+		// Solo-Projekte: Namen des Eigentümers mitliefern (Eigentümer-Spalte im
+		// Backend — sonst stünde dort „Site-Ebene"). Projects::all() filtert
+		// bereits nach Zugriff; Betreiber sehen hier ohnehin alles.
+		foreach ( $rows as $row ) {
+			$owner                = (int) ( $row->owner_user_id ?? 0 );
+			$user                 = $owner > 0 ? get_userdata( $owner ) : null;
+			$row->owner_user_name = $user ? $user->display_name : '';
+		}
+		return new WP_REST_Response( $rows );
 	}
 
 	public function show( WP_REST_Request $request ) {

@@ -276,8 +276,13 @@ class Schema {
 			KEY owner_group_id (owner_group_id)
 		) {$charset};" );
 
-		// Projekte (Kern + Planung, v0.9.0) — Subset der App-Tabelle `projects`:
-		// Single-Site/Single-Owner, daher keine Owner-/Mitglieder-/Budget-Felder.
+		// Projekte (Kern + Planung, v0.9.0) — Subset der App-Tabelle `projects`.
+		// Eigentum (Owner-Modell wie Inventar/Anfragen): GENAU EINES von
+		//   owner_group_id  = Kollektiv-Projekt (Arbeitsbereich der Gruppe),
+		//   owner_user_id   = Solo-Projekt (persönlicher Arbeitsbereich, nur der
+		//                     Eigentümer sieht es; bucht aus dem eigenen Inventar).
+		// Beide NULL = Alt-/Betreiber-Projekt der Site-Ebene (nur Backend/REST).
+		// Rechte: Services\Projects::can_view()/can_edit().
 		dbDelta( "CREATE TABLE {$projects} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			project_number varchar(50) NOT NULL,
@@ -294,6 +299,7 @@ class Schema {
 			budget_planned decimal(10,2) DEFAULT NULL,
 			revenue_actual decimal(10,2) DEFAULT NULL,
 			owner_group_id bigint(20) unsigned DEFAULT NULL,
+			owner_user_id bigint(20) unsigned DEFAULT NULL,
 			created_by bigint(20) unsigned DEFAULT NULL,
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
@@ -301,7 +307,8 @@ class Schema {
 			UNIQUE KEY project_number (project_number),
 			KEY status (status),
 			KEY date_start (date_start),
-			KEY owner_group_id (owner_group_id)
+			KEY owner_group_id (owner_group_id),
+			KEY owner_user_id (owner_user_id)
 		) {$charset};" );
 
 		// Equipment-Buchungen pro Projekt (Pendant zu `bookings` der App).

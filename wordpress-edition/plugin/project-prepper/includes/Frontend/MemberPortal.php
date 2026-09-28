@@ -387,18 +387,32 @@ class MemberPortal {
 		// erzwingen, bevor irgendeine Aktion läuft. Projects::get() gate-keept über
 		// die Gruppen-Mitgliedschaft (Fremd-/Site-Projekt → null). Die einzelnen
 		// Service-Calls prüfen zusätzlich Mitgliedschaft/offenen Status.
+		// Seit den Solo-Projekten zusätzlich: nur Projekte der Portal-Welt des
+		// Users (eigene Kollektive) — Solo-Projekte haben keine Governance, die
+		// Services lehnen sie ohnehin mit pp_no_group ab.
 		$gov_actions = [ 'decision_vote', 'decision_create', 'decision_cancel', 'poll_vote', 'poll_create', 'poll_close', 'poll_reopen', 'poll_delete' ];
-		if ( in_array( $do, $gov_actions, true ) && ( ! $proj_id || ! Projects::get( $proj_id ) ) ) {
-			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', self::portal_url() ) );
-			exit;
+		if ( in_array( $do, $gov_actions, true ) ) {
+			$gov_p = $proj_id ? Projects::get( $proj_id ) : null;
+			if ( ! $gov_p || ! self::in_portal_scope( $gov_p, get_current_user_id() ) ) {
+				wp_safe_redirect( add_query_arg( 'pp_msg', 'error', self::portal_url() ) );
+				exit;
+			}
 		}
 
 		// Projekt-Unterlisten (Zeitplan/Aufgaben/Checklisten/Material/Team/
 		// Kontakte/Kosten/Gewinn/Finanzen): nur auf Projekten des AKTIVEN
-		// Gruppen-Workspaces — dasselbe Gate wie die Equipment-Buchung.
-		if ( in_array( $do, self::project_sub_actions(), true ) && ! self::member_owned_project( $proj_id ) ) {
-			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
-			exit;
+		// Arbeitsbereichs (Kollektiv bzw. Solo) — dasselbe Gate wie die
+		// Equipment-Buchung. Betriebs-Aktionen (Packliste, Abhaken, eigene
+		// Aufgaben) brauchen nur Zugriff, alles andere das Bearbeitungsrecht.
+		if ( in_array( $do, self::project_sub_actions(), true ) ) {
+			$sub_gate = in_array( $do, self::project_operate_actions(), true )
+				? self::member_operable_project( $proj_id )
+				: self::member_editable_project( $proj_id );
+			if ( ! $sub_gate ) {
+				$sub_msg = self::member_operable_project( $proj_id ) ? 'project_readonly' : 'error';
+				wp_safe_redirect( add_query_arg( 'pp_msg', $sub_msg, $back ) );
+				exit;
+			}
 		}
 
 		// Leih-Entscheidungen (Kollektiv + föderiert) kehren zur Verleih-Ansicht zurück.
@@ -418,6 +432,19 @@ class MemberPortal {
 		if ( 'set_workspace' === $do ) {
 			$v    = sanitize_key( wp_unslash( (string) ( $_POST['pp_view'] ?? 'dashboard' ) ) );
 			$back = 'dashboard' === $v ? self::portal_url() : add_query_arg( 'pp_view', $v, self::portal_url() );
+			// „In den Arbeitsbereich wechseln und Projekt öffnen" (Liste „Aus meinen
+			// Kollektiven", Hinweis im Projekt-Detail): Ziel ist das Projekt-Detail
+			// — aber nur, wenn das Projekt GENAU zu dem gewählten Arbeitsbereich
+			// gehört und der User es sehen darf. Sonst bleibt es beim Rücksprung.
+			$open_pid = (int) ( $_POST['pp_open_project'] ?? 0 );
+			if ( $open_pid > 0 ) {
+				$open_ws = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_ws'] ?? '' ) ) );
+				$open_p  = Projects::get( $open_pid );
+				$open_gid = 'solo' === $open_ws ? 0 : (int) $open_ws;
+				if ( $open_p && self::in_portal_scope( $open_p, get_current_user_id() ) && Projects::workspace_of( $open_p ) === $open_gid ) {
+					$back = add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => $open_pid ], self::portal_url() );
+				}
+			}
 		}
 		// Gruppen-Umfrage-Aktionen kehren zum Umfragen-Tab zurück.
 		if ( in_array( $do, [ 'gpoll_vote', 'gpoll_create', 'gpoll_close', 'gpoll_reopen', 'gpoll_delete' ], true ) ) {
@@ -1166,7 +1193,7 @@ class MemberPortal {
 			case 'profit_add':
 				// Zielperson muss Mitglied der Projektgruppe sein (wie member_task_save).
 				$pp_user = (int) ( $_POST['pp_user'] ?? 0 );
-				$p_pf    = self::member_owned_project( $proj_id );
+				$p_pf    = self::member_editable_project( $proj_id );
 				if ( $pp_user && $p_pf && ! Groups::is_member( (int) $p_pf->owner_group_id, $pp_user ) ) {
 					$result = new \WP_Error( 'pp_not_group_member', __( 'This user is not a member of the project group.', 'project-prepper' ), [ 'status' => 400 ] );
 				} else {
@@ -1448,6 +1475,8 @@ class MemberPortal {
 				$msg = 'voters_all_voted';
 			} elseif ( 'pp_forbidden' === $code ) {
 				$msg = 'forbidden';
+			} elseif ( 'pp_project_readonly' === $code ) {
+				$msg = 'project_readonly';
 			} else {
 				// Unbekannter Code: Die Dienste liefern längst einen übersetzten,
 				// verständlichen Satz — den zeigen wir, statt auf „Etwas ist
@@ -1624,6 +1653,7 @@ class MemberPortal {
 			'rental_locked'      => [ 'err', __( 'This rental still has items waiting for their owner’s approval. You can hand it out once every owner has decided.', 'project-prepper' ) ],
 			'project_saved'    => [ 'ok', __( 'Project saved.', 'project-prepper' ) ],
 			'project_deleted'  => [ 'ok', __( 'Project deleted.', 'project-prepper' ) ],
+			'project_readonly' => [ 'err', __( 'You are not allowed to change this project.', 'project-prepper' ) ],
 			'proj_entry_saved'   => [ 'ok', __( 'Entry saved.', 'project-prepper' ) ],
 			'proj_entry_deleted' => [ 'ok', __( 'Entry removed.', 'project-prepper' ) ],
 			'pfile_saved'        => [ 'ok', __( 'File uploaded.', 'project-prepper' ) ],
@@ -1673,7 +1703,7 @@ class MemberPortal {
 			'telegram_failed'        => [ 'err', __( 'Telegram message could not be sent. Please check the chat ID and that the operator’s bot is in the group.', 'project-prepper' ) ],
 			'telegram_not_configured' => [ 'err', __( 'Telegram is not set up yet. Add a chat ID (and ask the operator to set a bot token).', 'project-prepper' ) ],
 			'member_removed'   => [ 'ok', __( 'Member removed from the collective.', 'project-prepper' ) ],
-			'group_deleted'    => [ 'ok', __( 'Collective dissolved. Its projects were kept and moved to the site level.', 'project-prepper' ) ],
+			'group_deleted'    => [ 'ok', __( 'Collective dissolved. Its projects were kept — each one moved to the personal workspace of the member who created it.', 'project-prepper' ) ],
 			'fed_decided'      => [ 'ok', __( 'Request updated.', 'project-prepper' ) ],
 			'fed_requested'    => [ 'ok', __( 'Borrow request sent to the partner instance.', 'project-prepper' ) ],
 			'import_nofile'    => [ 'err', __( 'Please choose a CSV file to import.', 'project-prepper' ) ],
@@ -2468,10 +2498,11 @@ class MemberPortal {
 			[ 'view' => 'inquiries', 'icon' => 'inbox',     'label' => $solo ? __( 'My inquiries', 'project-prepper' ) : __( 'Inquiries', 'project-prepper' ) ],
 			[ 'view' => 'calendar',  'icon' => 'calendar',  'label' => __( 'Calendar', 'project-prepper' ) ],
 		];
-		// Eigenständige Umfragen + globale Kostenübersicht NUR im Gruppen-Modus
-		// (wie die App: Solo zeigt Kosten/Umfragen direkt im Projekt bzw. gar nicht).
+		// Kostenübersicht in beiden Arbeitsbereichen (Solo: über die eigenen
+		// Solo-Projekte); eigenständige Umfragen NUR im Gruppen-Modus — Umfragen
+		// brauchen ein Kollektiv, das abstimmt.
+		$items[] = [ 'view' => 'costs', 'icon' => 'costs', 'label' => $solo ? __( 'My costs', 'project-prepper' ) : __( 'Costs', 'project-prepper' ) ];
 		if ( ! $solo ) {
-			$items[] = [ 'view' => 'costs', 'icon' => 'costs', 'label' => __( 'Costs', 'project-prepper' ) ];
 			$items[] = [ 'view' => 'polls', 'icon' => 'clipboard', 'label' => __( 'Polls', 'project-prepper' ) ];
 		}
 		$items[] = [ 'view' => 'network',     'icon' => 'globe', 'label' => __( 'Network', 'project-prepper' ) ];
@@ -2938,9 +2969,11 @@ class MemberPortal {
 			[ 'icon' => 'package',   'label' => __( 'New rental', 'project-prepper' ),    'url' => add_query_arg( [ 'pp_view' => 'lending', 'pp_open' => 'pp-rental-new' ], self::portal_url() ) ],
 			[ 'icon' => 'inbox',     'label' => __( 'New inquiry', 'project-prepper' ),   'url' => add_query_arg( [ 'pp_view' => 'inquiries', 'pp_open' => 'pp-inquiry-new' ], self::portal_url() ) ],
 			[ 'icon' => 'calendar',  'label' => __( 'New event', 'project-prepper' ),     'url' => add_query_arg( [ 'pp_view' => 'calendar', 'pp_open' => 'pp-event-create' ], self::portal_url() ) ],
+			// Projekte gibt es in beiden Arbeitsbereichen (Solo-Projekte buchen aus
+			// dem eigenen Inventar).
+			[ 'icon' => 'projects',  'label' => __( 'New project', 'project-prepper' ),   'url' => add_query_arg( [ 'pp_view' => 'projects', 'pp_open' => 'pp-project-new' ], self::portal_url() ) ],
 		];
 		if ( $ws_group > 0 ) {
-			$qa[] = [ 'icon' => 'projects',  'label' => __( 'New project', 'project-prepper' ),     'url' => add_query_arg( [ 'pp_view' => 'projects', 'pp_open' => 'pp-project-new' ], self::portal_url() ) ];
 			$qa[] = [ 'icon' => 'clipboard', 'label' => __( 'New poll', 'project-prepper' ),        'url' => add_query_arg( [ 'pp_view' => 'polls', 'pp_open' => 'pp-poll-create' ], self::portal_url() ) ];
 			$qa[] = [ 'icon' => 'users',     'label' => __( 'Invite a member', 'project-prepper' ), 'url' => add_query_arg( [ 'pp_view' => 'collectives', 'pp_group' => $ws_group, 'pp_open' => 'pp-invite-member' ], self::portal_url() ) ];
 		} else {
@@ -5241,7 +5274,8 @@ class MemberPortal {
 				</p>
 			<?php endif; ?>
 			<div class="pp-portal__actions">
-				<?php if ( $group_id > 0 && ! $is_closed && (int) ( $inq->project_id ?? 0 ) <= 0 ) : ?>
+				<?php // Auch Solo-Anfragen werden zum (Solo-)Projekt — im selben Arbeitsbereich wie die Anfrage. ?>
+				<?php if ( ! $is_closed && (int) ( $inq->project_id ?? 0 ) <= 0 ) : ?>
 					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 						<?php self::action_fields( 'inquiry_to_project' ); ?>
 						<input type="hidden" name="pp_inquiry" value="<?php echo (int) $inq->id; ?>">
@@ -5456,16 +5490,54 @@ class MemberPortal {
 		<?php
 	}
 
-	/* ---------- Projekte: Gruppen-CRUD (docs/06 §10.1 Slice C) ---------- */
+	/* ---------- Projekte: CRUD in Solo + Kollektiv (docs/06 §10.1 Slice C) ---------- */
 
-	/** Projekt der aktiven Gruppe, das der User bearbeiten darf (sonst null). */
-	private static function member_owned_project( int $pid ): ?object {
-		$active = self::active_workspace_group();
-		if ( $active <= 0 || $pid <= 0 ) {
+	/**
+	 * Gehört das Projekt in die Portal-Welt dieses Users? Solo-Projekt: nur das
+	 * eigene. Kollektiv-Projekt: nur eines seiner Kollektive. Alles andere
+	 * (fremde Solo-Projekte, Site-Ebene) gibt es im Portal nicht — auch nicht für
+	 * Betreiber, die dafür das Backend haben.
+	 */
+	private static function in_portal_scope( object $p, int $uid ): bool {
+		$gid = Projects::workspace_of( $p );
+		if ( $gid > 0 ) {
+			return Groups::is_member( $gid, $uid );
+		}
+		return Projects::is_solo_owner( $p, $uid );
+	}
+
+	/**
+	 * Projekt, das der User im Portal sieht UND das zum AKTIVEN Arbeitsbereich
+	 * gehört (Kollektiv-Projekt → dessen Gruppe, Solo-Projekt → Solo). Grundlage
+	 * aller Schreib-Gates: geschrieben wird immer im Arbeitsbereich des Projekts.
+	 */
+	private static function member_workspace_project( int $pid ): ?object {
+		if ( $pid <= 0 ) {
 			return null;
 		}
 		$p = Projects::get( $pid );
-		return ( $p && (int) $p->owner_group_id === $active ) ? $p : null;
+		if ( ! $p || ! self::in_portal_scope( $p, get_current_user_id() ) ) {
+			return null;
+		}
+		return Projects::workspace_of( $p ) === self::active_workspace_group() ? $p : null;
+	}
+
+	/** Projekt im aktiven Arbeitsbereich, das der User BEARBEITEN darf (sonst null). */
+	private static function member_editable_project( int $pid ): ?object {
+		$p = self::member_workspace_project( $pid );
+		return ( $p && Projects::can_edit( $p, get_current_user_id() ) ) ? $p : null;
+	}
+
+	/** Projekt im aktiven Arbeitsbereich, das der User LÖSCHEN darf (sonst null). */
+	private static function member_deletable_project( int $pid ): ?object {
+		$p = self::member_workspace_project( $pid );
+		return ( $p && Projects::can_delete( $p, get_current_user_id() ) ) ? $p : null;
+	}
+
+	/** Projekt im aktiven Arbeitsbereich für Betriebs-Aktionen (Packliste, Abhaken). */
+	private static function member_operable_project( int $pid ): ?object {
+		$p = self::member_workspace_project( $pid );
+		return ( $p && Projects::can_operate( $p, get_current_user_id() ) ) ? $p : null;
 	}
 
 	/** Eingaben des Projekt-Formulars (Kernfelder; Finanzen bleiben im Backend). */
@@ -5483,18 +5555,28 @@ class MemberPortal {
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
 
+	/**
+	 * Projekt im AKTIVEN Arbeitsbereich anlegen: Kollektiv → Gruppen-Projekt,
+	 * Solo → Solo-Projekt des Users (bucht aus dem eigenen Inventar).
+	 */
 	private static function member_create_project() {
-		if ( self::active_workspace_group() <= 0 ) {
-			return new \WP_Error( 'pp_forbidden', __( 'Pick a group workspace to create a project.', 'project-prepper' ), [ 'status' => 403 ] );
+		$gid  = self::active_workspace_group();
+		$data = self::project_input();
+		if ( $gid > 0 ) {
+			$data['owner_group_id'] = $gid; // Projects::create prüft die Mitgliedschaft.
+		} else {
+			// Wie eigenes Inventar/eigene Anfragen: Portal-Teilnahme nötig.
+			if ( ! current_user_can( Capabilities::COLLECTIVES ) ) {
+				return new \WP_Error( 'pp_forbidden', __( 'You are not allowed to create projects.', 'project-prepper' ), [ 'status' => 403 ] );
+			}
+			$data['owner_user_id'] = get_current_user_id();
 		}
-		$data                   = self::project_input();
-		$data['owner_group_id'] = self::active_workspace_group(); // Projects::create prüft die Mitgliedschaft.
 		return Projects::create( $data );
 	}
 
 	private static function member_update_project( int $pid ) {
-		if ( ! self::member_owned_project( $pid ) ) {
-			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		if ( ! self::member_editable_project( $pid ) ) {
+			return self::project_denied( $pid );
 		}
 		$data = self::project_input();
 		// Status läuft über set_status (Projects::update whitelistet ihn bewusst nicht).
@@ -5514,25 +5596,83 @@ class MemberPortal {
 	}
 
 	private static function member_delete_project( int $pid ) {
-		if ( ! self::member_owned_project( $pid ) ) {
-			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		if ( ! self::member_deletable_project( $pid ) ) {
+			return self::project_denied( $pid );
 		}
 		return Projects::delete( $pid ) ? true : new \WP_Error( 'pp_delete_failed', __( 'The project could not be deleted.', 'project-prepper' ) );
 	}
 
 	/**
-	 * Buchbarer Pool eines Gruppen-Projekts = die mit dem Kollektiv geteilten
-	 * Artikel (item_id → Item). Zugleich Sicherheits-Whitelist: nur diese IDs
-	 * dürfen über das Portal gebucht werden.
+	 * Fehler für ein verweigertes Projekt-Gate: Sieht der User das Projekt in
+	 * seinem aktiven Arbeitsbereich, fehlt „nur" das Recht (eigene Meldung);
+	 * sonst gibt es das Projekt für ihn hier nicht (kein Leak).
+	 */
+	private static function project_denied( int $pid ): \WP_Error {
+		return self::member_workspace_project( $pid )
+			? Projects::edit_denied()
+			: new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+	}
+
+	/**
+	 * Buchbarer Pool eines Projekts (item_id → Item) — zugleich die
+	 * Sicherheits-Whitelist: nur diese IDs dürfen über das Portal gebucht werden.
+	 *  - Kollektiv-Projekt: die mit dem Kollektiv geteilten Artikel.
+	 *  - Solo-Projekt: das EIGENE Inventar des Eigentümers (ohne Ausgemusterte)
+	 *    — gleiche Felder wie der Gruppen-Pool, shared_by = Eigentümer, damit die
+	 *    Freigabe-Logik „fremder Artikel" nie greift (eigene Artikel brauchen
+	 *    keine Freigabe).
+	 *  - Site-Ebene: nichts.
 	 *
 	 * @return array<int,object>
 	 */
 	private static function bookable_pool( object $p ): array {
 		$pool = [];
-		foreach ( MemberInventory::items_shared_with_group( (int) $p->owner_group_id ) as $item ) {
+		$gid  = Projects::workspace_of( $p );
+		if ( $gid > 0 ) {
+			foreach ( MemberInventory::items_shared_with_group( $gid ) as $item ) {
+				$pool[ (int) $item->id ] = $item;
+			}
+			return $pool;
+		}
+		if ( ! Projects::is_solo( $p ) ) {
+			return $pool;
+		}
+		$owner = (int) $p->owner_user_id;
+		foreach ( MemberInventory::my_items( $owner ) as $item ) {
+			$item->shared_by         = $owner;
+			$item->owner_name        = '';
+			$item->share_daily_rate  = null;
+			$item->requires_approval = false;
+			$item->conditions_tags   = [];
+			$item->conditions        = '';
+			if ( ! isset( $item->image_url ) ) {
+				$item->image_url = ! empty( $item->image_id ) ? ( wp_get_attachment_image_url( (int) $item->image_id, 'medium' ) ?: null ) : null;
+			}
 			$pool[ (int) $item->id ] = $item;
 		}
 		return $pool;
+	}
+
+	/**
+	 * Darf die Buchungszeile MATERIELL geändert werden (Menge erhöht oder anderer
+	 * Zeitraum)? Nur, solange ihr Artikel (bzw. ihr Set) im buchbaren Pool des
+	 * Projekts steht. Sonst ließe sich über eine alte Zeile etwas ausweiten, das
+	 * man neu gar nicht mehr buchen dürfte — z. B. nach dem Zurückziehen einer
+	 * Freigabe oder bei einem Solo-Projekt, das beim Auflösen eines Kollektivs
+	 * fremde Zeilen mitgebracht hat. Verkleinern, Notiz und Entfernen gehen immer.
+	 */
+	private static function line_change_allowed( ?object $pool_item, object $line, array $input ): bool {
+		if ( $pool_item ) {
+			return true;
+		}
+		return ! BookingApprovals::is_material_change(
+			(int) $line->quantity,
+			(int) $input['quantity'],
+			(string) ( $line->date_from ?? '' ),
+			(string) ( $line->date_to ?? '' ),
+			(string) $input['date_from'],
+			(string) $input['date_to']
+		);
 	}
 
 	/** Gemeinsame Zeilen-Eingaben der Buchungs-Formulare (Nonce im Dispatcher geprüft). */
@@ -5575,9 +5715,9 @@ class MemberPortal {
 	 *         teils gebucht (Rest nicht verfügbar); WP_Error = nichts gebucht.
 	 */
 	private static function member_book_equipment( int $pid ) {
-		$p = self::member_owned_project( $pid );
+		$p = self::member_editable_project( $pid );
 		if ( ! $p ) {
-			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+			return self::project_denied( $pid );
 		}
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
 		$item_ids = array_values( array_unique( array_filter( array_map( 'intval', (array) ( $_POST['pp_items'] ?? [] ) ) ) ) );
@@ -5614,7 +5754,9 @@ class MemberPortal {
 		foreach ( $item_ids as $item_id ) {
 			if ( ! isset( $pool[ $item_id ] ) ) {
 				// Nicht aus dem Pool — harte Grenze (IDOR), sofort abbrechen.
-				return new \WP_Error( 'pp_forbidden', __( 'Only equipment shared with this collective can be booked.', 'project-prepper' ), [ 'status' => 403 ] );
+				return new \WP_Error( 'pp_forbidden', Projects::is_solo( $p )
+					? __( 'Only your own equipment can be booked for a personal project.', 'project-prepper' )
+					: __( 'Only equipment shared with this collective can be booked.', 'project-prepper' ), [ 'status' => 403 ] );
 			}
 			$pool_item = $pool[ $item_id ];
 			$owner_id  = (int) ( $pool_item->shared_by ?? 0 );
@@ -5718,9 +5860,9 @@ class MemberPortal {
 	 * @return true|string|\WP_Error 'booking_reapproval' = erneut freigabepflichtig.
 	 */
 	private static function member_update_booking( int $pid, int $line_id ) {
-		$p = self::member_owned_project( $pid );
+		$p = self::member_editable_project( $pid );
 		if ( ! $p ) {
-			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+			return self::project_denied( $pid );
 		}
 		$existing = Projects::get_item_line( $pid, $line_id );
 		if ( ! $existing ) {
@@ -5740,6 +5882,9 @@ class MemberPortal {
 		$pool_item = $pool[ (int) $existing->item_id ] ?? null;
 		$owner_id  = $pool_item ? (int) ( $pool_item->shared_by ?? 0 ) : 0;
 		$needs     = $pool_item && $owner_id > 0 && $owner_id !== $uid && ! empty( $pool_item->requires_approval );
+		if ( ! self::line_change_allowed( $pool_item, $existing, $input ) ) {
+			return new \WP_Error( 'pp_forbidden', __( 'This item is no longer bookable for this project. You can reduce or remove the booking, but not extend it.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
 
 		$applied = self::apply_line_update( $pid, $existing, $input, $needs, $uid );
 		if ( is_wp_error( $applied['res'] ) ) {
@@ -5795,9 +5940,9 @@ class MemberPortal {
 	 * @return true|string|\WP_Error 'booking_reapproval' = erneut freigabepflichtig.
 	 */
 	private static function member_update_bundle( int $pid, int $bundle_id ) {
-		$p = self::member_owned_project( $pid );
+		$p = self::member_editable_project( $pid );
 		if ( ! $p ) {
-			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+			return self::project_denied( $pid );
 		}
 		$lines = array_values( array_filter( (array) ( $p->items ?? [] ), static function ( $l ) use ( $bundle_id ) {
 			return (int) ( $l->bundle_item_id ?? 0 ) === $bundle_id;
@@ -5832,10 +5977,21 @@ class MemberPortal {
 		$owner_id  = $pool_item ? (int) ( $pool_item->shared_by ?? 0 ) : 0;
 		$needs     = $pool_item && $owner_id > 0 && $owner_id !== $uid && ! empty( $pool_item->requires_approval );
 
-		$reapproved = [];
+		// Erst ALLE Teil-Zeilen gegen den Pool prüfen, dann schreiben — sonst
+		// bliebe bei einer verweigerten Zeile ein halb geändertes Set zurück.
+		$inputs = [];
 		foreach ( $lines as $line ) {
 			$input             = $input_base;
 			$input['quantity'] = ( $need_map[ (int) $line->item_id ] ?? 1 ) * $sets;
+			if ( ! self::line_change_allowed( $pool_item, $line, $input ) ) {
+				return new \WP_Error( 'pp_forbidden', __( 'This item is no longer bookable for this project. You can reduce or remove the booking, but not extend it.', 'project-prepper' ), [ 'status' => 403 ] );
+			}
+			$inputs[ (int) $line->id ] = $input;
+		}
+
+		$reapproved = [];
+		foreach ( $lines as $line ) {
+			$input             = $inputs[ (int) $line->id ];
 			$applied           = self::apply_line_update( $pid, $line, $input, $needs, $uid );
 			if ( is_wp_error( $applied['res'] ) ) {
 				return $applied['res'];
@@ -5853,9 +6009,9 @@ class MemberPortal {
 
 	/** Set-Buchung komplett entfernen — alle Teil-Zeilen des Sets in diesem Projekt. */
 	private static function member_remove_bundle( int $pid, int $bundle_id ) {
-		$p = self::member_owned_project( $pid );
+		$p = self::member_editable_project( $pid );
 		if ( ! $p ) {
-			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+			return self::project_denied( $pid );
 		}
 		$removed = 0;
 		foreach ( (array) ( $p->items ?? [] ) as $line ) {
@@ -5871,8 +6027,8 @@ class MemberPortal {
 
 	/** Buchungszeile entfernen (Set-Teil-Zeilen nur über die Set-Aktion). */
 	private static function member_remove_booking( int $pid, int $line_id ) {
-		if ( ! self::member_owned_project( $pid ) ) {
-			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		if ( ! self::member_editable_project( $pid ) ) {
+			return self::project_denied( $pid );
 		}
 		$existing = Projects::get_item_line( $pid, $line_id );
 		if ( $existing && ! empty( $existing->bundle_item_id ) ) {
@@ -5881,10 +6037,14 @@ class MemberPortal {
 		return Projects::remove_item( $pid, $line_id );
 	}
 
-	/** Packlisten-Status (gepackt/getestet) einer Buchungszeile umschalten (Gate: aktiver Workspace). */
+	/**
+	 * Packlisten-Status (gepackt/getestet) einer Buchungszeile umschalten.
+	 * Betrieb, nicht Planung: Gate = Zugriff im aktiven Arbeitsbereich
+	 * (member_operable_project), nicht das Bearbeitungsrecht.
+	 */
 	private static function member_toggle_flag( int $pid, int $line_id, string $flag, bool $on ) {
-		if ( ! self::member_owned_project( $pid ) ) {
-			return new \WP_Error( 'pp_forbidden', __( 'This project is not available.', 'project-prepper' ), [ 'status' => 403 ] );
+		if ( ! self::member_operable_project( $pid ) ) {
+			return self::project_denied( $pid );
 		}
 		return Projects::set_line_flag( $pid, $line_id, $flag, $on );
 	}
@@ -5893,7 +6053,9 @@ class MemberPortal {
 
 	/**
 	 * Alle pp_do-Aktionen der Projekt-Unterlisten. Der Dispatcher erzwingt für
-	 * sie member_owned_project($proj_id) — Projekt im aktiven Gruppen-Workspace.
+	 * sie das Projekt-Gate im aktiven Arbeitsbereich: {@see project_operate_actions()}
+	 * brauchen nur Zugriff (member_operable_project), alle übrigen das
+	 * Bearbeitungsrecht (member_editable_project).
 	 *
 	 * @return array<string>
 	 */
@@ -5910,6 +6072,18 @@ class MemberPortal {
 			'profit_add', 'profit_update', 'profit_remove',
 			'project_finance', 'file_detach', 'project_item_pack', 'project_item_test',
 		];
+	}
+
+	/**
+	 * Betriebs-Aktionen: Packliste (gepackt/getestet), Checklisten-Punkte
+	 * abhaken, eigene Aufgaben annehmen/ablehnen und deren Status weiterschalten.
+	 * Dürfen alle mit Zugriff — die Einschränkung „nur die eigene Aufgabe"
+	 * prüfen die Aktionen selbst (task_accept/decline, member_task_save).
+	 *
+	 * @return array<string>
+	 */
+	private static function project_operate_actions(): array {
+		return [ 'project_item_pack', 'project_item_test', 'checkitem_toggle', 'task_accept', 'task_decline', 'task_update' ];
 	}
 
 	/** IDOR-Schutz: gehört die Unterlisten-Zeile wirklich zu diesem Projekt? */
@@ -5950,9 +6124,24 @@ class MemberPortal {
 	 * @return int|true|\WP_Error
 	 */
 	private static function member_task_save( int $pid, int $task_id ) {
-		$p = self::member_owned_project( $pid );
+		$p = self::member_editable_project( $pid );
 		if ( ! $p ) {
-			return self::forbidden_error();
+			// Ohne Bearbeitungsrecht bleibt genau EIN Weg: die eigene, bereits
+			// angenommene Aufgabe weiterschalten (Start/Erledigt/Wieder öffnen) —
+			// nur das Status-Feld, sonst nichts (Betrieb statt Planung).
+			$op   = self::member_operable_project( $pid );
+			$own  = $task_id ? Tasks::get( $task_id ) : null;
+			$uid  = get_current_user_id();
+			// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+			$only_status = isset( $_POST['pp_status'] )
+				&& ! isset( $_POST['pp_title'] ) && ! isset( $_POST['pp_priority'] )
+				&& ! isset( $_POST['pp_due'] ) && ! isset( $_POST['pp_assignee'] );
+			if ( $op && $own && self::sub_belongs( $own, $pid ) && $only_status
+				&& (int) $own->assigned_user === $uid && 'accepted' === (string) ( $own->assignment_status ?? 'accepted' ) ) {
+				return Tasks::update( $task_id, [ 'task_status' => sanitize_key( wp_unslash( (string) $_POST['pp_status'] ) ) ] );
+			}
+			// phpcs:enable WordPress.Security.NonceVerification.Missing
+			return self::project_denied( $pid );
 		}
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
 		$data = [];
@@ -5970,7 +6159,12 @@ class MemberPortal {
 		}
 		if ( isset( $_POST['pp_assignee'] ) ) {
 			$assignee = (int) $_POST['pp_assignee'];
-			if ( $assignee && ! Groups::is_member( (int) $p->owner_group_id, $assignee ) ) {
+			// Kollektiv: nur Mitglieder der Gruppe. Solo: nur der Eigentümer selbst.
+			$gid          = Projects::workspace_of( $p );
+			$may_assignee = $gid > 0
+				? Groups::is_member( $gid, $assignee )
+				: Projects::is_solo_owner( $p, $assignee );
+			if ( $assignee && ! $may_assignee ) {
 				return new \WP_Error( 'pp_not_group_member', __( 'This user is not a member of the project group.', 'project-prepper' ), [ 'status' => 400 ] );
 			}
 			$data['assigned_user'] = $assignee;
@@ -6297,16 +6491,67 @@ class MemberPortal {
 		}
 	}
 
-	/** Projekte des aktiven Workspaces (Solo → keine; sonst nur die aktive Gruppe). */
+	/**
+	 * Projekte des aktiven Arbeitsbereichs: Gruppe → die Projekte dieser Gruppe;
+	 * Solo → die EIGENEN Solo-Projekte. Quelle ist Projects::all() (Zugriffs-
+	 * filter), der Arbeitsbereich schneidet zusätzlich zu — Admins sähen dort
+	 * sonst auch fremde Solo-Projekte.
+	 */
 	private static function member_projects( array $groups ): array {
 		$active = self::active_group_id( $groups );
-		if ( ! $active ) {
-			return [];
-		}
+		$uid    = get_current_user_id();
 		return array_values( array_filter(
 			Projects::all(),
-			static fn( $p ) => (int) $p->owner_group_id === $active
+			static fn( $p ) => $active > 0
+				? Projects::workspace_of( $p ) === $active
+				: Projects::is_solo_owner( $p, $uid )
 		) );
+	}
+
+	/**
+	 * Projekte ALLER Kollektive des Users, gruppiert nach Gruppen-ID — für den
+	 * Abschnitt „Aus meinen Kollektiven" im Solo-Arbeitsbereich.
+	 *
+	 * @return array<int,array<object>>
+	 */
+	private static function collective_projects( array $groups ): array {
+		$gids = array_map( static fn( $g ) => (int) $g->id, $groups );
+		$out  = [];
+		if ( ! $gids ) {
+			return $out;
+		}
+		foreach ( Projects::all() as $p ) {
+			$gid = Projects::workspace_of( $p );
+			if ( $gid > 0 && in_array( $gid, $gids, true ) ) {
+				$out[ $gid ][] = $p;
+			}
+		}
+		return $out;
+	}
+
+	/** Meta-Zeile einer Projekt-Karte (Zeitraum · Ort · weitere Bits). */
+	private static function project_card_bits( object $p, array $extra = [] ): array {
+		$bits  = [];
+		$range = self::fmt_range( $p->date_start, $p->date_end );
+		if ( '' !== $range ) {
+			$bits[] = $range;
+		}
+		if ( '' !== (string) $p->venue_name ) {
+			$bits[] = $p->venue_name;
+		}
+		return array_merge( $bits, $extra );
+	}
+
+	/** Inhalt einer Projekt-Karte (Nummer, Name, Status, Meta) — für Link UND Button. */
+	private static function project_card_inner( object $p, array $bits ): void {
+		?>
+		<span class="pp-proj-card__num"><?php echo esc_html( $p->project_number ); ?></span>
+		<span class="pp-proj-card__head">
+			<span class="pp-proj-card__name"><?php echo esc_html( $p->name ); ?></span>
+			<span class="pp-status pp-status--<?php echo esc_attr( $p->status ); ?>"><?php echo esc_html( self::project_status_label( $p->status ) ); ?></span>
+		</span>
+		<span class="pp-proj-card__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></span>
+		<?php
 	}
 
 	private static function view_projects( WP_User $user, array $groups ): void {
@@ -6317,6 +6562,7 @@ class MemberPortal {
 			return;
 		}
 
+		$active      = self::active_group_id( $groups );
 		$projects    = self::member_projects( $groups );
 		$group_names = [];
 		foreach ( $groups as $g ) {
@@ -6324,66 +6570,107 @@ class MemberPortal {
 		}
 		?>
 		<header class="pp-app__page-head">
-			<h1 class="pp-app__page-title"><?php esc_html_e( 'My projects', 'project-prepper' ); ?></h1>
-			<p class="pp-app__page-sub"><?php esc_html_e( 'Projects of the collectives you belong to.', 'project-prepper' ); ?></p>
+			<h1 class="pp-app__page-title"><?php echo esc_html( $active ? __( 'Projects', 'project-prepper' ) : __( 'My projects', 'project-prepper' ) ); ?></h1>
+			<p class="pp-app__page-sub"><?php echo esc_html( $active
+				? __( 'Projects of the collectives you belong to.', 'project-prepper' )
+				: __( 'Your own projects — they book equipment from your own inventory.', 'project-prepper' ) ); ?></p>
 		</header>
 		<?php if ( ! $projects ) : ?>
-			<?php if ( 0 === self::active_group_id( $groups ) && $groups ) : ?>
-				<p class="pp-portal__empty"><?php esc_html_e( 'You are in Solo. Pick a group in the workspace switcher (top left) to see its projects.', 'project-prepper' ); ?></p>
-			<?php else : ?>
-				<p class="pp-portal__empty"><?php esc_html_e( 'No projects yet. Projects created in your collectives will appear here.', 'project-prepper' ); ?></p>
-			<?php endif; ?>
+			<p class="pp-portal__empty"><?php echo esc_html( $active
+				? __( 'No projects yet. Projects created in your collectives will appear here.', 'project-prepper' )
+				: __( 'No projects of your own yet. Create one — it books equipment from your own inventory.', 'project-prepper' ) ); ?></p>
 		<?php else : ?>
 			<div class="pp-proj-list">
 				<?php foreach ( $projects as $p ) :
-					$bits  = [];
-					$range = self::fmt_range( $p->date_start, $p->date_end );
-					if ( '' !== $range ) {
-						$bits[] = $range;
-					}
-					if ( '' !== (string) $p->venue_name ) {
-						$bits[] = $p->venue_name;
-					}
-					if ( isset( $group_names[ (int) $p->owner_group_id ] ) ) {
-						$bits[] = $group_names[ (int) $p->owner_group_id ];
-					}
+					$extra = isset( $group_names[ (int) $p->owner_group_id ] ) ? [ $group_names[ (int) $p->owner_group_id ] ] : [];
 					?>
 					<a class="pp-proj-card" href="<?php echo esc_url( add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $p->id ], self::portal_url() ) ); ?>">
-						<span class="pp-proj-card__num"><?php echo esc_html( $p->project_number ); ?></span>
-						<div class="pp-proj-card__head">
-							<span class="pp-proj-card__name"><?php echo esc_html( $p->name ); ?></span>
-							<span class="pp-status pp-status--<?php echo esc_attr( $p->status ); ?>"><?php echo esc_html( self::project_status_label( $p->status ) ); ?></span>
-						</div>
-						<div class="pp-proj-card__meta"><?php echo esc_html( implode( ' · ', $bits ) ); ?></div>
+						<?php self::project_card_inner( $p, self::project_card_bits( $p, $extra ) ); ?>
 					</a>
 				<?php endforeach; ?>
 			</div>
 		<?php endif; ?>
 
-		<?php if ( self::active_group_id( $groups ) > 0 ) : ?>
-			<details class="pp-portal__add" id="pp-project-new" style="margin-top:1rem">
-				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New project', 'project-prepper' ); ?></summary>
-				<?php self::project_form( 'project_create', null ); ?>
-			</details>
-		<?php endif; ?>
+		<details class="pp-portal__add" id="pp-project-new" style="margin-top:1rem">
+			<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'New project', 'project-prepper' ); ?></summary>
+			<?php self::project_form( 'project_create', null ); ?>
+		</details>
+
 		<?php
+		// Solo: darunter die Projekte aller eigenen Kollektive, je Kollektiv
+		// gruppiert. Ein Klick wechselt in dessen Arbeitsbereich und öffnet das
+		// Projekt dort (POST set_workspace mit Nonce — also Formular, kein Link).
+		if ( ! $active ) :
+			$by_group = self::collective_projects( $groups );
+			if ( $by_group ) :
+				?>
+				<section class="pp-app__section pp-proj-coll">
+					<div class="pp-app__section-head"><h2 class="pp-portal__subtitle"><?php esc_html_e( 'From my collectives', 'project-prepper' ); ?></h2></div>
+					<p class="pp-portal__hint"><?php esc_html_e( 'Opening one of these switches to that collective’s workspace.', 'project-prepper' ); ?></p>
+					<?php foreach ( $groups as $g ) :
+						$gid = (int) $g->id;
+						if ( empty( $by_group[ $gid ] ) ) {
+							continue;
+						}
+						?>
+						<h3 class="pp-proj-coll__name"><?php echo esc_html( $g->name ); ?></h3>
+						<div class="pp-proj-list">
+							<?php foreach ( $by_group[ $gid ] as $p ) : ?>
+								<form class="pp-proj-card-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+									<?php self::action_fields( 'set_workspace' ); ?>
+									<input type="hidden" name="pp_ws" value="<?php echo (int) $gid; ?>">
+									<input type="hidden" name="pp_view" value="projects">
+									<input type="hidden" name="pp_open_project" value="<?php echo (int) $p->id; ?>">
+									<button type="submit" class="pp-proj-card pp-proj-card--switch">
+										<?php self::project_card_inner( $p, self::project_card_bits( $p ) ); ?>
+									</button>
+								</form>
+							<?php endforeach; ?>
+						</div>
+					<?php endforeach; ?>
+				</section>
+				<?php
+			endif;
+		endif;
 	}
 
 	private static function view_project_detail( int $pid, array $groups ): void {
 		$p    = Projects::get( $pid );
 		$back = add_query_arg( 'pp_view', 'projects', self::portal_url() );
+		$uid  = get_current_user_id();
 
-		// Nur Gruppen-Projekte der eigenen Kollektive (Site-Ebene zählt hier nicht
-		// als „mein Projekt" — verhindert Sicht auf reine Plattform-Projekte).
-		$gids = array_map( static fn( $g ) => (int) $g->id, $groups );
-		if ( ! $p || ! in_array( (int) $p->owner_group_id, $gids, true ) ) {
+		// Nur Projekte der Portal-Welt des Users: eigene Solo-Projekte und die
+		// Projekte seiner Kollektive (Site-Ebene und fremde Solo-Projekte zählen
+		// hier nicht — auch nicht für Betreiber).
+		if ( ! $p || ! self::in_portal_scope( $p, $uid ) ) {
 			?>
 			<p class="pp-proj-back"><a href="<?php echo esc_url( $back ); ?>"><?php esc_html_e( '← Back to projects', 'project-prepper' ); ?></a></p>
 			<p class="pp-portal__empty"><?php esc_html_e( 'This project is not available.', 'project-prepper' ); ?></p>
 			<?php
 			return;
 		}
-		$range = self::fmt_range( $p->date_start, $p->date_end );
+		$is_solo = Projects::is_solo( $p );
+		$p_ws    = Projects::workspace_of( $p );
+		// Geschrieben wird nur im Arbeitsbereich des Projekts — aus einem anderen
+		// Arbeitsbereich heraus (Dashboard-Hinweis, Kalender) ist es read-only.
+		$in_ws   = $p_ws === self::active_group_id( $groups );
+		$range   = self::fmt_range( $p->date_start, $p->date_end );
+		$p_group = '';
+		foreach ( $groups as $g ) {
+			if ( (int) $g->id === $p_ws ) {
+				$p_group = (string) $g->name;
+				break;
+			}
+		}
+		$sub = [ $p->project_number ];
+		if ( '' !== $range ) {
+			$sub[] = $range;
+		}
+		if ( '' !== $p_group ) {
+			$sub[] = $p_group;
+		} elseif ( $is_solo ) {
+			$sub[] = __( 'Personal project', 'project-prepper' );
+		}
 		?>
 		<p class="pp-proj-back"><a href="<?php echo esc_url( $back ); ?>"><?php esc_html_e( '← Back to projects', 'project-prepper' ); ?></a></p>
 		<header class="pp-app__page-head">
@@ -6391,8 +6678,29 @@ class MemberPortal {
 				<h1 class="pp-app__page-title"><?php echo esc_html( $p->name ); ?></h1>
 				<span class="pp-status pp-status--<?php echo esc_attr( $p->status ); ?>"><?php echo esc_html( self::project_status_label( $p->status ) ); ?></span>
 			</div>
-			<p class="pp-app__page-sub"><?php echo esc_html( $p->project_number . ( '' !== $range ? ' · ' . $range : '' ) ); ?></p>
+			<p class="pp-app__page-sub"><?php echo esc_html( implode( ' · ', $sub ) ); ?></p>
 		</header>
+
+		<?php
+		if ( ! $in_ws ) :
+			if ( $is_solo ) {
+				$ws_note = __( 'This is one of your personal projects. Switch to your personal workspace to work on it.', 'project-prepper' );
+			} else {
+				/* translators: %s: collective name. */
+				$ws_note = sprintf( __( 'This project belongs to “%s”. Switch to that workspace to work on it.', 'project-prepper' ), $p_group );
+			}
+			?>
+			<div class="pp-portal__actions pp-proj-ws-note">
+				<p class="pp-portal__hint"><?php echo esc_html( $ws_note ); ?></p>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<?php self::action_fields( 'set_workspace' ); ?>
+					<input type="hidden" name="pp_ws" value="<?php echo esc_attr( $is_solo ? 'solo' : (string) $p_ws ); ?>">
+					<input type="hidden" name="pp_view" value="projects">
+					<input type="hidden" name="pp_open_project" value="<?php echo (int) $p->id; ?>">
+					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Switch workspace', 'project-prepper' ); ?></button>
+				</form>
+			</div>
+		<?php endif; ?>
 
 		<?php
 		// Reiter wie die App (gleiche Aufteilung + Reihenfolge). Auswahl über
@@ -6413,6 +6721,12 @@ class MemberPortal {
 			'files'      => __( 'Files', 'project-prepper' ),
 			'profit'     => __( 'Profit', 'project-prepper' ),
 		];
+		// Umfragen, Beschlüsse/Vereinbarung und Gewinnverteilung setzen ein
+		// Kollektiv voraus, das abstimmt bzw. teilt — ein Solo-Projekt hat keins
+		// (die Services lehnen dort mit pp_no_group ab).
+		if ( $is_solo ) {
+			unset( $tabs['polls'], $tabs['agreement'], $tabs['profit'] );
+		}
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Anzeige-Auswahl.
 		$tab = sanitize_key( wp_unslash( (string) ( $_GET['pp_tab'] ?? 'overview' ) ) );
 		if ( ! isset( $tabs[ $tab ] ) ) {
@@ -6426,17 +6740,28 @@ class MemberPortal {
 			<?php endforeach; ?>
 		</nav>
 
-		<?php if ( 'overview' === $tab && (int) $p->owner_group_id === self::active_workspace_group() ) : ?>
+		<?php
+		// Rechte dieser Ansicht — dieselben Helfer wie die Gates im Verteiler
+		// (Services\Projects), plus „im Arbeitsbereich des Projekts".
+		$can_edit    = $in_ws && Projects::can_edit( $p, $uid );
+		$can_delete  = $in_ws && Projects::can_delete( $p, $uid );
+		$can_operate = $in_ws && Projects::can_operate( $p, $uid );
+		?>
+		<?php if ( 'overview' === $tab && ( $can_edit || $can_delete ) ) : ?>
 			<div class="pp-portal__actions" style="margin-bottom:1rem">
-				<details class="pp-portal__edit">
-					<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit project', 'project-prepper' ); ?></summary>
-					<?php self::project_form( 'project_update', $p ); ?>
-				</details>
-				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this project? This cannot be undone.', 'project-prepper' ) ); ?>');">
-					<?php self::action_fields( 'project_delete' ); ?>
-					<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
-					<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete project', 'project-prepper' ); ?></button>
-				</form>
+				<?php if ( $can_edit ) : ?>
+					<details class="pp-portal__edit">
+						<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Edit project', 'project-prepper' ); ?></summary>
+						<?php self::project_form( 'project_update', $p ); ?>
+					</details>
+				<?php endif; ?>
+				<?php if ( $can_delete ) : ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this project? This cannot be undone.', 'project-prepper' ) ); ?>');">
+						<?php self::action_fields( 'project_delete' ); ?>
+						<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+						<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete project', 'project-prepper' ); ?></button>
+					</form>
+				<?php endif; ?>
 			</div>
 		<?php endif; ?>
 
@@ -6466,12 +6791,9 @@ class MemberPortal {
 			<?php
 		endif;
 
-		// Bearbeiten-Gate aller interaktiven Sektionen: das Projekt gehört zum
-		// AKTIVEN Gruppen-Workspace (sonst read-only, Muster Equipment-Buchung).
-		$can_edit = (int) $p->owner_group_id === self::active_workspace_group();
-
-		// 2) Gebuchtes Equipment — im aktiven Workspace kann direkt gebucht,
-		// geändert und entfernt werden (Pendant zum Equipment-Tab der App).
+		// 2) Gebuchtes Equipment — mit Bearbeitungsrecht im Arbeitsbereich des
+		// Projekts kann direkt gebucht, geändert und entfernt werden (Pendant zum
+		// Equipment-Tab der App). Solo-Projekte buchen aus dem eigenen Inventar.
 		$can_book = $can_edit;
 		$pool     = 'equipment' === $tab && $can_book ? self::bookable_pool( $p ) : [];
 		if ( 'equipment' === $tab && ( ! empty( $p->items ) || $can_book ) ) :
@@ -6783,28 +7105,39 @@ class MemberPortal {
 				</section>
 			<?php elseif ( $can_book ) : ?>
 				<section class="pp-card">
-					<p class="pp-portal__hint"><?php esc_html_e( 'No equipment is shared with this collective yet. Members share items from “My inventory” in their solo workspace.', 'project-prepper' ); ?></p>
+					<p class="pp-portal__hint"><?php echo esc_html( $is_solo
+						? __( 'Your inventory is empty. Add items under “My inventory” to book them for your projects.', 'project-prepper' )
+						: __( 'No equipment is shared with this collective yet. Members share items from “My inventory” in their solo workspace.', 'project-prepper' ) ); ?></p>
 				</section>
 			<?php endif;
 		endif;
 
 		// Übrige Reiter — Zuordnung wie die App-Tabs. Kosten/Gewinn: alle
 		// Betrachter dieses Details sind aktive Mitglieder der besitzenden
-		// Gruppe (oben erzwungen) — WP-Pendant zu canViewCosts=isMember der
-		// App, kein Finanz-Leak gegen Nicht-Mitglieder.
-		$g_members = $can_edit ? Groups::members( (int) $p->owner_group_id ) : [];
+		// Gruppe bzw. der Solo-Eigentümer (in_portal_scope oben) — WP-Pendant zu
+		// canViewCosts=isMember der App, kein Finanz-Leak gegen Nicht-Mitglieder.
+		// Zuweisbar (Aufgaben/Gewinn): Kollektiv → seine Mitglieder, Solo → man selbst.
+		$g_members = [];
+		if ( $can_edit ) {
+			if ( $p_ws > 0 ) {
+				$g_members = Groups::members( $p_ws );
+			} else {
+				$me        = wp_get_current_user();
+				$g_members = [ (object) [ 'user_id' => $uid, 'display_name' => $me->display_name ] ];
+			}
+		}
 		switch ( $tab ) {
 			case 'packlist':
-				self::render_project_packlist( $p, $can_edit );
+				self::render_project_packlist( $p, $can_operate );
 				break;
 			case 'schedule':
 				self::render_project_schedule( $p, $can_edit );
 				break;
 			case 'tasks':
-				self::render_project_tasks( $p, $can_edit, $g_members );
+				self::render_project_tasks( $p, $can_edit, $g_members, $can_operate );
 				break;
 			case 'checklists':
-				self::render_project_checklists( $p, $can_edit );
+				self::render_project_checklists( $p, $can_edit, $can_operate );
 				break;
 			case 'materials':
 				self::render_project_materials( $p, $can_edit );
@@ -7135,12 +7468,17 @@ class MemberPortal {
 		<?php
 	}
 
-	/** Aufgaben — Status-Schnellwechsel + volle Bearbeitung + Zuweisung. */
-	private static function render_project_tasks( object $p, bool $can_edit, array $members ): void {
+	/**
+	 * Aufgaben — Status-Schnellwechsel + volle Bearbeitung + Zuweisung.
+	 * $can_operate (ohne Bearbeitungsrecht): nur die EIGENE Aufgabe annehmen/
+	 * ablehnen und weiterschalten — dieselbe Regel wie member_task_save.
+	 */
+	private static function render_project_tasks( object $p, bool $can_edit, array $members, bool $can_operate = false ): void {
 		$tasks = (array) ( $p->tasks ?? [] );
 		if ( ! $tasks && ! $can_edit ) {
 			return;
 		}
+		$can_operate = $can_operate || $can_edit;
 		?>
 		<section class="pp-card">
 			<h3 class="pp-card__title"><?php esc_html_e( 'Tasks', 'project-prepper' ); ?></h3>
@@ -7172,13 +7510,16 @@ class MemberPortal {
 							<?php elseif ( $assignee && 'declined' === $assign ) : ?>
 								<span class="pp-team-chip pp-team-chip--declined"><?php esc_html_e( 'Declined', 'project-prepper' ); ?></span>
 							<?php endif; ?>
-							<?php if ( $can_edit && $assignee && 'pending' === $assign && (int) $t->assigned_user === $uid ) : ?>
+							<?php
+							$is_mine = $assignee && (int) $t->assigned_user === $uid;
+							if ( $can_operate && $is_mine && 'pending' === $assign ) : ?>
 								<?php self::sub_chip_form( 'task_accept', (int) $p->id, [ 'pp_entry' => (int) $t->id ], __( 'Accept', 'project-prepper' ) ); ?>
 								<?php self::sub_chip_form( 'task_decline', (int) $p->id, [ 'pp_entry' => (int) $t->id ], __( 'Decline', 'project-prepper' ) ); ?>
 							<?php endif; ?>
-							<?php if ( $can_edit ) : ?>
-								<?php
-								// Schnell-Status: offen→Start, in Arbeit→Erledigt, erledigt→Wieder öffnen.
+							<?php
+							// Schnell-Status: offen→Start, in Arbeit→Erledigt, erledigt→Wieder
+							// öffnen. Bearbeiter immer; sonst nur die eigene angenommene Aufgabe.
+							if ( $can_edit || ( $can_operate && $is_mine && 'accepted' === $assign ) ) {
 								$next = [
 									'open'  => [ 'doing', __( 'Start', 'project-prepper' ) ],
 									'doing' => [ 'done', __( 'Mark done', 'project-prepper' ) ],
@@ -7188,7 +7529,9 @@ class MemberPortal {
 									[ $to, $label ] = $next[ (string) $t->task_status ];
 									self::sub_chip_form( 'task_update', (int) $p->id, [ 'pp_entry' => (int) $t->id, 'pp_status' => $to ], $label );
 								}
-								?>
+							}
+							?>
+							<?php if ( $can_edit ) : ?>
 								<details class="pp-portal__edit">
 									<summary class="pp-portal__chip"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></summary>
 									<?php self::task_form( $p, $members, $t ); ?>
@@ -7252,12 +7595,17 @@ class MemberPortal {
 		<?php
 	}
 
-	/** Checklisten — Abhaken per Klick auf die Box, Punkte + Listen verwalten. */
-	private static function render_project_checklists( object $p, bool $can_edit ): void {
+	/**
+	 * Checklisten — Abhaken per Klick auf die Box, Punkte + Listen verwalten.
+	 * Abhaken ist Betrieb ($can_operate, alle mit Zugriff); Listen und Punkte
+	 * anlegen/sortieren/löschen ist Planung ($can_edit).
+	 */
+	private static function render_project_checklists( object $p, bool $can_edit, bool $can_operate = false ): void {
 		$lists = (array) ( $p->checklists ?? [] );
 		if ( ! $lists && ! $can_edit ) {
 			return;
 		}
+		$can_operate = $can_operate || $can_edit;
 		?>
 		<section class="pp-card">
 			<h3 class="pp-card__title"><?php esc_html_e( 'Checklists', 'project-prepper' ); ?></h3>
@@ -7276,7 +7624,7 @@ class MemberPortal {
 					<?php foreach ( (array) $list->items as $ci ) :
 						$done = ! empty( $ci->is_checked ); ?>
 						<div class="pp-checkitem<?php echo $done ? ' pp-checkitem--done' : ''; ?>">
-							<?php if ( $can_edit ) : ?>
+							<?php if ( $can_operate ) : ?>
 								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 									<?php self::action_fields( 'checkitem_toggle' ); ?>
 									<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
@@ -8273,24 +8621,21 @@ class MemberPortal {
 
 	/**
 	 * Globale Kostenübersicht (Pendant zur App-Seite `/costs`): aggregiert die
-	 * Kostenposten über ALLE Projekte des aktiven Workspace. Wie die App nur im
-	 * Gruppen-Modus — im Solo-Modus stehen Kosten direkt im jeweiligen Projekt.
-	 * Leak-sicher: Quelle ist `member_projects()` (nur Projekte der aktiven
-	 * Gruppe, in der der User Mitglied ist) → `Costs::for_projects()`.
+	 * Kostenposten über ALLE Projekte des aktiven Workspace — im Gruppen-Modus
+	 * die Projekte der Gruppe, im Solo-Modus die eigenen Solo-Projekte.
+	 * Leak-sicher: Quelle ist `member_projects()` (nur Projekte des aktiven
+	 * Arbeitsbereichs, auf die der User Zugriff hat) → `Costs::for_projects()`.
 	 */
 	private static function view_costs( WP_User $user, array $groups ): void {
 		$active = self::active_group_id( $groups );
 		?>
 		<header class="pp-app__page-head">
-			<h1 class="pp-app__page-title"><?php esc_html_e( 'Costs', 'project-prepper' ); ?></h1>
-			<p class="pp-app__page-sub"><?php esc_html_e( 'Aggregated across all projects of your active group.', 'project-prepper' ); ?></p>
+			<h1 class="pp-app__page-title"><?php echo esc_html( $active ? __( 'Costs', 'project-prepper' ) : __( 'My costs', 'project-prepper' ) ); ?></h1>
+			<p class="pp-app__page-sub"><?php echo esc_html( $active
+				? __( 'Aggregated across all projects of your active group.', 'project-prepper' )
+				: __( 'Aggregated across your own projects. Costs of your collectives’ projects are in their workspaces.', 'project-prepper' ) ); ?></p>
 		</header>
 		<?php
-		if ( ! $active ) {
-			echo '<p class="pp-portal__empty">' . esc_html__( 'You are in Solo. In solo mode you find costs directly inside each project. Pick a group in the workspace switcher (top left) for the aggregated view.', 'project-prepper' ) . '</p>';
-			return;
-		}
-
 		$projects     = self::member_projects( $groups );
 		$project_ids  = array_map( static fn( $p ) => (int) $p->id, $projects );
 		$all_costs    = Costs::for_projects( $project_ids );
@@ -11585,6 +11930,8 @@ class MemberPortal {
 			}, Groups::user_groups( $uid ) ),
 			'borrows_outgoing' => array_map( [ self::class, 'export_borrow_row' ], Borrowing::my_requests( $uid ) ),
 			'borrows_incoming' => array_map( [ self::class, 'export_borrow_row' ], Borrowing::incoming_requests( $uid ) ),
+			// Eigene Solo-Projekte + selbst angelegte Kollektiv-Projekte (Kernfelder).
+			'projects'         => Projects::export_for_user( $uid ),
 		];
 
 		nocache_headers();
@@ -12219,7 +12566,7 @@ class MemberPortal {
 	/**
 	 * Projekt-Datei hochladen (PDF/Bilder, wie handle_inventory_doc) — eigener
 	 * Handler, weil der Kollektiv-Dispatcher kein multipart verarbeitet.
-	 * Gate: Projekt im aktiven Gruppen-Workspace (member_owned_project).
+	 * Gate: Bearbeitungsrecht im aktiven Arbeitsbereich (member_editable_project).
 	 */
 	public static function handle_project_file(): void {
 		if ( ! Settings::feature_on( 'projects' ) ) {
@@ -12233,8 +12580,8 @@ class MemberPortal {
 			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
 			exit;
 		}
-		if ( ! self::member_owned_project( $pid ) ) {
-			wp_safe_redirect( add_query_arg( 'pp_msg', 'error', $back ) );
+		if ( ! self::member_editable_project( $pid ) ) {
+			wp_safe_redirect( add_query_arg( 'pp_msg', self::member_workspace_project( $pid ) ? 'project_readonly' : 'error', $back ) );
 			exit;
 		}
 
