@@ -218,6 +218,11 @@ class MemberPortal {
 			$view = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : '';
 			if ( 'inventory' === $view ) {
 				wp_enqueue_script( 'pp-portal-inv' );
+				// Spalten-Zuordnung beim Import: Felder, Kopfzeilen-Tabelle und Texte
+				// kommen übersetzt aus PHP — dieselben Schlüssel wie der Server-Import.
+				if ( is_user_logged_in() ) {
+					wp_localize_script( 'pp-portal-inv', 'ppImport', self::import_js_config() );
+				}
 			}
 		}
 	}
@@ -9580,15 +9585,25 @@ class MemberPortal {
 		if ( '' === $code ) {
 			return;
 		}
-		// Import-Ergebnis mit Anzahl (pp_n).
+		// Import-Ergebnis mit Anzahl (pp_n) + ggf. Bericht über übersprungene Zeilen.
 		if ( 'imported' === $code ) {
 			// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Anzeige
-			$n = isset( $_GET['pp_n'] ) ? (int) $_GET['pp_n'] : 0;
-			printf(
-				'<div class="pp-portal__notice pp-portal__notice--ok">%s</div>',
-				/* translators: %d: number of imported items. */
-				esc_html( sprintf( _n( '%d item imported.', '%d items imported.', $n, 'project-prepper' ), $n ) )
-			);
+			$n      = isset( $_GET['pp_n'] ) ? (int) $_GET['pp_n'] : 0;
+			$key    = self::IMPORT_TRANSIENT . get_current_user_id();
+			$report = get_transient( $key );
+			delete_transient( $key );
+			$report = is_array( $report ) ? $report : null;
+			// „0 Artikel importiert." in Grün wäre neben der Fehlerliste irreführend.
+			if ( $n > 0 || ! $report ) {
+				printf(
+					'<div class="pp-portal__notice pp-portal__notice--ok">%s</div>',
+					/* translators: %d: number of imported items. */
+					esc_html( sprintf( _n( '%d item imported.', '%d items imported.', $n, 'project-prepper' ), $n ) )
+				);
+			}
+			if ( $report ) {
+				self::render_import_report( $report );
+			}
 			return;
 		}
 		// Durchgereichte Fehlermeldung eines Dienstes (siehe Dispatcher).
@@ -9615,6 +9630,50 @@ class MemberPortal {
 			esc_attr( $kind ),
 			esc_html( $text )
 		);
+	}
+
+	/**
+	 * Import-Bericht: übersprungene Zeilen mit Grund (höchstens
+	 * IMPORT_MAX_REASONS, der Rest als Zahl) und ein Hinweis, wenn die Datei
+	 * über der Zeilengrenze lag.
+	 */
+	private static function render_import_report( array $report ): void {
+		$total   = (int) ( $report['skip_total'] ?? 0 );
+		$reasons = array_slice( array_map( 'strval', (array) ( $report['skipped'] ?? [] ) ), 0, self::IMPORT_MAX_REASONS );
+		$more    = $total - count( $reasons );
+		?>
+		<div class="pp-portal__notice pp-portal__notice--err">
+			<?php if ( $total > 0 ) : ?>
+				<p class="pp-import__report-head">
+					<?php
+					/* translators: %d: number of skipped rows. */
+					echo esc_html( sprintf( _n( '%d row was skipped:', '%d rows were skipped:', $total, 'project-prepper' ), $total ) );
+					?>
+				</p>
+				<ul class="pp-import__report">
+					<?php foreach ( $reasons as $pp_reason ) : ?>
+						<li><?php echo esc_html( $pp_reason ); ?></li>
+					<?php endforeach; ?>
+					<?php if ( $more > 0 ) : ?>
+						<li>
+							<?php
+							/* translators: %d: number of further skipped rows that are not listed. */
+							echo esc_html( sprintf( _n( '… and %d more row.', '… and %d more rows.', $more, 'project-prepper' ), $more ) );
+							?>
+						</li>
+					<?php endif; ?>
+				</ul>
+			<?php endif; ?>
+			<?php if ( ! empty( $report['truncated'] ) ) : ?>
+				<p class="pp-import__report-head">
+					<?php
+					/* translators: %d: maximum number of rows per import file. */
+					echo esc_html( sprintf( __( 'Only the first %d rows were imported — please split larger files.', 'project-prepper' ), self::IMPORT_MAX_ROWS ) );
+					?>
+				</p>
+			<?php endif; ?>
+		</div>
+		<?php
 	}
 
 	/** Offene Einladungen an den aktuellen User (annehmen/ablehnen). */
@@ -11124,18 +11183,7 @@ class MemberPortal {
 			<?php if ( $user ) : ?>
 				<?php self::render_evaluation_tool( $user ); ?>
 			<?php endif; ?>
-			<details class="pp-portal__add">
-				<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Import (CSV / Excel)', 'project-prepper' ); ?></summary>
-				<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-					<input type="hidden" name="action" value="pp_member_import">
-					<?php wp_nonce_field( 'pp_member_import', 'pp_nonce' ); ?>
-					<label><?php esc_html_e( 'CSV or Excel file', 'project-prepper' ); ?>
-						<input type="file" name="pp_file" accept=".csv,text/csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
-					</label>
-					<p class="pp-poll-opthint"><?php esc_html_e( 'Tip: export first to get the exact columns, fill in your data, then import. Excel files (.xlsx) are converted automatically; the “Name” column is required.', 'project-prepper' ); ?></p>
-					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Import', 'project-prepper' ); ?></button>
-				</form>
-			</details>
+			<?php self::render_import_panel( $conditions ); ?>
 			<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export (CSV)', 'project-prepper' ); ?></a>
 			<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-xlsx-export="<?php echo esc_url( $export_url ); ?>" data-pp-xlsx-name="mein-inventar-<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>"><?php esc_html_e( 'Export (Excel)', 'project-prepper' ); ?></button>
 			<?php if ( $user ) : ?>
@@ -11145,6 +11193,111 @@ class MemberPortal {
 			<?php self::render_item_create_modal( $categories, $conditions, $groups, $bundle_candidates ); ?>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Import-Werkzeug: Datei wählen, das erwartete Format steht direkt dabei.
+	 * Mit JS (portal-inventory.js) erscheint nach der Dateiwahl eine Spalten-
+	 * Zuordnung mit Vorschau; ohne JS lädt dasselbe Formular die Datei so hoch.
+	 *
+	 * Bewusst INLINE im aufgeklappten Werkzeug statt als Modal: Dateifeld,
+	 * Zuordnung und Absenden sind EIN Formular (ohne JS identisch), und die
+	 * Zuordnung nutzt die volle Seitenbreite statt eines zweiten Scrollers.
+	 */
+	private static function render_import_panel( array $conditions ): void {
+		$fields = \ProjectPrepper\Rest\ImportExportController::export_columns();
+		?>
+		<details class="pp-portal__add">
+			<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Import (CSV / Excel)', 'project-prepper' ); ?></summary>
+			<form class="pp-portal__form pp-import" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-import>
+				<input type="hidden" name="action" value="pp_member_import">
+				<?php wp_nonce_field( 'pp_member_import', 'pp_nonce' ); ?>
+				<label><?php esc_html_e( 'CSV or Excel file', 'project-prepper' ); ?>
+					<input type="file" name="pp_file" accept=".csv,text/csv,.tsv,.txt,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+				</label>
+				<p class="pp-poll-opthint">
+					<?php
+					/* translators: %d: maximum number of rows per import file. */
+					printf( esc_html__( 'First row = column headings, every further row becomes one item. Only “Name” is required. CSV (separated by semicolon or comma) or Excel (first sheet), up to %d rows.', 'project-prepper' ), (int) self::IMPORT_MAX_ROWS );
+					?>
+				</p>
+				<details class="pp-import__help">
+					<summary><?php esc_html_e( 'Which columns and formats?', 'project-prepper' ); ?></summary>
+					<p><?php esc_html_e( 'These column headings are recognised automatically — exactly as in the export:', 'project-prepper' ); ?></p>
+					<ul class="pp-import__fields">
+						<?php foreach ( $fields as $pp_key => $pp_label ) : ?>
+							<li<?php echo 'name' === $pp_key ? ' class="pp-import__field--req"' : ''; ?>><?php echo esc_html( $pp_label ); ?></li>
+						<?php endforeach; ?>
+					</ul>
+					<p>
+						<?php
+						/* translators: 1: comma-separated list of accepted condition values, 2: the condition used for empty or unknown values. */
+						echo esc_html( sprintf( __( 'Condition: %1$s. Empty or other values become “%2$s”.', 'project-prepper' ), implode( ', ', $conditions ), (string) ( $conditions['good'] ?? 'good' ) ) );
+						?>
+					</p>
+					<p><?php esc_html_e( 'Dates as YYYY-MM-DD or DD.MM.YYYY, amounts with a decimal point or comma, several tags separated by commas.', 'project-prepper' ); ?></p>
+					<p><?php esc_html_e( 'Missing inventory numbers are assigned automatically; rows whose inventory number already exists are skipped. Unknown categories are created.', 'project-prepper' ); ?></p>
+					<p><?php esc_html_e( 'Easiest start: export your inventory — the file is a ready-made template.', 'project-prepper' ); ?></p>
+				</details>
+				<div class="pp-import__map" data-pp-import-map hidden></div>
+				<p class="pp-import__status" data-pp-import-status role="status" aria-live="polite" hidden></p>
+				<button type="submit" class="pp-portal__btn pp-portal__btn--sm" data-pp-import-submit><?php esc_html_e( 'Import', 'project-prepper' ); ?></button>
+			</form>
+		</details>
+		<?php
+	}
+
+	/**
+	 * Daten für die Spalten-Zuordnung im Browser (portal-inventory.js): Felder
+	 * mit übersetzten Namen, dieselbe Kopfzeilen-Tabelle wie der Server-Import,
+	 * Zustands-Werte für die Vorschau und alle Texte (übersetzt).
+	 */
+	private static function import_js_config(): array {
+		$fields = \ProjectPrepper\Rest\ImportExportController::export_columns();
+		$heads  = array_filter(
+			self::import_head_map(),
+			static fn( $key ) => isset( $fields[ $key ] )
+		);
+		$list = [];
+		foreach ( $fields as $key => $label ) {
+			$list[] = [ 'key' => $key, 'label' => $label ];
+		}
+		return [
+			'fields'          => $list,
+			'heads'           => $heads,
+			'conditions'      => \ProjectPrepper\Rest\ImportExportController::condition_lookup(),
+			'conditionLabels' => Shortcodes::condition_labels(),
+			'maxRows'         => self::IMPORT_MAX_ROWS,
+			'i18n'            => [
+				'intro'       => __( 'Assign each column of your file to a field. Columns set to “— ignore —” are not imported.', 'project-prepper' ),
+				'ignore'      => __( '— ignore —', 'project-prepper' ),
+				/* translators: %d: column number in the file (1, 2, …). */
+				'column'      => __( 'Column %d', 'project-prepper' ),
+				'preview'     => __( 'Preview of the first rows', 'project-prepper' ),
+				'noName'      => __( 'No name — this row will be skipped', 'project-prepper' ),
+				'reading'     => __( 'Reading file …', 'project-prepper' ),
+				'readError'   => __( 'The file could not be read. Please save it as CSV (UTF-8) or Excel (.xlsx) and try again.', 'project-prepper' ),
+				'noRows'      => __( 'The file contains no rows to import.', 'project-prepper' ),
+				'needName'    => __( 'Assign a column to “Name” — it is required.', 'project-prepper' ),
+				/* translators: %s: field name, e.g. "Category". */
+				'duplicate'   => __( '“%s” is assigned to more than one column.', 'project-prepper' ),
+				'noNamedRows' => __( 'None of the rows has a name.', 'project-prepper' ),
+				/* translators: %d: number of rows. */
+				'importOne'   => _n( 'Import %d row', 'Import %d rows', 1, 'project-prepper' ),
+				/* translators: %d: number of rows. */
+				'importMany'  => _n( 'Import %d row', 'Import %d rows', 2, 'project-prepper' ),
+				/* translators: %d: number of rows. */
+				'skipOne'     => _n( '%d row without a name will be skipped.', '%d rows without a name will be skipped.', 1, 'project-prepper' ),
+				/* translators: %d: number of rows. */
+				'skipMany'    => _n( '%d row without a name will be skipped.', '%d rows without a name will be skipped.', 2, 'project-prepper' ),
+				/* translators: %d: maximum number of rows per import file. */
+				'limit'       => __( 'The file has more rows than allowed — only the first %d are imported.', 'project-prepper' ),
+				/* translators: 1: condition used instead, e.g. "Good", 2: list of values from the file. */
+				'badCondition' => __( 'Unknown condition values become “%1$s”: %2$s', 'project-prepper' ),
+				/* translators: %s: list of values from the file. */
+				'badDate'     => __( 'Dates that cannot be read stay empty: %s', 'project-prepper' ),
+			],
+		];
 	}
 
 	/**
@@ -11403,6 +11556,15 @@ class MemberPortal {
 		}
 	}
 
+	/** Höchstzahl Datenzeilen je Import-Datei (leere Zeilen zählen nicht mit). */
+	const IMPORT_MAX_ROWS = 500;
+
+	/** So viele Gründe für übersprungene Zeilen nennt die Meldung höchstens. */
+	const IMPORT_MAX_REASONS = 10;
+
+	/** Präfix des Transients, in dem der Import-Bericht die Weiterleitung überlebt. */
+	const IMPORT_TRANSIENT = 'pp_import_report_';
+
 	/** CSV-Upload → eigene Items anlegen (Bulk). */
 	public static function handle_inventory_import(): void {
 		if ( ! Settings::feature_on( 'inventory' ) ) {
@@ -11418,17 +11580,40 @@ class MemberPortal {
 			wp_safe_redirect( add_query_arg( 'pp_msg', 'import_nofile', $back ) );
 			exit;
 		}
+		$user_id = get_current_user_id();
+		// Zeilen, die die Browser-Zuordnung vor der Kopfzeile weggelassen hat —
+		// damit „Zeile 9" im Bericht dieselbe Zeile ist wie in der Tabelle des Mitglieds.
+		$offset = isset( $_POST['pp_row_offset'] ) ? min( 1000000, max( 0, (int) $_POST['pp_row_offset'] ) ) : 0;
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- tmp_name kommt von PHP, is_uploaded_file geprüft.
-		$created = self::import_inventory_csv( get_current_user_id(), $_FILES['pp_file']['tmp_name'] );
-		wp_safe_redirect( add_query_arg( [ 'pp_msg' => 'imported', 'pp_n' => (int) $created ], $back ) );
+		$result = self::import_inventory_csv( $user_id, $_FILES['pp_file']['tmp_name'], $offset );
+		if ( is_wp_error( $result ) ) {
+			// Datei-Fehler (kein „Name", leer, Excel ohne JS …) als verständlicher Satz.
+			set_transient( self::MSG_TRANSIENT . $user_id, $result->get_error_message(), MINUTE_IN_SECONDS );
+			wp_safe_redirect( add_query_arg( 'pp_msg', 'detail', $back ) );
+			exit;
+		}
+		if ( $result['skip_total'] > 0 || $result['truncated'] ) {
+			set_transient( self::IMPORT_TRANSIENT . $user_id, [
+				'skipped'    => $result['skipped'],
+				'skip_total' => $result['skip_total'],
+				'truncated'  => $result['truncated'],
+			], 5 * MINUTE_IN_SECONDS );
+		} else {
+			delete_transient( self::IMPORT_TRANSIENT . $user_id );
+		}
+		wp_safe_redirect( add_query_arg( [ 'pp_msg' => 'imported', 'pp_n' => (int) $result['created'] ], $back ) );
 		exit;
 	}
 
-	/** CSV einlesen (max. 500 Zeilen) und je Zeile ein eigenes Item anlegen. */
-	private static function import_inventory_csv( int $user_id, string $path ): int {
-		$columns = \ProjectPrepper\Rest\ImportExportController::export_columns();
-		$map     = [];
-		foreach ( $columns as $key => $label ) {
+	/**
+	 * Spaltenkopf (normalisiert) → Feld-Schlüssel: übersetzte Export-Überschriften,
+	 * interne Schlüssel und Aliase. Server-Import und Browser-Zuordnung
+	 * (import_js_config) lesen dieselbe Tabelle — was hier erkannt wird, schlägt
+	 * auch die Zuordnung vor.
+	 */
+	private static function import_head_map(): array {
+		$map = [];
+		foreach ( \ProjectPrepper\Rest\ImportExportController::export_columns() as $key => $label ) {
 			$map[ self::norm_head( (string) $label ) ] = $key;
 			$map[ self::norm_head( $key ) ]            = $key;
 		}
@@ -11459,6 +11644,19 @@ class MemberPortal {
 		foreach ( $aliases as $head => $key ) {
 			$map[ self::norm_head( $head ) ] = $key;
 		}
+		return $map;
+	}
+
+	/**
+	 * CSV einlesen (max. IMPORT_MAX_ROWS Datenzeilen) und je Zeile ein eigenes
+	 * Item anlegen. Trennzeichen (; , Tab) wird an der Kopfzeile erkannt,
+	 * Windows-1252 (älteres Excel „CSV (Trennzeichen-getrennt)") nach UTF-8 gewandelt.
+	 *
+	 * @param int $row_offset Zeilen vor der Kopfzeile, die schon im Browser weggefallen sind.
+	 * @return array{created:int,skipped:string[],skip_total:int,truncated:bool}|\WP_Error
+	 */
+	private static function import_inventory_csv( int $user_id, string $path, int $row_offset = 0 ) {
+		$map = self::import_head_map();
 		// Kategorie-Namen → ID (eigene Kategorien + Betreiber-Vorlagen; unbekannte
 		// Namen werden beim Import als eigene Kategorien angelegt — wie in der App).
 		$cat_map = [];
@@ -11470,32 +11668,94 @@ class MemberPortal {
 		}
 
 		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- Zeilenweises Parsen der hochgeladenen CSV (is_uploaded_file geprüft); WP_Filesystem kann CSV nicht streamen.
-		$fh = fopen( $path, 'r' );
+		$fh = fopen( $path, 'rb' );
 		if ( ! $fh ) {
-			return 0;
+			return new \WP_Error( 'pp_import_unreadable', __( 'The file could not be read. Please save it as CSV (UTF-8) or Excel (.xlsx) and try again.', 'project-prepper' ) );
 		}
-		$header = fgetcsv( $fh, 0, ';' );
-		if ( ! $header ) {
+		// Excel-Datei ohne Browser-Umwandlung (JS aus) — ZIP (.xlsx) oder OLE (.xls).
+		// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread -- s. fopen oben.
+		$magic = (string) fread( $fh, 4 );
+		if ( "PK\x03\x04" === $magic || "\xD0\xCF\x11\xE0" === $magic ) {
 			fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- s. fopen oben.
-			return 0;
+			return new \WP_Error( 'pp_import_excel', __( 'Excel files are converted in the browser before uploading. Please allow JavaScript on this page, or save the file as CSV and import that.', 'project-prepper' ) );
 		}
-		$header[0] = preg_replace( '/^\xEF\xBB\xBF/', '', (string) $header[0] );
-		$keys      = array_map( static fn( $h ) => $map[ self::norm_head( (string) $h ) ] ?? null, $header );
+		rewind( $fh );
 
-		$created = 0;
-		$rows    = 0;
-		while ( ( $row = fgetcsv( $fh, 0, ';' ) ) !== false ) {
-			if ( ++$rows > 500 ) {
-				break;
+		// Kopfzeile = erste nicht-leere Zeile; eine Excel-Zeile „sep=;" legt das
+		// Trennzeichen fest, sonst wird es an der Kopfzeile erkannt.
+		$row_no = $row_offset;
+		$delim  = '';
+		while ( true ) {
+			$pos  = ftell( $fh );
+			$line = fgets( $fh );
+			if ( false === $line ) {
+				fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- s. fopen oben.
+				return new \WP_Error( 'pp_import_empty', __( 'The file contains no rows to import.', 'project-prepper' ) );
 			}
+			++$row_no;
+			$line = rtrim( (string) preg_replace( '/^\xEF\xBB\xBF/', '', $line ), "\r\n" );
+			if ( '' === trim( $line, " \t;," ) ) {
+				continue;
+			}
+			if ( '' === $delim && preg_match( '/^sep=([^"\r\n])$/i', $line, $m ) ) {
+				$delim = $m[1];
+				continue;
+			}
+			break;
+		}
+		if ( '' === $delim ) {
+			$delim = self::csv_delimiter( $line );
+		}
+		fseek( $fh, $pos );
+		$header = fgetcsv( $fh, 0, $delim, '"', '\\' );
+		$header = is_array( $header ) ? $header : [];
+		if ( isset( $header[0] ) ) {
+			$header[0] = preg_replace( '/^\xEF\xBB\xBF/', '', (string) $header[0] );
+		}
+		$keys = array_map( static fn( $h ) => $map[ self::norm_head( self::import_utf8( (string) $h ) ) ] ?? null, $header );
+		if ( ! in_array( 'name', $keys, true ) ) {
+			fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- s. fopen oben.
+			return new \WP_Error( 'pp_import_no_name', __( 'The file has no “Name” column. The first row must contain the column headings — export your inventory once to see them.', 'project-prepper' ) );
+		}
+
+		$created    = 0;
+		$rows       = 0;
+		$skipped    = [];
+		$skip_total = 0;
+		$truncated  = false;
+		$skip       = static function ( string $reason ) use ( &$skipped, &$skip_total ): void {
+			++$skip_total;
+			if ( count( $skipped ) < self::IMPORT_MAX_REASONS ) {
+				$skipped[] = $reason;
+			}
+		};
+		while ( ( $row = fgetcsv( $fh, 0, $delim, '"', '\\' ) ) !== false ) {
+			++$row_no;
 			$d = [];
 			foreach ( $row as $i => $cell ) {
-				$key = $keys[ $i ] ?? null;
-				if ( $key ) {
-					$d[ $key ] = trim( (string) $cell );
+				$key  = $keys[ $i ] ?? null;
+				$cell = null === $cell ? '' : trim( (string) $cell );
+				// Doppelte Spalten: der erste nicht-leere Wert zählt.
+				if ( $key && '' !== $cell && '' === ( $d[ $key ] ?? '' ) ) {
+					$d[ $key ] = self::import_utf8( $cell );
 				}
 			}
-			if ( empty( $d['name'] ) ) {
+			if ( ! $d ) {
+				continue; // Leerzeile (auch „;;;") — still überspringen, zählt nicht mit.
+			}
+			if ( ++$rows > self::IMPORT_MAX_ROWS ) {
+				$truncated = true;
+				break;
+			}
+			if ( '' === ( $d['name'] ?? '' ) ) {
+				/* translators: %d: row number in the import file. */
+				$skip( sprintf( __( 'Row %d: the name is missing.', 'project-prepper' ), $row_no ) );
+				continue;
+			}
+			$number = sanitize_text_field( $d['inventory_number'] ?? '' );
+			if ( '' !== $number && Inventory::get_item_by_number( $number ) ) {
+				/* translators: 1: row number in the import file, 2: inventory number. */
+				$skip( sprintf( __( 'Row %1$d: inventory number “%2$s” already exists.', 'project-prepper' ), $row_no, $number ) );
 				continue;
 			}
 			$cat_name = trim( (string) ( $d['category_name'] ?? '' ) );
@@ -11509,17 +11769,66 @@ class MemberPortal {
 				}
 			}
 			$result = MemberInventory::create( $user_id, self::build_import_item( $d, $cat_map ) );
-			if ( ! is_wp_error( $result ) ) {
-				$created++;
+			if ( is_wp_error( $result ) ) {
+				if ( 'pp_forbidden' === $result->get_error_code() ) {
+					fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- s. fopen oben.
+					return $result; // Keine Zeile kann gelingen — eine Meldung statt 500 gleicher.
+				}
+				/* translators: 1: row number in the import file, 2: reason. */
+				$skip( sprintf( __( 'Row %1$d: %2$s', 'project-prepper' ), $row_no, $result->get_error_message() ) );
+				continue;
 			}
+			$created++;
 		}
 		fclose( $fh ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- s. fopen oben.
-		return $created;
+		if ( 0 === $rows ) {
+			return new \WP_Error( 'pp_import_empty', __( 'The file contains no rows to import.', 'project-prepper' ) );
+		}
+		return [
+			'created'    => $created,
+			'skipped'    => $skipped,
+			'skip_total' => $skip_total,
+			'truncated'  => $truncated,
+		];
+	}
+
+	/**
+	 * Trennzeichen einer CSV-Kopfzeile erkennen: das häufigste von ; , Tab
+	 * außerhalb von Anführungszeichen. Gleichstand/nichts gefunden → Semikolon
+	 * (deutsches Excel, eigener Export).
+	 */
+	private static function csv_delimiter( string $line ): string {
+		$counts = [ ';' => 0, ',' => 0, "\t" => 0 ];
+		$quoted = false;
+		$len    = strlen( $line );
+		for ( $i = 0; $i < $len; $i++ ) {
+			$ch = $line[ $i ];
+			if ( '"' === $ch ) {
+				$quoted = ! $quoted;
+			} elseif ( ! $quoted && isset( $counts[ $ch ] ) ) {
+				++$counts[ $ch ];
+			}
+		}
+		$best = ';';
+		foreach ( [ ',', "\t" ] as $d ) {
+			if ( $counts[ $d ] > $counts[ $best ] ) {
+				$best = $d;
+			}
+		}
+		return $best;
+	}
+
+	/** Zelle aus einer Nicht-UTF-8-Datei (Windows-1252) nach UTF-8 wandeln. */
+	private static function import_utf8( string $s ): string {
+		if ( '' === $s || mb_check_encoding( $s, 'UTF-8' ) ) {
+			return $s;
+		}
+		return (string) mb_convert_encoding( $s, 'UTF-8', 'Windows-1252' );
 	}
 
 	/** Eine CSV-Zeile in das Item-Datenarray für MemberInventory::create übersetzen. */
 	private static function build_import_item( array $d, array $cat_map ): array {
-		$cond = \ProjectPrepper\Rest\ImportExportController::CONDITION_MAP[ self::norm_head( $d['condition'] ?? '' ) ] ?? 'good';
+		$cond = \ProjectPrepper\Rest\ImportExportController::condition_key( (string) ( $d['condition'] ?? '' ) ) ?: 'good';
 		$tags = ( isset( $d['tags'] ) && '' !== $d['tags'] )
 			? array_values( array_filter( array_map( 'trim', explode( ',', $d['tags'] ) ) ) )
 			: [];
@@ -11556,18 +11865,32 @@ class MemberPortal {
 		return mb_strtolower( trim( $s ) );
 	}
 
+	/**
+	 * Betrag aus einer Tabellenzelle: „12,50", „12.50", „1.234,56 €", „1,234.56".
+	 * Stehen Punkt UND Komma drin, ist das letzte Zeichen das Dezimaltrennzeichen.
+	 */
 	private static function num_str( string $v ): string {
-		$v = trim( str_replace( ',', '.', $v ) );
+		$v = str_replace( [ '€', 'EUR', ' ', "\xC2\xA0" ], '', trim( $v ) );
+		$comma = strrpos( $v, ',' );
+		$dot   = strrpos( $v, '.' );
+		if ( false !== $comma && false !== $dot ) {
+			$v = $comma > $dot
+				? str_replace( [ '.', ',' ], [ '', '.' ], $v )
+				: str_replace( ',', '', $v );
+		} else {
+			$v = str_replace( ',', '.', $v );
+		}
 		return is_numeric( $v ) ? $v : '';
 	}
 
+	/** Datum als YYYY-MM-DD (auch mit Uhrzeit dahinter) oder D.M.YYYY; sonst leer. */
 	private static function parse_import_date( string $v ): string {
 		$v = trim( $v );
-		if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $v ) ) {
-			return $v;
+		if ( preg_match( '/^(\d{4})-(\d{2})-(\d{2})(?:$|[ T])/', $v, $m ) ) {
+			return checkdate( (int) $m[2], (int) $m[3], (int) $m[1] ) ? $m[1] . '-' . $m[2] . '-' . $m[3] : '';
 		}
-		if ( preg_match( '#^(\d{2})\.(\d{2})\.(\d{4})$#', $v, $m ) ) {
-			return $m[3] . '-' . $m[2] . '-' . $m[1];
+		if ( preg_match( '#^(\d{1,2})\.(\d{1,2})\.(\d{4})$#', $v, $m ) ) {
+			return checkdate( (int) $m[2], (int) $m[1], (int) $m[3] ) ? sprintf( '%04d-%02d-%02d', $m[3], $m[2], $m[1] ) : '';
 		}
 		return '';
 	}

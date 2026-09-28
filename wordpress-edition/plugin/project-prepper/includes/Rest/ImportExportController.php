@@ -80,6 +80,20 @@ class ImportExportController extends BaseController {
 		'broken'       => 'broken',
 		'ausgemustert' => 'retired',
 		'retired'      => 'retired',
+		// Betriebszustände (v0.134.0) — vorher wurden sie beim Re-Import zu „gut".
+		'wartung'        => 'maintenance',
+		'in wartung'     => 'maintenance',
+		'reparatur'      => 'maintenance',
+		'in reparatur'   => 'maintenance',
+		'maintenance'    => 'maintenance',
+		'in maintenance' => 'maintenance',
+		'verschollen'    => 'lost',
+		'verloren'       => 'lost',
+		'vermisst'       => 'lost',
+		'fehlt'          => 'lost',
+		'missing'        => 'lost',
+		'lost'           => 'lost',
+		'used'           => 'fair',
 	];
 
 	/**
@@ -97,6 +111,28 @@ class ImportExportController extends BaseController {
 	 */
 	public static function condition_labels(): array {
 		return \ProjectPrepper\Frontend\Shortcodes::condition_labels();
+	}
+
+	/**
+	 * Alle Schreibweisen, die der Import als Zustand versteht (klein geschrieben)
+	 * → interner Schlüssel: feste deutsch/englische Wörter, die internen Schlüssel
+	 * und die Export-Labels in der aktuellen Sprache (so kommt jeder eigene
+	 * Export — egal in welcher Sprache — mit demselben Zustand zurück).
+	 */
+	public static function condition_lookup(): array {
+		$map = self::CONDITION_MAP;
+		foreach ( self::condition_labels() as $key => $label ) {
+			$map[ $key ] = $key;
+			$map[ mb_strtolower( trim( (string) $label ) ) ] = $key;
+		}
+		return $map;
+	}
+
+	/** Zustand aus einer Tabellenzelle → interner Schlüssel, '' wenn unbekannt/leer. */
+	public static function condition_key( string $raw ): string {
+		static $lookup = null;
+		$lookup = $lookup ?? self::condition_lookup();
+		return $lookup[ mb_strtolower( trim( $raw ) ) ] ?? '';
 	}
 
 	public function register_routes(): void {
@@ -182,7 +218,7 @@ class ImportExportController extends BaseController {
 				$category_id = $categories[ $cat_key ];
 			}
 
-			$condition_raw = mb_strtolower( trim( (string) ( $row['condition'] ?? '' ) ) );
+			$condition_raw = (string) ( $row['condition'] ?? '' );
 			$consumable    = self::truthy( $row['is_consumable'] ?? '' );
 
 			try {
@@ -196,7 +232,7 @@ class ImportExportController extends BaseController {
 					'serial_number'    => sanitize_text_field( (string) ( $row['serial_number'] ?? '' ) ),
 					'quantity'         => max( $consumable ? 0 : 1, (int) ( $row['quantity'] ?? 1 ) ),
 					'is_consumable'    => $consumable,
-					'condition'        => self::CONDITION_MAP[ $condition_raw ] ?? 'good',
+					'condition'        => self::condition_key( $condition_raw ) ?: 'good',
 					'location'         => sanitize_text_field( (string) ( $row['location'] ?? '' ) ),
 					'cost_per_day'     => self::num( $row['cost_per_day'] ?? '' ),
 					'purchase_price'   => self::num( $row['purchase_price'] ?? '' ),

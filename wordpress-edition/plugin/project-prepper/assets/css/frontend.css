@@ -1174,6 +1174,42 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-inv-tools > details[open] { flex-basis: 100%; }
 .pp-inv-tools > details[open] > summary { margin-bottom: .5rem; }
 
+/* Inventar-Import: Format direkt am Formular + Spalten-Zuordnung (portal-inventory.js).
+ * Zuordnung und Vorschau sind Auto-Raster (Breite nutzen, kein Scroller), das
+ * Formular verliert seinen 480-px-Deckel, sobald die Zuordnung sichtbar ist. */
+.pp-portal__form.pp-import--mapping { max-width: none; }
+.pp-import__help { font-size: .8rem; color: var(--pp-muted-foreground); }
+.pp-import__help > summary { cursor: pointer; color: var(--pp-primary); font-weight: 500; }
+.pp-import__help p { margin: .4rem 0 0; }
+.pp-import__fields { list-style: none; margin: .35rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
+.pp-import__fields li { padding: .1rem .5rem; border: 1px solid var(--pp-border); border-radius: 999px; background: var(--pp-muted); color: var(--pp-foreground); }
+.pp-import__fields .pp-import__field--req { font-weight: 600; border-color: var(--pp-primary); }
+.pp-import__map { display: flex; flex-direction: column; gap: .5rem; margin-top: .4rem; }
+.pp-import__map[hidden],
+.pp-import__status[hidden] { display: none; }
+.pp-import__intro,
+.pp-import__sub { margin: 0; font-size: .85rem; }
+.pp-import__sub { font-weight: 600; margin-top: .3rem; }
+.pp-import__cols,
+.pp-import__preview { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); gap: 8px; }
+.pp-import__preview { align-items: start; }
+.pp-portal__form .pp-import__col { gap: .3rem; min-width: 0; padding: .5rem .6rem; border: 1px solid var(--pp-border); border-radius: 8px; background: var(--pp-surface); }
+.pp-import__col select { width: 100%; min-width: 0; }
+.pp-import__col--off .pp-import__head { color: var(--pp-muted-foreground); }
+.pp-portal__form .pp-import__col--dup { border-color: var(--pp-destructive); }
+.pp-import__head { font-weight: 600; overflow-wrap: anywhere; }
+.pp-import__sample { font-size: .75rem; font-weight: 400; color: var(--pp-muted-foreground); overflow-wrap: anywhere; }
+.pp-import__card { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: .5rem .6rem; border: 1px solid var(--pp-border); border-radius: 8px; font-size: .8rem; overflow-wrap: anywhere; }
+.pp-import__card-title { font-weight: 600; font-size: .85rem; }
+.pp-import__card--skip .pp-import__card-title { color: var(--pp-destructive); font-weight: 500; }
+.pp-import__kv-label { color: var(--pp-muted-foreground); }
+.pp-import__status { margin: .2rem 0 0; font-size: .85rem; color: var(--pp-muted-foreground); }
+.pp-import__status--err { color: var(--pp-destructive); }
+.pp-import__line { display: block; }
+.pp-import__report-head { margin: 0; font-weight: 600; }
+.pp-import__report { margin: .35rem 0 0 1.1rem; padding: 0; }
+.pp-import__report + .pp-import__report-head { margin-top: .5rem; }
+
 /* Inventar-Suche + Pagination */
 .pp-inv-search { display: flex; gap: 8px; margin-bottom: 14px; max-width: 420px; }
 .pp-inv-search input[type="search"] { flex: 1; }
