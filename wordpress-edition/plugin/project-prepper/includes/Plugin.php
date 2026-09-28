@@ -29,6 +29,8 @@ class Plugin {
 		Email\Mailer::init();
 		Performance::init();
 		Services\Telegram::init();
+		// Verbrauchsmaterial: Bestand nach Rückgabe/Projektabschluss abziehen.
+		Services\ConsumableStock::init();
 		Privacy::init();
 		Security::init();
 		Federation::init();

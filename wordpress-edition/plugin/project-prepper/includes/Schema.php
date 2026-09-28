@@ -113,6 +113,10 @@ class Schema {
 			KEY owner_user_id (owner_user_id)
 		) {$charset};" );
 
+		// is_consumable: Verbrauchsmaterial (Klebeband, Fluid, Batterien …) — der
+		// Bestand sinkt automatisch, sobald eine Ausleihe zurückgegeben bzw. ein
+		// Projekt abgeschlossen ist (Services\ConsumableStock). Additiv via dbDelta,
+		// DEFAULT 0 = alle bestehenden Artikel bleiben normale Geräte.
 		dbDelta( "CREATE TABLE {$items} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			inventory_number varchar(50) NOT NULL,
@@ -124,6 +128,7 @@ class Schema {
 			serial_number varchar(190) NOT NULL DEFAULT '',
 			tags longtext,
 			quantity int(11) NOT NULL DEFAULT 1,
+			is_consumable tinyint(1) NOT NULL DEFAULT 0,
 			item_condition varchar(20) NOT NULL DEFAULT 'good',
 			location varchar(190) NOT NULL DEFAULT '',
 			cost_per_day decimal(10,2) DEFAULT NULL,
@@ -308,6 +313,9 @@ class Schema {
 		// Sets (docs/07) aus dessen Stückliste expandiert. NULL = normale Einzel-
 		// Buchung. Nur für die gruppierte Anzeige; Verfügbarkeit/Freigaben zählen
 		// weiterhin rein über item_id.
+		// consumed_at — Einmal-Marker für Verbrauchsmaterial: gesetzt, sobald der
+		// Bestand für diese Zeile beim Projektabschluss abgezogen wurde. Verhindert
+		// den zweiten Abzug, wenn ein Projekt done → running → done läuft.
 		dbDelta( "CREATE TABLE {$p_items} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			project_id bigint(20) unsigned NOT NULL,
@@ -322,6 +330,7 @@ class Schema {
 			packed_at datetime DEFAULT NULL,
 			tested_at datetime DEFAULT NULL,
 			bundle_item_id bigint(20) unsigned DEFAULT NULL,
+			consumed_at datetime DEFAULT NULL,
 			PRIMARY KEY  (id),
 			KEY project_id (project_id),
 			KEY item_id (item_id),

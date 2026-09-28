@@ -285,7 +285,8 @@ class Rentals {
 			return null;
 		}
 		$rental->items = $wpdb->get_results( $wpdb->prepare(
-			'SELECT ri.*, i.name AS item_name, i.inventory_number, i.owner_user_id AS item_owner_id
+			'SELECT ri.*, i.name AS item_name, i.inventory_number, i.owner_user_id AS item_owner_id,
+			        i.is_consumable AS item_is_consumable
 			 FROM %i ri
 			 LEFT JOIN %i i ON i.id = ri.item_id
 			 WHERE ri.rental_id = %d

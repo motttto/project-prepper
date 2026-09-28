@@ -1706,10 +1706,15 @@ class MemberPortal {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
 		$tags_raw = sanitize_text_field( wp_unslash( (string) ( $_POST['pp_tags'] ?? '' ) ) );
 		$tags     = '' !== $tags_raw ? array_values( array_filter( array_map( 'trim', explode( ',', $tags_raw ) ) ) ) : [];
-		return [
+		// Verbrauchsmaterial darf auf 0 stehen (aufgebraucht), jedes Gerät hat
+		// mindestens ein Stück. Der Haken wird nur übernommen, wenn das Formular
+		// das Feld überhaupt trägt (Marker) — sonst würde ein Formular ohne Haken
+		// ihn stillschweigend entfernen.
+		$consumable = ! empty( $_POST['pp_consumable'] );
+		$data       = [
 			'name'          => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
 			'category_id'   => (int) ( $_POST['pp_category'] ?? 0 ),
-			'quantity'      => max( 1, (int) ( $_POST['pp_quantity'] ?? 1 ) ),
+			'quantity'      => max( $consumable ? 0 : 1, (int) ( $_POST['pp_quantity'] ?? 1 ) ),
 			'condition'     => sanitize_key( wp_unslash( (string) ( $_POST['pp_condition'] ?? 'good' ) ) ),
 			'cost_per_day'  => '' !== ( $_POST['pp_cost'] ?? '' ) ? (float) $_POST['pp_cost'] : '',
 			'manufacturer'  => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_manufacturer'] ?? '' ) ) ),
@@ -1722,7 +1727,11 @@ class MemberPortal {
 			'notes'         => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_notes'] ?? '' ) ) ),
 			'accessories'   => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_accessories'] ?? '' ) ) ),
 		];
+		if ( ! empty( $_POST['pp_consumable_field'] ) ) {
+			$data['is_consumable'] = $consumable;
+		}
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		return $data;
 	}
 
 	/**
@@ -3367,7 +3376,7 @@ class MemberPortal {
 						<div class="pp-inv-row pp-ginv__row pp-inv-row--click" role="button" tabindex="0" data-pp-modal="pp-gitem-<?php echo (int) $group_id; ?>-<?php echo (int) $item->id; ?>" data-pp-searchable>
 							<span class="pp-col pp-col--name">
 								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php else : ?><span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span><?php endif; ?>
-								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <?php if ( $pp_parts ) : ?><span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span> <?php endif; ?><small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
+								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <?php if ( $pp_parts ) : ?><span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span> <?php endif; ?><?php if ( ! empty( $item->is_consumable ) ) : ?><span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Consumable', 'project-prepper' ); ?></span> <?php endif; ?><small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
 							</span>
 							<span class="pp-col pp-col--cat" data-label="<?php esc_attr_e( 'Category', 'project-prepper' ); ?>"><?php echo $item->category_name ? esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) : '—'; ?></span>
 							<span class="pp-col pp-col--owner" data-label="<?php esc_attr_e( 'Owner', 'project-prepper' ); ?>"><?php echo esc_html( $owner_lb ); ?></span>
@@ -3436,6 +3445,9 @@ class MemberPortal {
 											printf( esc_html__( 'Owner: %1$s · %2$d available', 'project-prepper' ), esc_html( $owner_lb ), (int) $pp_avail );
 											?>
 										</p>
+										<?php if ( ! empty( $item->is_consumable ) ) : ?>
+											<p class="pp-portal__hint"><?php esc_html_e( 'Consumable — the borrowed amount is deducted from stock on return.', 'project-prepper' ); ?></p>
+										<?php endif; ?>
 										<?php self::custom_field_list( $pp_cf_map[ (int) $item->id ] ?? [] ); ?>
 										<?php if ( $pp_parts ) : ?>
 											<p class="pp-portal__hint"><?php echo esc_html( Bundles::parts_label( $pp_parts ) ); ?></p>
@@ -3918,6 +3930,21 @@ class MemberPortal {
 												/* translators: %s: owner name of the shared item. */
 												printf( esc_html__( 'by %s', 'project-prepper' ), esc_html( $pp_lo ? $pp_lo->display_name : '—' ) );
 											?></span>
+										<?php endif; ?>
+										<?php
+										// Verbrauchsmaterial: abgezogen wird beim Zurückgeben, und zwar
+										// nur freigegebene Positionen ({@see ConsumableStock}).
+										$pp_cons_note = '';
+										if ( ! empty( $line->item_is_consumable ) ) {
+											if ( in_array( $full->status, [ 'reserved', 'active' ], true ) ) {
+												$pp_cons_note = __( 'Consumable — deducted from stock on return', 'project-prepper' );
+											} elseif ( 'returned' === $full->status && 'approved' === (string) ( $line->approval_status ?? 'approved' ) ) {
+												$pp_cons_note = __( 'Consumable — deducted from stock', 'project-prepper' );
+											}
+										}
+										if ( '' !== $pp_cons_note ) :
+											?>
+											<span class="pp-portal__item-meta"><?php echo esc_html( $pp_cons_note ); ?></span>
 										<?php endif; ?>
 										<?php self::approval_chip( $line ); ?>
 									</span>
@@ -6423,6 +6450,12 @@ class MemberPortal {
 									if ( '' !== trim( (string) $line->notes ) ) {
 										echo ' · ' . esc_html( $line->notes );
 									}
+									// Verbrauchsmaterial geht beim Projektabschluss einmalig vom Bestand ab.
+									if ( ! empty( $line->item_is_consumable ) && 'cancelled' !== (string) $p->status ) {
+										echo ' · ' . esc_html( ! empty( $line->consumed_at )
+											? __( 'Consumable — deducted from stock', 'project-prepper' )
+											: __( 'Consumable — deducted from stock when the project is done', 'project-prepper' ) );
+									}
 									?>
 								</span>
 								<?php if ( $can_book ) : ?>
@@ -6528,6 +6561,10 @@ class MemberPortal {
 											<?php
 											/* translators: 1: quantity, 2: item name. */
 											echo esc_html( sprintf( __( '%1$d× %2$s', 'project-prepper' ), (int) $pp_l->quantity, (string) ( $pp_l->item_name ?: ( '#' . (int) $pp_l->item_id ) ) ) );
+											// Verbrauchs-Teil eines Sets: geht beim Projektabschluss vom Bestand ab.
+											if ( ! empty( $pp_l->item_is_consumable ) ) {
+												echo ' · ' . esc_html__( 'Consumable', 'project-prepper' );
+											}
 											?>
 										</span>
 									<?php endforeach; ?>
@@ -10247,7 +10284,7 @@ class MemberPortal {
 						<div class="pp-inv-row pp-portal__item-head pp-inv-row--click" role="button" tabindex="0" data-pp-modal="pp-item-<?php echo (int) $item->id; ?>" data-pp-searchable>
 							<span class="pp-col pp-col--name">
 								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php else : ?><span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span><?php endif; ?>
-								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <?php if ( $pp_parts ) : ?><span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span> <?php endif; ?><small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php $pp_sub = $pp_parts ? Bundles::parts_label( $pp_parts ) : ( $item->model ?: ( $item->description ?? '' ) ); if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
+								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <?php if ( $pp_parts ) : ?><span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span> <?php endif; ?><?php if ( ! empty( $item->is_consumable ) ) : ?><span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Consumable', 'project-prepper' ); ?></span> <?php endif; ?><small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php $pp_sub = $pp_parts ? Bundles::parts_label( $pp_parts ) : ( $item->model ?: ( $item->description ?? '' ) ); if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
 							</span>
 							<span class="pp-col pp-col--cat" data-label="<?php esc_attr_e( 'Category', 'project-prepper' ); ?>"><?php echo $item->category_name ? esc_html( trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name ) ) : '—'; ?></span>
 							<span class="pp-col pp-col--c" data-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>"><?php echo (int) ( $pp_parts ? $pp_set_total : $item->quantity ); ?></span>
@@ -10793,9 +10830,15 @@ class MemberPortal {
 				</select>
 			</label>
 			<?php endif; ?>
+			<?php // min 0: Verbrauchsmaterial darf aufgebraucht sein; für normale Geräte hebt item_input() auf 1. ?>
 			<label><?php esc_html_e( 'Quantity', 'project-prepper' ); ?>
-				<input type="number" name="pp_quantity" min="1" value="<?php echo (int) $val( 'quantity', 1 ); ?>">
+				<input type="number" name="pp_quantity" min="0" value="<?php echo (int) $val( 'quantity', 1 ); ?>">
 			</label>
+			<?php // Eigener Wrapper: Direkte Label-Kinder des Modal-Formulars sind Spalten mit voller Eingabebreite. ?>
+			<div class="pp-consumable-field">
+				<input type="hidden" name="pp_consumable_field" value="1">
+				<label class="pp-gov__check"><input type="checkbox" name="pp_consumable" value="1" <?php checked( ! empty( $val( 'is_consumable', false ) ) ); ?>> <?php esc_html_e( 'Consumable (stock is reduced after lending)', 'project-prepper' ); ?></label>
+			</div>
 			<label><?php esc_html_e( 'Condition', 'project-prepper' ); ?>
 				<select name="pp_condition">
 					<?php foreach ( $conditions as $key => $label ) : ?>
@@ -11332,6 +11375,8 @@ class MemberPortal {
 				return $conditions[ $c ] ?? $c;
 			case 'category_name':
 				return (string) ( $item->category_name ?? '' );
+			case 'is_consumable':
+				return ! empty( $item->is_consumable ) ? '1' : '0';
 			case 'tags':
 				return implode( ', ', (array) ( $item->tags ?? [] ) );
 			default:
@@ -11391,6 +11436,7 @@ class MemberPortal {
 			'gerätebezeichnung' => 'model',
 			'freifeld'          => 'notes',
 			'pate'              => 'funding_source',
+			'verbrauchsmaterial' => 'is_consumable',
 		];
 		foreach ( $aliases as $head => $key ) {
 			$map[ self::norm_head( $head ) ] = $key;
@@ -11459,6 +11505,8 @@ class MemberPortal {
 		$tags = ( isset( $d['tags'] ) && '' !== $d['tags'] )
 			? array_values( array_filter( array_map( 'trim', explode( ',', $d['tags'] ) ) ) )
 			: [];
+		// Verbrauchsmaterial (Export schreibt 1/0) darf mit Bestand 0 ankommen.
+		$consumable = \ProjectPrepper\Rest\ImportExportController::truthy( $d['is_consumable'] ?? '' );
 		return [
 			'inventory_number' => sanitize_text_field( $d['inventory_number'] ?? '' ),
 			'name'           => sanitize_text_field( $d['name'] ?? '' ),
@@ -11474,7 +11522,8 @@ class MemberPortal {
 			'manual_url'     => esc_url_raw( $d['manual_url'] ?? '' ),
 			'funding_source' => sanitize_text_field( $d['funding_source'] ?? '' ),
 			'category_id'    => $cat_map[ self::norm_head( $d['category_name'] ?? '' ) ] ?? 0,
-			'quantity'       => max( 1, (int) ( $d['quantity'] ?? 1 ) ),
+			'quantity'       => max( $consumable ? 0 : 1, (int) ( $d['quantity'] ?? 1 ) ),
+			'is_consumable'  => $consumable,
 			'condition'      => $cond,
 			'cost_per_day'   => self::num_str( $d['cost_per_day'] ?? '' ),
 			'purchase_price' => self::num_str( $d['purchase_price'] ?? '' ),

@@ -12,7 +12,10 @@ defined( 'ABSPATH' ) || exit;
  * Status-Flow (bewusst einfach gehalten): jeder Wechsel ist erlaubt,
  * AUSSER weg von 'cancelled' — Storno ist der einzige harte Endstatus.
  * 'done' bleibt korrigierbar (z. B. zurück auf 'running'), weil es ohne
- * Abrechnung/Snapshot keine Folgewirkung hat.
+ * Abrechnung/Snapshot keine Folgewirkung hat. Einzige Ausnahme: gebuchtes
+ * Verbrauchsmaterial geht beim ersten 'done' einmalig vom Bestand ab
+ * ({@see ConsumableStock}, Marker project_items.consumed_at) — ein Zurück auf
+ * 'running' bucht es nicht zurück, ein erneutes 'done' zieht nicht doppelt ab.
  *
  * Verfügbarkeit: Buchungen blockieren Inventar nur in confirmed/running
  * (siehe Availability::available_quantity). Der Guard beim Anlegen/Ändern
@@ -417,7 +420,8 @@ class Projects {
 		global $wpdb;
 		return $wpdb->get_results( $wpdb->prepare(
 			'SELECT pi.*, i.name AS item_name, i.inventory_number,
-			        i.description AS item_description, i.item_condition, i.image_id
+			        i.description AS item_description, i.item_condition, i.image_id,
+			        i.is_consumable AS item_is_consumable
 			 FROM %i pi
 			 LEFT JOIN %i i ON i.id = pi.item_id
 			 WHERE pi.project_id = %d

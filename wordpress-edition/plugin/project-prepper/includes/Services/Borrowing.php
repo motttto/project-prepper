@@ -383,17 +383,37 @@ class Borrowing {
 		if ( 'approved' !== $req->status ) {
 			return new WP_Error( 'pp_bad_state', __( 'Only an active loan can be returned.', 'project-prepper' ), [ 'status' => 400 ] );
 		}
-		// Set-Leihe: alle Teile kommen gemeinsam zurück.
+		// Set-Leihe: alle Teile kommen gemeinsam zurück. Bedingt auf „approved":
+		// Nur die Zeilen, die DIESER Aufruf umstellt, zählen — ein Doppelklick
+		// oder eine gleichzeitige Rückmeldung der Gegenseite findet 0 Zeilen und
+		// löst weder Protokoll noch Hook ein zweites Mal aus.
+		$changed = [];
 		foreach ( self::siblings( $req ) as $row ) {
-			$wpdb->update(
+			$ok = $wpdb->update(
 				Schema::table( 'borrow_requests' ),
 				[ 'status' => 'returned' ],
 				[ 'id' => (int) $row->id, 'status' => 'approved' ],
 				[ '%s' ],
 				[ '%d', '%s' ]
 			);
+			if ( 1 === (int) $ok ) {
+				$changed[] = (int) $row->id;
+			}
 		}
+		if ( ! $changed ) {
+			return true; // Schon zurückgegeben — das Ergebnis ist dasselbe.
+		}
+		$ref = (int) ( $req->bundle_ref ?: $request_id );
 		ActivityLog::log( 'borrow_returned', 'item', (int) ( $req->bundle_item_id ?: $req->item_id ), [ 'request_id' => $request_id ] );
+		/**
+		 * Kollektiv-Leihe zurückgegeben (Verbrauchsmaterial abziehen, Mails).
+		 *
+		 * @param int   $ref      Vorgang — bei Sets die klammernde Zeile (bundle_ref),
+		 *                        damit EINE Mail je Set rausgeht.
+		 * @param int   $user_id  Wer die Rückgabe gemeldet hat (Eigentümer oder Leiher).
+		 * @param int[] $changed  Zeilen, die dieser Aufruf auf `returned` gesetzt hat.
+		 */
+		do_action( 'pp_borrow_returned', $ref, $user_id, $changed );
 		return true;
 	}
 

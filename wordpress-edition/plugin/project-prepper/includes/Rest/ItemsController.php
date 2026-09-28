@@ -166,6 +166,10 @@ class ItemsController extends BaseController {
 				$data[ $key ] = '' === $json[ $key ] ? '' : (float) $json[ $key ];
 			}
 		}
+		if ( array_key_exists( 'is_consumable', $json ) ) {
+			// Verbrauchsmaterial: Bestand sinkt nach Rückgabe/Projektabschluss.
+			$data['is_consumable'] = rest_sanitize_boolean( $json['is_consumable'] );
+		}
 		if ( array_key_exists( 'tags', $json ) ) {
 			$data['tags'] = array_values( array_filter( array_map( 'sanitize_text_field', (array) $json['tags'] ) ) );
 		}

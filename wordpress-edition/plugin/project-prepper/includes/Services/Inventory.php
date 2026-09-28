@@ -360,6 +360,10 @@ class Inventory {
 			? $data['inventory_number']
 			: Numbering::next_inventory_number( $category_id );
 
+		// Verbrauchsmaterial darf leer sein (Bestand 0 = aufgebraucht), jedes
+		// andere Gerät hat mindestens ein Stück.
+		$consumable = ! empty( $data['is_consumable'] );
+
 		$now    = current_time( 'mysql' );
 		$result = $wpdb->insert( Schema::table( 'items' ), [
 			'inventory_number' => $number,
@@ -370,7 +374,8 @@ class Inventory {
 			'model'            => $data['model'] ?? '',
 			'serial_number'    => $data['serial_number'] ?? '',
 			'tags'             => wp_json_encode( $data['tags'] ?? [] ),
-			'quantity'         => max( 1, (int) ( $data['quantity'] ?? 1 ) ),
+			'quantity'         => max( $consumable ? 0 : 1, (int) ( $data['quantity'] ?? 1 ) ),
+			'is_consumable'    => $consumable ? 1 : 0,
 			'item_condition'   => in_array( $data['condition'] ?? '', self::CONDITIONS, true ) ? $data['condition'] : 'good',
 			'location'         => $data['location'] ?? '',
 			'cost_per_day'     => self::dec( $data, 'cost_per_day' ),
@@ -448,6 +453,10 @@ class Inventory {
 		if ( array_key_exists( 'condition', $data ) && in_array( $data['condition'], self::CONDITIONS, true ) ) {
 			$fields['item_condition'] = $data['condition'];
 			$formats[]                = '%s';
+		}
+		if ( array_key_exists( 'is_consumable', $data ) ) {
+			$fields['is_consumable'] = ! empty( $data['is_consumable'] ) ? 1 : 0;
+			$formats[]               = '%d';
 		}
 		if ( array_key_exists( 'ownership_type', $data ) && in_array( $data['ownership_type'], self::OWNERSHIP_TYPES, true ) ) {
 			$fields['ownership_type'] = $data['ownership_type'];
@@ -704,6 +713,7 @@ class Inventory {
 
 	private static function decode_item( object $row ): object {
 		$row->out_now      = isset( $row->out_now ) ? (int) $row->out_now : 0;
+		$row->is_consumable = ! empty( $row->is_consumable );
 		$row->tags         = json_decode( $row->tags ?? '[]' ) ?: [];
 		$row->document_ids = json_decode( $row->document_ids ?? '[]' ) ?: [];
 		$row->condition    = $row->item_condition;

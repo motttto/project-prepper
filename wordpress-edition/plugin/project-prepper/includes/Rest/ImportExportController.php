@@ -12,14 +12,14 @@ defined( 'ABSPATH' ) || exit;
 /**
  * Excel-/CSV-Import & -Export (§8.6).
  *
- * Export: CSV (Semikolon + BOM → öffnet sauber im deutschen Excel), 19 Spalten.
+ * Export: CSV (Semikolon + BOM → öffnet sauber im deutschen Excel), 20 Spalten.
  * Import: Das Admin-UI parst die Datei client-seitig und schickt gemappte Zeilen
  * als JSON-Batch; Antwort enthält eine Fehlerliste pro Zeile.
  */
 class ImportExportController extends BaseController {
 
 	/**
-	 * Export-Spaltenköpfe (19 Spalten) — Methode statt const, damit __() greift.
+	 * Export-Spaltenköpfe (20 Spalten) — Methode statt const, damit __() greift.
 	 * de_DE liefert weiterhin die bisherigen deutschen Excel-Header.
 	 */
 	/**
@@ -47,6 +47,7 @@ class ImportExportController extends BaseController {
 			'model'            => __( 'Model', 'project-prepper' ),
 			'serial_number'    => __( 'Serial number', 'project-prepper' ),
 			'quantity'         => __( 'Quantity', 'project-prepper' ),
+			'is_consumable'    => __( 'Consumable', 'project-prepper' ),
 			'condition'        => __( 'Condition', 'project-prepper' ),
 			'location'         => __( 'Location', 'project-prepper' ),
 			'cost_per_day'     => __( 'Daily rate', 'project-prepper' ),
@@ -80,6 +81,15 @@ class ImportExportController extends BaseController {
 		'ausgemustert' => 'retired',
 		'retired'      => 'retired',
 	];
+
+	/**
+	 * Ja/Nein-Zelle aus einer Import-Datei lesen (Spalte „Verbrauchsmaterial"):
+	 * Der Export schreibt 1/0, von Hand gepflegte Tabellen tragen oft „ja" oder
+	 * ein Kreuz. Alles andere — auch leer — gilt als nein.
+	 */
+	public static function truthy( $value ): bool {
+		return in_array( mb_strtolower( trim( (string) $value ) ), [ '1', 'x', 'yes', 'y', 'ja', 'j', 'true', 'wahr' ], true );
+	}
 
 	/**
 	 * Zustands-Labels für den Export — Methode statt const, damit __() greift.
@@ -124,6 +134,8 @@ class ImportExportController extends BaseController {
 			foreach ( array_keys( $columns ) as $key ) {
 				if ( 'condition' === $key ) {
 					$row[] = $condition_labels[ $item->condition ] ?? $item->condition;
+				} elseif ( 'is_consumable' === $key ) {
+					$row[] = ! empty( $item->is_consumable ) ? '1' : '0';
 				} elseif ( 'tags' === $key ) {
 					$row[] = implode( ', ', (array) $item->tags );
 				} else {
@@ -171,6 +183,7 @@ class ImportExportController extends BaseController {
 			}
 
 			$condition_raw = mb_strtolower( trim( (string) ( $row['condition'] ?? '' ) ) );
+			$consumable    = self::truthy( $row['is_consumable'] ?? '' );
 
 			try {
 				$item_id = Inventory::create_item( [
@@ -181,7 +194,8 @@ class ImportExportController extends BaseController {
 					'manufacturer'     => sanitize_text_field( (string) ( $row['manufacturer'] ?? '' ) ),
 					'model'            => sanitize_text_field( (string) ( $row['model'] ?? '' ) ),
 					'serial_number'    => sanitize_text_field( (string) ( $row['serial_number'] ?? '' ) ),
-					'quantity'         => max( 1, (int) ( $row['quantity'] ?? 1 ) ),
+					'quantity'         => max( $consumable ? 0 : 1, (int) ( $row['quantity'] ?? 1 ) ),
+					'is_consumable'    => $consumable,
 					'condition'        => self::CONDITION_MAP[ $condition_raw ] ?? 'good',
 					'location'         => sanitize_text_field( (string) ( $row['location'] ?? '' ) ),
 					'cost_per_day'     => self::num( $row['cost_per_day'] ?? '' ),

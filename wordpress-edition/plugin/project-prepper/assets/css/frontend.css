@@ -3215,6 +3215,13 @@ label.pp-swatch--auto,
 	background: var(--pp-primary-light); color: var(--pp-primary-hover);
 }
 
+/* Verbrauchsmaterial-Haken im Artikel-Formular: eigener Wrapper (kein direktes
+ * Label-Kind, sonst Spalten-Label mit voller Eingabebreite). Im Modal-Raster
+ * unten bündig mit den Eingabefeldern daneben — nur dort, im Flex-Formular
+ * „Artikel anlegen" schöbe align-self ihn nach rechts. */
+.pp-consumable-field { display: flex; align-items: center; min-height: 2.25rem; font-size: .82rem; }
+.pp-modal-body > .pp-portal__form > .pp-consumable-field { align-self: end; }
+
 /* Equipment-Tab: gebuchtes Set als Gruppe — Teil-Zeilen unter dem Kopf. */
 .pp-bundle-group { flex-wrap: wrap; }
 .pp-bundle-group__parts {

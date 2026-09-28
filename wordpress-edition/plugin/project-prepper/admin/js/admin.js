@@ -1646,6 +1646,7 @@
 			consumable_created: __("added a consumable", "project-prepper"),
 			consumable_updated: __("updated a consumable", "project-prepper"),
 			consumable_deleted: __("deleted a consumable", "project-prepper"),
+			consumable_used: __("reduced consumable stock", "project-prepper"),
 			contact_created: __("added a contact", "project-prepper"),
 			contact_updated: __("updated a contact", "project-prepper"),
 			contact_deleted: __("deleted a contact", "project-prepper"),
