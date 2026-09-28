@@ -252,20 +252,27 @@ class Inventory {
 		// Subquery-JOIN — kein N+1. Dazu gesperrte Exemplare (0.45.0): sie fehlen
 		// im Regal genauso und stehen ebenfalls in available_quantity().
 		// Platzhalter-Reihenfolge folgt dem SQL von oben nach unten.
-		$params = array_merge(
+		// Gesperrte Zustände als %s-Platzhalter (wie Units::blocked_count), nicht
+		// als eingesetzte Werte — sonst ERROR im Plugin Check.
+		$blocked_in = implode( ',', array_fill( 0, count( self::BLOCKED_CONDITIONS ), '%s' ) );
+		$params     = array_merge(
 			[ Schema::table( 'units' ) ],                 // SELECT: blocked_units
+			self::BLOCKED_CONDITIONS,                     // … IN (gesperrte Zustände)
 			[ $items, $cats ],                            // FROM %i i, LEFT JOIN %i c
 			[ $lines, $rentals, $out_to, $out_from ],         // Verleih-Zweig der UNION
 			[ $p_items, $projs, $out_to, $out_from ],         // Projekt-Zweig der UNION
 			[ $borrows, $out_to, $out_from ],                 // Kollektiv-Leih-Zweig
 			[ $fed_in, $out_to, $out_from ],                  // Föderierter Leih-Zweig
 			[ Schema::table( 'units' ) ],                     // Gesperrte Exemplare
+			self::BLOCKED_CONDITIONS,                     // … IN (gesperrte Zustände)
 			$where_params                                 // WHERE
 		);
 		$sql = $wpdb->prepare(
-			"SELECT i.*, c.name AS category_name, c.icon AS category_icon,
+			'SELECT i.*, c.name AS category_name, c.icon AS category_icon,
 					COALESCE(o.out_now, 0) AS out_now,
-					(SELECT COUNT(*) FROM %i bu WHERE bu.item_id = i.id AND bu.unit_condition IN ('" . implode( "','", self::BLOCKED_CONDITIONS ) . "')) AS blocked_units
+					(SELECT COUNT(*) FROM %i bu WHERE bu.item_id = i.id AND bu.unit_condition IN (' .
+					$blocked_in . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- nur %s-Platzhalter.
+					")) AS blocked_units
 				FROM %i i
 				LEFT JOIN %i c ON c.id = i.category_id
 				LEFT JOIN (
@@ -296,11 +303,13 @@ class Inventory {
 						UNION ALL
 						SELECT un.item_id, 1
 						FROM %i un
-						WHERE un.unit_condition IN ('" . implode( "','", self::BLOCKED_CONDITIONS ) . "')
+						WHERE un.unit_condition IN (" .
+						$blocked_in . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- nur %s-Platzhalter.
+						')
 					) u
 					GROUP BY u.item_id
 				) o ON o.item_id = i.id
-				WHERE " . implode( ' AND ', $where ) . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- WHERE-Bedingungen sind statische Strings mit Platzhaltern.
+				WHERE ' . implode( ' AND ', $where ) . // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- WHERE-Bedingungen sind statische Strings mit Platzhaltern.
 				' ORDER BY i.inventory_number ASC',
 			$params
 		);

@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.146.0
+Stable tag: 0.147.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,30 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.147.0 =
+* Member feedback in the backend: every entry can be marked as done (or reopened), statuses are shown translated and done entries are dimmed. The CSV download now contains only open feedback; a second link downloads everything including done entries.
+* Collective inventory: click an item to open it — photos, all details (description, accessories, notes, custom fields, documents), its individual pieces and the sharing terms of this collective (daily rate, approval, conditions). When sharing, owners can tick "Members may edit details": members of that collective can then change description, notes, photos and quantity, while price, category, sharing and deleting stay with the owner.
+* "Add item" opens as a popup and is available in the collective inventory too — sharing with that collective is pre-ticked there. Notes and accessories can now be edited in the item form.
+* Several photos per item (up to 12) with a selectable cover photo, shown as a gallery in the item popup and on the public item page. Removed photos and the photos of deleted items are also removed from the media library.
+* Workspaces: with fewer than five workspaces they appear as coloured buttons in the sidebar instead of a dropdown. Every collective has its own colour, chosen by the founder under Collective → Settings (or "Automatic").
+* Inventory import (CSV/Excel): the expected format is explained right at the form. After choosing a file you assign each column to a field yourself, with a preview of the first rows and warnings about unknown conditions or unreadable dates. Comma-separated CSV works too, and after the import a report lists the skipped rows and why they were skipped.
+* Consumables: any item can be marked as a consumable. Its stock goes down automatically when an external rental or a loan within a collective is returned, or when a project is marked done — exactly once per booking.
+* Hand-over emails: when equipment is handed out or returned, the members involved get an email with each other's contact details — owner and borrower of a loan within a collective, and the owners of the equipment plus whoever set up an external rental. Members can add a phone number to their profile for this. Operators can switch it off under Settings → Lending ("Notify owners about hand-out and return").
+* Personal projects: projects can now be created in your own workspace as well; they book equipment from your own inventory. Below them, "From my collectives" lists the projects of all your collectives — one click switches to that workspace. Personal projects also show up on the dashboard, in the calendar, in the iCal subscription and under "My costs".
+* Project creators: collective projects show who created them. Only the creator and the co-editors they choose can change a project; all other members see it read-only but can still vote, take part in polls, answer tasks assigned to them and tick off packing lists and checklists. A project without an active creator can be taken over by any member.
+* Individual pieces: items can list their single pieces with name, serial number, condition and note. Specific pieces can be picked and reserved in an external rental and in a project booking; a piece marked broken, in maintenance or lost reduces the available quantity.
+* Set templates ("system bundles", e.g. bubble machine, haze and euro crate): packing lists of a collective or of your own workspace that are booked into a project in one go — you pick the actual device per line, even from different members; devices of other members go through their approval as usual.
+* Security and data integrity (result of a logic audit of this release):
+* — The WordPress media endpoint (/wp/v2/media) now requires the right to upload files — item photos, receipts and project files could otherwise be listed anonymously.
+* — "Members may edit details" only applies while the owner of the item is still a member of that collective.
+* — When a collective is dissolved, a project only moves to its creator if they are still a member; otherwise it goes to the site level as before.
+* — The GDPR data export only contains projects the member may see today, and it now includes retired items, pieces, the consumable flag and personal set templates. Hand-over emails to members no longer contain the external borrower's email address and phone number.
+* — Consumables count independently of dates (every open booking uses up stock), and project lines already deducted no longer count anywhere.
+* — Confirming, moving or finishing a project runs inside the booking lock, so it cannot race a simultaneous booking. Picked pieces are checked again when the dates change; a piece can no longer be picked in two lines, and no more pieces can be picked than the quantity.
+* — Item photos belong to the owner of the item, deleting a photo lets the next one move up, and only photos uploaded by the plugin are ever deleted from the media library. Items booked in draft or planned projects can no longer be deleted.
+* — Photos that are too large are reported (and caught in the browser already) instead of the whole form being discarded, a double-click on "Book template" no longer books twice, and saving an unchanged form within the same second is no longer reported as a conflict.
+* Note: this update changes the database (schema 0.44.0 → 0.45.0): three new tables (item photos, set templates and their lines) and new columns for collective colours, individual pieces, consumables, picked pieces, personal projects and co-editors. Everything is added automatically, no existing data is changed. In addition, a one-time run fills in the creator of existing projects from the activity log where this is unambiguous; projects it cannot assign show "Creator unknown" and can be taken over by any member.
 
 = 0.146.0 =
 * Custom item fields: every member can add a field to the item form — label and value in the same step. The field definition is site-wide, so from then on it shows up for everyone, and the value belongs to the item and is visible to everyone who can see that item (including the borrow request in the collective inventory and the GDPR export). An existing label is reused instead of duplicated, 40 fields at most. Only the operator can rename or delete a field, under Settings → Custom fields.
