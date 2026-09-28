@@ -379,6 +379,31 @@ class Groups {
 	}
 
 	/**
+	 * Mitgliederzahl mehrerer Gruppen in EINER Abfrage (Dashboard-Kachel).
+	 *
+	 * @param array<int> $group_ids
+	 * @return array<int,int> group_id => Anzahl.
+	 */
+	public static function member_counts( array $group_ids ): array {
+		global $wpdb;
+		$group_ids = array_values( array_unique( array_filter( array_map( 'intval', $group_ids ) ) ) );
+		if ( ! $group_ids ) {
+			return [];
+		}
+		$place = implode( ',', array_fill( 0, count( $group_ids ), '%d' ) );
+		// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Platzhalter werden oben dynamisch erzeugt.
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT group_id, COUNT(*) AS n FROM %i WHERE group_id IN ($place) GROUP BY group_id", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- nur Platzhalter.
+			array_merge( [ Schema::table( 'group_members' ) ], $group_ids )
+		) ) ?: [];
+		$out = [];
+		foreach ( $rows as $r ) {
+			$out[ (int) $r->group_id ] = (int) $r->n;
+		}
+		return $out;
+	}
+
+	/**
 	 * Farben aller Arbeitsbereiche EINES Users, ohne Doppelungen (Audit FLOW-14):
 	 * gewählte Farben zuerst, automatische weichen bei einer Kollision auf die
 	 * nächste noch freie Palettenfarbe aus. Stabil, solange sich die Gruppen des

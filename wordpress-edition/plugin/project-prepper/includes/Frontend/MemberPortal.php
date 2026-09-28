@@ -3105,11 +3105,18 @@ class MemberPortal {
 			</section>
 		<?php endif; ?>
 
+		<?php
+		// Unterer Bereich (User-Wunsch 09/2026): „Deine Gruppen" und „Mein Profil"
+		// als zwei gleichartige Kacheln nebeneinander, jede so hoch wie ihr Inhalt —
+		// vorher hing die kleine Gruppen-Kachel verloren in einer breiten Spalte.
+		$pp_ws_colors  = Groups::workspace_colors( $groups );
+		$pp_member_cnt = Groups::member_counts( array_map( static fn( $g ) => (int) $g->id, $groups ) );
+		$prof_avatar   = self::avatar_url( (int) $user->ID, 'thumbnail' );
+		?>
 		<div class="pp-dash-cols">
-		<section class="pp-app__section">
-			<div class="pp-app__section-head">
-				<h2 class="pp-portal__subtitle">
-					<?php esc_html_e( 'Your collectives', 'project-prepper' ); ?>
+			<section class="pp-dash-card">
+				<div class="pp-dash-card__head">
+					<h2 class="pp-dash-card__title"><?php esc_html_e( 'Your collectives', 'project-prepper' ); ?></h2>
 					<?php if ( $members_online > 0 ) : ?>
 						<span class="pp-portal__online-count">
 							<span class="pp-portal__online-dot" aria-hidden="true"></span>
@@ -3119,83 +3126,93 @@ class MemberPortal {
 							?>
 						</span>
 					<?php endif; ?>
-				</h2>
-				<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::view_url( 'collectives' ) ); ?>"><?php esc_html_e( 'Manage', 'project-prepper' ); ?></a>
-			</div>
-			<?php if ( $groups ) : ?>
-				<ul class="pp-portal__groups pp-portal__groups--grid">
-					<?php foreach ( $groups as $g ) : ?>
-						<li><a class="pp-portal__group" href="<?php echo esc_url( add_query_arg( [ 'pp_view' => 'collectives', 'pp_group' => (int) $g->id ], self::portal_url() ) ); ?>">
-							<span class="pp-portal__group-name"><?php echo esc_html( $g->name ); ?></span>
-							<?php if ( 'founder' === $g->member_role ) : ?>
-								<span class="pp-portal__tag"><?php esc_html_e( 'Founder', 'project-prepper' ); ?></span>
-							<?php else : ?>
-								<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Member', 'project-prepper' ); ?></span>
-							<?php endif; ?>
-						</a></li>
-					<?php endforeach; ?>
-				</ul>
-			<?php else : ?>
-				<p class="pp-portal__empty"><?php esc_html_e( 'You are not part of any collective yet. Go to “My collectives” to found one or accept an invitation.', 'project-prepper' ); ?></p>
-			<?php endif; ?>
-		</section>
+					<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-dash-card__action" href="<?php echo esc_url( self::view_url( 'collectives' ) ); ?>"><?php esc_html_e( 'Manage', 'project-prepper' ); ?></a>
+				</div>
+				<?php if ( $groups ) : ?>
+					<ul class="pp-dash-groups">
+						<?php foreach ( $groups as $g ) :
+							$pp_cnt = (int) ( $pp_member_cnt[ (int) $g->id ] ?? 0 );
+							?>
+							<li>
+								<a class="pp-dash-groups__row" href="<?php echo esc_url( add_query_arg( [ 'pp_view' => 'collectives', 'pp_group' => (int) $g->id ], self::portal_url() ) ); ?>">
+									<span class="pp-app__ws-dot" style="--pp-ws-color:<?php echo esc_attr( $pp_ws_colors[ (int) $g->id ] ?? Groups::workspace_color( $g ) ); ?>" aria-hidden="true"></span>
+									<span class="pp-dash-groups__name"><?php echo esc_html( $g->name ); ?></span>
+									<span class="pp-dash-groups__meta">
+										<?php
+										/* translators: %d: number of members in the collective. */
+										echo esc_html( sprintf( _n( '%d member', '%d members', $pp_cnt, 'project-prepper' ), $pp_cnt ) );
+										?>
+									</span>
+									<?php if ( 'founder' === $g->member_role ) : ?>
+										<span class="pp-portal__tag"><?php esc_html_e( 'Founder', 'project-prepper' ); ?></span>
+									<?php else : ?>
+										<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'Member', 'project-prepper' ); ?></span>
+									<?php endif; ?>
+								</a>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+				<?php else : ?>
+					<p class="pp-portal__empty"><?php esc_html_e( 'You are not part of any collective yet. Go to “My collectives” to found one or accept an invitation.', 'project-prepper' ); ?></p>
+				<?php endif; ?>
+			</section>
 
-		<section class="pp-app__section">
-			<div class="pp-app__section-head">
-				<h2 class="pp-portal__subtitle"><?php esc_html_e( 'My profile', 'project-prepper' ); ?></h2>
-			</div>
-			<?php $prof_avatar = self::avatar_url( (int) $user->ID, 'thumbnail' ); ?>
-			<div class="pp-profile pp-profile--compact">
-				<span class="pp-profile__avatar">
-					<?php if ( $prof_avatar ) : ?>
-						<img src="<?php echo esc_url( $prof_avatar ); ?>" alt="">
-					<?php else : ?>
-						<?php echo esc_html( self::initials( $user->display_name ) ); ?>
-					<?php endif; ?>
-				</span>
-				<div class="pp-profile__forms">
-					<form class="pp-portal__form pp-portal__form--inline" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<section class="pp-dash-card">
+				<div class="pp-dash-card__head">
+					<h2 class="pp-dash-card__title"><?php esc_html_e( 'My profile', 'project-prepper' ); ?></h2>
+				</div>
+				<div class="pp-dash-profile">
+					<div class="pp-dash-profile__who">
+						<span class="pp-profile__avatar">
+							<?php if ( $prof_avatar ) : ?>
+								<img src="<?php echo esc_url( $prof_avatar ); ?>" alt="">
+							<?php else : ?>
+								<?php echo esc_html( self::initials( $user->display_name ) ); ?>
+							<?php endif; ?>
+						</span>
+						<span class="pp-dash-profile__id">
+							<span class="pp-dash-profile__name"><?php echo esc_html( $user->display_name ); ?></span>
+							<span class="pp-dash-profile__mail"><?php echo esc_html( $user->user_email ); ?></span>
+						</span>
+					</div>
+					<form class="pp-portal__form pp-dash-profile__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 						<?php self::action_fields( 'profile_save' ); ?>
-						<label class="pp-profile__name-label"><?php esc_html_e( 'Display name', 'project-prepper' ); ?>
+						<label><?php esc_html_e( 'Display name', 'project-prepper' ); ?>
 							<input type="text" name="pp_name" value="<?php echo esc_attr( $user->display_name ); ?>" required>
 						</label>
-						<label class="pp-profile__name-label"><?php esc_html_e( 'Phone (optional)', 'project-prepper' ); ?>
+						<label><?php esc_html_e( 'Phone (optional)', 'project-prepper' ); ?>
 							<input type="tel" name="pp_phone" maxlength="<?php echo (int) \ProjectPrepper\Users::PHONE_MAX_LEN; ?>" autocomplete="tel" value="<?php echo esc_attr( \ProjectPrepper\Users::phone( (int) $user->ID ) ); ?>">
 						</label>
-						<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+						<p class="pp-portal__hint pp-dash-profile__hint"><?php esc_html_e( 'Your phone number is only shared by email with the members involved when equipment is handed out or returned, so you can arrange the hand-over.', 'project-prepper' ); ?></p>
+						<button type="submit" class="pp-portal__btn pp-portal__btn--sm pp-dash-profile__save"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
 					</form>
-					<p class="pp-portal__hint"><?php esc_html_e( 'Your phone number is only shared by email with the members involved when equipment is handed out or returned, so you can arrange the hand-over.', 'project-prepper' ); ?></p>
-					<details class="pp-portal__edit">
-						<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Profile photo', 'project-prepper' ); ?></summary>
-						<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-							<input type="hidden" name="action" value="pp_member_avatar">
-							<?php wp_nonce_field( 'pp_member_avatar', 'pp_nonce' ); ?>
-							<label><?php esc_html_e( 'Image file', 'project-prepper' ); ?>
-								<input type="file" name="pp_avatar" accept="image/*" required>
-							</label>
-							<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save photo', 'project-prepper' ); ?></button>
-						</form>
-						<?php if ( $prof_avatar ) : ?>
-							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:.4rem;">
+					<div class="pp-dash-profile__more">
+						<details class="pp-portal__edit">
+							<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Profile photo', 'project-prepper' ); ?></summary>
+							<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 								<input type="hidden" name="action" value="pp_member_avatar">
 								<?php wp_nonce_field( 'pp_member_avatar', 'pp_nonce' ); ?>
-								<input type="hidden" name="pp_remove" value="1">
-								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Remove photo', 'project-prepper' ); ?></button>
+								<label><?php esc_html_e( 'Image file', 'project-prepper' ); ?>
+									<input type="file" name="pp_avatar" accept="image/*" required>
+								</label>
+								<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save photo', 'project-prepper' ); ?></button>
 							</form>
-						<?php endif; ?>
-					</details>
+							<?php if ( $prof_avatar ) : ?>
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" style="margin-top:.4rem;">
+									<input type="hidden" name="action" value="pp_member_avatar">
+									<?php wp_nonce_field( 'pp_member_avatar', 'pp_nonce' ); ?>
+									<input type="hidden" name="pp_remove" value="1">
+									<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Remove photo', 'project-prepper' ); ?></button>
+								</form>
+							<?php endif; ?>
+						</details>
+						<?php // Konto & Daten gehört zum Profil — vorher ein eigener Abschnitt unter den Spalten. ?>
+						<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=pp_member_data' ), 'pp_member_data', 'pp_nonce' ) ); ?>"><?php esc_html_e( 'Download my data (JSON)', 'project-prepper' ); ?></a>
+					</div>
+					<p class="pp-portal__hint pp-dash-profile__gdpr"><?php esc_html_e( 'Download a copy of the data this platform holds about you — your profile, inventory, collectives and borrow records (GDPR Art. 15/20).', 'project-prepper' ); ?></p>
 				</div>
-			</div>
-		</section>
+			</section>
 		</div>
-
-		<section class="pp-app__section pp-dash-account">
-			<div class="pp-app__section-head">
-				<h2 class="pp-portal__subtitle"><?php esc_html_e( 'Account & data', 'project-prepper' ); ?></h2>
-			</div>
-			<p class="pp-app__page-sub"><?php esc_html_e( 'Download a copy of the data this platform holds about you — your profile, inventory, collectives and borrow records (GDPR Art. 15/20).', 'project-prepper' ); ?></p>
-			<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=pp_member_data' ), 'pp_member_data', 'pp_nonce' ) ); ?>"><?php esc_html_e( 'Download my data (JSON)', 'project-prepper' ); ?></a>
-		</section>
 		<?php
 	}
 

@@ -3493,24 +3493,40 @@ label.pp-swatch--auto,
 .pp-qa__tile:hover { border-color: var(--pp-primary); color: var(--pp-primary); }
 .pp-qa__icon { width: 24px; height: 24px; border-radius: 6px; background: var(--pp-primary-light); color: var(--pp-primary-hover); display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .pp-qa__icon svg { width: 14px; height: 14px; }
-/* Untere Hälfte: Gruppen links (breit), Profil rechts (schmal); unter 900px gestapelt. */
-.pp-dash-cols { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 18px; align-items: start; }
-@media (max-width: 899px) { .pp-dash-cols { grid-template-columns: 1fr; } }
-.pp-dash-cols > .pp-app__section { margin-bottom: 0; }
-.pp-portal__groups--grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
-.pp-portal__groups--grid .pp-portal__group { flex-direction: column; align-items: flex-start; gap: .3rem; padding: .6rem .75rem; text-decoration: none; color: inherit; }
-.pp-portal__groups--grid .pp-portal__group:hover { border-color: var(--pp-primary); }
-.pp-portal__groups--grid .pp-portal__group-name { font-size: .9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-/* Profil kompakt: Avatar + Name in einer Zeile, Formulare ohne 480px-Deckel. */
-.pp-profile--compact { background: var(--pp-surface); border: 1px solid var(--pp-border); border-radius: 12px; padding: .8rem .9rem; align-items: center; }
-.pp-profile--compact .pp-profile__avatar { width: 44px; height: 44px; font-size: .85rem; }
-.pp-profile--compact .pp-portal__form { max-width: none; }
-.pp-profile--compact .pp-portal__form--inline { margin-top: 0; padding: 0; border: 0; background: none; }
-/* Name + Telefon + Speichern: auf schmalen Breiten umbrechen statt überlaufen. */
-.pp-profile--compact .pp-portal__form--inline { flex-wrap: wrap; align-items: flex-end; }
-.pp-profile--compact .pp-profile__name-label { flex: 1 1 140px; font-size: .8rem; color: var(--pp-muted-foreground); }
-.pp-profile--compact .pp-profile__name-label input { width: 100%; margin-top: .2rem; }
-.pp-dash-account { margin-top: 18px; }
+/* Untere Hälfte (v0.148.0, User-Wunsch): „Deine Gruppen" und „Mein Profil" als
+ * zwei gleichartige Kacheln — gleich breit und gleich hoch (die längere gibt die
+ * Höhe vor, die Gruppenliste wächst mit ihren Einträgen); auf schmalen Breiten
+ * untereinander (Auto-Raster). */
+.pp-dash-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 18px; align-items: stretch; }
+.pp-dash-card { background: var(--pp-surface); border: 1px solid var(--pp-border); border-radius: var(--pp-radius); padding: 14px 16px; box-shadow: var(--pp-shadow); min-width: 0; }
+.pp-dash-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: .4rem .75rem; margin-bottom: .6rem; }
+.pp-dash-card__title { margin: 0; font-size: 1rem; font-weight: 600; color: var(--pp-foreground); }
+.pp-dash-card__action { margin-left: auto; }
+
+/* Gruppen als Liste: Farbpunkt wie im Umschalter, Name, Mitgliederzahl, Rolle. */
+.pp-dash-groups { list-style: none; margin: 0; padding: 0; }
+.pp-dash-groups li + li { border-top: 1px solid var(--pp-border); }
+.pp-dash-groups__row { display: flex; align-items: center; gap: .6rem; padding: .55rem .35rem; border-radius: 8px; text-decoration: none; color: inherit; }
+.pp-dash-groups__row:hover { background: var(--pp-muted); }
+.pp-dash-groups__name { flex: 1 1 auto; min-width: 0; font-weight: 600; overflow-wrap: anywhere; }
+.pp-dash-groups__meta { font-size: .8rem; color: var(--pp-muted-foreground); white-space: nowrap; }
+
+/* Profil: Avatar + Name/E-Mail oben, Felder im Auto-Raster, Foto + Datenexport
+ * als Fußzeile der Kachel. */
+.pp-dash-profile { display: flex; flex-direction: column; gap: .8rem; }
+.pp-dash-profile__who { display: flex; align-items: center; gap: .75rem; }
+.pp-dash-profile__id { display: flex; flex-direction: column; min-width: 0; }
+.pp-dash-profile__name { font-weight: 600; color: var(--pp-foreground); }
+.pp-dash-profile__mail { font-size: .8rem; color: var(--pp-muted-foreground); overflow-wrap: anywhere; }
+.pp-portal__form.pp-dash-profile__form { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: .6rem .75rem; max-width: none; margin: 0; padding: 0; border: 0; background: none; }
+/* Foto-Upload im aufgeklappten „Profilfoto": ohne eigenen Rahmen in der Kachel. */
+.pp-dash-profile__more .pp-portal__form { border: 0; background: none; padding: .5rem 0 0; }
+.pp-dash-profile__form > .pp-dash-profile__hint,
+.pp-dash-profile__form > .pp-dash-profile__save { grid-column: 1 / -1; margin: 0; }
+.pp-dash-profile__form > .pp-dash-profile__save { justify-self: start; }
+.pp-dash-profile__more { display: flex; flex-wrap: wrap; align-items: flex-start; gap: .5rem; border-top: 1px solid var(--pp-border); padding-top: .75rem; }
+.pp-dash-profile__more .pp-portal__edit { margin: 0; }
+.pp-dash-profile__gdpr { margin: -.35rem 0 0; font-size: .75rem; }
 
 /* ==========================================================================
    Listen-Baukasten .pp-list (v0.144.0): EINE Zeilen-/Zellen-Grammatik für alle
@@ -3565,6 +3581,16 @@ label.pp-swatch--auto,
 .pp-inv-row--click:hover, .pp-ginv__row:hover { background: var(--pp-muted); }
 .pp-portal__item--row:last-child, .pp-ginv__row:last-child { border-bottom: 0; }
 .pp-inv-list, .pp-ginv { border: 1px solid var(--pp-border); border-radius: 10px; overflow: hidden; background: var(--pp-surface); }
+
+/* Verleih-Formular im Vollbild (v0.148.0, User-Wunsch): Hintergrund leicht
+ * eingegraut, damit sich die weißen Eingabefelder und die Artikel-Liste davon
+ * abheben; Kopf- und Fußleiste bleiben hell. Nur Tokens → Dark Mode ohne
+ * Sonderregel. */
+.pp-modal--full .pp-modal-body { background: var(--pp-muted); }
+.pp-modal--full .pp-portal__rental-items { background: var(--pp-surface); }
+.pp-modal--full .pp-rental-form input:not([type="checkbox"]):not([type="radio"]),
+.pp-modal--full .pp-rental-form select,
+.pp-modal--full .pp-rental-form textarea { background: var(--pp-surface); }
 
 /* ==========================================================================
    Handy: kein Überlauf nach rechts (v0.148.0, Skill /wp-css „umbrechen statt
