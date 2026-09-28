@@ -794,7 +794,7 @@ class Rentals {
 	public static function delete( int $id ): bool {
 		global $wpdb;
 		$wpdb->delete( Schema::table( 'rental_items' ), [ 'rental_id' => $id ], [ '%d' ] );
-		RentalOffers::delete_for_rental( $id );
+		RentalDocuments::delete_for_rental( $id );
 		$ok = false !== $wpdb->delete( Schema::table( 'rentals' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {
 			ActivityLog::log( 'rental_deleted', 'rental', $id );

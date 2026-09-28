@@ -202,7 +202,7 @@
 
 	/* Angebots-Editor (v0.148.0): Zeilen- und Gesamtsummen live mitrechnen,
 	 * Zeilen hinzufügen/entfernen. Maßgeblich bleibt die Rechnung auf dem
-	 * Server (RentalOffers::totals) — hier nur die Vorschau beim Tippen. */
+	 * Server (RentalDocuments::totals) — hier nur die Vorschau beim Tippen. */
 	function ppNum( v ) {
 		v = String( v || '' ).replace( /[\s€]/g, '' );
 		if ( v.indexOf( ',' ) !== -1 ) { v = v.replace( /\./g, '' ).replace( ',', '.' ); }
@@ -212,64 +212,64 @@
 	function ppMoney( n ) {
 		return ( Math.round( n * 100 ) / 100 ).toLocaleString( document.documentElement.lang || undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 } );
 	}
-	function offerRecalc( form ) {
+	function docRecalc( form ) {
 		var sum = 0;
-		form.querySelectorAll( '[data-pp-offer-lines] [data-pp-offer-line]' ).forEach( function ( row ) {
-			var qty  = ppNum( row.querySelector( '[data-pp-offer-qty]' ).value );
-			var days = ppNum( row.querySelector( '[data-pp-offer-days]' ).value );
-			var rate = ppNum( row.querySelector( '[data-pp-offer-rate]' ).value );
+		form.querySelectorAll( '[data-pp-doc-lines] [data-pp-doc-line]' ).forEach( function ( row ) {
+			var qty  = ppNum( row.querySelector( '[data-pp-doc-qty]' ).value );
+			var days = ppNum( row.querySelector( '[data-pp-doc-days]' ).value );
+			var rate = ppNum( row.querySelector( '[data-pp-doc-rate]' ).value );
 			var t    = rate === null ? 0 : Math.round( ( qty === null ? 1 : qty ) * ( days === null ? 1 : days ) * rate * 100 ) / 100;
 			sum += t;
-			row.querySelector( '[data-pp-offer-linetotal]' ).textContent = rate === null ? '' : ppMoney( t );
+			row.querySelector( '[data-pp-doc-linetotal]' ).textContent = rate === null ? '' : ppMoney( t );
 		} );
 		sum = Math.round( sum * 100 ) / 100;
-		var dtype = form.querySelector( '[data-pp-offer-dtype]' ).value;
-		var dval  = ppNum( form.querySelector( '[data-pp-offer-dval]' ).value ) || 0;
+		var dtype = form.querySelector( '[data-pp-doc-dtype]' ).value;
+		var dval  = ppNum( form.querySelector( '[data-pp-doc-dval]' ).value ) || 0;
 		var disc  = dtype === 'percent' ? Math.round( sum * Math.max( 0, Math.min( 100, dval ) ) ) / 100 : ( dtype === 'amount' ? Math.max( 0, Math.min( dval, sum ) ) : 0 );
 		var base  = Math.max( 0, sum - disc );
-		var vatOpt = form.querySelector( '[data-pp-offer-vat]' );
+		var vatOpt = form.querySelector( '[data-pp-doc-vat]' );
 		var rateV = parseFloat( vatOpt.options[ vatOpt.selectedIndex ].getAttribute( 'data-rate' ) ) || 0;
 		var net, vat, gross;
-		if ( form.querySelector( '[data-pp-offer-mode]' ).value === 'net' ) {
+		if ( form.querySelector( '[data-pp-doc-mode]' ).value === 'net' ) {
 			net = base; vat = Math.round( net * rateV ) / 100; gross = net + vat;
 		} else {
 			gross = base; net = Math.round( gross / ( 1 + rateV / 100 ) * 100 ) / 100; vat = gross - net;
 		}
 		var set = function ( sel, val, prefix ) { var el = form.querySelector( sel ); if ( el ) { el.textContent = ( prefix || '' ) + ppMoney( val ) + ' €'; } };
-		set( '[data-pp-offer-sum]', sum );
-		set( '[data-pp-offer-discount]', disc, '− ' );
-		set( '[data-pp-offer-net]', net );
-		set( '[data-pp-offer-vatsum]', vat );
-		set( '[data-pp-offer-gross]', gross );
+		set( '[data-pp-doc-sum]', sum );
+		set( '[data-pp-doc-discount]', disc, '− ' );
+		set( '[data-pp-doc-net]', net );
+		set( '[data-pp-doc-vatsum]', vat );
+		set( '[data-pp-doc-gross]', gross );
 	}
 	document.addEventListener( 'input', function ( e ) {
-		var form = e.target.closest ? e.target.closest( 'form[data-pp-offer]' ) : null;
-		if ( form ) { offerRecalc( form ); }
+		var form = e.target.closest ? e.target.closest( 'form[data-pp-doc]' ) : null;
+		if ( form ) { docRecalc( form ); }
 	} );
 	document.addEventListener( 'change', function ( e ) {
-		var form = e.target.closest ? e.target.closest( 'form[data-pp-offer]' ) : null;
-		if ( form ) { offerRecalc( form ); }
+		var form = e.target.closest ? e.target.closest( 'form[data-pp-doc]' ) : null;
+		if ( form ) { docRecalc( form ); }
 	} );
 	document.addEventListener( 'click', function ( e ) {
-		var add = e.target.closest ? e.target.closest( '[data-pp-offer-add]' ) : null;
+		var add = e.target.closest ? e.target.closest( '[data-pp-doc-add]' ) : null;
 		if ( add ) {
-			var form = add.closest( 'form[data-pp-offer]' );
-			var tpl  = form.querySelector( 'template[data-pp-offer-template]' );
-			var next = parseInt( add.getAttribute( 'data-pp-offer-next' ), 10 ) || 0;
+			var form = add.closest( 'form[data-pp-doc]' );
+			var tpl  = form.querySelector( 'template[data-pp-doc-template]' );
+			var next = parseInt( add.getAttribute( 'data-pp-doc-next' ), 10 ) || 0;
 			var wrap = document.createElement( 'div' );
 			wrap.innerHTML = tpl.innerHTML.replace( /__i__/g, String( next ) );
-			add.setAttribute( 'data-pp-offer-next', String( next + 1 ) );
+			add.setAttribute( 'data-pp-doc-next', String( next + 1 ) );
 			var row = wrap.firstElementChild;
-			form.querySelector( '[data-pp-offer-lines]' ).appendChild( row );
+			form.querySelector( '[data-pp-doc-lines]' ).appendChild( row );
 			var desc = row.querySelector( 'textarea' );
 			if ( desc ) { desc.focus(); }
 			return;
 		}
-		var rm = e.target.closest ? e.target.closest( '[data-pp-offer-remove]' ) : null;
+		var rm = e.target.closest ? e.target.closest( '[data-pp-doc-remove]' ) : null;
 		if ( rm ) {
-			var f = rm.closest( 'form[data-pp-offer]' );
-			rm.closest( '[data-pp-offer-line]' ).remove();
-			if ( f ) { offerRecalc( f ); }
+			var f = rm.closest( 'form[data-pp-doc]' );
+			rm.closest( '[data-pp-doc-line]' ).remove();
+			if ( f ) { docRecalc( f ); }
 		}
 	} );
 

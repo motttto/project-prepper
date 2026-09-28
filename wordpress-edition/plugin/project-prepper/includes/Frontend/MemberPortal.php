@@ -11,7 +11,7 @@ use ProjectPrepper\Services\ItemFields;
 use ProjectPrepper\Services\ItemImages;
 use ProjectPrepper\Services\Units;
 use ProjectPrepper\Services\SetTemplates;
-use ProjectPrepper\Services\RentalOffers;
+use ProjectPrepper\Services\RentalDocuments;
 use ProjectPrepper\Services\Feedback;
 use ProjectPrepper\Services\MemberInventory;
 use ProjectPrepper\Services\MemberInquiries;
@@ -503,7 +503,7 @@ class MemberPortal {
 			}
 		}
 		// Externe-Verleih-Aktionen kehren zur Verleih-Ansicht zurück.
-		if ( in_array( $do, [ 'rental_create', 'rental_update', 'rental_status', 'rental_delete', 'rental_offer_save', 'rental_offer_delete' ], true ) ) {
+		if ( in_array( $do, [ 'rental_create', 'rental_update', 'rental_status', 'rental_delete', 'rental_doc_save', 'rental_doc_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'lending', self::portal_url() );
 		}
 		// Projekt anlegen/löschen → zurück zur Projektliste (Bearbeiten bleibt im Detail).
@@ -878,23 +878,31 @@ class MemberPortal {
 				$result = MemberRentals::delete( (int) ( $_POST['pp_rental'] ?? 0 ), get_current_user_id() );
 				$ok_msg = 'rental_deleted';
 				break;
-			case 'rental_offer_save':
-				// Angebot aus einem Verleih anlegen/ändern — alles frei editierbar
-				// (Gates in RentalOffers::save: nur der Anleger des Verleihs).
+			case 'rental_doc_save':
+				// Angebot/Rechnung aus einem Verleih anlegen oder ändern — alles frei
+				// editierbar (Gates in RentalDocuments::save: nur der Anleger).
 				$pp_lines = [];
-				foreach ( (array) wp_unslash( $_POST['pp_ol'] ?? [] ) as $pp_ol ) {
-					if ( is_array( $pp_ol ) ) {
-						$pp_lines[] = $pp_ol;
+				foreach ( (array) wp_unslash( $_POST['pp_dl'] ?? [] ) as $pp_dl ) {
+					if ( is_array( $pp_dl ) ) {
+						$pp_lines[] = $pp_dl;
 					}
 				}
-				$result = RentalOffers::save(
+				$pp_doc_id = (int) ( $_POST['pp_doc'] ?? 0 );
+				$result    = RentalDocuments::save(
 					get_current_user_id(),
 					(int) ( $_POST['pp_rental'] ?? 0 ),
 					[
-						'offer_number'   => (string) wp_unslash( $_POST['pp_offer_number'] ?? '' ),
-						'offer_date'     => (string) wp_unslash( $_POST['pp_offer_date'] ?? '' ),
+						'doc_type'       => sanitize_key( wp_unslash( (string) ( $_POST['pp_doc_type'] ?? '' ) ) ),
+						'source_id'      => (int) ( $_POST['pp_source'] ?? 0 ),
+						'doc_number'     => (string) wp_unslash( $_POST['pp_doc_number'] ?? '' ),
+						'doc_date'       => (string) wp_unslash( $_POST['pp_doc_date'] ?? '' ),
 						'valid_until'    => (string) wp_unslash( $_POST['pp_valid_until'] ?? '' ),
+						'due_date'       => (string) wp_unslash( $_POST['pp_due_date'] ?? '' ),
+						'service_from'   => (string) wp_unslash( $_POST['pp_service_from'] ?? '' ),
+						'service_to'     => (string) wp_unslash( $_POST['pp_service_to'] ?? '' ),
 						'issuer'         => (string) wp_unslash( $_POST['pp_issuer'] ?? '' ),
+						'tax_id'         => (string) wp_unslash( $_POST['pp_tax_id'] ?? '' ),
+						'payment_info'   => (string) wp_unslash( $_POST['pp_payment_info'] ?? '' ),
 						'recipient'      => (string) wp_unslash( $_POST['pp_recipient'] ?? '' ),
 						'subject'        => (string) wp_unslash( $_POST['pp_subject'] ?? '' ),
 						'intro'          => (string) wp_unslash( $_POST['pp_intro'] ?? '' ),
@@ -905,13 +913,15 @@ class MemberPortal {
 						'discount_value' => (string) wp_unslash( $_POST['pp_discount'] ?? '' ),
 						'lines'          => $pp_lines,
 					],
-					(int) ( $_POST['pp_offer'] ?? 0 )
+					$pp_doc_id
 				);
-				$ok_msg = 'offer_saved';
+				$pp_saved = is_wp_error( $result ) ? null : RentalDocuments::get( (int) $result );
+				$ok_msg   = ( $pp_saved && 'invoice' === $pp_saved->doc_type ) ? 'invoice_saved' : 'offer_saved';
 				break;
-			case 'rental_offer_delete':
-				$result = RentalOffers::delete( get_current_user_id(), (int) ( $_POST['pp_offer'] ?? 0 ) );
-				$ok_msg = 'offer_deleted';
+			case 'rental_doc_delete':
+				$pp_del = RentalDocuments::get( (int) ( $_POST['pp_doc'] ?? 0 ) );
+				$result = RentalDocuments::delete( get_current_user_id(), (int) ( $_POST['pp_doc'] ?? 0 ) );
+				$ok_msg = ( $pp_del && 'invoice' === $pp_del->doc_type ) ? 'invoice_deleted' : 'offer_deleted';
 				break;
 			case 'project_create':
 				$result = self::member_create_project();
@@ -1719,6 +1729,8 @@ class MemberPortal {
 			'rental_saved'     => [ 'ok', __( 'Rental created.', 'project-prepper' ) ],
 			'offer_saved'      => [ 'ok', __( 'Offer saved.', 'project-prepper' ) ],
 			'offer_deleted'    => [ 'ok', __( 'Offer deleted.', 'project-prepper' ) ],
+			'invoice_saved'    => [ 'ok', __( 'Invoice saved.', 'project-prepper' ) ],
+			'invoice_deleted'  => [ 'ok', __( 'Invoice deleted.', 'project-prepper' ) ],
 			'rental_updated'   => [ 'ok', __( 'Rental updated.', 'project-prepper' ) ],
 			'rental_status'    => [ 'ok', __( 'Rental status updated.', 'project-prepper' ) ],
 			'rental_deleted'   => [ 'ok', __( 'Rental deleted.', 'project-prepper' ) ],
@@ -4191,8 +4203,8 @@ class MemberPortal {
 								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
 							</form>
 						</div>
-						<?php if ( RentalOffers::can_manage( $uid, $full ) ) : ?>
-							<?php self::render_rental_offers( $full, $uid ); ?>
+						<?php if ( RentalDocuments::can_manage( $uid, $full ) ) : ?>
+							<?php self::render_rental_documents( $full, $uid ); ?>
 						<?php endif; ?>
 						<?php endif; ?>
 					</div>
@@ -4208,32 +4220,38 @@ class MemberPortal {
 	}
 
 	/**
-	 * Angebote eines Verleihs (User-Wunsch 09/2026): Liste mit Ansehen/PDF,
-	 * Bearbeiten und Löschen, dazu „Angebot erstellen". Nur für den Anleger des
-	 * Verleihs ({@see RentalOffers::can_manage}).
+	 * Angebote und Rechnungen eines Verleihs (User-Wunsch 09/2026): Liste mit
+	 * Ansehen/PDF, Bearbeiten, Löschen — je Angebot zusätzlich „Als Rechnung
+	 * übernehmen" — dazu „Angebot erstellen" und „Rechnung erstellen". Nur für
+	 * den Anleger des Verleihs ({@see RentalDocuments::can_manage}).
 	 */
-	private static function render_rental_offers( object $rental, int $uid ): void {
-		$offers = RentalOffers::for_rental( (int) $rental->id );
-		$rid    = (int) $rental->id;
+	private static function render_rental_documents( object $rental, int $uid ): void {
+		$docs = RentalDocuments::for_rental( (int) $rental->id );
+		$rid  = (int) $rental->id;
 		?>
-		<div class="pp-offers">
-			<div class="pp-offers__head">
-				<span class="pp-portal__share-label"><?php esc_html_e( 'Offers', 'project-prepper' ); ?></span>
-				<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-offer-new-<?php echo (int) $rid; ?>"><?php esc_html_e( 'Create offer', 'project-prepper' ); ?></button>
+		<div class="pp-docs">
+			<div class="pp-docs__head">
+				<span class="pp-portal__share-label"><?php esc_html_e( 'Offers & invoices', 'project-prepper' ); ?></span>
+				<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-doc-new-offer-<?php echo (int) $rid; ?>"><?php esc_html_e( 'Create offer', 'project-prepper' ); ?></button>
+				<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-doc-new-invoice-<?php echo (int) $rid; ?>"><?php esc_html_e( 'Create invoice', 'project-prepper' ); ?></button>
 			</div>
-			<?php if ( $offers ) : ?>
-				<ul class="pp-offers__list">
-					<?php foreach ( $offers as $offer ) :
-						$tot = RentalOffers::totals( $offer );
+			<?php if ( $docs ) : ?>
+				<ul class="pp-docs__list">
+					<?php foreach ( $docs as $doc ) :
+						$tot = RentalDocuments::totals( $doc );
 						?>
-						<li class="pp-offers__row">
-							<span class="pp-offers__num"><?php echo esc_html( $offer->offer_number ); ?></span>
-							<span class="pp-offers__meta"><?php echo esc_html( mysql2date( 'd.m.Y', (string) $offer->offer_date ) . ' · ' . number_format_i18n( (float) $tot['gross'], 2 ) . ' €' ); ?></span>
-							<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::offer_print_url( (int) $offer->id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'View / PDF', 'project-prepper' ); ?></a>
-							<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-offer-<?php echo (int) $offer->id; ?>"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></button>
-							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( __( 'Delete this offer?', 'project-prepper' ) ); ?>');">
-								<?php self::action_fields( 'rental_offer_delete' ); ?>
-								<input type="hidden" name="pp_offer" value="<?php echo (int) $offer->id; ?>">
+						<li class="pp-docs__row">
+							<span class="pp-portal__tag<?php echo 'invoice' === $doc->doc_type ? '' : ' pp-portal__tag--muted'; ?>"><?php echo esc_html( RentalDocuments::type_label( (string) $doc->doc_type ) ); ?></span>
+							<span class="pp-docs__num"><?php echo esc_html( $doc->doc_number ); ?></span>
+							<span class="pp-docs__meta"><?php echo esc_html( mysql2date( 'd.m.Y', (string) $doc->doc_date ) . ' · ' . number_format_i18n( (float) $tot['gross'], 2 ) . ' €' ); ?></span>
+							<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( RentalDocumentPage::url( (int) $doc->id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'View / PDF', 'project-prepper' ); ?></a>
+							<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-doc-<?php echo (int) $doc->id; ?>"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></button>
+							<?php if ( 'offer' === $doc->doc_type ) : ?>
+								<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-doc-inv-from-<?php echo (int) $doc->id; ?>"><?php esc_html_e( 'Turn into invoice', 'project-prepper' ); ?></button>
+							<?php endif; ?>
+							<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" onsubmit="return confirm('<?php echo esc_js( 'invoice' === $doc->doc_type ? __( 'Delete this invoice? Invoices should normally be kept — a deleted number leaves a gap in your sequence.', 'project-prepper' ) : __( 'Delete this offer?', 'project-prepper' ) ); ?>');">
+								<?php self::action_fields( 'rental_doc_delete' ); ?>
+								<input type="hidden" name="pp_doc" value="<?php echo (int) $doc->id; ?>">
 								<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
 							</form>
 						</li>
@@ -4242,85 +4260,105 @@ class MemberPortal {
 			<?php endif; ?>
 		</div>
 		<?php
-		self::render_offer_modal( $rental, RentalOffers::defaults( $rental, $uid ) );
-		foreach ( $offers as $offer ) {
-			self::render_offer_modal( $rental, $offer );
+		self::render_doc_modal( $rental, RentalDocuments::defaults( $rental, $uid, 'offer' ), 'pp-doc-new-offer-' . $rid );
+		self::render_doc_modal( $rental, RentalDocuments::defaults( $rental, $uid, 'invoice' ), 'pp-doc-new-invoice-' . $rid );
+		foreach ( $docs as $doc ) {
+			self::render_doc_modal( $rental, $doc, 'pp-doc-' . (int) $doc->id );
+			if ( 'offer' === $doc->doc_type ) {
+				self::render_doc_modal( $rental, RentalDocuments::defaults( $rental, $uid, 'invoice', $doc ), 'pp-doc-inv-from-' . (int) $doc->id );
+			}
 		}
 	}
 
-	/** Adresse der Druck-/PDF-Ansicht eines Angebots (Nonce je Angebot). */
-	public static function offer_print_url( int $offer_id ): string {
-		return wp_nonce_url( add_query_arg( [ 'action' => 'pp_offer_print', 'offer' => $offer_id ], admin_url( 'admin-post.php' ) ), 'pp_offer_print_' . $offer_id );
-	}
-
 	/**
-	 * Angebots-Editor im Vollbild (wie „Verleih bearbeiten" — rechnungsartige
-	 * Formulare dürfen laut /wp-modal das ganze Fenster nutzen). Summen rechnet
-	 * portal.js live mit; maßgeblich ist die Rechnung in RentalOffers::totals().
+	 * Editor für Angebot oder Rechnung im Vollbild (wie „Verleih bearbeiten" —
+	 * rechnungsartige Formulare dürfen laut /wp-modal das ganze Fenster nutzen).
+	 * Summen rechnet portal.js live mit; maßgeblich ist RentalDocuments::totals().
 	 */
-	private static function render_offer_modal( object $rental, object $offer ): void {
-		$is_new  = empty( $offer->id );
-		$mid     = $is_new ? 'pp-offer-new-' . (int) $rental->id : 'pp-offer-' . (int) $offer->id;
+	private static function render_doc_modal( object $rental, object $doc, string $mid ): void {
+		$is_new  = empty( $doc->id );
+		$invoice = 'invoice' === $doc->doc_type;
 		$form_id = $mid . '-form';
-		$tot     = RentalOffers::totals( $offer );
+		$tot     = RentalDocuments::totals( $doc );
 		$money   = static fn( $v ) => null === $v ? '' : number_format_i18n( (float) $v, 2 );
 		$numval  = static fn( $v ) => rtrim( rtrim( number_format( (float) $v, 2, ',', '' ), '0' ), ',' );
-		$days0   = $offer->lines[0]['days'] ?? 1;
+		$days0   = $doc->lines[0]['days'] ?? 1;
 		$row     = static function ( string $idx, array $l ) use ( $money, $numval ): void {
 			?>
-			<div class="pp-offer-line" data-pp-offer-line>
-				<textarea name="pp_ol[<?php echo esc_attr( $idx ); ?>][desc]" rows="1" class="pp-offer-line__desc" aria-label="<?php esc_attr_e( 'Description', 'project-prepper' ); ?>" placeholder="<?php esc_attr_e( 'Description', 'project-prepper' ); ?>"><?php echo esc_textarea( (string) ( $l['desc'] ?? '' ) ); ?></textarea>
-				<input type="text" inputmode="decimal" name="pp_ol[<?php echo esc_attr( $idx ); ?>][qty]" value="<?php echo esc_attr( isset( $l['qty'] ) ? $numval( $l['qty'] ) : '1' ); ?>" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>" data-pp-offer-qty>
-				<input type="text" inputmode="decimal" name="pp_ol[<?php echo esc_attr( $idx ); ?>][days]" value="<?php echo esc_attr( isset( $l['days'] ) ? $numval( $l['days'] ) : '1' ); ?>" aria-label="<?php esc_attr_e( 'Days', 'project-prepper' ); ?>" data-pp-offer-days>
-				<input type="text" inputmode="decimal" name="pp_ol[<?php echo esc_attr( $idx ); ?>][rate]" value="<?php echo esc_attr( array_key_exists( 'rate', $l ) && null !== $l['rate'] ? $money( $l['rate'] ) : '' ); ?>" aria-label="<?php esc_attr_e( 'Price per day (€)', 'project-prepper' ); ?>" placeholder="—" data-pp-offer-rate>
-				<span class="pp-offer-line__total" data-pp-offer-linetotal><?php echo esc_html( $money( $l['total'] ?? 0 ) ); ?></span>
-				<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-offer-line__rm" data-pp-offer-remove aria-label="<?php esc_attr_e( 'Remove line', 'project-prepper' ); ?>">✕</button>
+			<div class="pp-doc-line" data-pp-doc-line>
+				<textarea name="pp_dl[<?php echo esc_attr( $idx ); ?>][desc]" rows="1" class="pp-doc-line__desc" aria-label="<?php esc_attr_e( 'Description', 'project-prepper' ); ?>" placeholder="<?php esc_attr_e( 'Description', 'project-prepper' ); ?>"><?php echo esc_textarea( (string) ( $l['desc'] ?? '' ) ); ?></textarea>
+				<input type="text" inputmode="decimal" name="pp_dl[<?php echo esc_attr( $idx ); ?>][qty]" value="<?php echo esc_attr( isset( $l['qty'] ) ? $numval( $l['qty'] ) : '1' ); ?>" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>" data-pp-doc-qty>
+				<input type="text" inputmode="decimal" name="pp_dl[<?php echo esc_attr( $idx ); ?>][days]" value="<?php echo esc_attr( isset( $l['days'] ) ? $numval( $l['days'] ) : '1' ); ?>" aria-label="<?php esc_attr_e( 'Days', 'project-prepper' ); ?>" data-pp-doc-days>
+				<input type="text" inputmode="decimal" name="pp_dl[<?php echo esc_attr( $idx ); ?>][rate]" value="<?php echo esc_attr( array_key_exists( 'rate', $l ) && null !== $l['rate'] ? $money( $l['rate'] ) : '' ); ?>" aria-label="<?php esc_attr_e( 'Price per day (€)', 'project-prepper' ); ?>" placeholder="—" data-pp-doc-rate>
+				<span class="pp-doc-line__total" data-pp-doc-linetotal><?php echo esc_html( $money( $l['total'] ?? 0 ) ); ?></span>
+				<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-doc-line__rm" data-pp-doc-remove aria-label="<?php esc_attr_e( 'Remove line', 'project-prepper' ); ?>">✕</button>
 			</div>
 			<?php
 		};
+		if ( $is_new ) {
+			$title = $invoice
+				/* translators: %s: rental number. */
+				? sprintf( __( 'New invoice for rental %s', 'project-prepper' ), $rental->rental_number )
+				/* translators: %s: rental number. */
+				: sprintf( __( 'New offer for rental %s', 'project-prepper' ), $rental->rental_number );
+		} else {
+			$title = RentalDocuments::type_label( (string) $doc->doc_type ) . ' ' . $doc->doc_number;
+		}
 		?>
 		<dialog class="pp-modal pp-modal--portal pp-modal--full" id="<?php echo esc_attr( $mid ); ?>">
 			<div class="pp-modal-header">
-				<h2 class="pp-modal__title">
-					<?php
-					echo esc_html( $is_new
-						/* translators: %s: rental number. */
-						? sprintf( __( 'New offer for rental %s', 'project-prepper' ), $rental->rental_number )
-						/* translators: %s: offer number. */
-						: sprintf( __( 'Offer %s', 'project-prepper' ), $offer->offer_number ) );
-					?>
-				</h2>
+				<h2 class="pp-modal__title"><?php echo esc_html( $title ); ?></h2>
 				<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
 			</div>
 			<div class="pp-modal-body">
-				<form class="pp-portal__form pp-offer-form" id="<?php echo esc_attr( $form_id ); ?>" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-offer data-pp-once>
-					<?php self::action_fields( 'rental_offer_save' ); ?>
+				<form class="pp-portal__form pp-doc-form" id="<?php echo esc_attr( $form_id ); ?>" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-doc data-pp-once>
+					<?php self::action_fields( 'rental_doc_save' ); ?>
 					<input type="hidden" name="pp_rental" value="<?php echo (int) $rental->id; ?>">
-					<input type="hidden" name="pp_offer" value="<?php echo (int) ( $offer->id ?? 0 ); ?>">
-					<label><?php esc_html_e( 'Offer number', 'project-prepper' ); ?>
-						<input type="text" name="pp_offer_number" value="<?php echo esc_attr( (string) $offer->offer_number ); ?>" maxlength="40">
+					<input type="hidden" name="pp_doc" value="<?php echo (int) ( $doc->id ?? 0 ); ?>">
+					<input type="hidden" name="pp_doc_type" value="<?php echo esc_attr( (string) $doc->doc_type ); ?>">
+					<input type="hidden" name="pp_source" value="<?php echo (int) ( $doc->source_id ?? 0 ); ?>">
+					<label><?php echo esc_html( $invoice ? __( 'Invoice number', 'project-prepper' ) : __( 'Offer number', 'project-prepper' ) ); ?>
+						<input type="text" name="pp_doc_number" value="<?php echo esc_attr( (string) $doc->doc_number ); ?>" maxlength="40">
 					</label>
-					<label><?php esc_html_e( 'Date', 'project-prepper' ); ?>
-						<input type="date" name="pp_offer_date" value="<?php echo esc_attr( (string) $offer->offer_date ); ?>">
+					<label><?php echo esc_html( $invoice ? __( 'Invoice date', 'project-prepper' ) : __( 'Date', 'project-prepper' ) ); ?>
+						<input type="date" name="pp_doc_date" value="<?php echo esc_attr( (string) $doc->doc_date ); ?>">
 					</label>
-					<label><?php esc_html_e( 'Valid until (optional)', 'project-prepper' ); ?>
-						<input type="date" name="pp_valid_until" value="<?php echo esc_attr( (string) ( $offer->valid_until ?? '' ) ); ?>">
+					<?php if ( $invoice ) : ?>
+						<label><?php esc_html_e( 'Due date', 'project-prepper' ); ?>
+							<input type="date" name="pp_due_date" value="<?php echo esc_attr( (string) ( $doc->due_date ?? '' ) ); ?>">
+						</label>
+					<?php else : ?>
+						<label><?php esc_html_e( 'Valid until (optional)', 'project-prepper' ); ?>
+							<input type="date" name="pp_valid_until" value="<?php echo esc_attr( (string) ( $doc->valid_until ?? '' ) ); ?>">
+						</label>
+					<?php endif; ?>
+					<label><?php echo esc_html( $invoice ? __( 'Service period from', 'project-prepper' ) : __( 'Rental period from', 'project-prepper' ) ); ?>
+						<input type="date" name="pp_service_from" value="<?php echo esc_attr( (string) ( $doc->service_from ?? '' ) ); ?>">
 					</label>
-					<label class="pp-offer-form__half"><?php esc_html_e( 'Issuer (you / your organisation)', 'project-prepper' ); ?>
-						<textarea name="pp_issuer" rows="4"><?php echo esc_textarea( (string) $offer->issuer ); ?></textarea>
+					<label><?php esc_html_e( 'to', 'project-prepper' ); ?>
+						<input type="date" name="pp_service_to" value="<?php echo esc_attr( (string) ( $doc->service_to ?? '' ) ); ?>">
 					</label>
-					<label class="pp-offer-form__half"><?php esc_html_e( 'Recipient (customer)', 'project-prepper' ); ?>
-						<textarea name="pp_recipient" rows="4"><?php echo esc_textarea( (string) $offer->recipient ); ?></textarea>
+					<label><?php esc_html_e( 'Tax number / VAT ID', 'project-prepper' ); ?>
+						<input type="text" name="pp_tax_id" value="<?php echo esc_attr( (string) $doc->tax_id ); ?>" maxlength="64">
 					</label>
-					<label class="pp-offer-form__wide"><?php esc_html_e( 'Subject', 'project-prepper' ); ?>
-						<input type="text" name="pp_subject" value="<?php echo esc_attr( (string) $offer->subject ); ?>" maxlength="190">
+					<?php if ( $invoice ) : ?>
+						<p class="pp-portal__hint pp-doc-form__wide"><?php esc_html_e( 'An invoice must state the issuer’s tax number or VAT ID, the service period and a unique invoice number (§ 14 UStG). They are prefilled from your last document.', 'project-prepper' ); ?></p>
+					<?php endif; ?>
+					<label class="pp-doc-form__half"><?php esc_html_e( 'Issuer (you / your organisation)', 'project-prepper' ); ?>
+						<textarea name="pp_issuer" rows="4"><?php echo esc_textarea( (string) $doc->issuer ); ?></textarea>
 					</label>
-					<label class="pp-offer-form__wide"><?php esc_html_e( 'Introduction', 'project-prepper' ); ?>
-						<textarea name="pp_intro" rows="2"><?php echo esc_textarea( (string) $offer->intro ); ?></textarea>
+					<label class="pp-doc-form__half"><?php esc_html_e( 'Recipient (customer)', 'project-prepper' ); ?>
+						<textarea name="pp_recipient" rows="4"><?php echo esc_textarea( (string) $doc->recipient ); ?></textarea>
 					</label>
-					<fieldset class="pp-offer-lines pp-offer-form__wide">
+					<label class="pp-doc-form__wide"><?php esc_html_e( 'Subject', 'project-prepper' ); ?>
+						<input type="text" name="pp_subject" value="<?php echo esc_attr( (string) $doc->subject ); ?>" maxlength="190">
+					</label>
+					<label class="pp-doc-form__wide"><?php esc_html_e( 'Introduction', 'project-prepper' ); ?>
+						<textarea name="pp_intro" rows="2"><?php echo esc_textarea( (string) $doc->intro ); ?></textarea>
+					</label>
+					<fieldset class="pp-doc-lines pp-doc-form__wide">
 						<legend><?php esc_html_e( 'Items', 'project-prepper' ); ?></legend>
-						<div class="pp-offer-line pp-offer-line--head" aria-hidden="true">
+						<div class="pp-doc-line pp-doc-line--head" aria-hidden="true">
 							<span><?php esc_html_e( 'Description', 'project-prepper' ); ?></span>
 							<span><?php esc_html_e( 'Qty', 'project-prepper' ); ?></span>
 							<span><?php esc_html_e( 'Days', 'project-prepper' ); ?></span>
@@ -4328,7 +4366,7 @@ class MemberPortal {
 							<span><?php esc_html_e( 'Total (€)', 'project-prepper' ); ?></span>
 							<span></span>
 						</div>
-						<div data-pp-offer-lines>
+						<div data-pp-doc-lines>
 							<?php
 							$pp_i = 0;
 							foreach ( $tot['lines'] as $pp_l ) {
@@ -4338,53 +4376,58 @@ class MemberPortal {
 							$row( (string) $pp_i++, [ 'qty' => 1, 'days' => $days0, 'rate' => null ] );
 							?>
 						</div>
-						<template data-pp-offer-template><?php $row( '__i__', [ 'qty' => 1, 'days' => $days0, 'rate' => null ] ); ?></template>
-						<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-offer-add data-pp-offer-next="<?php echo (int) $pp_i; ?>"><?php esc_html_e( 'Add line', 'project-prepper' ); ?></button>
+						<template data-pp-doc-template><?php $row( '__i__', [ 'qty' => 1, 'days' => $days0, 'rate' => null ] ); ?></template>
+						<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-doc-add data-pp-doc-next="<?php echo (int) $pp_i; ?>"><?php esc_html_e( 'Add line', 'project-prepper' ); ?></button>
 						<p class="pp-portal__hint"><?php esc_html_e( 'Total = quantity × days × price per day. Leave the price empty for items without their own price (e.g. included in a flat rate). Lines without description are removed when saving.', 'project-prepper' ); ?></p>
 					</fieldset>
 					<label><?php esc_html_e( 'Prices are', 'project-prepper' ); ?>
-						<select name="pp_price_mode" data-pp-offer-mode>
-							<option value="gross" <?php selected( $offer->price_mode, 'gross' ); ?>><?php esc_html_e( 'gross (incl. VAT)', 'project-prepper' ); ?></option>
-							<option value="net" <?php selected( $offer->price_mode, 'net' ); ?>><?php esc_html_e( 'net (plus VAT)', 'project-prepper' ); ?></option>
+						<select name="pp_price_mode" data-pp-doc-mode>
+							<option value="gross" <?php selected( $doc->price_mode, 'gross' ); ?>><?php esc_html_e( 'gross (incl. VAT)', 'project-prepper' ); ?></option>
+							<option value="net" <?php selected( $doc->price_mode, 'net' ); ?>><?php esc_html_e( 'net (plus VAT)', 'project-prepper' ); ?></option>
 						</select>
 					</label>
 					<label><?php esc_html_e( 'VAT', 'project-prepper' ); ?>
-						<select name="pp_vat_key" data-pp-offer-vat>
-							<?php foreach ( RentalOffers::vat_labels() as $pp_k => $pp_lbl ) : ?>
-								<option value="<?php echo esc_attr( $pp_k ); ?>" data-rate="<?php echo esc_attr( (string) RentalOffers::VAT_OPTIONS[ $pp_k ] ); ?>" <?php selected( (string) $offer->vat_key, (string) $pp_k ); ?>><?php echo esc_html( $pp_lbl ); ?></option>
+						<select name="pp_vat_key" data-pp-doc-vat>
+							<?php foreach ( RentalDocuments::vat_labels() as $pp_k => $pp_lbl ) : ?>
+								<option value="<?php echo esc_attr( $pp_k ); ?>" data-rate="<?php echo esc_attr( (string) RentalDocuments::VAT_OPTIONS[ $pp_k ] ); ?>" <?php selected( (string) $doc->vat_key, (string) $pp_k ); ?>><?php echo esc_html( $pp_lbl ); ?></option>
 							<?php endforeach; ?>
 						</select>
 					</label>
 					<label><?php esc_html_e( 'Discount', 'project-prepper' ); ?>
-						<select name="pp_discount_type" data-pp-offer-dtype>
-							<option value="" <?php selected( (string) $offer->discount_type, '' ); ?>><?php esc_html_e( 'none', 'project-prepper' ); ?></option>
-							<option value="percent" <?php selected( (string) $offer->discount_type, 'percent' ); ?>>%</option>
-							<option value="amount" <?php selected( (string) $offer->discount_type, 'amount' ); ?>>€</option>
+						<select name="pp_discount_type" data-pp-doc-dtype>
+							<option value="" <?php selected( (string) $doc->discount_type, '' ); ?>><?php esc_html_e( 'none', 'project-prepper' ); ?></option>
+							<option value="percent" <?php selected( (string) $doc->discount_type, 'percent' ); ?>>%</option>
+							<option value="amount" <?php selected( (string) $doc->discount_type, 'amount' ); ?>>€</option>
 						</select>
 					</label>
 					<label><?php esc_html_e( 'Discount value', 'project-prepper' ); ?>
-						<input type="text" inputmode="decimal" name="pp_discount" value="<?php echo esc_attr( null !== $offer->discount_value ? $numval( $offer->discount_value ) : '' ); ?>" data-pp-offer-dval>
+						<input type="text" inputmode="decimal" name="pp_discount" value="<?php echo esc_attr( null !== $doc->discount_value ? $numval( $doc->discount_value ) : '' ); ?>" data-pp-doc-dval>
 					</label>
-					<div class="pp-offer-sums pp-offer-form__wide" aria-live="polite">
-						<div><span><?php esc_html_e( 'Items total', 'project-prepper' ); ?></span><span data-pp-offer-sum><?php echo esc_html( $money( $tot['sum'] ) ); ?> €</span></div>
-						<div><span><?php esc_html_e( 'Discount', 'project-prepper' ); ?></span><span data-pp-offer-discount>− <?php echo esc_html( $money( $tot['discount'] ) ); ?> €</span></div>
-						<div><span><?php esc_html_e( 'Net', 'project-prepper' ); ?></span><span data-pp-offer-net><?php echo esc_html( $money( $tot['net'] ) ); ?> €</span></div>
-						<div><span><?php esc_html_e( 'VAT', 'project-prepper' ); ?></span><span data-pp-offer-vatsum><?php echo esc_html( $money( $tot['vat'] ) ); ?> €</span></div>
-						<div class="pp-offer-sums__total"><span><?php esc_html_e( 'Total', 'project-prepper' ); ?></span><span data-pp-offer-gross><?php echo esc_html( $money( $tot['gross'] ) ); ?> €</span></div>
+					<div class="pp-doc-sums pp-doc-form__wide" aria-live="polite">
+						<div><span><?php esc_html_e( 'Items total', 'project-prepper' ); ?></span><span data-pp-doc-sum><?php echo esc_html( $money( $tot['sum'] ) ); ?> €</span></div>
+						<div><span><?php esc_html_e( 'Discount', 'project-prepper' ); ?></span><span data-pp-doc-discount>− <?php echo esc_html( $money( $tot['discount'] ) ); ?> €</span></div>
+						<div><span><?php esc_html_e( 'Net', 'project-prepper' ); ?></span><span data-pp-doc-net><?php echo esc_html( $money( $tot['net'] ) ); ?> €</span></div>
+						<div><span><?php esc_html_e( 'VAT', 'project-prepper' ); ?></span><span data-pp-doc-vatsum><?php echo esc_html( $money( $tot['vat'] ) ); ?> €</span></div>
+						<div class="pp-doc-sums__total"><span><?php esc_html_e( 'Total', 'project-prepper' ); ?></span><span data-pp-doc-gross><?php echo esc_html( $money( $tot['gross'] ) ); ?> €</span></div>
 					</div>
-					<label class="pp-offer-form__wide"><?php esc_html_e( 'Closing text', 'project-prepper' ); ?>
-						<textarea name="pp_outro" rows="3"><?php echo esc_textarea( (string) $offer->outro ); ?></textarea>
+					<label class="pp-doc-form__wide"><?php esc_html_e( 'Closing text', 'project-prepper' ); ?>
+						<textarea name="pp_outro" rows="3"><?php echo esc_textarea( (string) $doc->outro ); ?></textarea>
 					</label>
+					<?php if ( $invoice ) : ?>
+						<label class="pp-doc-form__wide"><?php esc_html_e( 'Payment details (e.g. bank account, IBAN)', 'project-prepper' ); ?>
+							<textarea name="pp_payment_info" rows="3"><?php echo esc_textarea( (string) $doc->payment_info ); ?></textarea>
+						</label>
+					<?php endif; ?>
 				</form>
 			</div>
 			<div class="pp-modal-footer">
 				<span></span>
 				<div class="pp-modal-footer__actions">
 					<?php if ( ! $is_new ) : ?>
-						<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::offer_print_url( (int) $offer->id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'View / PDF', 'project-prepper' ); ?></a>
+						<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( RentalDocumentPage::url( (int) $doc->id ) ); ?>" target="_blank" rel="noopener"><?php esc_html_e( 'View / PDF', 'project-prepper' ); ?></a>
 					<?php endif; ?>
 					<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal-close><?php esc_html_e( 'Cancel', 'project-prepper' ); ?></button>
-					<button type="submit" form="<?php echo esc_attr( $form_id ); ?>" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save offer', 'project-prepper' ); ?></button>
+					<button type="submit" form="<?php echo esc_attr( $form_id ); ?>" class="pp-portal__btn pp-portal__btn--sm"><?php echo esc_html( $invoice ? __( 'Save invoice', 'project-prepper' ) : __( 'Save offer', 'project-prepper' ) ); ?></button>
 				</div>
 			</div>
 		</dialog>
@@ -12630,6 +12673,12 @@ class MemberPortal {
 			'borrows_incoming' => array_map( [ self::class, 'export_borrow_row' ], Borrowing::incoming_requests( $uid ) ),
 			// Eigene Solo-Projekte + selbst angelegte Projekte der Kollektive, in denen man noch Mitglied ist.
 			'projects'         => Projects::export_for_user( $uid ),
+			// Gemerkte Angaben für Angebote/Rechnungen (Absender, Steuernummer, Bankverbindung).
+			'document_details' => array_filter( [
+				'issuer'       => (string) get_user_meta( $uid, RentalDocuments::META_ISSUER, true ),
+				'tax_id'       => (string) get_user_meta( $uid, RentalDocuments::META_TAX_ID, true ),
+				'payment_info' => (string) get_user_meta( $uid, RentalDocuments::META_PAYMENT, true ),
+			] ),
 			// Persönliche Set-Vorlagen (Kollektiv-Vorlagen gehören dem Kollektiv).
 			'set_templates'    => array_map( static fn( $t ) => [
 				'name'  => (string) $t->name,

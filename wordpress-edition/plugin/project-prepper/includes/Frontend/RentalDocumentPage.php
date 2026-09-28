@@ -2,44 +2,74 @@
 namespace ProjectPrepper\Frontend;
 
 use ProjectPrepper\Settings;
-use ProjectPrepper\Services\RentalOffers;
+use ProjectPrepper\Services\RentalDocuments;
 use ProjectPrepper\Services\Rentals;
 
 defined( 'ABSPATH' ) || exit;
 
 /**
- * Druck-/PDF-Ansicht eines Angebots (Schema 0.46.0).
+ * Druck-/PDF-Ansicht eines Angebots oder einer Rechnung (Schema 0.46.0).
  *
- * Eine eigenständige A4-Seite ohne Theme und Portal-Rahmen: Aussteller,
- * Empfänger, Angebotsdaten, Positionen, Summen, Texte. „Drucken / als PDF
+ * Eine eigenständige A4-Seite ohne Theme und Portal-Rahmen. „Drucken / als PDF
  * speichern" nutzt den Druckdialog des Browsers — keine PDF-Bibliothek, keine
- * externen Dienste. Zugriff nur für den Anleger des Verleihs (Nonce je Angebot).
+ * externen Dienste. Zugriff nur für den Anleger des Verleihs (Nonce je Dokument).
+ *
+ * Rechnungen zeigen zusätzlich die Pflichtangaben nach § 14 UStG, die im
+ * Dokument erfasst sind: Steuernummer/USt-IdNr., Leistungszeitraum, Fälligkeit
+ * und den Zahlungshinweis. Fehlen sie, druckt die Seite trotzdem — der Editor
+ * weist darauf hin.
  */
-class OfferDocument {
+class RentalDocumentPage {
 
 	public static function init(): void {
-		add_action( 'admin_post_pp_offer_print', [ self::class, 'handle' ] );
+		add_action( 'admin_post_pp_rental_doc_print', [ self::class, 'handle' ] );
+	}
+
+	/** Adresse der Druck-/PDF-Ansicht (Nonce je Dokument). */
+	public static function url( int $doc_id ): string {
+		return wp_nonce_url( add_query_arg( [ 'action' => 'pp_rental_doc_print', 'doc' => $doc_id ], admin_url( 'admin-post.php' ) ), 'pp_rental_doc_print_' . $doc_id );
 	}
 
 	public static function handle(): void {
-		$offer_id = isset( $_GET['offer'] ) ? (int) $_GET['offer'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce direkt darunter.
-		check_admin_referer( 'pp_offer_print_' . $offer_id );
-		$offer  = RentalOffers::get( $offer_id );
-		$rental = $offer ? Rentals::get( (int) $offer->rental_id ) : null;
-		if ( ! Settings::feature_on( 'lending' ) || ! $offer || ! RentalOffers::can_manage( get_current_user_id(), $rental ) ) {
+		$doc_id = isset( $_GET['doc'] ) ? (int) $_GET['doc'] : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nonce direkt darunter.
+		check_admin_referer( 'pp_rental_doc_print_' . $doc_id );
+		$doc    = RentalDocuments::get( $doc_id );
+		$rental = $doc ? Rentals::get( (int) $doc->rental_id ) : null;
+		if ( ! Settings::feature_on( 'lending' ) || ! $doc || ! RentalDocuments::can_manage( get_current_user_id(), $rental ) ) {
 			wp_die( esc_html__( 'You are not allowed to do this.', 'project-prepper' ), '', [ 'response' => 403 ] );
 		}
 		nocache_headers();
-		self::render( $offer, $rental );
+		self::render( $doc, $rental );
 		exit;
 	}
 
-	private static function render( object $offer, object $rental ): void {
-		$tot   = RentalOffers::totals( $offer );
-		$money = static fn( $v ) => number_format_i18n( (float) $v, 2 ) . ' €';
-		$num   = static fn( $v ) => rtrim( rtrim( number_format_i18n( (float) $v, 2 ), '0' ), ',.' );
-		$event = trim( (string) ( $rental->event_name ?? '' ) );
-		$rate  = number_format_i18n( (float) $tot['vat_rate'], 0 );
+	private static function render( object $doc, object $rental ): void {
+		$invoice = 'invoice' === $doc->doc_type;
+		$tot     = RentalDocuments::totals( $doc );
+		$money   = static fn( $v ) => number_format_i18n( (float) $v, 2 ) . ' €';
+		$num     = static fn( $v ) => rtrim( rtrim( number_format_i18n( (float) $v, 2 ), '0' ), ',.' );
+		$day     = static fn( $v ) => mysql2date( 'd.m.Y', (string) $v );
+		$event   = trim( (string) ( $rental->event_name ?? '' ) );
+		$rate    = number_format_i18n( (float) $tot['vat_rate'], 0 );
+		$from    = ! empty( $doc->service_from ) ? $doc->service_from : $rental->date_from;
+		$to      = ! empty( $doc->service_to ) ? $doc->service_to : $rental->date_to;
+		$meta    = [];
+		$meta[ $invoice ? __( 'Invoice number', 'project-prepper' ) : __( 'Offer number', 'project-prepper' ) ] = (string) $doc->doc_number;
+		$meta[ $invoice ? __( 'Invoice date', 'project-prepper' ) : __( 'Date', 'project-prepper' ) ]            = $day( $doc->doc_date );
+		$meta[ $invoice ? __( 'Service period', 'project-prepper' ) : __( 'Rental period', 'project-prepper' ) ] = $day( $from ) . ' – ' . $day( $to );
+		if ( '' !== $event ) {
+			$meta[ __( 'Event', 'project-prepper' ) ] = $event;
+		}
+		if ( ! $invoice && ! empty( $doc->valid_until ) ) {
+			$meta[ __( 'Valid until', 'project-prepper' ) ] = $day( $doc->valid_until );
+		}
+		if ( $invoice && ! empty( $doc->due_date ) ) {
+			$meta[ __( 'Due date', 'project-prepper' ) ] = $day( $doc->due_date );
+		}
+		if ( '' !== trim( (string) $doc->tax_id ) ) {
+			$meta[ __( 'Tax number / VAT ID', 'project-prepper' ) ] = (string) $doc->tax_id;
+		}
+		$title = '' !== trim( (string) $doc->subject ) ? (string) $doc->subject : RentalDocuments::type_label( (string) $doc->doc_type );
 		?>
 <!DOCTYPE html>
 <html <?php language_attributes(); ?>>
@@ -47,7 +77,7 @@ class OfferDocument {
 <meta charset="<?php bloginfo( 'charset' ); ?>">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title><?php echo esc_html( $offer->offer_number . ' — ' . $offer->subject ); ?></title>
+<title><?php echo esc_html( $doc->doc_number . ' — ' . $title ); ?></title>
 <style>
 	@page { size: A4; margin: 18mm 18mm 20mm; }
 	* { box-sizing: border-box; }
@@ -57,10 +87,10 @@ class OfferDocument {
 	.bar button { font: inherit; font-weight: 600; padding: 8px 16px; border-radius: 8px; border: 0; background: #6366f1; color: #fff; cursor: pointer; }
 	.bar button.ghost { background: transparent; border: 1px solid #c7d2fe; color: #e0e7ff; }
 	.page { width: 210mm; min-height: 297mm; margin: 16px auto; padding: 18mm; background: #fff; box-shadow: 0 2px 12px rgb(0 0 0 / .12); }
-	.head { display: flex; justify-content: space-between; gap: 12mm; margin-bottom: 14mm; }
+	.head { display: flex; justify-content: space-between; gap: 12mm; margin-bottom: 10mm; }
 	.from { text-align: right; white-space: pre-line; font-size: 9.5pt; color: #374151; margin-left: auto; }
 	.to { white-space: pre-line; min-height: 30mm; }
-	.meta { border-collapse: collapse; font-size: 9.5pt; }
+	.meta { border-collapse: collapse; font-size: 9.5pt; margin: 0 0 8mm auto; }
 	.meta td { padding: 1px 0 1px 8mm; vertical-align: top; }
 	.meta td:first-child { color: #6b7280; padding-left: 0; }
 	h1 { font-size: 15pt; margin: 0 0 5mm; }
@@ -76,6 +106,8 @@ class OfferDocument {
 	table.totals tr.sum td { border-top: 1.5px solid #111827; font-weight: 700; font-size: 11.5pt; }
 	table.totals tr.muted td { color: #6b7280; font-size: 9.5pt; }
 	.note { font-size: 9pt; color: #374151; margin-top: 3mm; }
+	.pay { margin-top: 8mm; padding-top: 3mm; border-top: 1px solid #e5e7eb; font-size: 9.5pt; white-space: pre-line; }
+	.pay strong { display: block; margin-bottom: 1mm; }
 	@media print {
 		html { background: none; }
 		.bar { display: none; }
@@ -85,6 +117,7 @@ class OfferDocument {
 		.page { width: auto; min-height: 0; margin: 0; padding: 16px; }
 		.head { flex-direction: column-reverse; }
 		.from { text-align: left; margin-left: 0; }
+		.meta { margin-left: 0; }
 		table.lines { font-size: 8.5pt; }
 		table.lines th, table.lines td { padding: 4px 3px; }
 		table.lines th { white-space: normal; }
@@ -105,26 +138,18 @@ class OfferDocument {
 	</div>
 	<main class="page">
 		<div class="head">
-			<div class="to"><?php echo esc_html( (string) $offer->recipient ); ?></div>
-			<div>
-				<div class="from"><?php echo esc_html( (string) $offer->issuer ); ?></div>
-			</div>
+			<div class="to"><?php echo esc_html( (string) $doc->recipient ); ?></div>
+			<div class="from"><?php echo esc_html( (string) $doc->issuer ); ?></div>
 		</div>
-		<table class="meta" style="margin: 0 0 8mm auto;">
-			<tr><td><?php esc_html_e( 'Offer number', 'project-prepper' ); ?></td><td><?php echo esc_html( $offer->offer_number ); ?></td></tr>
-			<tr><td><?php esc_html_e( 'Date', 'project-prepper' ); ?></td><td><?php echo esc_html( mysql2date( 'd.m.Y', (string) $offer->offer_date ) ); ?></td></tr>
-			<?php if ( ! empty( $offer->valid_until ) ) : ?>
-				<tr><td><?php esc_html_e( 'Valid until', 'project-prepper' ); ?></td><td><?php echo esc_html( mysql2date( 'd.m.Y', (string) $offer->valid_until ) ); ?></td></tr>
-			<?php endif; ?>
-			<?php if ( '' !== $event ) : ?>
-				<tr><td><?php esc_html_e( 'Event', 'project-prepper' ); ?></td><td><?php echo esc_html( $event ); ?></td></tr>
-			<?php endif; ?>
-			<tr><td><?php esc_html_e( 'Rental period', 'project-prepper' ); ?></td><td><?php echo esc_html( mysql2date( 'd.m.Y', (string) $rental->date_from ) . ' – ' . mysql2date( 'd.m.Y', (string) $rental->date_to ) ); ?></td></tr>
+		<table class="meta">
+			<?php foreach ( $meta as $label => $value ) : ?>
+				<tr><td><?php echo esc_html( $label ); ?></td><td><?php echo esc_html( $value ); ?></td></tr>
+			<?php endforeach; ?>
 		</table>
 
-		<h1><?php echo esc_html( '' !== trim( (string) $offer->subject ) ? (string) $offer->subject : __( 'Offer', 'project-prepper' ) ); ?></h1>
-		<?php if ( '' !== trim( (string) $offer->intro ) ) : ?>
-			<p class="text"><?php echo esc_html( (string) $offer->intro ); ?></p>
+		<h1><?php echo esc_html( $title ); ?></h1>
+		<?php if ( '' !== trim( (string) $doc->intro ) ) : ?>
+			<p class="text"><?php echo esc_html( (string) $doc->intro ); ?></p>
 		<?php endif; ?>
 
 		<table class="lines">
@@ -157,16 +182,16 @@ class OfferDocument {
 				<tr><td><?php esc_html_e( 'Items total', 'project-prepper' ); ?></td><td><?php echo esc_html( $money( $tot['sum'] ) ); ?></td></tr>
 				<tr><td>
 					<?php
-					echo esc_html( 'percent' === $offer->discount_type
+					echo esc_html( 'percent' === $doc->discount_type
 						/* translators: %s: discount percentage. */
-						? sprintf( __( 'Discount %s %%', 'project-prepper' ), $num( $offer->discount_value ) )
+						? sprintf( __( 'Discount %s %%', 'project-prepper' ), $num( $doc->discount_value ) )
 						: __( 'Discount', 'project-prepper' ) );
 					?>
 				</td><td>− <?php echo esc_html( $money( $tot['discount'] ) ); ?></td></tr>
 			<?php endif; ?>
 			<?php if ( $tot['small_business'] ) : ?>
 				<tr class="sum"><td><?php esc_html_e( 'Total', 'project-prepper' ); ?></td><td><?php echo esc_html( $money( $tot['gross'] ) ); ?></td></tr>
-			<?php elseif ( 'net' === $offer->price_mode ) : ?>
+			<?php elseif ( 'net' === $doc->price_mode ) : ?>
 				<tr><td><?php esc_html_e( 'Net', 'project-prepper' ); ?></td><td><?php echo esc_html( $money( $tot['net'] ) ); ?></td></tr>
 				<?php /* translators: %s: VAT rate percent. */ ?>
 				<tr><td><?php echo esc_html( sprintf( __( 'plus VAT %s %%', 'project-prepper' ), $rate ) ); ?></td><td><?php echo esc_html( $money( $tot['vat'] ) ); ?></td></tr>
@@ -182,8 +207,12 @@ class OfferDocument {
 			<p class="note"><?php esc_html_e( 'According to § 19 UStG, no VAT is charged.', 'project-prepper' ); ?></p>
 		<?php endif; ?>
 
-		<?php if ( '' !== trim( (string) $offer->outro ) ) : ?>
-			<p class="text" style="margin-top: 8mm;"><?php echo esc_html( (string) $offer->outro ); ?></p>
+		<?php if ( '' !== trim( (string) $doc->outro ) ) : ?>
+			<p class="text" style="margin-top: 8mm;"><?php echo esc_html( (string) $doc->outro ); ?></p>
+		<?php endif; ?>
+
+		<?php if ( $invoice && '' !== trim( (string) $doc->payment_info ) ) : ?>
+			<div class="pay"><strong><?php esc_html_e( 'Payment details', 'project-prepper' ); ?></strong><?php echo esc_html( (string) $doc->payment_info ); ?></div>
 		<?php endif; ?>
 	</main>
 </body>

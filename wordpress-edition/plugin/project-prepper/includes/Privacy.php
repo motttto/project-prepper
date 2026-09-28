@@ -80,11 +80,11 @@ class Privacy {
 		) );
 
 		if ( $count > 0 ) {
-			// Angebote dieser Verleihe tragen den Empfänger im Klartext — mit
+			// Angebote/Rechnungen dieser Verleihe tragen den Empfänger im Klartext — mit
 			// anonymisieren (0.46.0), BEVOR die E-Mail als Schlüssel verschwindet.
 			$wpdb->query( $wpdb->prepare(
 				'UPDATE %i o JOIN %i r ON r.id = o.rental_id SET o.recipient = %s WHERE r.borrower_email = %s',
-				Schema::table( 'rental_offers' ),
+				Schema::table( 'rental_documents' ),
 				Schema::table( 'rentals' ),
 				__( 'Anonymized (GDPR)', 'project-prepper' ),
 				$email

@@ -44,8 +44,8 @@ class Schema {
 	// (Mitbearbeiter). Alles additiv via dbDelta; dazu ein einmaliger Datenlauf,
 	// der fehlende projects.created_by aus dem Aktivitätsprotokoll nachträgt.
 	// 0.46.0: rentals.event_name — Name der Veranstaltung am Verleih (User-Wunsch),
-	// additiv via dbDelta, DEFAULT '' = keine Angabe; rental_offers — individuelle
-	// Angebote aus einem Verleih (Positionen als JSON, alles editierbar).
+	// additiv via dbDelta, DEFAULT '' = keine Angabe; rental_documents — Angebote
+	// und Rechnungen aus einem Verleih (Positionen als JSON, alles editierbar).
 	const VERSION    = '0.46.0';
 	const OPTION_KEY = 'pp_schema_version';
 
@@ -100,7 +100,7 @@ class Schema {
 		$field_vals = self::table( 'item_field_values' );
 		$item_imgs  = self::table( 'item_images' );
 		$set_tpls   = self::table( 'set_templates' );
-		$offers     = self::table( 'rental_offers' );
+		$rent_docs  = self::table( 'rental_documents' );
 		$set_lines  = self::table( 'set_template_lines' );
 		$borrows    = self::table( 'borrow_requests' );
 		$fed_in     = self::table( 'fed_borrow_in' );
@@ -419,18 +419,26 @@ class Schema {
 		// optional ein bevorzugtes Gerät); die konkreten Geräte wählt man erst
 		// beim Einbuchen aus dem Pool — Buchung, Freigaben und Verfügbarkeit
 		// laufen danach über die normalen Buchungszeilen.
-		// Angebote aus einem Verleih (0.46.0): ein Verleih kann mehrere haben
-		// (Varianten, Nachfassen). Alles ist frei editierbar — Aussteller,
-		// Empfänger, Nummer, Datum, USt, Positionen (JSON: desc, qty, days, rate).
-		// Keine Verbindung zu Verfügbarkeit oder Freigaben: ein Angebot ist ein
-		// Dokument, keine Buchung.
-		dbDelta( "CREATE TABLE {$offers} (
+		// Angebote und Rechnungen aus einem Verleih (0.46.0): ein Verleih kann
+		// mehrere haben. Alles ist frei editierbar (Positionen als JSON: desc, qty,
+		// days, rate). Rechnungen tragen zusätzlich die Pflichtangaben nach
+		// § 14 UStG (Steuernummer, Leistungszeitraum, Fälligkeit, Zahlungshinweis);
+		// ihre Nummer ist eindeutig (Prüfung im Service). Keine Verbindung zu
+		// Verfügbarkeit oder Freigaben: ein Dokument ist keine Buchung.
+		dbDelta( "CREATE TABLE {$rent_docs} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			rental_id bigint(20) unsigned NOT NULL,
-			offer_number varchar(40) NOT NULL DEFAULT '',
-			offer_date date DEFAULT NULL,
+			doc_type varchar(10) NOT NULL DEFAULT 'offer',
+			source_id bigint(20) unsigned DEFAULT NULL,
+			doc_number varchar(40) NOT NULL DEFAULT '',
+			doc_date date DEFAULT NULL,
 			valid_until date DEFAULT NULL,
+			due_date date DEFAULT NULL,
+			service_from date DEFAULT NULL,
+			service_to date DEFAULT NULL,
 			issuer text,
+			tax_id varchar(64) NOT NULL DEFAULT '',
+			payment_info text,
 			recipient text,
 			subject varchar(190) NOT NULL DEFAULT '',
 			intro text,
@@ -444,7 +452,8 @@ class Schema {
 			created_at datetime NOT NULL,
 			updated_at datetime NOT NULL,
 			PRIMARY KEY  (id),
-			KEY rental_id (rental_id)
+			KEY rental_id (rental_id),
+			KEY doc_number (doc_type,doc_number)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$set_tpls} (

@@ -15,7 +15,7 @@ require_once __DIR__ . '/includes/Capabilities.php';
 
 if ( get_option( 'pp_delete_data_on_uninstall' ) ) {
 	global $wpdb;
-	foreach ( [ 'rental_offers', 'rental_items', 'rentals', 'units', 'item_images', 'set_template_lines', 'set_templates', 'item_field_values', 'item_field_defs', 'items', 'categories', 'activity_log' ] as $pp_table ) {
+	foreach ( [ 'rental_documents', 'rental_items', 'rentals', 'units', 'item_images', 'set_template_lines', 'set_templates', 'item_field_values', 'item_field_defs', 'items', 'categories', 'activity_log' ] as $pp_table ) {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- bewusste Schema-Löschung beim Uninstall (Opt-in via Option).
 		$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', \ProjectPrepper\Schema::table( $pp_table ) ) );
 	}
@@ -24,6 +24,10 @@ if ( get_option( 'pp_delete_data_on_uninstall' ) ) {
 	// (Verleih → Kollektiv, Projekt → Ersteller).
 	foreach ( [ 'pp_collective_rentals_visible', 'pp_item_time_status', 'pp_rental_buffer_before', 'pp_rental_buffer_after', 'pp_rental_backfill_done', 'pp_project_creator_backfill_done', 'pp_features', 'pp_modal_width', 'pp_handover_notifications' ] as $pp_opt ) {
 		delete_option( $pp_opt );
+	}
+	// Gemerkte Angaben für Angebote/Rechnungen (Absender, Steuernummer, Bankverbindung).
+	foreach ( [ 'pp_doc_issuer', 'pp_doc_tax_id', 'pp_doc_payment' ] as $pp_meta ) {
+		delete_metadata( 'user', 0, $pp_meta, '', true );
 	}
 }
 
