@@ -181,6 +181,126 @@ class Units {
 		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET quantity = %d WHERE id = %d AND quantity < %d', Schema::table( 'items' ), $count, $item_id, $count ) );
 	}
 
+	/**
+	 * Exemplare eines Artikels, die im Zeitraum schon GEZIELT gewählt sind —
+	 * dieselben Status und dasselbe Buchungsfenster (Rüstzeiten) wie in
+	 * Availability::available_quantity(): Verleihe reserved/active, Projekte
+	 * confirmed/running mit geerbtem Zeitraum.
+	 *
+	 * @return array<int> Exemplar-IDs.
+	 */
+	public static function taken( int $item_id, string $from, string $to, int $exclude_rental = 0, int $exclude_project = 0 ): array {
+		global $wpdb;
+		list( $from, $to ) = Availability::booking_window( $from, $to );
+		$rows = array_merge(
+			(array) $wpdb->get_col( $wpdb->prepare(
+				"SELECT ri.unit_ids FROM %i ri INNER JOIN %i r ON r.id = ri.rental_id
+				 WHERE ri.item_id = %d AND r.id <> %d AND r.status IN ('reserved', 'active')
+				   AND r.date_from <= %s AND r.date_to >= %s
+				   AND ri.unit_ids IS NOT NULL AND ri.unit_ids <> ''",
+				Schema::table( 'rental_items' ),
+				Schema::table( 'rentals' ),
+				$item_id,
+				$exclude_rental,
+				$to,
+				$from
+			) ),
+			(array) $wpdb->get_col( $wpdb->prepare(
+				"SELECT pi.unit_ids FROM %i pi INNER JOIN %i p ON p.id = pi.project_id
+				 WHERE pi.item_id = %d AND p.id <> %d AND p.status IN ('confirmed', 'running')
+				   AND COALESCE(pi.date_from, p.date_start) IS NOT NULL
+				   AND COALESCE(pi.date_to, p.date_end) IS NOT NULL
+				   AND COALESCE(pi.date_from, p.date_start) <= %s
+				   AND COALESCE(pi.date_to, p.date_end) >= %s
+				   AND pi.unit_ids IS NOT NULL AND pi.unit_ids <> ''",
+				Schema::table( 'project_items' ),
+				Schema::table( 'projects' ),
+				$item_id,
+				$exclude_project,
+				$to,
+				$from
+			) )
+		);
+		$out = [];
+		foreach ( $rows as $json ) {
+			foreach ( self::decode_ids( $json ) as $uid ) {
+				$out[ $uid ] = $uid;
+			}
+		}
+		return array_values( $out );
+	}
+
+	/** JSON-Liste aus einer Buchungszeile → Exemplar-IDs. */
+	public static function decode_ids( $json ): array {
+		$ids = json_decode( (string) $json, true );
+		return is_array( $ids ) ? array_values( array_unique( array_filter( array_map( 'intval', $ids ) ) ) ) : [];
+	}
+
+	/**
+	 * Gezielte Exemplar-Wahl einer Buchungszeile prüfen: gehören die Exemplare
+	 * zu diesem Artikel, sind sie nicht gesperrt und im Zeitraum nicht schon
+	 * anderweitig gewählt? Gerufen innerhalb der Buchungs-Serialisierung
+	 * (Locking), damit zwei gleichzeitige Buchungen nicht dasselbe Stück greifen.
+	 *
+	 * @param array<int> $unit_ids
+	 * @return array<int>|\WP_Error Bereinigte IDs.
+	 */
+	public static function validate_selection( int $item_id, array $unit_ids, string $from, string $to, int $exclude_rental = 0, int $exclude_project = 0 ) {
+		$unit_ids = array_values( array_unique( array_filter( array_map( 'intval', $unit_ids ) ) ) );
+		if ( ! $unit_ids ) {
+			return [];
+		}
+		$own = [];
+		foreach ( self::for_item( $item_id ) as $u ) {
+			$own[ (int) $u->id ] = $u;
+		}
+		foreach ( $unit_ids as $uid ) {
+			if ( ! isset( $own[ $uid ] ) ) {
+				return new \WP_Error( 'pp_unit_invalid', __( 'A selected piece does not belong to this item.', 'project-prepper' ), [ 'status' => 400 ] );
+			}
+			if ( self::is_blocked( $own[ $uid ] ) ) {
+				return new \WP_Error(
+					'pp_unit_blocked',
+					/* translators: %s: name of the piece. */
+					sprintf( __( 'The piece “%s” is not available (broken, in maintenance or lost).', 'project-prepper' ), self::label( $own[ $uid ] ) ),
+					[ 'status' => 409 ]
+				);
+			}
+		}
+		if ( '' !== $from && '' !== $to ) {
+			$busy = array_intersect( $unit_ids, self::taken( $item_id, $from, $to, $exclude_rental, $exclude_project ) );
+			if ( $busy ) {
+				return new \WP_Error(
+					'pp_unit_taken',
+					/* translators: %s: name of the piece. */
+					sprintf( __( 'The piece “%s” is already booked in this period.', 'project-prepper' ), self::label( $own[ (int) reset( $busy ) ] ) ),
+					[ 'status' => 409 ]
+				);
+			}
+		}
+		return $unit_ids;
+	}
+
+	/**
+	 * Anzeigenamen gewählter Exemplare (für Karten, Packliste, Mails).
+	 *
+	 * @return array<string>
+	 */
+	public static function labels_for( $json ): array {
+		global $wpdb;
+		$ids = self::decode_ids( $json );
+		if ( ! $ids ) {
+			return [];
+		}
+		$place = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.UnfinishedPrepare -- Platzhalter werden oben dynamisch erzeugt.
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			"SELECT * FROM %i WHERE id IN ($place) ORDER BY unit_number ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- nur Platzhalter.
+			array_merge( [ Schema::table( 'units' ) ], $ids )
+		) ) ?: [];
+		return array_map( [ self::class, 'label' ], $rows );
+	}
+
 	private static function clean( string $value ): string {
 		$value = trim( sanitize_text_field( $value ) );
 		return function_exists( 'mb_substr' ) ? mb_substr( $value, 0, 190 ) : substr( $value, 0, 190 );

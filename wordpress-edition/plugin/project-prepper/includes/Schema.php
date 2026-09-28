@@ -36,7 +36,11 @@ class Schema {
 	// (Kollektiv-Mitglieder dürfen Angaben bearbeiten), groups.color (Farbe im
 	// Arbeitsbereich-Umschalter, '' = automatisch), units.label/serial_number
 	// (Exemplare im Portal benennen), set_templates + set_template_lines
-	// (Set-Vorlagen je Kollektiv/Mitglied). Alles additiv via dbDelta.
+	// (Set-Vorlagen je Kollektiv/Mitglied), items.is_consumable (Verbrauchs-
+	// material, Bestand sinkt nach Rückgabe/Projektabschluss) und
+	// project_items.consumed_at (Einmal-Marker dafür), rental_items.unit_ids +
+	// project_items.unit_ids (gewählte Exemplare je Position, JSON-Liste).
+	// Alles additiv via dbDelta.
 	const VERSION    = '0.45.0';
 	const OPTION_KEY = 'pp_schema_version';
 
@@ -213,6 +217,7 @@ class Schema {
 			rental_id bigint(20) unsigned NOT NULL,
 			item_id bigint(20) unsigned NOT NULL,
 			unit_id bigint(20) unsigned DEFAULT NULL,
+			unit_ids longtext,
 			quantity int(11) NOT NULL DEFAULT 1,
 			daily_rate decimal(10,2) DEFAULT NULL,
 			bundle_item_id bigint(20) unsigned DEFAULT NULL,
@@ -320,6 +325,7 @@ class Schema {
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			project_id bigint(20) unsigned NOT NULL,
 			item_id bigint(20) unsigned NOT NULL,
+			unit_ids longtext,
 			quantity int(11) NOT NULL DEFAULT 1,
 			date_from date DEFAULT NULL,
 			date_to date DEFAULT NULL,

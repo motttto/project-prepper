@@ -424,6 +424,17 @@ class Rentals {
 			}
 		}
 
+		// Gezielt gewählte Exemplare (0.45.0): gehören sie zum Artikel, sind sie
+		// frei? Läuft in der Buchungs-Serialisierung — zwei gleichzeitige Verleihe
+		// können nicht dasselbe Stück greifen.
+		foreach ( $items as $i => $line ) {
+			$units = Units::validate_selection( (int) $line['item_id'], (array) ( $line['unit_ids'] ?? [] ), (string) $data['date_from'], (string) $data['date_to'] );
+			if ( is_wp_error( $units ) ) {
+				return $units;
+			}
+			$items[ $i ]['unit_ids'] = $units;
+		}
+
 		$now = current_time( 'mysql' );
 		$row = [
 			'rental_number'  => '',
@@ -467,6 +478,7 @@ class Rentals {
 				'rental_id'      => $rental_id,
 				'item_id'        => (int) $line['item_id'],
 				'unit_id'        => ! empty( $line['unit_id'] ) ? (int) $line['unit_id'] : null,
+				'unit_ids'       => ! empty( $line['unit_ids'] ) ? wp_json_encode( array_values( $line['unit_ids'] ) ) : null,
 				'quantity'       => max( 1, (int) ( $line['quantity'] ?? 1 ) ),
 				'daily_rate'     => isset( $line['daily_rate'] ) && '' !== $line['daily_rate'] ? (float) $line['daily_rate'] : null,
 				// Set-Herkunft (v0.40.0): gesetzt, wenn die Zeile aus einer
@@ -576,6 +588,17 @@ class Rentals {
 			}
 		}
 
+		// Gezielt gewählte Exemplare prüfen (eigener Verleih ausgenommen).
+		if ( null !== $items ) {
+			foreach ( $items as $i => $line ) {
+				$units = Units::validate_selection( (int) $line['item_id'], (array) ( $line['unit_ids'] ?? [] ), (string) $date_from, (string) $date_to, $id );
+				if ( is_wp_error( $units ) ) {
+					return $units;
+				}
+				$items[ $i ]['unit_ids'] = $units;
+			}
+		}
+
 		// Header-Diff: nur übergebene Felder schreiben.
 		$fields = [];
 		foreach ( [ 'borrower_name', 'borrower_email', 'borrower_phone', 'borrower_address', 'date_from', 'date_to', 'notes' ] as $key ) {
@@ -616,6 +639,7 @@ class Rentals {
 				$row = [
 					'item_id'        => (int) $line['item_id'],
 					'unit_id'        => ! empty( $line['unit_id'] ) ? (int) $line['unit_id'] : null,
+					'unit_ids'       => ! empty( $line['unit_ids'] ) ? wp_json_encode( array_values( $line['unit_ids'] ) ) : null,
 					'quantity'       => max( 1, (int) ( $line['quantity'] ?? 1 ) ),
 					'daily_rate'     => isset( $line['daily_rate'] ) && '' !== $line['daily_rate'] ? (float) $line['daily_rate'] : null,
 					'bundle_item_id' => ! empty( $line['bundle_item_id'] ) ? (int) $line['bundle_item_id'] : null,

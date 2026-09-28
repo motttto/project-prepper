@@ -3323,6 +3323,16 @@ label.pp-swatch--auto,
 .pp-units-edit__num { flex: none; min-width: 2.6rem; font-size: .78rem; color: var(--pp-muted-foreground); }
 .pp-portal__form label.pp-units-edit__rm { display: inline-flex; flex-direction: row; align-items: center; gap: .3rem; font-size: .8rem; color: var(--pp-muted-foreground); }
 
+/* Exemplar-Wahl unter einer Picker-Zeile: eigene volle Zeile, Stücke als
+ * umbrechende Chips (keine Scrollbox in der ohnehin scrollenden Liste). */
+.pp-book-item:has( > .pp-unitpick ) { flex-wrap: wrap; }
+.pp-unitpick { flex: 1 1 100%; margin: 0 0 0 1.6rem; font-size: .82rem; }
+.pp-unitpick__head { cursor: pointer; color: var(--pp-muted-foreground); }
+.pp-unitpick__list { display: flex; flex-wrap: wrap; gap: .3rem .5rem; margin-top: .35rem; }
+.pp-portal__form label.pp-unitpick__opt { display: inline-flex; flex-direction: row; align-items: center; gap: .3rem; padding: .15rem .5rem; border: 1px solid var(--pp-border); border-radius: 999px; background: var(--pp-surface); font-weight: 400; }
+.pp-unitpick__opt small { color: var(--pp-muted-foreground); }
+.pp-unitpick__opt.is-off { opacity: .6; }
+
 /* Set-Vorlagen: Liste im Verwalten-Dialog, Zeilen wie die Exemplar-Zeilen. */
 .pp-tpl-list { list-style: none; margin: .5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
 .pp-tpl-list__row { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .75rem; padding: .5rem .6rem; border: 1px solid var(--pp-border); border-radius: 8px; }

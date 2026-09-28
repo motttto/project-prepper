@@ -177,6 +177,29 @@
 		openModal( trigger.getAttribute( 'data-pp-modal' ) );
 	} );
 
+	/* Exemplar-Wahl (v0.147.0): Wer ein bestimmtes Stück anhakt, will den
+	 * Artikel — also die Zeile mit auswählen und die Menge mindestens auf die
+	 * Zahl der gewählten Stücke heben. Der Server zieht die Menge ohnehin nach. */
+	document.addEventListener( 'change', function ( e ) {
+		var box = e.target;
+		if ( ! box.matches || ! box.matches( '[data-pp-unit-pick]' ) ) { return; }
+		var row = box.closest( '.pp-book-item' );
+		if ( ! row ) { return; }
+		var n = row.querySelectorAll( '[data-pp-unit-pick]:checked' ).length;
+		var pick = row.querySelector( '.pp-book-item__pick input[type=checkbox]' );
+		if ( pick && n > 0 && ! pick.checked && ! pick.disabled ) {
+			pick.checked = true;
+			pick.dispatchEvent( new Event( 'change', { bubbles: true } ) );
+		}
+		var qty = row.querySelector( '.pp-book-item__qty' );
+		if ( qty && n > ( parseInt( qty.value, 10 ) || 0 ) ) {
+			qty.value = n;
+			qty.dispatchEvent( new Event( 'input', { bubbles: true } ) );
+		}
+		var head = row.querySelector( '.pp-unitpick__count' );
+		if ( head ) { head.textContent = n ? ' (' + n + ')' : ''; }
+	} );
+
 	/* Foto-Galerie (Kollektiv-Inventar, v0.147.0): Klick auf ein Vorschaubild
 	 * tauscht das große Bild. Ohne JS öffnet der Link das Bild in voller Größe. */
 	document.addEventListener( 'click', function ( e ) {

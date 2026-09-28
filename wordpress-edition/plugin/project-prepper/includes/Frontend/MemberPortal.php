@@ -3959,6 +3959,10 @@ class MemberPortal {
 											?>
 											<span class="pp-portal__item-meta"><?php echo esc_html( $pp_cons_note ); ?></span>
 										<?php endif; ?>
+										<?php $pp_ulabels = Units::labels_for( $line->unit_ids ?? '' ); ?>
+										<?php if ( $pp_ulabels ) : ?>
+											<span class="pp-portal__item-meta"><?php echo esc_html( implode( ', ', $pp_ulabels ) ); ?></span>
+										<?php endif; ?>
 										<?php self::approval_chip( $line ); ?>
 									</span>
 									<?php if ( $pp_money ) : ?>
@@ -4317,8 +4321,52 @@ class MemberPortal {
 			if ( isset( $args['controls'] ) && is_callable( $args['controls'] ) ) {
 				$args['controls']();
 			}
+			if ( isset( $args['below'] ) && is_callable( $args['below'] ) ) {
+				// Volle Zeile unter der Auswahl (z. B. Exemplar-Wahl) — außerhalb des
+				// Labels, damit ein Klick darin nicht den Artikel an-/abwählt.
+				$args['below']();
+			}
 			?>
 		</div>
+		<?php
+	}
+
+	/**
+	 * Exemplar-Wahl unter einer Picker-Zeile (Feedback: „spezielle Geräte dazu
+	 * auswählen und buchen"): optional, zugeklappt. Gesperrte und im Zeitraum
+	 * schon gezielt gebuchte Exemplare sind nicht wählbar. Name: $field[units][].
+	 *
+	 * @param array<object> $units  Exemplare des Artikels.
+	 * @param array<int>    $chosen Bereits gewählte (beim Bearbeiten).
+	 * @param array<int>    $taken  Im Zeitraum anderweitig gewählt.
+	 */
+	private static function unit_picker( string $field, array $units, array $chosen, array $taken ): void {
+		if ( ! $units ) {
+			return;
+		}
+		?>
+		<details class="pp-unitpick" <?php echo $chosen ? 'open' : ''; ?>>
+			<summary class="pp-unitpick__head">
+				<?php esc_html_e( 'Pick specific pieces (optional)', 'project-prepper' ); ?><span class="pp-unitpick__count"><?php echo $chosen ? ' (' . (int) count( $chosen ) . ')' : ''; ?></span>
+			</summary>
+			<div class="pp-unitpick__list">
+				<?php foreach ( $units as $pp_u ) :
+					$pp_on      = in_array( (int) $pp_u->id, $chosen, true );
+					$pp_blocked = Units::is_blocked( $pp_u );
+					$pp_busy    = ! $pp_on && in_array( (int) $pp_u->id, $taken, true );
+					?>
+					<label class="pp-unitpick__opt<?php echo ( $pp_blocked || $pp_busy ) ? ' is-off' : ''; ?>">
+						<input type="checkbox" name="<?php echo esc_attr( $field ); ?>[units][]" value="<?php echo (int) $pp_u->id; ?>" data-pp-unit-pick <?php checked( $pp_on ); ?><?php disabled( ( $pp_blocked || $pp_busy ) && ! $pp_on ); ?>>
+						<span><?php echo esc_html( Units::label( $pp_u ) ); ?></span>
+						<?php if ( $pp_blocked ) : ?>
+							<small><?php esc_html_e( 'not available', 'project-prepper' ); ?></small>
+						<?php elseif ( $pp_busy ) : ?>
+							<small><?php esc_html_e( 'booked', 'project-prepper' ); ?></small>
+						<?php endif; ?>
+					</label>
+				<?php endforeach; ?>
+			</div>
+		</details>
 		<?php
 	}
 
@@ -4401,6 +4449,8 @@ class MemberPortal {
 		$to        = (string) $val( 'date_to', gmdate( 'Y-m-d', strtotime( $today . ' +7 days' ) ) );
 		$period_ok = Availability::is_valid_range( $from, $to );
 		$period_lb = $period_ok ? self::fmt_range( $from, $to ) : '';
+		// Exemplare aller wählbaren Artikel in EINER Abfrage (Exemplar-Wahl je Zeile).
+		$pp_unit_map = Units::for_items( array_map( static fn( $pp_i ) => (int) $pp_i->id, $lendable ) );
 		?>
 		<form class="pp-portal__form pp-book-form pp-rental-form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-live data-pp-live-scope>
 			<?php self::action_fields( $rental ? 'rental_update' : 'rental_create' ); ?>
@@ -4572,6 +4622,7 @@ class MemberPortal {
 						$bits[] = (string) $item->location;
 					}
 					$off = ( $period_ok && $free <= 0 && null === $line ) || Inventory::is_blocked( $item->item_condition ?? '' );
+					$pp_iunits = $pp_unit_map[ (int) $item->id ] ?? [];
 					self::picker_row(
 						$item,
 						static function () use ( $item, $line, $off ) {
@@ -4580,6 +4631,17 @@ class MemberPortal {
 							<?php
 						},
 						[
+							'below'    => static function () use ( $item, $line, $pp_iunits, $period_ok, $from, $to, $rid ) {
+								if ( ! $pp_iunits ) {
+									return;
+								}
+								self::unit_picker(
+									'pp_item[' . (int) $item->id . ']',
+									$pp_iunits,
+									$line ? Units::decode_ids( $line->unit_ids ?? '' ) : [],
+									$period_ok ? Units::taken( (int) $item->id, $from, $to, $rid ) : []
+								);
+							},
 							'meta'     => $bits,
 							'muted'    => $off,
 							'after'    => static function () use ( $item, $pp_needs, $pp_presets ) {
@@ -4689,10 +4751,14 @@ class MemberPortal {
 			if ( empty( $line['on'] ) ) {
 				continue;
 			}
+			// Gezielt gewählte Exemplare (0.45.0) — geprüft in Rentals (Locking).
+			// Mehr gewählte Stücke als Menge → die Menge folgt der Auswahl.
+			$units = array_values( array_unique( array_filter( array_map( 'intval', (array) ( $line['units'] ?? [] ) ) ) ) );
 			$row = [
 				'item_id'    => (int) $item_id,
-				'quantity'   => max( 1, (int) ( $line['qty'] ?? 1 ) ),
+				'quantity'   => max( 1, (int) ( $line['qty'] ?? 1 ), count( $units ) ),
 				'daily_rate' => isset( $line['rate'] ) && '' !== $line['rate'] ? (float) $line['rate'] : '',
+				'unit_ids'   => $units,
 			];
 			// Bestehende Positions-ID beim Bearbeiten mitgeben (Diff in Rentals::update).
 			if ( ! empty( $line['line'] ) ) {
