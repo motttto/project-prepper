@@ -17,8 +17,17 @@ defined( 'ABSPATH' ) || exit;
  * Bewusste Vereinfachungen ggü. App:
  * - KEINE Beträge/Raten (hourly_rate/capital_contribution kommen mit der
  *   Gewinn- bzw. Vereinbarungs-Phase, mit eigenen Tabellen).
- * - KEINE zweite Zugriffsebene — der Projekt-Zugriff bleibt gruppen-basiert aus
- *   Phase 1 (Groups::user_can_access_project). Das Roster gewährt KEINE Rechte.
+ * - Sehen bleibt gruppen-basiert (Groups::user_can_access_project).
+ *
+ * MIT-BEARBEITER (seit den Ersteller-Rechten, Mitglieder-Feedback 2026-09):
+ * Die Spalte can_edit macht eine Roster-Zeile zum Bearbeitungsrecht. Ein
+ * Kollektiv-Projekt dürfen nur sein Ersteller (projects.created_by) und die
+ * Mit-Bearbeiter (can_edit = 1) ändern; alle anderen Mitglieder sehen es
+ * read-only — Regeln in {@see Projects::can_edit()}. Vergeben/entziehen nur
+ * der Ersteller im Portal (über {@see Projects::set_coeditor()} →
+ * {@see set_editor()}). Das Betreiber-REST (add/update/remove) fasst can_edit
+ * nicht an; remove löscht die Zeile und damit auch ein Mit-Bearbeiter-Recht.
+ * Zeilen OHNE Haken gewähren weiterhin KEINE Rechte.
  *
  * Validierung (Kernstück Phase 2): ein Beteiligter kann nur hinzugefügt werden,
  * wenn das Projekt eine Eigentümer-Gruppe hat UND der WP-User aktives Mitglied
@@ -49,6 +58,7 @@ class ProjectMembers {
 			$row->display_name = $user ? $user->display_name : sprintf( '#%d', (int) $row->user_id );
 			$row->user_email   = $user ? $user->user_email : '';
 			$row->missing      = $user ? false : true;
+			$row->can_edit     = 1 === (int) ( $row->can_edit ?? 0 );
 		}
 		return $rows;
 	}
@@ -60,6 +70,79 @@ class ProjectMembers {
 			Schema::table( 'project_members' ),
 			$id
 		) );
+	}
+
+	/** Ist $user_id Mit-Bearbeiter des Projekts (can_edit = 1)? Mitgliedschaft prüft der Aufrufer. */
+	public static function is_editor( int $project_id, int $user_id ): bool {
+		global $wpdb;
+		if ( $project_id <= 0 || $user_id <= 0 ) {
+			return false;
+		}
+		return (bool) $wpdb->get_var( $wpdb->prepare(
+			'SELECT 1 FROM %i WHERE project_id = %d AND user_id = %d AND can_edit = 1',
+			Schema::table( 'project_members' ),
+			$project_id,
+			$user_id
+		) );
+	}
+
+	/**
+	 * User-IDs der Mit-Bearbeiter eines Projekts.
+	 *
+	 * @return int[]
+	 */
+	public static function editor_ids( int $project_id ): array {
+		global $wpdb;
+		$ids = $wpdb->get_col( $wpdb->prepare(
+			'SELECT user_id FROM %i WHERE project_id = %d AND can_edit = 1 ORDER BY id ASC',
+			Schema::table( 'project_members' ),
+			$project_id
+		) );
+		return array_map( 'intval', $ids ?: [] );
+	}
+
+	/**
+	 * Mit-Bearbeiter-Recht setzen/entziehen — reiner Datenzugriff, die Rechte
+	 * prüft {@see Projects::set_coeditor()}. Setzen ist ein Upsert über UNIQUE
+	 * (project_id,user_id): eine bestehende Roster-Zeile (Rolle/Notiz) bleibt und
+	 * bekommt nur den Haken. Entziehen nimmt den Haken; eine Zeile, die NUR für
+	 * das Recht existierte (ohne Rolle/Notiz), verschwindet ganz.
+	 *
+	 * @return bool Ob sich etwas geändert hat.
+	 */
+	public static function set_editor( int $project_id, int $user_id, bool $on ): bool {
+		global $wpdb;
+		$table = Schema::table( 'project_members' );
+		if ( $on ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Plugin-eigene Tabelle, atomarer Upsert.
+			$rows = $wpdb->query( $wpdb->prepare(
+				'INSERT INTO %i (project_id, user_id, role_title, note, can_edit, sort_order, created_at)
+				 VALUES (%d, %d, %s, %s, 1, 0, %s)
+				 ON DUPLICATE KEY UPDATE can_edit = 1',
+				$table,
+				$project_id,
+				$user_id,
+				'',
+				'',
+				current_time( 'mysql' )
+			) );
+			return (int) $rows > 0;
+		}
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Plugin-eigene Tabelle.
+		$gone = $wpdb->query( $wpdb->prepare(
+			"DELETE FROM %i WHERE project_id = %d AND user_id = %d AND can_edit = 1 AND role_title = '' AND ( note IS NULL OR note = '' )",
+			$table,
+			$project_id,
+			$user_id
+		) );
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Plugin-eigene Tabelle.
+		$off = $wpdb->query( $wpdb->prepare(
+			'UPDATE %i SET can_edit = 0 WHERE project_id = %d AND user_id = %d AND can_edit = 1',
+			$table,
+			$project_id,
+			$user_id
+		) );
+		return (int) $gone > 0 || (int) $off > 0;
 	}
 
 	/* ===================== Schreiben ===================== */

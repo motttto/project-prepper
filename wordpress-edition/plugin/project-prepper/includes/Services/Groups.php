@@ -291,6 +291,17 @@ class Groups {
 		}
 
 		$wpdb->delete( Schema::table( 'group_members' ), [ 'id' => (int) $member->id ], [ '%d' ] );
+		// Mit-Bearbeiter-Rechte an Projekten dieser Gruppe verfallen mit dem
+		// Austritt (sonst lebten sie bei einem Wiedereintritt still wieder auf).
+		// Die Roster-Zeile selbst bleibt als Dokumentation.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Plugin-eigene Tabellen, eine Mengen-Aktualisierung.
+		$wpdb->query( $wpdb->prepare(
+			'UPDATE %i pm INNER JOIN %i p ON p.id = pm.project_id SET pm.can_edit = 0 WHERE p.owner_group_id = %d AND pm.user_id = %d AND pm.can_edit = 1',
+			Schema::table( 'project_members' ),
+			Schema::table( 'projects' ),
+			$group_id,
+			$user_id
+		) );
 		ActivityLog::log( 'group_member_removed', 'group', $group_id, [ 'user_id' => $user_id ] );
 		return true;
 	}

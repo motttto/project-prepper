@@ -87,6 +87,11 @@ class Users {
 	 * stehen (owner_user_id zeigt ins Leere) — im Portal sieht sie niemand mehr,
 	 * Betreiber weiter im Backend. Sie blockieren nur seine eigenen Artikel, die
 	 * nach dem Entzug der Freigaben ohnehin niemand mehr buchen kann.
+	 * KOLLEKTIV-Projekte, die er angelegt hat, gelten ab jetzt als „ohne aktiven
+	 * Ersteller": alle Mitglieder dürfen sie bearbeiten, bis jemand sie übernimmt
+	 * (Services\Projects::can_edit/take_over) — dafür ist hier nichts zu tun.
+	 * Seine Mit-Bearbeiter-Haken werden entfernt (die Roster-Zeilen bleiben und
+	 * zeigen ihn als „ehemaliges Mitglied").
 	 */
 	public static function purge_plugin_data( int $user_id ): void {
 		global $wpdb;
@@ -112,6 +117,7 @@ class Users {
 			'group_invitation_votes' => (int) $wpdb->delete( $t( 'group_invitation_votes' ), [ 'voter_id' => $user_id ], [ '%d' ] ),
 			'project_decision_votes' => (int) $wpdb->delete( $t( 'project_decision_votes' ), [ 'user_id' => $user_id ], [ '%d' ] ),
 			'project_poll_votes'     => (int) $wpdb->delete( $t( 'project_poll_votes' ), [ 'user_id' => $user_id ], [ '%d' ] ),
+			'project_coeditor'       => (int) $wpdb->update( $t( 'project_members' ), [ 'can_edit' => 0 ], [ 'user_id' => $user_id, 'can_edit' => 1 ], [ '%d' ], [ '%d', '%d' ] ),
 		];
 
 		// Freigaben seines Inventars zurückziehen (die Artikel selbst bleiben).

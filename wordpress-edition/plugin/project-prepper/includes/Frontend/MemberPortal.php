@@ -20,6 +20,7 @@ use ProjectPrepper\Services\Rentals;
 use ProjectPrepper\Services\Inquiries;
 use ProjectPrepper\Services\Borrowing;
 use ProjectPrepper\Services\Projects;
+use ProjectPrepper\Services\ProjectMembers;
 use ProjectPrepper\Services\BookingApprovals;
 use ProjectPrepper\Services\RentalApprovals;
 use ProjectPrepper\Services\Bundles;
@@ -888,6 +889,23 @@ class MemberPortal {
 				$result = self::member_delete_project( (int) ( $_POST['pp_project'] ?? 0 ) );
 				$ok_msg = 'project_deleted';
 				break;
+			// --- Ersteller-Rechte (Gates: Arbeitsbereich hier, Rechte im Service) ---
+			case 'project_takeover':
+				// Verwaistes Kollektiv-Projekt übernehmen (Ersteller unbekannt oder
+				// nicht mehr aktives Mitglied) — bedingtes UPDATE im Service.
+				$result = self::member_workspace_project( $proj_id )
+					? Projects::take_over( $proj_id, get_current_user_id() )
+					: self::forbidden_error();
+				$ok_msg = 'project_taken_over';
+				break;
+			case 'project_editor_add':
+			case 'project_editor_remove':
+				// Nur der Ersteller vergibt/entzieht Mit-Bearbeiter (can_manage_editors).
+				$result = self::member_workspace_project( $proj_id )
+					? Projects::set_coeditor( $proj_id, (int) ( $_POST['pp_user'] ?? 0 ), 'project_editor_add' === $do, get_current_user_id() )
+					: self::forbidden_error();
+				$ok_msg = 'project_editor_add' === $do ? 'project_editor_added' : 'project_editor_removed';
+				break;
 			case 'project_item_add':
 				$result = self::member_book_equipment( $proj_id );
 				// String-Rückgabe = eigener Erfolgs-Meldungscode (z.B. Teilerfolg).
@@ -1477,6 +1495,8 @@ class MemberPortal {
 				$msg = 'forbidden';
 			} elseif ( 'pp_project_readonly' === $code ) {
 				$msg = 'project_readonly';
+			} elseif ( 'pp_takeover_race' === $code ) {
+				$msg = 'project_takeover_race';
 			} else {
 				// Unbekannter Code: Die Dienste liefern längst einen übersetzten,
 				// verständlichen Satz — den zeigen wir, statt auf „Etwas ist
@@ -1653,7 +1673,11 @@ class MemberPortal {
 			'rental_locked'      => [ 'err', __( 'This rental still has items waiting for their owner’s approval. You can hand it out once every owner has decided.', 'project-prepper' ) ],
 			'project_saved'    => [ 'ok', __( 'Project saved.', 'project-prepper' ) ],
 			'project_deleted'  => [ 'ok', __( 'Project deleted.', 'project-prepper' ) ],
-			'project_readonly' => [ 'err', __( 'You are not allowed to change this project.', 'project-prepper' ) ],
+			'project_readonly' => [ 'err', __( 'Only the project’s creator and its co-editors can change this project.', 'project-prepper' ) ],
+			'project_taken_over'     => [ 'ok', __( 'You took over the project. You are now its creator and decide who else may edit it.', 'project-prepper' ) ],
+			'project_takeover_race'  => [ 'err', __( 'Someone else took over this project in the meantime.', 'project-prepper' ) ],
+			'project_editor_added'   => [ 'ok', __( 'Co-editor added.', 'project-prepper' ) ],
+			'project_editor_removed' => [ 'ok', __( 'Co-editor removed.', 'project-prepper' ) ],
 			'proj_entry_saved'   => [ 'ok', __( 'Entry saved.', 'project-prepper' ) ],
 			'proj_entry_deleted' => [ 'ok', __( 'Entry removed.', 'project-prepper' ) ],
 			'pfile_saved'        => [ 'ok', __( 'File uploaded.', 'project-prepper' ) ],
@@ -6529,6 +6553,16 @@ class MemberPortal {
 		return $out;
 	}
 
+	/** „Erstellt von <Name>" bzw. „Ersteller unbekannt" für Kollektiv-Projekte. */
+	private static function project_creator_label( object $p ): string {
+		$name = Projects::creator_name( $p );
+		if ( '' === $name ) {
+			return __( 'Creator unknown', 'project-prepper' );
+		}
+		/* translators: %s: display name of the member who created the project. */
+		return sprintf( __( 'Created by %s', 'project-prepper' ), $name );
+	}
+
 	/** Meta-Zeile einer Projekt-Karte (Zeitraum · Ort · weitere Bits). */
 	private static function project_card_bits( object $p, array $extra = [] ): array {
 		$bits  = [];
@@ -6583,6 +6617,9 @@ class MemberPortal {
 			<div class="pp-proj-list">
 				<?php foreach ( $projects as $p ) :
 					$extra = isset( $group_names[ (int) $p->owner_group_id ] ) ? [ $group_names[ (int) $p->owner_group_id ] ] : [];
+					if ( ! Projects::is_solo( $p ) ) {
+						$extra[] = self::project_creator_label( $p );
+					}
 					?>
 					<a class="pp-proj-card" href="<?php echo esc_url( add_query_arg( [ 'pp_view' => 'projects', 'pp_project' => (int) $p->id ], self::portal_url() ) ); ?>">
 						<?php self::project_card_inner( $p, self::project_card_bits( $p, $extra ) ); ?>
@@ -6622,7 +6659,7 @@ class MemberPortal {
 									<input type="hidden" name="pp_view" value="projects">
 									<input type="hidden" name="pp_open_project" value="<?php echo (int) $p->id; ?>">
 									<button type="submit" class="pp-proj-card pp-proj-card--switch">
-										<?php self::project_card_inner( $p, self::project_card_bits( $p ) ); ?>
+										<?php self::project_card_inner( $p, self::project_card_bits( $p, [ self::project_creator_label( $p ) ] ) ); ?>
 									</button>
 								</form>
 							<?php endforeach; ?>
@@ -6670,6 +6707,11 @@ class MemberPortal {
 			$sub[] = $p_group;
 		} elseif ( $is_solo ) {
 			$sub[] = __( 'Personal project', 'project-prepper' );
+		}
+		// Wer hat es angelegt? (Feedback: „Beim Projekt wird nicht angezeigt, wer
+		// der Ersteller ist.") — bei Solo-Projekten ist das immer man selbst.
+		if ( ! $is_solo ) {
+			$sub[] = self::project_creator_label( $p );
 		}
 		?>
 		<p class="pp-proj-back"><a href="<?php echo esc_url( $back ); ?>"><?php esc_html_e( '← Back to projects', 'project-prepper' ); ?></a></p>
@@ -6790,6 +6832,12 @@ class MemberPortal {
 			</section>
 			<?php
 		endif;
+
+		// Bearbeitungsrechte (nur Kollektiv-Projekte): Ersteller, Mit-Bearbeiter,
+		// Übernehmen verwaister Projekte.
+		if ( 'overview' === $tab && $p_ws > 0 ) {
+			self::render_project_rights( $p, $in_ws, $can_edit );
+		}
 
 		// 2) Gebuchtes Equipment — mit Bearbeitungsrecht im Arbeitsbereich des
 		// Projekts kann direkt gebucht, geändert und entfernt werden (Pendant zum
@@ -7166,6 +7214,118 @@ class MemberPortal {
 		}
 	}
 
+	/**
+	 * Karte „Bearbeitungsrechte" eines Kollektiv-Projekts (Mitglieder-Feedback:
+	 * „Projekt kann einfach jeder ändern"): wer es angelegt hat, wer mitarbeiten
+	 * darf, und — bei verwaisten Projekten — „Projekt übernehmen". Aktionen nur
+	 * im Arbeitsbereich des Projekts; die Rechte prüft der Service erneut.
+	 */
+	private static function render_project_rights( object $p, bool $in_ws, bool $can_edit ): void {
+		$uid        = get_current_user_id();
+		$gid        = Projects::workspace_of( $p );
+		$active     = Projects::creator_active( $p );
+		$is_creator = Projects::is_creator( $p, $uid );
+		$can_manage = $in_ws && Projects::can_manage_editors( $p, $uid );
+		$can_take   = $in_ws && Projects::can_take_over( $p, $uid );
+		$members    = Groups::members( $gid );
+		$member_ids = array_map( static fn( $m ) => (int) $m->user_id, $members );
+		// Nur Mit-Bearbeiter, die (noch) Mitglied sind — die anderen haben ohnehin
+		// keine Rechte mehr (Groups::remove_member nimmt den Haken beim Austritt).
+		$editors    = array_values( array_filter(
+			ProjectMembers::editor_ids( (int) $p->id ),
+			static fn( $id ) => in_array( $id, $member_ids, true ) && ! Projects::is_creator( $p, $id )
+		) );
+		$cname      = Projects::creator_name( $p );
+		?>
+		<section class="pp-card">
+			<h3 class="pp-card__title"><?php esc_html_e( 'Editing rights', 'project-prepper' ); ?></h3>
+			<?php if ( $active ) : ?>
+				<p>
+					<?php
+					/* translators: %s: display name of the member who created the project. */
+					printf( esc_html__( 'Created by %s. The creator and the co-editors can change this project; all other members see it read-only — they can still vote, take part in polls and answer tasks assigned to them.', 'project-prepper' ), esc_html( $cname ) );
+					?>
+				</p>
+			<?php else : ?>
+				<p>
+					<?php
+					if ( '' !== $cname ) {
+						/* translators: %s: display name of the former creator. */
+						printf( esc_html__( 'Created by %s, who is no longer a member of this collective. Until someone takes the project over, every member can edit it.', 'project-prepper' ), esc_html( $cname ) );
+					} else {
+						esc_html_e( 'It is not known who created this project. Until someone takes it over, every member can edit it.', 'project-prepper' );
+					}
+					?>
+				</p>
+			<?php endif; ?>
+
+			<?php if ( $in_ws && $is_creator ) : ?>
+				<p class="pp-portal__hint"><?php esc_html_e( 'You created this project. You decide who else may edit it.', 'project-prepper' ); ?></p>
+			<?php elseif ( $in_ws && $active && $can_edit && Projects::is_coeditor( $p, $uid ) ) : ?>
+				<p class="pp-portal__hint"><?php esc_html_e( 'You are a co-editor of this project.', 'project-prepper' ); ?></p>
+			<?php elseif ( $in_ws && ! $can_edit ) : ?>
+				<p class="pp-portal__hint"><?php esc_html_e( 'You can view this project. To change it, ask its creator to make you a co-editor.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+
+			<?php if ( $active && ( $editors || $can_manage ) ) : ?>
+				<p class="pp-sched-day"><?php esc_html_e( 'Co-editors', 'project-prepper' ); ?></p>
+				<?php if ( ! $editors ) : ?>
+					<p class="pp-portal__empty"><?php esc_html_e( 'No co-editors yet.', 'project-prepper' ); ?></p>
+				<?php else : ?>
+					<div class="pp-rows">
+						<?php foreach ( $editors as $eid ) :
+							$eu = get_userdata( $eid ); ?>
+							<div class="pp-row">
+								<span class="pp-row__main"><?php echo esc_html( $eu ? $eu->display_name : sprintf( '#%d', (int) $eid ) ); ?></span>
+								<?php if ( $can_manage ) : ?>
+									<?php self::sub_chip_form( 'project_editor_remove', (int) $p->id, [ 'pp_user' => (int) $eid ], __( 'Remove', 'project-prepper' ), __( 'Remove this co-editor? They will only be able to view the project.', 'project-prepper' ) ); ?>
+								<?php endif; ?>
+							</div>
+						<?php endforeach; ?>
+					</div>
+				<?php endif; ?>
+				<?php
+				if ( $can_manage ) :
+					$candidates = array_values( array_filter(
+						$members,
+						static fn( $m ) => ! in_array( (int) $m->user_id, $editors, true ) && ! Projects::is_creator( $p, (int) $m->user_id )
+					) );
+					if ( $candidates ) :
+						?>
+						<details class="pp-portal__add">
+							<summary class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Add co-editor', 'project-prepper' ); ?></summary>
+							<form class="pp-portal__form" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+								<?php self::action_fields( 'project_editor_add' ); ?>
+								<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+								<label><?php esc_html_e( 'Member', 'project-prepper' ); ?>
+									<select name="pp_user" required>
+										<?php foreach ( $candidates as $m ) : ?>
+											<option value="<?php echo (int) $m->user_id; ?>"><?php echo esc_html( (string) $m->display_name ); ?></option>
+										<?php endforeach; ?>
+									</select>
+								</label>
+								<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Add co-editor', 'project-prepper' ); ?></button>
+							</form>
+						</details>
+					<?php else : ?>
+						<p class="pp-portal__hint"><?php esc_html_e( 'Every member of the collective can already edit this project.', 'project-prepper' ); ?></p>
+						<?php
+					endif;
+				endif;
+				?>
+			<?php endif; ?>
+
+			<?php if ( $can_take ) : ?>
+				<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="pp-portal__actions" onsubmit="return confirm('<?php echo esc_js( __( 'Take over this project? You become its creator: from then on only you and the co-editors you choose can change it.', 'project-prepper' ) ); ?>');">
+					<?php self::action_fields( 'project_takeover' ); ?>
+					<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
+					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Take over project', 'project-prepper' ); ?></button>
+				</form>
+			<?php endif; ?>
+		</section>
+		<?php
+	}
+
 	/** Beteiligten-Roster (read-only) — Name + Rolle/Notiz, verwaiste markiert. */
 	private static function render_project_members( object $p ): void {
 		$members = (array) ( $p->members ?? [] );
@@ -7185,6 +7345,9 @@ class MemberPortal {
 								<small class="pp-row__meta">(<?php esc_html_e( 'former member', 'project-prepper' ); ?>)</small>
 							<?php endif; ?>
 						</span>
+						<?php if ( ! empty( $m->can_edit ) ) : ?>
+							<span class="pp-team-chip pp-team-chip--accepted"><?php esc_html_e( 'Co-editor', 'project-prepper' ); ?></span>
+						<?php endif; ?>
 						<?php if ( '' !== $meta ) : ?>
 							<span class="pp-row__meta"><?php echo esc_html( $meta ); ?></span>
 						<?php endif; ?>

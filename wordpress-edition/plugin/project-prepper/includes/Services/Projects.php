@@ -502,11 +502,43 @@ class Projects {
 		return Groups::user_can_access_project( $p, $user_id );
 	}
 
+	/** Hat $user_id das Projekt angelegt? */
+	public static function is_creator( object $p, int $user_id ): bool {
+		return $user_id > 0 && (int) ( $p->created_by ?? 0 ) === $user_id;
+	}
+
+	/**
+	 * Hat das Projekt einen AKTIVEN Ersteller? Kollektiv-Projekt: created_by ist
+	 * ein existierender User und (noch) Mitglied der Gruppe. Solo-Projekt: der
+	 * Eigentümer existiert. Site-Ebene: nie (dort gelten Caps).
+	 * false = „verwaist": Altprojekt ohne bekannten Ersteller, Ersteller hat das
+	 * Kollektiv verlassen oder wurde gelöscht.
+	 */
+	public static function creator_active( object $p ): bool {
+		$creator = (int) ( $p->created_by ?? 0 );
+		$group   = self::workspace_of( $p );
+		if ( $group > 0 ) {
+			return $creator > 0 && get_userdata( $creator ) && Groups::is_member( $group, $creator );
+		}
+		return self::is_solo( $p ) && (bool) get_userdata( (int) $p->owner_user_id );
+	}
+
+	/** Ist $user_id Mit-Bearbeiter (project_members.can_edit) eines Kollektiv-Projekts? */
+	public static function is_coeditor( object $p, int $user_id ): bool {
+		return self::workspace_of( $p ) > 0 && ProjectMembers::is_editor( (int) $p->id, $user_id );
+	}
+
 	/**
 	 * Darf $user_id das Projekt BEARBEITEN (Stammdaten, Status, Buchungen,
-	 * Unterlisten)? Admin immer; Solo: nur der Eigentümer; Kollektiv: jedes
-	 * aktive Mitglied; Site-Ebene: wie bisher über die Cap pp_projects_edit
-	 * (nur Backend/REST — im Portal gibt es diese Projekte nicht).
+	 * Unterlisten)?
+	 *  - Admin (Groups::user_is_admin): immer.
+	 *  - Solo-Projekt: nur der Eigentümer.
+	 *  - Kollektiv-Projekt: nur aktive Mitglieder, und von denen der Ersteller
+	 *    und die Mit-Bearbeiter. Ist der Ersteller unbekannt oder nicht mehr
+	 *    aktives Mitglied ({@see creator_active()}), dürfen ALLE Mitglieder —
+	 *    bis jemand das Projekt übernimmt ({@see take_over()}).
+	 *  - Site-Ebene: wie bisher über die Cap pp_projects_edit (nur Backend/REST —
+	 *    im Portal gibt es diese Projekte nicht).
 	 */
 	public static function can_edit( object $p, int $user_id ): bool {
 		if ( $user_id <= 0 ) {
@@ -521,12 +553,195 @@ class Projects {
 				? self::is_solo_owner( $p, $user_id )
 				: user_can( $user_id, Capabilities::EDIT_PROJECTS );
 		}
-		return Groups::is_member( $group_id, $user_id );
+		if ( ! Groups::is_member( $group_id, $user_id ) ) {
+			return false;
+		}
+		if ( ! self::creator_active( $p ) ) {
+			return true;
+		}
+		return self::is_creator( $p, $user_id ) || self::is_coeditor( $p, $user_id );
 	}
 
-	/** Darf $user_id das Projekt löschen? (Regeln wie {@see can_edit()}.) */
+	/**
+	 * Darf $user_id das Projekt LÖSCHEN? Admin; Solo: der Eigentümer; Kollektiv:
+	 * NUR der Ersteller (als aktives Mitglied) — Mit-Bearbeiter nicht. Ein
+	 * verwaistes Projekt löscht niemand direkt: erst übernehmen, dann ist man
+	 * Ersteller. Site-Ebene: Cap wie {@see can_edit()}.
+	 */
 	public static function can_delete( object $p, int $user_id ): bool {
-		return self::can_edit( $p, $user_id );
+		if ( $user_id <= 0 ) {
+			return false;
+		}
+		if ( Groups::user_is_admin( $user_id ) ) {
+			return true;
+		}
+		$group_id = self::workspace_of( $p );
+		if ( $group_id <= 0 ) {
+			return self::can_edit( $p, $user_id );
+		}
+		return self::is_creator( $p, $user_id ) && Groups::is_member( $group_id, $user_id );
+	}
+
+	/**
+	 * Darf $user_id Mit-Bearbeiter vergeben/entziehen? Nur bei Kollektiv-
+	 * Projekten, nur der Ersteller als aktives Mitglied (oder ein Admin, der
+	 * Mitglied ist — das Portal zeigt ihm nur eigene Kollektive).
+	 */
+	public static function can_manage_editors( object $p, int $user_id ): bool {
+		$group_id = self::workspace_of( $p );
+		if ( $user_id <= 0 || $group_id <= 0 ) {
+			return false;
+		}
+		if ( Groups::user_is_admin( $user_id ) ) {
+			return true;
+		}
+		return self::is_creator( $p, $user_id ) && Groups::is_member( $group_id, $user_id );
+	}
+
+	/**
+	 * Darf $user_id das Projekt ÜBERNEHMEN (sich als Ersteller eintragen)? Nur
+	 * bei verwaisten Kollektiv-Projekten ({@see creator_active()} = false) und
+	 * nur als aktives Mitglied der Gruppe.
+	 */
+	public static function can_take_over( object $p, int $user_id ): bool {
+		$group_id = self::workspace_of( $p );
+		return $user_id > 0 && $group_id > 0
+			&& Groups::is_member( $group_id, $user_id )
+			&& ! self::creator_active( $p );
+	}
+
+	/**
+	 * Verwaistes Kollektiv-Projekt übernehmen: created_by = $user_id.
+	 * Bedingtes UPDATE auf den GELESENEN Ersteller — übernehmen zwei Mitglieder
+	 * gleichzeitig, gewinnt genau einer; der andere bekommt pp_takeover_race.
+	 * updated_at bleibt bewusst unberührt (kein Inhaltswechsel; offene
+	 * Bearbeiten-Formulare anderer würden sonst als „veraltet" abgelehnt — ob
+	 * sie noch schreiben dürfen, entscheidet ohnehin can_edit beim Speichern).
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function take_over( int $id, int $user_id ) {
+		global $wpdb;
+		$p = self::get( $id );
+		if ( ! $p ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		if ( ! self::can_take_over( $p, $user_id ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'This project already has an active creator.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		$old = (int) ( $p->created_by ?? 0 );
+		if ( $old > 0 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Plugin-eigene Tabelle, bedingtes Update.
+			$rows = $wpdb->query( $wpdb->prepare(
+				'UPDATE %i SET created_by = %d WHERE id = %d AND created_by = %d',
+				Schema::table( 'projects' ),
+				$user_id,
+				$id,
+				$old
+			) );
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Plugin-eigene Tabelle, bedingtes Update.
+			$rows = $wpdb->query( $wpdb->prepare(
+				'UPDATE %i SET created_by = %d WHERE id = %d AND ( created_by IS NULL OR created_by = 0 )',
+				Schema::table( 'projects' ),
+				$user_id,
+				$id
+			) );
+		}
+		if ( 1 !== (int) $rows ) {
+			return new WP_Error( 'pp_takeover_race', __( 'Someone else took over this project in the meantime.', 'project-prepper' ), [ 'status' => 409 ] );
+		}
+		// Wer übernimmt, braucht keinen Mit-Bearbeiter-Haken mehr.
+		ProjectMembers::set_editor( $id, $user_id, false );
+		ActivityLog::log( 'project_taken_over', 'project', $id, [
+			'from' => $old > 0 ? $old : null,
+			'to'   => $user_id,
+		] );
+		return true;
+	}
+
+	/**
+	 * Mit-Bearbeiter vergeben ($on = true) oder entziehen. Gate:
+	 * {@see can_manage_editors()} für $actor_id. Ziel muss aktives Mitglied der
+	 * Gruppe sein (beim Entziehen egal — Aufräumen geht immer) und darf nicht der
+	 * Ersteller selbst sein.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function set_coeditor( int $id, int $target_id, bool $on, int $actor_id ) {
+		$p = self::get( $id );
+		if ( ! $p ) {
+			return new WP_Error( 'pp_not_found', __( 'Project not found.', 'project-prepper' ), [ 'status' => 404 ] );
+		}
+		if ( ! self::can_manage_editors( $p, $actor_id ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'Only the project’s creator can choose co-editors.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		if ( $target_id <= 0 || ! get_userdata( $target_id ) ) {
+			return new WP_Error( 'pp_invalid_user', __( 'Unknown user.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		if ( self::is_creator( $p, $target_id ) ) {
+			return new WP_Error( 'pp_coeditor_creator', __( 'The creator can already edit the project.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		if ( $on && ! Groups::is_member( self::workspace_of( $p ), $target_id ) ) {
+			return new WP_Error( 'pp_not_group_member', __( 'This user is not a member of the project group.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		if ( ProjectMembers::set_editor( $id, $target_id, $on ) ) {
+			ActivityLog::log( $on ? 'project_coeditor_added' : 'project_coeditor_removed', 'project', $id, [ 'user_id' => $target_id ] );
+		}
+		return true;
+	}
+
+	/**
+	 * Einmaliger Datenlauf (Schema::upgrade_data, Riegel
+	 * pp_project_creator_backfill_done): Projekte ohne created_by bekommen den
+	 * Akteur ihres `project_created`-Protokolleintrags. Streng, damit nichts
+	 * Falsches zugeordnet wird:
+	 *  - der JÜNGSTE project_created-Eintrag dieser Projekt-ID (IDs können nach
+	 *    Löschungen neu vergeben werden),
+	 *  - dessen Zeitpunkt höchstens 5 Minuten vom created_at des Projekts
+	 *    abweicht (sonst gehört er zu einem früheren Projekt mit derselben ID),
+	 *  - der Akteur existiert noch als WordPress-User.
+	 * Was nicht passt, bleibt NULL = „Ersteller unbekannt".
+	 *
+	 * @return int Anzahl zugeordneter Projekte.
+	 */
+	public static function backfill_created_by(): int {
+		global $wpdb;
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery -- einmalige Daten-Migration auf Plugin-eigenen Tabellen, Caching nicht anwendbar.
+		$projects = $wpdb->get_results( $wpdb->prepare(
+			'SELECT id, created_at FROM %i WHERE created_by IS NULL OR created_by = 0',
+			Schema::table( 'projects' )
+		) ) ?: [];
+		$filled = 0;
+		foreach ( $projects as $p ) {
+			$log = $wpdb->get_row( $wpdb->prepare(
+				'SELECT actor_id, created_at FROM %i
+				 WHERE action = %s AND entity_type = %s AND entity_id = %d AND actor_id IS NOT NULL AND actor_id > 0
+				 ORDER BY id DESC LIMIT 1',
+				Schema::table( 'activity_log' ),
+				'project_created',
+				'project',
+				(int) $p->id
+			) );
+			if ( ! $log ) {
+				continue;
+			}
+			$delta = abs( (int) strtotime( (string) $log->created_at ) - (int) strtotime( (string) $p->created_at ) );
+			if ( $delta > 5 * MINUTE_IN_SECONDS || ! get_userdata( (int) $log->actor_id ) ) {
+				continue;
+			}
+			$ok = $wpdb->query( $wpdb->prepare(
+				'UPDATE %i SET created_by = %d WHERE id = %d AND ( created_by IS NULL OR created_by = 0 )',
+				Schema::table( 'projects' ),
+				(int) $log->actor_id,
+				(int) $p->id
+			) );
+			if ( 1 === (int) $ok ) {
+				$filled++;
+			}
+		}
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery
+		return $filled;
 	}
 
 	/**
@@ -596,7 +811,14 @@ class Projects {
 
 	/** Einheitlicher Fehler, wenn Sehen erlaubt, Ändern aber nicht. */
 	public static function edit_denied(): WP_Error {
-		return new WP_Error( 'pp_project_readonly', __( 'You are not allowed to change this project.', 'project-prepper' ), [ 'status' => 403 ] );
+		return new WP_Error( 'pp_project_readonly', __( 'Only the project’s creator and its co-editors can change this project.', 'project-prepper' ), [ 'status' => 403 ] );
+	}
+
+	/** Anzeigename des Erstellers ('' = unbekannt/gelöscht). */
+	public static function creator_name( object $p ): string {
+		$creator = (int) ( $p->created_by ?? 0 );
+		$user    = $creator > 0 ? get_userdata( $creator ) : false;
+		return $user ? (string) $user->display_name : '';
 	}
 
 	/* ---------- Buchungszeilen ---------- */

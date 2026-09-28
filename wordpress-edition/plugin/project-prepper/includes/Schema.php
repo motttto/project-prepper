@@ -282,7 +282,9 @@ class Schema {
 		//   owner_user_id   = Solo-Projekt (persönlicher Arbeitsbereich, nur der
 		//                     Eigentümer sieht es; bucht aus dem eigenen Inventar).
 		// Beide NULL = Alt-/Betreiber-Projekt der Site-Ebene (nur Backend/REST).
-		// Rechte: Services\Projects::can_view()/can_edit().
+		// created_by = Ersteller: darf bei Kollektiv-Projekten alles (auch Löschen
+		// und Mit-Bearbeiter vergeben, project_members.can_edit); die übrigen
+		// Mitglieder sehen es read-only. Rechte: Services\Projects::can_*().
 		dbDelta( "CREATE TABLE {$projects} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			project_number varchar(50) NOT NULL,
@@ -614,12 +616,16 @@ class Schema {
 			// KEINE Beträge/Raten (kommen mit Gewinn-/Vereinbarungs-Phase), KEINE
 			// zweite Zugriffsebene — Zugriff bleibt gruppen-basiert (Phase 1). Rein
 			// dokumentarisch: wer ist am Projekt beteiligt und in welcher Rolle.
+			// can_edit: Mit-Bearbeiter-Recht, vom Ersteller im Portal vergeben
+			// (Services\Projects::can_edit). DEFAULT 0 → alle bestehenden Zeilen
+			// bleiben rein dokumentarisch; ohne Haken gewährt das Roster nichts.
 			dbDelta( "CREATE TABLE {$p_members} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				project_id bigint(20) unsigned NOT NULL,
 				user_id bigint(20) unsigned NOT NULL,
 				role_title varchar(190) NOT NULL DEFAULT '',
 				note text,
+				can_edit tinyint(1) NOT NULL DEFAULT 0,
 				sort_order int(11) NOT NULL DEFAULT 0,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),
@@ -1044,6 +1050,23 @@ class Schema {
 				if ( $moved ) {
 					Services\ActivityLog::log( 'rental_backfill_completed', 'rental', null, [ 'count' => $moved ] );
 				}
+			}
+		}
+
+		// Ersteller-Rechte an Projekten: Projekte ohne created_by bekommen ihren
+		// Ersteller aus dem Aktivitätsprotokoll (project_created), Regeln in
+		// {@see \ProjectPrepper\Services\Projects::backfill_created_by}. Bewusst
+		// NICHT an eine Schema-Version gebunden, sondern nur an den eigenen
+		// Riegel — läuft genau einmal beim nächsten migrate(). Riegel VOR dem
+		// Lauf setzen (wie beim Verleih-Nachtrag oben), sonst liefen zwei
+		// gleichzeitige Requests nach dem Update beide hier durch. Was sich nicht
+		// zuordnen lässt, bleibt NULL = „Ersteller unbekannt" → alle Mitglieder
+		// dürfen bearbeiten, bis es jemand übernimmt.
+		if ( ! get_option( 'pp_project_creator_backfill_done' ) ) {
+			update_option( 'pp_project_creator_backfill_done', 1 );
+			$filled = \ProjectPrepper\Services\Projects::backfill_created_by();
+			if ( $filled ) {
+				Services\ActivityLog::log( 'project_creator_backfill_completed', 'project', null, [ 'count' => $filled ] );
 			}
 		}
 	}
