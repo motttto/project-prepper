@@ -57,6 +57,7 @@ class Privacy {
 					[ 'name' => __( 'Email', 'project-prepper' ), 'value' => $rental->borrower_email ],
 					[ 'name' => __( 'Phone', 'project-prepper' ), 'value' => $rental->borrower_phone ],
 					[ 'name' => __( 'Address', 'project-prepper' ), 'value' => $rental->borrower_address ?? '' ],
+					[ 'name' => __( 'Event name', 'project-prepper' ), 'value' => $rental->event_name ?? '' ],
 					[ 'name' => __( 'Period', 'project-prepper' ), 'value' => $rental->date_from . ' – ' . $rental->date_to ],
 					[ 'name' => __( 'Status', 'project-prepper' ), 'value' => $rental->status ],
 				],

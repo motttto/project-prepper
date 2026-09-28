@@ -260,6 +260,7 @@
 					email: input("email", rental.borrower_email),
 					phone: input("text", rental.borrower_phone),
 					address: input("text", rental.borrower_address),
+					event: input("text", rental.event_name),
 					from: input("date", rental.date_from),
 					to: input("date", rental.date_to),
 					fee: input("number", rental.rental_fee, "0.01"),
@@ -271,7 +272,7 @@
 				if (!editable) f.notes.disabled = true;
 
 				var info = el("div", { class: "pp-modal-grid" }, [
-					field(__("Borrower *", "project-prepper"), f.name), field(__("Email", "project-prepper"), f.email), field(__("Phone", "project-prepper"), f.phone), field(__("Address", "project-prepper"), f.address),
+					field(__("Event name", "project-prepper"), f.event), field(__("Borrower *", "project-prepper"), f.name), field(__("Email", "project-prepper"), f.email), field(__("Phone", "project-prepper"), f.phone), field(__("Address", "project-prepper"), f.address),
 					field(__("From", "project-prepper"), f.from), field(__("To", "project-prepper"), f.to),
 					field(__("Fee €", "project-prepper"), f.fee), field(__("Deposit €", "project-prepper"), f.deposit), field(__("VAT %", "project-prepper"), f.vat), field(__("Notes", "project-prepper"), f.notes)
 				]);
@@ -379,6 +380,7 @@
 									borrower_email: f.email.value.trim(),
 									borrower_phone: f.phone.value.trim(),
 									borrower_address: f.address.value.trim(),
+									event_name: f.event.value.trim(),
 									date_from: f.from.value,
 									date_to: f.to.value,
 									rental_fee: f.fee.value,
@@ -427,6 +429,7 @@
 			var fEmail = el("input", { type: "email", placeholder: __("Email", "project-prepper"), class: "pp-input-md" });
 			var fPhone = el("input", { type: "text", placeholder: __("Phone", "project-prepper"), class: "pp-input-sm" });
 			var fAddress = el("input", { type: "text", placeholder: __("Address", "project-prepper"), class: "pp-input-lg" });
+			var fEvent = el("input", { type: "text", placeholder: __("Event name", "project-prepper"), class: "pp-input-lg" });
 			var fFrom = el("input", { type: "date" });
 			var fTo = el("input", { type: "date" });
 			var fFee = el("input", { type: "number", step: "0.01", placeholder: __("Fee €", "project-prepper"), class: "pp-input-sm" });
@@ -482,6 +485,7 @@
 							borrower_email: fEmail.value.trim(),
 							borrower_phone: fPhone.value.trim(),
 							borrower_address: fAddress.value.trim(),
+							event_name: fEvent.value.trim(),
 							date_from: fFrom.value,
 							date_to: fTo.value,
 							rental_fee: fFee.value,
@@ -493,13 +497,13 @@
 						/* translators: %s: rental number */
 						toast(sprintf(__("Rental %s created.", "project-prepper"), rental.rental_number));
 						lines = []; refreshLines();
-						fBorrower.value = fEmail.value = fPhone.value = fAddress.value = fFee.value = fDeposit.value = "";
+						fBorrower.value = fEmail.value = fPhone.value = fAddress.value = fEvent.value = fFee.value = fDeposit.value = "";
 						load();
 					}).catch(function (e2) { toast(e2.message, "error"); });
 				}
 			}, [
 				el("div", { class: "pp-row" }, [
-					field(__("Borrower *", "project-prepper"), fBorrower), field(__("Email", "project-prepper"), fEmail), field(__("Phone", "project-prepper"), fPhone), field(__("Address", "project-prepper"), fAddress)
+					field(__("Event name", "project-prepper"), fEvent), field(__("Borrower *", "project-prepper"), fBorrower), field(__("Email", "project-prepper"), fEmail), field(__("Phone", "project-prepper"), fPhone), field(__("Address", "project-prepper"), fAddress)
 				]),
 				el("div", { class: "pp-row" }, [
 					field(__("From", "project-prepper"), fFrom), field(__("To", "project-prepper"), fTo), field(__("Fee €", "project-prepper"), fFee), field(__("Deposit €", "project-prepper"), fDeposit), field(__("VAT %", "project-prepper"), fVat)

@@ -235,10 +235,16 @@ class Notifications {
 		$out    = [];
 		foreach ( self::default_templates() as $key => $tpl ) {
 			preg_match_all( '/\{\{(\w+)\}\}/', (string) $tpl['subject'] . ' ' . (string) $tpl['body'], $m );
+			$vars = array_values( array_unique( $m[1] ) );
+			// Name der Veranstaltung (0.46.0) steht in keinem Standardtext, ist
+			// aber in jeder Verleih-Mail befüllt — für eigene Vorlagen anbieten.
+			if ( in_array( 'rental_number', $vars, true ) && in_array( 'borrower_name', $vars, true ) && ! in_array( 'event_name', $vars, true ) ) {
+				$vars[] = 'event_name';
+			}
 			$out[] = [
 				'key'   => $key,
 				'label' => $labels[ $key ] ?? $key,
-				'vars'  => array_values( array_unique( $m[1] ) ),
+				'vars'  => $vars,
 			];
 		}
 		return $out;
@@ -309,6 +315,7 @@ class Notifications {
 		$vars = [
 			'owner_name'    => $owner_name,
 			'borrower_name' => $rental->borrower_name,
+			'event_name' => (string) ( $rental->event_name ?? '' ),
 			'rental_number' => $rental->rental_number,
 			'date_from'     => mysql2date( 'd.m.Y', $rental->date_from ),
 			'date_to'       => mysql2date( 'd.m.Y', $rental->date_to ),
@@ -874,6 +881,7 @@ class Notifications {
 			// Geräte-Eigentümer auch im Portal nicht (Audit ACC-15); Ansprechpartner
 			// ist das Mitglied, das den Verleih betreut (contact_*).
 			'borrower_name'  => $rental->borrower_name,
+			'event_name'  => (string) ( $rental->event_name ?? '' ),
 			'date_from'      => mysql2date( 'd.m.Y', $rental->date_from ),
 			'date_to'        => mysql2date( 'd.m.Y', $rental->date_to ),
 			'items'          => implode( "\n", $item_lines ),
@@ -964,6 +972,7 @@ class Notifications {
 
 		$vars = [
 			'borrower_name' => $rental->borrower_name,
+			'event_name' => (string) ( $rental->event_name ?? '' ),
 			'rental_number' => $rental->rental_number,
 			'date_from'     => mysql2date( 'd.m.Y', $rental->date_from ),
 			'date_to'       => mysql2date( 'd.m.Y', $rental->date_to ),

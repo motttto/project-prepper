@@ -144,7 +144,7 @@ class CalendarController extends BaseController {
 			}
 			$uid     = 'pp-rental-' . $rental->id . '@' . wp_parse_url( home_url(), PHP_URL_HOST );
 			$dt_end  = gmdate( 'Ymd', strtotime( $rental->date_to . ' +1 day' ) ); // DTEND exklusiv
-			$summary = sprintf( '%s — %s', $rental->rental_number, $rental->borrower_name );
+			$summary = sprintf( '%s — %s', $rental->rental_number, Rentals::title( $rental ) );
 
 			$lines[] = 'BEGIN:VEVENT';
 			$lines[] = 'UID:' . $uid;
@@ -286,7 +286,7 @@ class CalendarController extends BaseController {
 			}
 			$lines = array_merge( $lines, $this->allday_lines(
 				'pp-myrental-' . (int) $r->id . '@' . $host,
-				sprintf( '%s — %s', (string) $r->rental_number, (string) $r->borrower_name ),
+				sprintf( '%s — %s', (string) $r->rental_number, Rentals::title( $r ) ),
 				(string) $r->date_from,
 				! empty( $r->date_to ) ? (string) $r->date_to : (string) $r->date_from,
 				__( 'Rental', 'project-prepper' ),

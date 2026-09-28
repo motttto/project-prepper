@@ -407,6 +407,19 @@ class Rentals {
 		return $items;
 	}
 
+	/**
+	 * Anzeigename eines Verleihs für Kalender, Feeds und Listen: „Veranstaltung
+	 * (Leiher)", ohne Veranstaltung nur der Leiher.
+	 */
+	public static function title( object $rental ): string {
+		$event = trim( (string) ( $rental->event_name ?? '' ) );
+		$name  = trim( (string) ( $rental->borrower_name ?? '' ) );
+		if ( '' === $event ) {
+			return $name;
+		}
+		return '' !== $name ? $event . ' (' . $name . ')' : $event;
+	}
+
 	public static function create( array $data, array $items ) {
 		// Buchungen serialisieren (Skill /wp-audit, AVAIL-04).
 		return Locking::serialized( static fn() => self::create_locked( $data, $items ) );
@@ -467,6 +480,7 @@ class Rentals {
 			'borrower_email' => $data['borrower_email'] ?? '',
 			'borrower_phone' => $data['borrower_phone'] ?? '',
 			'borrower_address' => $data['borrower_address'] ?? '',
+			'event_name'     => mb_substr( (string) ( $data['event_name'] ?? '' ), 0, 190 ),
 			'date_from'      => $data['date_from'],
 			'date_to'        => $data['date_to'],
 			'status'         => 'reserved',
@@ -644,7 +658,7 @@ class Rentals {
 
 		// Header-Diff: nur übergebene Felder schreiben.
 		$fields = [];
-		foreach ( [ 'borrower_name', 'borrower_email', 'borrower_phone', 'borrower_address', 'date_from', 'date_to', 'notes' ] as $key ) {
+		foreach ( [ 'borrower_name', 'borrower_email', 'borrower_phone', 'borrower_address', 'event_name', 'date_from', 'date_to', 'notes' ] as $key ) {
 			if ( array_key_exists( $key, $data ) ) {
 				$fields[ $key ] = (string) $data[ $key ];
 			}

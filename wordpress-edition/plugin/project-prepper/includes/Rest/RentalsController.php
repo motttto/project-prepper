@@ -68,7 +68,7 @@ class RentalsController extends BaseController {
 		$json = $request->get_json_params() ?: [];
 
 		$data = $this->sanitize_text_fields( $json, [
-			'borrower_name', 'borrower_phone', 'date_from', 'date_to',
+			'borrower_name', 'borrower_phone', 'event_name', 'date_from', 'date_to',
 		] );
 		$data['borrower_email']   = sanitize_email( (string) ( $json['borrower_email'] ?? '' ) );
 		$data['borrower_address'] = sanitize_textarea_field( (string) ( $json['borrower_address'] ?? '' ) );
@@ -92,7 +92,7 @@ class RentalsController extends BaseController {
 
 		// Nur übergebene Keys weiterreichen — der Service macht den Header-Diff.
 		$data = $this->sanitize_text_fields( $json, [
-			'borrower_name', 'borrower_phone', 'date_from', 'date_to',
+			'borrower_name', 'borrower_phone', 'event_name', 'date_from', 'date_to',
 		] );
 		if ( array_key_exists( 'borrower_email', $json ) ) {
 			$data['borrower_email'] = sanitize_email( (string) $json['borrower_email'] );

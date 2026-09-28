@@ -3945,6 +3945,9 @@ class MemberPortal {
 								<?php echo esc_html( $full->borrower_name ); ?>
 								<small class="pp-portal__item-num"><?php echo esc_html( $full->rental_number ); ?></small>
 							</span>
+							<?php if ( '' !== trim( (string) ( $full->event_name ?? '' ) ) ) : ?>
+								<span class="pp-portal__item-meta pp-rental-event"><?php echo esc_html( (string) $full->event_name ); ?></span>
+							<?php endif; ?>
 							<span class="pp-status pp-status--<?php echo esc_attr( $full->status ); ?>"><?php echo esc_html( self::rental_status_label( $full->status ) ); ?></span>
 							<span class="pp-portal__item-meta"><?php echo esc_html( self::fmt_range( $full->date_from, $full->date_to ) ); ?></span>
 						</div>
@@ -4547,6 +4550,9 @@ class MemberPortal {
 				<input type="hidden" name="pp_rental" value="<?php echo (int) $rental->id; ?>">
 				<input type="hidden" name="pp_seen" value="<?php echo esc_attr( (string) ( $rental->updated_at ?? '' ) ); ?>">
 			<?php endif; ?>
+			<label><?php esc_html_e( 'Event name', 'project-prepper' ); ?>
+				<input type="text" name="pp_event" value="<?php echo esc_attr( (string) $val( 'event_name' ) ); ?>" maxlength="190" placeholder="<?php esc_attr_e( 'e.g. Summer festival 2026 (optional)', 'project-prepper' ); ?>">
+			</label>
 			<label><?php esc_html_e( 'Borrower name', 'project-prepper' ); ?>
 				<input type="text" name="pp_borrower" value="<?php echo esc_attr( (string) $val( 'borrower_name' ) ); ?>" required>
 			</label>
@@ -4811,6 +4817,7 @@ class MemberPortal {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
 		$data = [
 			'borrower_name'  => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_borrower'] ?? '' ) ) ),
+			'event_name'     => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_event'] ?? '' ) ) ),
 			'borrower_email' => sanitize_email( wp_unslash( (string) ( $_POST['pp_email'] ?? '' ) ) ),
 			'borrower_phone' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_phone'] ?? '' ) ) ),
 			'date_from'      => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
@@ -6690,7 +6697,7 @@ class MemberPortal {
 							<?php
 							$bits = [];
 							/* translators: %s: name of the external borrower. */
-							$bits[] = sprintf( __( 'Rental to %s', 'project-prepper' ), (string) $r->borrower_name );
+							$bits[] = sprintf( __( 'Rental to %s', 'project-prepper' ), Rentals::title( $r ) );
 							if ( '' !== (string) $r->requester_name ) {
 								/* translators: %s: requester name. */
 								$bits[] = sprintf( __( 'requested by %s', 'project-prepper' ), (string) $r->requester_name );
@@ -9992,7 +9999,7 @@ class MemberPortal {
 			$end = ! empty( $r->date_to ) ? (string) $r->date_to : $start;
 			$add( [
 				'type'  => 'borrow',
-				'label' => $r->borrower_name,
+				'label' => Rentals::title( $r ),
 				'url'   => $lending_url,
 			], $start, $end );
 		}

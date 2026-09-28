@@ -43,7 +43,7 @@ class RentalApprovals {
 		}
 		$rows = $wpdb->get_results( $wpdb->prepare(
 			"SELECT ri.id AS line_id, ri.quantity, ri.daily_rate, ri.requested_by, ri.approval_status,
-			        r.id AS rental_id, r.rental_number, r.borrower_name, r.date_from, r.date_to, r.status AS rental_status,
+			        r.id AS rental_id, r.rental_number, r.borrower_name, r.event_name, r.date_from, r.date_to, r.status AS rental_status,
 			        i.id AS item_id, i.name AS item_name, i.inventory_number,
 			        b.name AS bundle_name
 			 FROM %i ri
@@ -152,7 +152,7 @@ class RentalApprovals {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare(
 			"SELECT ri.id AS line_id, ri.quantity, ri.daily_rate, ri.requested_by,
-			        r.id AS rental_id, r.rental_number, r.borrower_name, r.date_from, r.date_to,
+			        r.id AS rental_id, r.rental_number, r.borrower_name, r.event_name, r.date_from, r.date_to,
 			        i.id AS item_id, i.name AS item_name, i.owner_user_id
 			 FROM %i ri
 			 JOIN %i r ON r.id = ri.rental_id
@@ -244,7 +244,7 @@ class RentalApprovals {
 		$line = $wpdb->get_row( $wpdb->prepare(
 			'SELECT ri.id, ri.rental_id, ri.item_id, ri.quantity, ri.requested_by, ri.approval_status,
 			        i.owner_user_id, i.name AS item_name,
-			        r.rental_number, r.borrower_name
+			        r.rental_number, r.borrower_name, r.event_name
 			 FROM %i ri
 			 JOIN %i i ON i.id = ri.item_id
 			 JOIN %i r ON r.id = ri.rental_id
@@ -275,6 +275,7 @@ class RentalApprovals {
 			'rental_id'      => (int) $line->rental_id,
 			'rental_number'  => (string) $line->rental_number,
 			'borrower_name'  => (string) $line->borrower_name,
+			'event_name'     => (string) ( $line->event_name ?? '' ),
 		];
 	}
 }

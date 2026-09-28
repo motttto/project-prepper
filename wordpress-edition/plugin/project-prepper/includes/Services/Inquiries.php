@@ -164,6 +164,8 @@ class Inquiries {
 			'borrower_name'  => $inquiry->name,
 			'borrower_email' => $inquiry->email,
 			'borrower_phone' => $inquiry->phone,
+			// Titel der Anfrage = Name der Veranstaltung (0.46.0).
+			'event_name'     => (string) ( $inquiry->title ?? '' ),
 			'date_from'      => $inquiry->date_from,
 			'date_to'        => $inquiry->date_to,
 			'notes'          => $notes,

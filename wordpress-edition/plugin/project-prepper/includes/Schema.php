@@ -43,7 +43,9 @@ class Schema {
 	// projects.owner_user_id (Solo-Projekte) und project_members.can_edit
 	// (Mitbearbeiter). Alles additiv via dbDelta; dazu ein einmaliger Datenlauf,
 	// der fehlende projects.created_by aus dem Aktivitätsprotokoll nachträgt.
-	const VERSION    = '0.45.0';
+	// 0.46.0: rentals.event_name — Name der Veranstaltung am Verleih (User-Wunsch),
+	// additiv via dbDelta, DEFAULT '' = keine Angabe.
+	const VERSION    = '0.46.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -184,6 +186,7 @@ class Schema {
 			borrower_email varchar(190) NOT NULL DEFAULT '',
 			borrower_phone varchar(64) NOT NULL DEFAULT '',
 			borrower_address text,
+			event_name varchar(190) NOT NULL DEFAULT '',
 			date_from date NOT NULL,
 			date_to date NOT NULL,
 			status varchar(20) NOT NULL DEFAULT 'reserved',
