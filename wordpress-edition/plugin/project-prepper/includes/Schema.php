@@ -516,6 +516,9 @@ class Schema {
 			// Projekt gehört optional einer Gruppe (sonst Site-Ebene). Siehe
 			// docs/03-GRUPPEN-ARCHITEKTUR.md. Rein additiv: owner_group_id auf
 			// pp_projects defaultet NULL → bestehendes Single-Site-Verhalten bleibt.
+			// color: Hintergrund im Arbeitsbereich-Umschalter (#RRGGBB aus der
+			// Kalender-Palette); leer = automatisch aus der ID abgeleitet
+			// ({@see Services\Groups::workspace_color}). Additiv, DEFAULT ''.
 			dbDelta( "CREATE TABLE {$groups} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				name varchar(190) NOT NULL,
@@ -523,6 +526,7 @@ class Schema {
 				description text,
 				logo_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				telegram_chat_id varchar(64) NOT NULL DEFAULT '',
+				color varchar(7) NOT NULL DEFAULT '',
 				created_by bigint(20) unsigned DEFAULT NULL,
 				created_at datetime NOT NULL,
 				PRIMARY KEY  (id),

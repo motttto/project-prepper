@@ -425,10 +425,17 @@ class CalendarEvents {
 		return substr( trim( (string) $uid ), 0, 255 );
 	}
 
-	/** Farbe auf die feste Palette einschränken (Fallback: erste Farbe). */
-	private static function sanitize_color( $color ): string {
+	/**
+	 * Farbe auf die feste Palette einschränken. Fallback: erste Farbe — oder
+	 * $fallback, wenn angegeben (z. B. '' = „automatisch" bei Kollektiven,
+	 * {@see Groups::update}). Öffentlich, damit es nur EINE Farbprüfung gibt.
+	 */
+	public static function sanitize_color( $color, ?string $fallback = null ): string {
 		$color = strtoupper( trim( (string) $color ) );
-		return in_array( $color, self::COLORS, true ) ? $color : self::COLORS[0];
+		if ( in_array( $color, self::COLORS, true ) ) {
+			return $color;
+		}
+		return null === $fallback ? self::COLORS[0] : $fallback;
 	}
 
 	/** HH:MM validieren, sonst leer (= keine Zeit / ganztägig). */

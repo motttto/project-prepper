@@ -23,6 +23,13 @@ class Groups {
 
 	const ROLES = [ 'founder', 'member' ];
 
+	/**
+	 * Farbe des persönlichen Arbeitsbereichs (Solo) im Umschalter: ein neutrales
+	 * Schiefergrau, bewusst NICHT aus der Kalender-Palette — so sieht der eigene
+	 * Bereich nie wie ein Kollektiv aus.
+	 */
+	const SOLO_COLOR = '#94A3B8';
+
 	/* ===================== Lesen ===================== */
 
 	/**
@@ -121,7 +128,7 @@ class Groups {
 	}
 
 	/**
-	 * Name/Beschreibung partiell ändern (slug bleibt stabil).
+	 * Name/Beschreibung/Logo/Telegram/Farbe partiell ändern (slug bleibt stabil).
 	 *
 	 * @return true|WP_Error
 	 */
@@ -152,6 +159,11 @@ class Groups {
 			// (Gruppen sind negativ, z. B. -1001234567890) oder @channelusername.
 			// Leer = Benachrichtigungen aus. Siehe Services\Telegram.
 			$fields['telegram_chat_id'] = \ProjectPrepper\Services\Telegram::sanitize_chat_id( (string) $data['telegram_chat_id'] );
+		}
+		if ( array_key_exists( 'color', $data ) ) {
+			// Farbe im Arbeitsbereich-Umschalter: nur Palettenwerte; alles andere
+			// (auch '') = automatisch, siehe workspace_color().
+			$fields['color'] = CalendarEvents::sanitize_color( $data['color'], '' );
 		}
 		if ( $fields ) {
 			$wpdb->update( Schema::table( 'groups' ), $fields, [ 'id' => $id ] );
@@ -300,7 +312,7 @@ class Groups {
 	 * Gruppen des Users inkl. Name, Slug und eigener Rolle — für das
 	 * Member-Portal (eine Query, ohne die Mitglieder-Auflösung von get()).
 	 *
-	 * @return array<object> Zeilen {id, name, slug, description, logo_id, member_role}.
+	 * @return array<object> Zeilen {id, name, slug, description, logo_id, color, member_role}.
 	 */
 	public static function user_groups( int $user_id ): array {
 		global $wpdb;
@@ -308,7 +320,7 @@ class Groups {
 			return [];
 		}
 		return $wpdb->get_results( $wpdb->prepare(
-			'SELECT g.id, g.name, g.slug, g.description, g.logo_id, gm.member_role
+			'SELECT g.id, g.name, g.slug, g.description, g.logo_id, g.color, gm.member_role
 			 FROM %i gm JOIN %i g ON g.id = gm.group_id
 			 WHERE gm.user_id = %d
 			 ORDER BY (gm.member_role = %s) DESC, g.name ASC',
@@ -317,6 +329,33 @@ class Groups {
 			$user_id,
 			'founder'
 		) ) ?: [];
+	}
+
+	/**
+	 * Farbe eines Arbeitsbereichs für den Umschalter (User-Wunsch: jeder Bereich
+	 * anders hinterlegt). Kollektiv: die vom Gründer gewählte Farbe, sonst die
+	 * automatische ({@see auto_color}). Solo ($group = null): SOLO_COLOR.
+	 *
+	 * @param object|null $group Gruppenzeile mit ->id (+ optional ->color) oder null für Solo.
+	 * @return string #RRGGBB
+	 */
+	public static function workspace_color( ?object $group ): string {
+		if ( ! $group ) {
+			return self::SOLO_COLOR;
+		}
+		// ->color fehlt, solange die Spalte noch nicht migriert ist → automatisch.
+		$stored = CalendarEvents::sanitize_color( $group->color ?? '', '' );
+		return '' !== $stored ? $stored : self::auto_color( (int) ( $group->id ?? 0 ) );
+	}
+
+	/**
+	 * Automatische Kollektiv-Farbe: stabil aus der ID abgeleitet (Kalender-
+	 * Palette), damit jedes Kollektiv ohne Zutun eine eigene Farbe hat und sie
+	 * sich beim Umbenennen nicht ändert.
+	 */
+	public static function auto_color( int $group_id ): string {
+		$palette = CalendarEvents::COLORS;
+		return $palette[ absint( $group_id ) % count( $palette ) ];
 	}
 
 	/**

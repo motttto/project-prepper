@@ -1611,8 +1611,18 @@ body.admin-bar .pp-app__sidebar { top: 32px; }
 }
 .pp-app__workspace-name { font-weight: 600; color: #fff; font-size: .9rem; }
 
-/* Workspace-Switcher (Solo / Gruppe) */
-.pp-app__ws { margin: 0 14px 14px; }
+/* Workspace-Switcher (Solo / Gruppe). Unter 5 Arbeitsbereichen stehen alle
+ * direkt als Knöpfe in .pp-app__ws-list, ab 5 als Dropdown (.pp-app__ws).
+ * Jeder Bereich trägt seine Farbe als --pp-ws-color (inline, aus
+ * Groups::workspace_color). Die Sidebar ist in beiden Modi dunkel (#1e1b4b):
+ * die Farbe wird deshalb mit dem Sidebar-Grund gemischt — so bleibt heller
+ * Text auf jeder Palettenfarbe lesbar (≥ 4,5:1 auch bei Gelb/Grün/Cyan), und ein
+ * Streifen links zeigt die volle Farbe. */
+.pp-app__ws,
+.pp-app__ws-list { margin: 0 14px 14px; }
+.pp-app__ws-list { display: flex; flex-direction: column; gap: 4px; }
+.pp-app__ws-list > .pp-app__workspace-label { padding: 0 2px 2px; }
+.pp-app__ws-list form { margin: 0; }
 .pp-app__ws > summary.pp-app__workspace {
 	margin: 0;
 	flex-direction: row;
@@ -1621,28 +1631,53 @@ body.admin-bar .pp-app__sidebar { top: 32px; }
 	gap: 8px;
 	list-style: none;
 	cursor: pointer;
+	background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 40%, #1e1b4b);
+	box-shadow: inset 4px 0 0 var(--pp-ws-color, #4f46e5);
 }
+.pp-app__ws > summary .pp-app__workspace-label,
+.pp-app__ws > summary .pp-app__ws-caret { color: #c7d2fe; }
 .pp-app__ws > summary::-webkit-details-marker { display: none; }
 .pp-app__ws-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pp-app__ws-text .pp-app__workspace-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pp-app__ws-caret { color: #a5b4fc; font-size: .75rem; flex: none; transition: transform .15s; }
 .pp-app__ws[open] .pp-app__ws-caret { transform: rotate(180deg); }
-.pp-app__ws-menu { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+.pp-app__ws-menu { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; }
 .pp-app__ws-menu form { margin: 0; }
 .pp-app__ws-opt {
 	width: 100%;
 	text-align: left;
-	background: transparent;
+	background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 40%, #1e1b4b);
 	border: none;
-	color: #c7d2fe;
-	padding: 7px 12px;
+	box-shadow: inset 4px 0 0 var(--pp-ws-color, #4f46e5);
+	color: #e0e7ff;
+	padding: 7px 12px 7px 14px;
 	border-radius: 8px;
 	font: inherit;
 	font-size: .85rem;
+	line-height: 1.3;
 	cursor: pointer;
+	transition: background .12s;
 }
-.pp-app__ws-opt:hover { background: #312e81; color: #fff; }
-.pp-app__ws-opt.is-active { background: #4f46e5; color: #fff; font-weight: 600; }
+.pp-app__ws-opt:hover { background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 50%, #1e1b4b); color: #fff; }
+/* Aktiv: kräftigere Farbe + weißer Ring + fett — nicht nur über die Farbe. */
+.pp-app__ws-opt.is-active {
+	background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 58%, #1e1b4b);
+	box-shadow: inset 0 0 0 2px #fff, inset 5px 0 0 var(--pp-ws-color, #4f46e5);
+	color: #fff;
+	font-weight: 600;
+}
+.pp-app__ws-opt:focus-visible { outline: 2px solid #a5b4fc; outline-offset: 2px; }
+.pp-app__ws-opt-name { min-width: 0; overflow-wrap: anywhere; }
+/* Farbmarke des aktiven Bereichs im Seitenkopf des Dashboards (kein Symbol). */
+.pp-app__ws-dot {
+	display: inline-block;
+	width: .6em;
+	height: .6em;
+	margin-right: .4em;
+	border-radius: 50%;
+	background: var(--pp-ws-color, currentColor);
+	vertical-align: .05em;
+}
 
 .pp-app__nav {
 	display: flex;
@@ -2758,6 +2793,10 @@ label.pp-swatch,
 .pp-swatch__dot { width: 22px; height: 22px; border-radius: 50%; display: inline-block; box-sizing: border-box; }
 .pp-swatch:has(input:checked) .pp-swatch__dot { outline: 2px solid var(--pp-foreground); outline-offset: 2px; }
 .pp-swatch input:focus-visible + .pp-swatch__dot { outline: 2px solid var(--pp-primary); outline-offset: 2px; }
+/* „Automatisch" (Kollektiv-Farbe): Punkt + Text, etwas Abstand zur Palette. */
+label.pp-swatch--auto,
+.pp-portal__form label.pp-swatch--auto { align-items: center; gap: 6px; margin-right: 6px; }
+.pp-swatch__text { font-size: .8rem; }
 
 /* Kollektiv-Beschreibung auf der Karte */
 .pp-portal__collective-desc { margin: 4px 0 8px; font-size: .85rem; color: var(--pp-muted-foreground); }

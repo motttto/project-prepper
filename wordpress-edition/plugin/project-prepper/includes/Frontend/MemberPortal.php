@@ -66,6 +66,10 @@ class MemberPortal {
 	const ENSURE_FLAG = 'pp_ensure_portal_page';
 	const SHORTCODE   = 'pp_member_portal';
 
+	// Ab so vielen Arbeitsbereichen (Solo zählt mit) wird der Umschalter zum
+	// Dropdown; darunter stehen alle Bereiche direkt in der Sidebar.
+	const WS_DROPDOWN_FROM = 5;
+
 	public static function init(): void {
 		add_shortcode( self::SHORTCODE, [ self::class, 'render' ] );
 
@@ -534,15 +538,20 @@ class MemberPortal {
 				$ok_msg = 'group_left';
 				break;
 			case 'group_update':
-				// Nur Gründer der Gruppe dürfen Name/Beschreibung/Telegram-chat_id ändern.
+				// Nur Gründer der Gruppe dürfen Name/Beschreibung/Farbe/Telegram-chat_id ändern.
 				if ( ! self::is_group_founder( $grp_id, get_current_user_id() ) ) {
 					$result = new \WP_Error( 'pp_forbidden', 'forbidden' );
 				} else {
-					$result = Groups::update( $grp_id, [
+					$upd = [
 						'name'             => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
 						'description'      => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
 						'telegram_chat_id' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_telegram_chat_id'] ?? '' ) ) ),
-					] );
+					];
+					// Farbe nur, wenn das Formular sie schickt ('' = automatisch).
+					if ( isset( $_POST['pp_color'] ) ) {
+						$upd['color'] = sanitize_text_field( wp_unslash( (string) $_POST['pp_color'] ) );
+					}
+					$result = Groups::update( $grp_id, $upd );
 				}
 				$ok_msg = 'group_saved';
 				break;
@@ -2444,54 +2453,55 @@ class MemberPortal {
 			// Persönlicher Arbeitsbereich trägt den Namen des Users statt „Solo"
 			// (User-Wunsch) — so liest sich der Umschalter wie eine Liste von Namen.
 			$solo_label   = '' !== trim( (string) $user->display_name ) ? (string) $user->display_name : __( 'Solo', 'project-prepper' );
-			$active_label = $solo_label;
-			$active_logo  = null;
+			// Alle Arbeitsbereiche (Solo zuerst), je mit eigener Farbe — der
+			// Umschalter hinterlegt jeden Bereich anders (User-Wunsch).
+			$ws_options = [ [
+				'ws'    => 'solo',
+				'label' => $solo_label,
+				'is'    => ( 0 === $active ),
+				'logo'  => null,
+				'color' => Groups::workspace_color( null ),
+			] ];
 			foreach ( $groups as $g ) {
-				if ( (int) $g->id === $active ) {
-					$active_label = $g->name;
-					$active_logo  = self::group_logo_url( (int) ( $g->logo_id ?? 0 ) );
+				$ws_options[] = [
+					'ws'    => (string) (int) $g->id,
+					'label' => (string) $g->name,
+					'is'    => ( (int) $g->id === $active ),
+					'logo'  => self::group_logo_url( (int) ( $g->logo_id ?? 0 ) ),
+					'color' => Groups::workspace_color( $g ),
+				];
+			}
+			$active_opt = $ws_options[0];
+			foreach ( $ws_options as $opt ) {
+				if ( $opt['is'] ) {
+					$active_opt = $opt;
 					break;
 				}
 			}
 			?>
-			<details class="pp-app__ws">
-				<summary class="pp-app__workspace">
-					<?php if ( $active_logo ) : ?>
-						<img class="pp-app__ws-logo" src="<?php echo esc_url( $active_logo ); ?>" alt="">
-					<?php endif; ?>
-					<span class="pp-app__ws-text">
-						<span class="pp-app__workspace-label"><?php esc_html_e( 'Workspace', 'project-prepper' ); ?></span>
-						<span class="pp-app__workspace-name"><?php echo esc_html( $active_label ); ?></span>
-					</span>
-					<span class="pp-app__ws-caret">▾</span>
-				</summary>
-				<div class="pp-app__ws-menu">
-					<?php
-					$ws_options = [ [ 'ws' => 'solo', 'label' => $solo_label, 'is' => ( 0 === $active ), 'logo' => null ] ];
-					foreach ( $groups as $g ) {
-						$ws_options[] = [
-							'ws'    => (string) (int) $g->id,
-							'label' => $g->name,
-							'is'    => ( (int) $g->id === $active ),
-							'logo'  => self::group_logo_url( (int) ( $g->logo_id ?? 0 ) ),
-						];
-					}
-					foreach ( $ws_options as $opt ) :
-						?>
-						<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
-							<?php self::action_fields( 'set_workspace' ); ?>
-							<input type="hidden" name="pp_ws" value="<?php echo esc_attr( $opt['ws'] ); ?>">
-							<input type="hidden" name="pp_view" value="<?php echo esc_attr( $view ); ?>">
-							<button type="submit" class="pp-app__ws-opt<?php echo $opt['is'] ? ' is-active' : ''; ?>">
-								<?php if ( $opt['logo'] ) : ?>
-									<img class="pp-app__ws-logo" src="<?php echo esc_url( $opt['logo'] ); ?>" alt="">
-								<?php endif; ?>
-								<?php echo esc_html( $opt['label'] ); ?>
-							</button>
-						</form>
-					<?php endforeach; ?>
+			<?php if ( count( $ws_options ) < self::WS_DROPDOWN_FROM ) : ?>
+				<?php // Wenige Bereiche: alle direkt als Knöpfe, ohne Dropdown (User-Wunsch). ?>
+				<div class="pp-app__ws-list" role="group" aria-labelledby="pp-ws-list-label">
+					<span class="pp-app__workspace-label" id="pp-ws-list-label"><?php esc_html_e( 'Workspaces', 'project-prepper' ); ?></span>
+					<?php self::render_ws_options( $ws_options, $view ); ?>
 				</div>
-			</details>
+			<?php else : ?>
+				<details class="pp-app__ws">
+					<summary class="pp-app__workspace" style="--pp-ws-color:<?php echo esc_attr( $active_opt['color'] ); ?>">
+						<?php if ( $active_opt['logo'] ) : ?>
+							<img class="pp-app__ws-logo" src="<?php echo esc_url( $active_opt['logo'] ); ?>" alt="">
+						<?php endif; ?>
+						<span class="pp-app__ws-text">
+							<span class="pp-app__workspace-label"><?php esc_html_e( 'Workspace', 'project-prepper' ); ?></span>
+							<span class="pp-app__workspace-name"><?php echo esc_html( $active_opt['label'] ); ?></span>
+						</span>
+						<span class="pp-app__ws-caret">▾</span>
+					</summary>
+					<div class="pp-app__ws-menu">
+						<?php self::render_ws_options( $ws_options, $view ); ?>
+					</div>
+				</details>
+			<?php endif; ?>
 
 			<nav class="pp-app__nav">
 				<?php foreach ( self::nav_items( $active ) as $item ) :
@@ -2516,6 +2526,32 @@ class MemberPortal {
 			</div>
 		</aside>
 		<?php
+	}
+
+	/**
+	 * Knöpfe des Arbeitsbereich-Umschalters — dieselben in der Liste und im
+	 * Dropdown. Je Bereich ein eigenes POST-Formular (set_workspace, Nonce);
+	 * die Farbe kommt als --pp-ws-color an den Knopf. Der aktive Bereich ist
+	 * nicht nur farblich markiert (Ring + fett + aria-current).
+	 *
+	 * @param array<int,array{ws:string,label:string,is:bool,logo:?string,color:string}> $options
+	 */
+	private static function render_ws_options( array $options, string $view ): void {
+		foreach ( $options as $opt ) :
+			?>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+				<?php self::action_fields( 'set_workspace' ); ?>
+				<input type="hidden" name="pp_ws" value="<?php echo esc_attr( $opt['ws'] ); ?>">
+				<input type="hidden" name="pp_view" value="<?php echo esc_attr( $view ); ?>">
+				<button type="submit" class="pp-app__ws-opt<?php echo $opt['is'] ? ' is-active' : ''; ?>" style="--pp-ws-color:<?php echo esc_attr( $opt['color'] ); ?>"<?php echo $opt['is'] ? ' aria-current="true"' : ''; ?>>
+					<?php if ( $opt['logo'] ) : ?>
+						<img class="pp-app__ws-logo" src="<?php echo esc_url( $opt['logo'] ); ?>" alt="">
+					<?php endif; ?>
+					<span class="pp-app__ws-opt-name"><?php echo esc_html( $opt['label'] ); ?></span>
+				</button>
+			</form>
+			<?php
+		endforeach;
 	}
 
 	private static function render_topbar( WP_User $user, string $title = '' ): void {
@@ -2808,16 +2844,21 @@ class MemberPortal {
 				$active = self::active_group_id( $groups );
 				if ( $active ) {
 					$gname = '';
+					$grow  = null;
 					foreach ( $groups as $g ) {
 						if ( (int) $g->id === $active ) {
 							$gname = $g->name;
+							$grow  = $g;
 							break;
 						}
 					}
+					// Farbmarke wie im Umschalter (kein Symbol, nur die Bereichsfarbe).
+					?><span class="pp-app__ws-dot" style="--pp-ws-color:<?php echo esc_attr( Groups::workspace_color( $grow ) ); ?>" aria-hidden="true"></span><?php
 					/* translators: %s: active group name. */
 					printf( esc_html__( 'Group: %s', 'project-prepper' ), esc_html( $gname ) );
 				} elseif ( $grp_count > 0 ) {
 					// Wie im Umschalter: der persönliche Bereich heißt wie der User.
+					?><span class="pp-app__ws-dot" style="--pp-ws-color:<?php echo esc_attr( Groups::workspace_color( null ) ); ?>" aria-hidden="true"></span><?php
 					echo esc_html( __( 'Workspace', 'project-prepper' ) . ': ' . $user->display_name );
 				} else {
 					esc_html_e( 'Welcome to your collective platform.', 'project-prepper' );
@@ -8861,15 +8902,27 @@ class MemberPortal {
 		<?php
 	}
 
-	/** Farb-Auswahl als Radio-Swatches (feste App-Palette). */
-	private static function color_swatches( string $current ): void {
-		$current = '' !== $current ? strtoupper( $current ) : CalendarEvents::COLORS[0];
+	/**
+	 * Farb-Auswahl als Radio-Swatches (feste App-Palette). Mit $auto_color gibt
+	 * es vorn zusätzlich „Automatisch" (Wert '') in genau dieser Farbe — für
+	 * Kollektive, deren Farbe ohne Wahl aus der ID folgt (Groups::auto_color).
+	 */
+	private static function color_swatches( string $current, string $auto_color = '' ): void {
+		$allow_auto = '' !== $auto_color;
+		$current    = strtoupper( trim( $current ) );
 		if ( ! in_array( $current, CalendarEvents::COLORS, true ) ) {
-			$current = CalendarEvents::COLORS[0];
+			$current = $allow_auto ? '' : CalendarEvents::COLORS[0];
 		}
 		?>
 		<fieldset class="pp-swatches">
 			<legend><?php esc_html_e( 'Color', 'project-prepper' ); ?></legend>
+			<?php if ( $allow_auto ) : ?>
+				<label class="pp-swatch pp-swatch--auto">
+					<input type="radio" name="pp_color" value=""<?php checked( $current, '' ); ?>>
+					<span class="pp-swatch__dot" style="background:<?php echo esc_attr( $auto_color ); ?>"></span>
+					<span class="pp-swatch__text"><?php esc_html_e( 'Automatic', 'project-prepper' ); ?></span>
+				</label>
+			<?php endif; ?>
 			<?php foreach ( CalendarEvents::COLORS as $c ) : ?>
 				<label class="pp-swatch">
 					<input type="radio" name="pp_color" value="<?php echo esc_attr( $c ); ?>"<?php checked( $current, $c ); ?>>
@@ -9782,6 +9835,8 @@ class MemberPortal {
 					<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
 						<textarea name="pp_description" rows="2"><?php echo esc_textarea( $description ); ?></textarea>
 					</label>
+					<?php self::color_swatches( (string) ( $group->color ?? '' ), Groups::auto_color( $group_id ) ); ?>
+					<p class="pp-portal__hint"><?php esc_html_e( 'Background color of this collective in the workspace switcher.', 'project-prepper' ); ?></p>
 					<label><?php esc_html_e( 'Telegram chat ID (optional)', 'project-prepper' ); ?>
 						<input type="text" name="pp_telegram_chat_id" value="<?php echo esc_attr( $tg_chat_id ); ?>" placeholder="-1001234567890" inputmode="text">
 					</label>
