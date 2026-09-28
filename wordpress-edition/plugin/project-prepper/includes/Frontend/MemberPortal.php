@@ -5702,13 +5702,21 @@ class MemberPortal {
 	/** Gemeinsame Zeilen-Eingaben der Buchungs-Formulare (Nonce im Dispatcher geprüft). */
 	private static function booking_input(): array {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
-		return [
+		$in = [
 			'quantity'  => max( 1, (int) ( $_POST['pp_quantity'] ?? 1 ) ),
 			'date_from' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
 			'date_to'   => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
 			'notes'     => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_notes'] ?? '' ) ) ),
 		];
+		// Exemplar-Wahl der Zeile (0.45.0) — nur wenn das Formular den Abschnitt
+		// trägt; leer angehakt = Wahl aufheben. Mehr Stücke als Menge → Menge folgt.
+		if ( ! empty( $_POST['pp_lineunits_present'] ) ) {
+			$raw             = is_array( $_POST['pp_lineunits'] ?? null ) ? (array) ( $_POST['pp_lineunits']['units'] ?? [] ) : [];
+			$in['unit_ids']  = array_values( array_unique( array_filter( array_map( 'intval', $raw ) ) ) );
+			$in['quantity']  = max( $in['quantity'], count( $in['unit_ids'] ) );
+		}
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		return $in;
 	}
 
 	/**
@@ -5746,6 +5754,8 @@ class MemberPortal {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
 		$item_ids = array_values( array_unique( array_filter( array_map( 'intval', (array) ( $_POST['pp_items'] ?? [] ) ) ) ) );
 		$qty_raw  = is_array( $_POST['pp_qty'] ?? null ) ? wp_unslash( $_POST['pp_qty'] ) : [];
+		// Gezielt gewählte Exemplare je Artikel (0.45.0) — geprüft in Projects.
+		$unit_raw = is_array( $_POST['pp_unitsel'] ?? null ) ? wp_unslash( $_POST['pp_unitsel'] ) : [];
 		$shared   = [
 			'date_from' => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_from'] ?? '' ) ) ),
 			'date_to'   => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_to'] ?? '' ) ) ),
@@ -5838,7 +5848,8 @@ class MemberPortal {
 				continue;
 			}
 
-			$line = [ 'item_id' => $item_id, 'quantity' => $qty ] + $shared;
+			$units = array_values( array_unique( array_filter( array_map( 'intval', (array) ( $unit_raw[ $item_id ]['units'] ?? [] ) ) ) ) );
+			$line  = [ 'item_id' => $item_id, 'quantity' => max( $qty, count( $units ) ), 'unit_ids' => $units ] + $shared;
 			if ( $needs ) {
 				$line['approval_status'] = 'pending';
 				$line['requested_by']    = $uid;
@@ -6899,6 +6910,10 @@ class MemberPortal {
 									if ( '' !== trim( (string) $line->notes ) ) {
 										echo ' · ' . esc_html( $line->notes );
 									}
+									$pp_ulabels = Units::labels_for( $line->unit_ids ?? '' );
+									if ( $pp_ulabels ) {
+										echo ' · ' . esc_html( implode( ', ', $pp_ulabels ) );
+									}
 									// Verbrauchsmaterial geht beim Projektabschluss einmalig vom Bestand ab.
 									if ( ! empty( $line->item_is_consumable ) && 'cancelled' !== (string) $p->status ) {
 										echo ' · ' . esc_html( ! empty( $line->consumed_at )
@@ -6928,6 +6943,15 @@ class MemberPortal {
 											<label><?php esc_html_e( 'Notes', 'project-prepper' ); ?>
 												<input type="text" name="pp_notes" value="<?php echo esc_attr( (string) $line->notes ); ?>">
 											</label>
+											<?php
+											$pp_lunits = Units::for_item( (int) $line->item_id );
+											if ( $pp_lunits ) :
+												$pp_lf = '' !== (string) $line->date_from ? (string) $line->date_from : substr( (string) $p->date_start, 0, 10 );
+												$pp_lt = '' !== (string) $line->date_to ? (string) $line->date_to : substr( (string) $p->date_end, 0, 10 );
+												?>
+												<input type="hidden" name="pp_lineunits_present" value="1">
+												<?php self::unit_picker( 'pp_lineunits', $pp_lunits, Units::decode_ids( $line->unit_ids ?? '' ), ( '' !== $pp_lf && '' !== $pp_lt ) ? Units::taken( (int) $line->item_id, $pp_lf, $pp_lt, 0, (int) $line->id ) : [] ); ?>
+											<?php endif; ?>
 											<p class="pp-portal__hint"><?php esc_html_e( 'Prefilled with the project period — only change this if these items are needed for a different period.', 'project-prepper' ); ?></p>
 											<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
 										</form>
@@ -7038,6 +7062,7 @@ class MemberPortal {
 						<div class="pp-book-list">
 							<?php $presets = MemberInventory::condition_presets(); ?>
 							<?php $pool_bundles = Bundles::for_items( array_keys( $pool ) ); ?>
+							<?php $pool_units = Units::for_items( array_keys( $pool ) ); // Exemplar-Wahl je Zeile. ?>
 							<?php foreach ( $pool as $item ) :
 								// Inventarnummer rendert die gemeinsame Zeile selbst (picker_row).
 								$bits = [];
@@ -7082,6 +7107,7 @@ class MemberPortal {
 								if ( Inventory::is_blocked( $item->item_condition ?? '' ) ) {
 									$avail = 0;
 								}
+								$pp_iunits = $pp_parts ? [] : ( $pool_units[ (int) $item->id ] ?? [] );
 								self::picker_row(
 									$item,
 									static function () use ( $item, $avail ) {
@@ -7090,6 +7116,17 @@ class MemberPortal {
 										<?php
 									},
 									[
+										'below'    => static function () use ( $item, $pp_iunits, $has_period, $p ) {
+											if ( ! $pp_iunits ) {
+												return;
+											}
+											self::unit_picker(
+												'pp_unitsel[' . (int) $item->id . ']',
+												$pp_iunits,
+												[],
+												$has_period ? Units::taken( (int) $item->id, substr( (string) $p->date_start, 0, 10 ), substr( (string) $p->date_end, 0, 10 ) ) : []
+											);
+										},
 										'is_set'   => (bool) $pp_parts,
 										'meta'     => $bits,
 										/* translators: %s: list of set parts, e.g. "3× link · 1× feed". */
@@ -7477,6 +7514,10 @@ class MemberPortal {
 							</span>
 							<span class="pp-pack-col pp-pack-col--desc" role="cell">
 								<span class="pp-pack-name"><?php echo esc_html( $line->item_name ?: ( '#' . (int) $line->item_id ) ); ?></span>
+								<?php $pp_pl_units = Units::labels_for( $line->unit_ids ?? '' ); ?>
+								<?php if ( $pp_pl_units ) : ?>
+									<small class="pp-pack-units"><?php echo esc_html( implode( ', ', $pp_pl_units ) ); ?></small>
+								<?php endif; ?>
 								<?php if ( ! empty( $line->inventory_number ) ) : ?>
 									<span class="pp-pack-num"><?php echo esc_html( $line->inventory_number ); ?></span>
 								<?php endif; ?>

@@ -940,6 +940,7 @@ class Projects {
 			'notes'           => $line['notes'] ?? '',
 			'approval_status' => $approval,
 			'requested_by'    => $requested_by,
+			'unit_ids'        => ! empty( $validated['unit_ids'] ) ? wp_json_encode( $validated['unit_ids'] ) : null,
 			// Set-Herkunft (docs/07): aus welchem Set wurde die Zeile expandiert?
 			'bundle_item_id'  => ! empty( $line['bundle_item_id'] ) ? (int) $line['bundle_item_id'] : null,
 		] );
@@ -985,6 +986,9 @@ class Projects {
 			'quantity'  => array_key_exists( 'quantity', $line ) ? $line['quantity'] : $existing->quantity,
 			'date_from' => array_key_exists( 'date_from', $line ) ? $line['date_from'] : (string) $existing->date_from,
 			'date_to'   => array_key_exists( 'date_to', $line ) ? $line['date_to'] : (string) $existing->date_to,
+			// Exemplar-Wahl: neue übernehmen, sonst die bestehende erneut prüfen
+			// (anderer Zeitraum → das Stück könnte dort schon vergeben sein).
+			'unit_ids'  => array_key_exists( 'unit_ids', $line ) ? (array) $line['unit_ids'] : Units::decode_ids( $existing->unit_ids ?? '' ),
 		];
 
 		$validated = self::validate_line( $project, $merged, $line_id );
@@ -997,6 +1001,7 @@ class Projects {
 			'quantity'  => $validated['quantity'],
 			'date_from' => $validated['date_from'],
 			'date_to'   => $validated['date_to'],
+			'unit_ids'  => ! empty( $validated['unit_ids'] ) ? wp_json_encode( $validated['unit_ids'] ) : null,
 		];
 		if ( array_key_exists( 'notes', $line ) ) {
 			$fields['notes'] = (string) $line['notes'];
@@ -1157,11 +1162,40 @@ class Projects {
 			}
 		}
 
+		// Gezielt gewählte Exemplare (0.45.0): gehören sie zum Artikel, sind sie
+		// frei — in anderen Vorgängen (Units::taken) UND in den übrigen Zeilen
+		// dieses Projekts (statusunabhängig, wie die Mengen oben)? Nur wenn der
+		// Aufrufer 'unit_ids' mitgibt; sonst bleibt die Wahl unangetastet.
+		$unit_ids = null;
+		if ( array_key_exists( 'unit_ids', $line ) && null !== $line['unit_ids'] ) {
+			$unit_ids = array_values( array_unique( array_filter( array_map( 'intval', (array) $line['unit_ids'] ) ) ) );
+			if ( count( $unit_ids ) > $qty ) {
+				return new WP_Error( 'pp_unit_count', __( 'You picked more pieces than the booked quantity.', 'project-prepper' ), [ 'status' => 400 ] );
+			}
+			$checked = Units::validate_selection( $item_id, $unit_ids, $eff_from, $eff_to, 0, $exclude_line_id );
+			if ( is_wp_error( $checked ) ) {
+				return $checked;
+			}
+			$own_rows = (array) $wpdb->get_col( $wpdb->prepare(
+				"SELECT unit_ids FROM %i WHERE project_id = %d AND item_id = %d AND id <> %d AND unit_ids IS NOT NULL AND unit_ids <> ''",
+				Schema::table( 'project_items' ),
+				(int) $project->id,
+				$item_id,
+				$exclude_line_id
+			) );
+			foreach ( $own_rows as $json ) {
+				if ( array_intersect( $unit_ids, Units::decode_ids( $json ) ) ) {
+					return new WP_Error( 'pp_unit_taken', __( 'One of the picked pieces is already booked in another line of this project.', 'project-prepper' ), [ 'status' => 409 ] );
+				}
+			}
+		}
+
 		return [
 			'item_id'   => $item_id,
 			'quantity'  => $qty,
 			'date_from' => '' !== $line_from ? $line_from : null,
 			'date_to'   => '' !== $line_to ? $line_to : null,
+			'unit_ids'  => $unit_ids,
 		];
 	}
 
@@ -1176,7 +1210,7 @@ class Projects {
 	public static function check_lines( object $project ) {
 		global $wpdb;
 		$lines = $wpdb->get_results( $wpdb->prepare(
-			'SELECT id, item_id, quantity, date_from, date_to FROM %i WHERE project_id = %d',
+			'SELECT id, item_id, quantity, date_from, date_to, unit_ids FROM %i WHERE project_id = %d',
 			Schema::table( 'project_items' ),
 			(int) $project->id
 		) ) ?: [];
@@ -1188,6 +1222,7 @@ class Projects {
 					'quantity'  => (int) $line->quantity,
 					'date_from' => (string) ( $line->date_from ?? '' ),
 					'date_to'   => (string) ( $line->date_to ?? '' ),
+					'unit_ids'  => Units::decode_ids( $line->unit_ids ?? '' ),
 				],
 				(int) $line->id
 			);

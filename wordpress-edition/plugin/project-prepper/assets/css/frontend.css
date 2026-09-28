@@ -3349,6 +3349,9 @@ label.pp-swatch--auto,
 .pp-unitpick__opt small { color: var(--pp-muted-foreground); }
 .pp-unitpick__opt.is-off { opacity: .6; }
 
+/* Gewählte Exemplare in der Packliste unter dem Artikelnamen. */
+.pp-pack-units { display: block; font-size: .75rem; color: var(--pp-muted-foreground); }
+
 /* Set-Vorlagen: Liste im Verwalten-Dialog, Zeilen wie die Exemplar-Zeilen. */
 .pp-tpl-list { list-style: none; margin: .5rem 0 0; padding: 0; display: flex; flex-direction: column; gap: .4rem; }
 .pp-tpl-list__row { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .75rem; padding: .5rem .6rem; border: 1px solid var(--pp-border); border-radius: 8px; }

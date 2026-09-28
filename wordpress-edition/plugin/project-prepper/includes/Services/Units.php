@@ -185,11 +185,13 @@ class Units {
 	 * Exemplare eines Artikels, die im Zeitraum schon GEZIELT gewählt sind —
 	 * dieselben Status und dasselbe Buchungsfenster (Rüstzeiten) wie in
 	 * Availability::available_quantity(): Verleihe reserved/active, Projekte
-	 * confirmed/running mit geerbtem Zeitraum.
+	 * confirmed/running mit geerbtem Zeitraum. Ausgenommen wird der eigene
+	 * Verleih bzw. die eigene Projekt-Zeile (nicht das ganze Projekt — zwei
+	 * Zeilen desselben Projekts dürfen nicht dasselbe Stück greifen).
 	 *
 	 * @return array<int> Exemplar-IDs.
 	 */
-	public static function taken( int $item_id, string $from, string $to, int $exclude_rental = 0, int $exclude_project = 0 ): array {
+	public static function taken( int $item_id, string $from, string $to, int $exclude_rental = 0, int $exclude_project_line = 0 ): array {
 		global $wpdb;
 		list( $from, $to ) = Availability::booking_window( $from, $to );
 		$rows = array_merge(
@@ -207,7 +209,7 @@ class Units {
 			) ),
 			(array) $wpdb->get_col( $wpdb->prepare(
 				"SELECT pi.unit_ids FROM %i pi INNER JOIN %i p ON p.id = pi.project_id
-				 WHERE pi.item_id = %d AND p.id <> %d AND p.status IN ('confirmed', 'running')
+				 WHERE pi.item_id = %d AND pi.id <> %d AND p.status IN ('confirmed', 'running')
 				   AND COALESCE(pi.date_from, p.date_start) IS NOT NULL
 				   AND COALESCE(pi.date_to, p.date_end) IS NOT NULL
 				   AND COALESCE(pi.date_from, p.date_start) <= %s
@@ -216,7 +218,7 @@ class Units {
 				Schema::table( 'project_items' ),
 				Schema::table( 'projects' ),
 				$item_id,
-				$exclude_project,
+				$exclude_project_line,
 				$to,
 				$from
 			) )
@@ -245,7 +247,7 @@ class Units {
 	 * @param array<int> $unit_ids
 	 * @return array<int>|\WP_Error Bereinigte IDs.
 	 */
-	public static function validate_selection( int $item_id, array $unit_ids, string $from, string $to, int $exclude_rental = 0, int $exclude_project = 0 ) {
+	public static function validate_selection( int $item_id, array $unit_ids, string $from, string $to, int $exclude_rental = 0, int $exclude_project_line = 0 ) {
 		$unit_ids = array_values( array_unique( array_filter( array_map( 'intval', $unit_ids ) ) ) );
 		if ( ! $unit_ids ) {
 			return [];
@@ -268,7 +270,7 @@ class Units {
 			}
 		}
 		if ( '' !== $from && '' !== $to ) {
-			$busy = array_intersect( $unit_ids, self::taken( $item_id, $from, $to, $exclude_rental, $exclude_project ) );
+			$busy = array_intersect( $unit_ids, self::taken( $item_id, $from, $to, $exclude_rental, $exclude_project_line ) );
 			if ( $busy ) {
 				return new \WP_Error(
 					'pp_unit_taken',
