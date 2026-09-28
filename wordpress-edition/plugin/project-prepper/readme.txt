@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.147.0
+Stable tag: 0.148.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,16 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.148.0 =
+* Offers and invoices from a rental: the rental card has a new section "Offers & invoices" for the person who created the rental. You can prepare several offers and invoices per rental, and "Turn into invoice" starts an invoice from an offer with its lines, texts, discount and VAT.
+* The editor starts with the data of the rental and everything can be changed: number (A-YYYY-NNNN for offers, R-YYYY-NNNN for invoices — editable, but an invoice number can only be used once on the site), date, valid until (offer) or due date, service period, tax number / VAT ID and bank details (invoice), issuer and recipient, subject, introduction and closing text, and the lines (description, quantity, days, price per day). Prices can be gross or net, with 19 % / 7 % / 0 % VAT or as a small business according to § 19 UStG, plus a discount in % or €. Totals update while you type.
+* "View / PDF" opens a clean A4 page that you print or save as PDF from your browser — no PDF service, no external tools, and readable on a phone. Issuer, tax number and bank details are remembered for your next document.
+* Rentals: new optional field "Event name" at the top of the rental form (portal, backend and REST API). The rental card, the portal calendar, both iCal feeds and the approval view show "Event (borrower)", all rental emails can use the placeholder {{event_name}}, and an inquiry that becomes a rental passes its title on as the event name.
+* Dashboard: "Your collectives" and "My profile" are now two matching tiles side by side. Collectives are listed with their colour dot, number of members and your role; the profile tile now also holds the profile photo and "Download my data (JSON)". The full-screen rental form has a light grey background.
+* Phones: no more sideways scrolling in the portal. The rental form, the item lists for rentals and project bookings and the calendar bar wrap on narrow screens, and very small phones hide name and role next to the avatar in the top bar.
+* Privacy: when a borrower's data is erased, the recipient in their offers and invoices is anonymised as well; the member data export contains the remembered issuer, tax number and bank details. Deleting a rental removes its offers and invoices; uninstalling (with data removal switched on) removes them and the remembered details too.
+* Note: this update changes the database (schema 0.45.0 → 0.46.0): a new column for the event name on rentals and a new table for offers and invoices. Both are added automatically, no existing data is changed.
 
 = 0.147.0 =
 * Member feedback in the backend: every entry can be marked as done (or reopened), statuses are shown translated and done entries are dimmed. The CSV download now contains only open feedback; a second link downloads everything including done entries.
