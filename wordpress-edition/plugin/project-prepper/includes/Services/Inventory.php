@@ -253,6 +253,7 @@ class Inventory {
 		// im Regal genauso und stehen ebenfalls in available_quantity().
 		// Platzhalter-Reihenfolge folgt dem SQL von oben nach unten.
 		$params = array_merge(
+			[ Schema::table( 'units' ) ],                 // SELECT: blocked_units
 			[ $items, $cats ],                            // FROM %i i, LEFT JOIN %i c
 			[ $lines, $rentals, $out_to, $out_from ],         // Verleih-Zweig der UNION
 			[ $p_items, $projs, $out_to, $out_from ],         // Projekt-Zweig der UNION
@@ -263,7 +264,8 @@ class Inventory {
 		);
 		$sql = $wpdb->prepare(
 			"SELECT i.*, c.name AS category_name, c.icon AS category_icon,
-					COALESCE(o.out_now, 0) AS out_now
+					COALESCE(o.out_now, 0) AS out_now,
+					(SELECT COUNT(*) FROM %i bu WHERE bu.item_id = i.id AND bu.unit_condition IN ('" . implode( "','", self::BLOCKED_CONDITIONS ) . "')) AS blocked_units
 				FROM %i i
 				LEFT JOIN %i c ON c.id = i.category_id
 				LEFT JOIN (
@@ -278,6 +280,7 @@ class Inventory {
 						FROM %i pi
 						INNER JOIN %i p ON p.id = pi.project_id
 						WHERE p.status IN ('confirmed', 'running')
+						  AND pi.consumed_at IS NULL
 						  AND COALESCE(pi.date_from, p.date_start) <= %s
 						  AND COALESCE(pi.date_to, p.date_end) >= %s
 						UNION ALL
@@ -510,8 +513,9 @@ class Inventory {
 			$wformat[]           = '%s';
 		}
 		$rows = $wpdb->update( Schema::table( 'items' ), $fields, $where, $formats, $wformat );
-		// Mit Erwartung zählt nur ein Treffer: 0 Zeilen = jemand anderes war schneller.
-		$ok = false !== $rows && ( null === $expect || '' === $expect || $rows > 0 );
+		// Mit Erwartung zählt nur ein Treffer: 0 Zeilen = jemand anderes war
+		// schneller — außer der Datensatz blieb in derselben Sekunde unverändert.
+		$ok = false !== $rows && ! MemberInventory::is_stale( 'items', $id, $rows, $expect );
 		if ( $ok ) {
 			ActivityLog::log( 'item_updated', 'item', $id, [ 'fields' => array_keys( $fields ) ] );
 		}
@@ -565,9 +569,9 @@ class Inventory {
 	}
 
 	/**
-	 * Steckt der Artikel in einem laufenden Vorgang? Dieselben Status wie die
-	 * Verfügbarkeitsrechnung ({@see Availability::available_quantity}) plus die
-	 * noch offenen Freigaben und Leih-Anfragen.
+	 * Steckt der Artikel in einem laufenden Vorgang? Die Status der
+	 * Verfügbarkeitsrechnung ({@see Availability::available_quantity}), dazu
+	 * Projekte im Entwurf/geplant und die noch offenen Freigaben und Leih-Anfragen.
 	 *
 	 * @return bool
 	 */
@@ -582,10 +586,12 @@ class Inventory {
 				Schema::table( 'rentals' ),
 				$item_id
 			),
-			// Projekt: bestätigt oder laufend.
+			// Projekt: jedes noch nicht abgeschlossene — auch Entwurf/geplant
+			// (Audit LIFE-19: sonst scheiterte das Projekt später beim Bestätigen
+			// mit „Ungültige Position", ohne zu sagen, welche).
 			$wpdb->prepare(
 				'SELECT 1 FROM %i pi JOIN %i p ON p.id = pi.project_id
-				 WHERE pi.item_id = %d AND p.status IN ( \'confirmed\', \'running\' ) LIMIT 1',
+				 WHERE pi.item_id = %d AND p.status IN ( \'draft\', \'planned\', \'confirmed\', \'running\' ) LIMIT 1',
 				Schema::table( 'project_items' ),
 				Schema::table( 'projects' ),
 				$item_id
@@ -661,6 +667,7 @@ class Inventory {
 			 FROM %i pi
 			 INNER JOIN %i p ON p.id = pi.project_id
 			 WHERE p.status IN ('confirmed', 'running')
+			   AND pi.consumed_at IS NULL
 			   AND COALESCE(pi.date_from, p.date_start) <= %s
 			   AND COALESCE(pi.date_to, p.date_end) >= %s",
 			$p_items,
@@ -713,6 +720,9 @@ class Inventory {
 
 	private static function decode_item( object $row ): object {
 		$row->out_now      = isset( $row->out_now ) ? (int) $row->out_now : 0;
+		// Gesperrte Exemplare (0.45.0) — in out_now bereits enthalten; einzeln
+		// gebraucht, damit der Zeitstatus-Chip mit dem nutzbaren Bestand rechnet.
+		$row->blocked_units = isset( $row->blocked_units ) ? (int) $row->blocked_units : 0;
 		$row->is_consumable = ! empty( $row->is_consumable );
 		$row->tags         = json_decode( $row->tags ?? '[]' ) ?: [];
 		$row->document_ids = json_decode( $row->document_ids ?? '[]' ) ?: [];

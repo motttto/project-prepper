@@ -67,6 +67,29 @@ class Security {
 		}
 		// Speichern aus dem Admin-Formular.
 		add_action( 'admin_post_pp_save_security', [ self::class, 'handle_save' ] );
+		// Mediathek über die WordPress-REST-Schnittstelle nur mit Upload-Recht.
+		add_filter( 'rest_pre_dispatch', [ self::class, 'guard_media_rest' ], 10, 3 );
+	}
+
+	/**
+	 * /wp/v2/media nur für Nutzer mit Upload-Recht (Audit ACC-16). Das Portal
+	 * legt Artikelfotos, Belege und Projektdateien als Anhänge OHNE Beitrag ab;
+	 * WordPress listet solche Anhänge dort jedem — auch anonym, samt Download-
+	 * Adresse (Fotos ungeteilter Artikel, Dateien von Solo-Projekten). Das Portal
+	 * selbst nutzt diese Route nicht; der Block-Editor der Betreiber schon (die
+	 * haben upload_files).
+	 *
+	 * @param mixed            $result
+	 * @param \WP_REST_Server  $server
+	 * @param \WP_REST_Request $request
+	 * @return mixed
+	 */
+	public static function guard_media_rest( $result, $server, $request ) {
+		$route = (string) $request->get_route();
+		if ( 0 === strpos( $route, '/wp/v2/media' ) && ! current_user_can( 'upload_files' ) ) {
+			return new \WP_Error( 'rest_forbidden', __( 'Sorry, you are not allowed to do that.', 'project-prepper' ), [ 'status' => rest_authorization_required_code() ] );
+		}
+		return $result;
 	}
 
 	public static function force_member_role(): string {

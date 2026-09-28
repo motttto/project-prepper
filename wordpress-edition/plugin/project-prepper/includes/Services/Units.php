@@ -125,7 +125,35 @@ class Units {
 
 	public static function delete( int $id ): bool {
 		global $wpdb;
-		return false !== $wpdb->delete( Schema::table( 'units' ), [ 'id' => $id ], [ '%d' ] );
+		$ok = false !== $wpdb->delete( Schema::table( 'units' ), [ 'id' => $id ], [ '%d' ] );
+		if ( $ok ) {
+			self::purge_from_bookings( $id );
+		}
+		return $ok;
+	}
+
+	/**
+	 * Ein entferntes Exemplar aus allen Buchungs-Auswahlen austragen (Audit
+	 * LIFE-17): sonst ließ sich das Projekt nicht mehr bestätigen („gehört nicht
+	 * zu diesem Artikel"). Die Buchung selbst bleibt — pauschal nach Menge.
+	 */
+	private static function purge_from_bookings( int $unit_id ): void {
+		global $wpdb;
+		foreach ( [ 'rental_items', 'project_items' ] as $table ) {
+			$rows = $wpdb->get_results( $wpdb->prepare(
+				"SELECT id, unit_ids FROM %i WHERE unit_ids IS NOT NULL AND unit_ids <> '' AND unit_ids LIKE %s",
+				Schema::table( $table ),
+				'%' . $wpdb->esc_like( (string) $unit_id ) . '%'
+			) ) ?: [];
+			foreach ( $rows as $row ) {
+				$ids = self::decode_ids( $row->unit_ids );
+				if ( ! in_array( $unit_id, $ids, true ) ) {
+					continue;
+				}
+				$ids = array_values( array_diff( $ids, [ $unit_id ] ) );
+				$wpdb->update( Schema::table( $table ), [ 'unit_ids' => $ids ? wp_json_encode( $ids ) : null ], [ 'id' => (int) $row->id ] );
+			}
+		}
 	}
 
 	/**
@@ -160,7 +188,8 @@ class Units {
 				'notes'         => sanitize_textarea_field( (string) ( $row['notes'] ?? '' ) ),
 			] );
 		}
-		$count = count( self::for_item( $item_id ) );
+		$count   = count( self::for_item( $item_id ) );
+		$created = 0;
 		foreach ( $new as $row ) {
 			$row = is_array( $row ) ? $row : [];
 			if ( '' === self::clean( (string) ( $row['label'] ?? '' ) ) && '' === self::clean( (string) ( $row['serial_number'] ?? '' ) ) ) {
@@ -176,9 +205,14 @@ class Units {
 				'notes'         => sanitize_textarea_field( (string) ( $row['notes'] ?? '' ) ),
 			] );
 			++$count;
+			++$created;
 		}
-		// Menge mitziehen: nie weniger Stücke als benannte Exemplare.
-		$wpdb->query( $wpdb->prepare( 'UPDATE %i SET quantity = %d WHERE id = %d AND quantity < %d', Schema::table( 'items' ), $count, $item_id, $count ) );
+		// Menge mitziehen — nur wenn in DIESEM Speichern Stücke dazukamen („ich habe
+		// noch eins"). Sonst hob jedes Speichern einen verbrauchten Bestand wieder
+		// auf die Zahl der Exemplare (Audit AVAIL-20).
+		if ( $created > 0 ) {
+			$wpdb->query( $wpdb->prepare( 'UPDATE %i SET quantity = %d WHERE id = %d AND quantity < %d', Schema::table( 'items' ), $count, $item_id, $count ) );
+		}
 	}
 
 	/**

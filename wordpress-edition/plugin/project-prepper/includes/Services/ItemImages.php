@@ -21,6 +21,47 @@ class ItemImages {
 	/** Obergrenze je Artikel, Titelbild mitgezählt. */
 	const MAX_PER_ITEM = 12;
 
+	/** Post-Meta, das ein Anhang als vom Plugin angelegtes Artikelfoto ausweist. */
+	const META = '_pp_item_photo';
+
+	public static function init(): void {
+		// Verschwindet ein Anhang anderswo (Mediathek, Nutzer gelöscht), keine
+		// toten Zeilen zurücklassen und ein Zusatzbild nachrücken lassen (LIFE-18).
+		add_action( 'delete_attachment', [ self::class, 'on_attachment_deleted' ], 10, 1 );
+	}
+
+	/**
+	 * Anhang gehört ab jetzt zum Artikel: Autor = Eigentümer des Artikels (sonst
+	 * löschte WordPress das Foto mit dem Konto des HOCHLADENDEN — Audit LIFE-18)
+	 * und Markierung als Artikelfoto (nur solche löscht das Plugin je selbst —
+	 * Audit LIFE-21).
+	 */
+	public static function claim( int $attachment_id, object $item ): void {
+		if ( $attachment_id <= 0 ) {
+			return;
+		}
+		update_post_meta( $attachment_id, self::META, (int) $item->id );
+		$owner = (int) ( $item->owner_user_id ?? 0 );
+		if ( $owner > 0 && (int) get_post_field( 'post_author', $attachment_id ) !== $owner ) {
+			wp_update_post( [ 'ID' => $attachment_id, 'post_author' => $owner ] );
+		}
+	}
+
+	/** Gelöschter Anhang: Zeilen entfernen, Titelbild ggf. nachrücken lassen. */
+	public static function on_attachment_deleted( $post_id ): void {
+		global $wpdb;
+		$post_id = (int) $post_id;
+		$wpdb->delete( Schema::table( 'item_images' ), [ 'attachment_id' => $post_id ], [ '%d' ] );
+		$items = array_map( 'intval', (array) $wpdb->get_col( $wpdb->prepare( 'SELECT id FROM %i WHERE image_id = %d', Schema::table( 'items' ), $post_id ) ) );
+		foreach ( $items as $item_id ) {
+			$next = self::extras( $item_id )[0] ?? 0;
+			Inventory::update_item( $item_id, [ 'image_id' => $next ?: null ] );
+			if ( $next ) {
+				$wpdb->delete( Schema::table( 'item_images' ), [ 'item_id' => $item_id, 'attachment_id' => $next ], [ '%d', '%d' ] );
+			}
+		}
+	}
+
 	/**
 	 * Zusatzbilder eines Artikels (Attachment-IDs in Anzeige-Reihenfolge).
 	 *
@@ -88,9 +129,9 @@ class ItemImages {
 		return $out;
 	}
 
-	/** Anzahl Fotos inkl. Titelbild. */
+	/** Anzahl vorhandener Fotos inkl. Titelbild (tote Verweise zählen nicht). */
 	public static function count( object $item ): int {
-		return ( empty( $item->image_id ) ? 0 : 1 ) + count( self::extras( (int) $item->id ) );
+		return count( self::gallery( $item ) );
 	}
 
 	/**
@@ -106,7 +147,8 @@ class ItemImages {
 		if ( self::count( $item ) >= self::MAX_PER_ITEM ) {
 			return false;
 		}
-		if ( empty( $item->image_id ) ) {
+		self::claim( $attachment_id, $item );
+		if ( empty( $item->image_id ) || ! wp_get_attachment_image_url( (int) $item->image_id, 'thumbnail' ) ) {
 			return Inventory::update_item( $item_id, [ 'image_id' => $attachment_id ] );
 		}
 		$table = Schema::table( 'item_images' );
@@ -188,7 +230,9 @@ class ItemImages {
 	 */
 	private static function drop_attachment( int $attachment_id, int $ignore_item = 0 ): void {
 		global $wpdb;
-		if ( $attachment_id <= 0 || ! wp_attachment_is_image( $attachment_id ) ) {
+		// Nur vom Plugin als Artikelfoto angelegte Anhänge (Audit LIFE-21): ein per
+		// REST eingetragenes Bild aus der Mediathek könnte anderswo in Gebrauch sein.
+		if ( $attachment_id <= 0 || ! wp_attachment_is_image( $attachment_id ) || ! get_post_meta( $attachment_id, self::META, true ) ) {
 			return;
 		}
 		$as_cover = (int) $wpdb->get_var( $wpdb->prepare(

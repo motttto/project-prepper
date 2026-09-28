@@ -58,6 +58,7 @@ class MediaController extends BaseController {
 		if ( $item->image_id ) {
 			wp_delete_attachment( (int) $item->image_id, true );
 		}
+		\ProjectPrepper\Services\ItemImages::claim( (int) $attachment_id, $item );
 		Inventory::update_item( (int) $item->id, [ 'image_id' => $attachment_id ] );
 
 		return new WP_REST_Response( Inventory::get_item( (int) $item->id ) );
@@ -69,8 +70,12 @@ class MediaController extends BaseController {
 			return new WP_Error( 'pp_not_found', __( 'Item not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 		if ( $item->image_id ) {
+			// Anhang löschen — der delete_attachment-Haken lässt das erste
+			// Zusatzbild als Titelbild nachrücken (Audit LIFE-23).
 			wp_delete_attachment( (int) $item->image_id, true );
-			Inventory::update_item( (int) $item->id, [ 'image_id' => 0 ] );
+			if ( (int) ( Inventory::get_item( (int) $item->id )->image_id ?? 0 ) === (int) $item->image_id ) {
+				Inventory::update_item( (int) $item->id, [ 'image_id' => 0 ] );
+			}
 		}
 		return new WP_REST_Response( Inventory::get_item( (int) $item->id ) );
 	}

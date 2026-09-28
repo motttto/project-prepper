@@ -96,13 +96,13 @@ class Notifications {
 				/* translators: Email subject. Keep the {{rental_number}}, {{borrower_name}} and {{site_name}} placeholders unchanged. */
 				'subject' => __( 'Handed out: {{rental_number}} to {{borrower_name}} — {{site_name}}', 'project-prepper' ),
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
-				'body'    => __( "Hello {{recipient_name}},\n\nthe equipment for rental {{rental_number}} has been handed out to {{borrower_name}} ({{date_from}} to {{date_to}}).\n\nItems:\n{{items}}\n\nBorrower:\n{{borrower_name}}\nEmail: {{borrower_email}}\nPhone: {{borrower_phone}}\n\nYour contact for this rental:\n{{contact_name}}\nEmail: {{contact_email}}\nPhone: {{contact_phone}}\n\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+				'body'    => __( "Hello {{recipient_name}},\n\nthe equipment for rental {{rental_number}} has been handed out to {{borrower_name}} ({{date_from}} to {{date_to}}).\n\nItems:\n{{items}}\n\nBorrower: {{borrower_name}}\n\nYour contact for this rental:\n{{contact_name}}\nEmail: {{contact_email}}\nPhone: {{contact_phone}}\n\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
 			'rental_returned_team' => [
 				/* translators: Email subject. Keep the {{rental_number}}, {{borrower_name}} and {{site_name}} placeholders unchanged. */
 				'subject' => __( 'Returned: {{rental_number}} from {{borrower_name}} — {{site_name}}', 'project-prepper' ),
 				/* translators: Email body. Keep all {{…}} placeholders unchanged. */
-				'body'    => __( "Hello {{recipient_name}},\n\nthe equipment for rental {{rental_number}} ({{borrower_name}}, {{date_from}} to {{date_to}}) has been returned.\n\nItems:\n{{items}}\n\nBorrower:\n{{borrower_name}}\nEmail: {{borrower_email}}\nPhone: {{borrower_phone}}\n\nYour contact for this rental:\n{{contact_name}}\nEmail: {{contact_email}}\nPhone: {{contact_phone}}\n\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
+				'body'    => __( "Hello {{recipient_name}},\n\nthe equipment for rental {{rental_number}} ({{borrower_name}}, {{date_from}} to {{date_to}}) has been returned.\n\nItems:\n{{items}}\n\nBorrower: {{borrower_name}}\n\nYour contact for this rental:\n{{contact_name}}\nEmail: {{contact_email}}\nPhone: {{contact_phone}}\n\n{{portal_url}}\n\nBest regards\n{{site_name}}", 'project-prepper' ),
 			],
 			'inquiry_received' => [
 				/* translators: Email subject. Keep the {{name}} and {{site_name}} placeholders unchanged. */
@@ -870,9 +870,10 @@ class Notifications {
 		$actor   = $actor_id > 0 ? ( get_userdata( $actor_id ) ?: null ) : null;
 		$base    = [
 			'rental_number'  => $rental->rental_number,
+			// Nur der Name des externen Leihers — seine E-Mail/Telefonnummer sehen
+			// Geräte-Eigentümer auch im Portal nicht (Audit ACC-15); Ansprechpartner
+			// ist das Mitglied, das den Verleih betreut (contact_*).
 			'borrower_name'  => $rental->borrower_name,
-			'borrower_email' => '' !== trim( (string) $rental->borrower_email ) ? (string) $rental->borrower_email : '—',
-			'borrower_phone' => '' !== trim( (string) $rental->borrower_phone ) ? (string) $rental->borrower_phone : '—',
 			'date_from'      => mysql2date( 'd.m.Y', $rental->date_from ),
 			'date_to'        => mysql2date( 'd.m.Y', $rental->date_to ),
 			'items'          => implode( "\n", $item_lines ),

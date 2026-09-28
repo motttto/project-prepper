@@ -125,6 +125,23 @@ class SetTemplates {
 			if ( ! $tpl || ! self::can_use( $user_id, $tpl ) ) {
 				return new WP_Error( 'pp_forbidden', __( 'You are not allowed to change this template.', 'project-prepper' ), [ 'status' => 403 ] );
 			}
+			$group_id = (int) ( $tpl->owner_group_id ?? 0 );
+		}
+		// Bevorzugtes Gerät nur aus dem Pool der Vorlage (Audit ACC-20): Kollektiv =
+		// mit ihm geteilt, Solo = eigenes. Alles andere wird still verworfen.
+		foreach ( $lines as $i => $line ) {
+			$iid = (int) ( $line['item_id'] ?? 0 );
+			if ( $iid <= 0 ) {
+				continue;
+			}
+			$ok = $group_id > 0
+				? in_array( $group_id, MemberInventory::shared_group_ids( $iid ), true )
+				: MemberInventory::owns( $user_id, $iid );
+			if ( ! $ok ) {
+				$lines[ $i ]['item_id'] = null;
+			}
+		}
+		if ( $id > 0 ) {
 			$wpdb->update( $table, [
 				'name'        => mb_substr( $name, 0, 190 ),
 				'description' => sanitize_textarea_field( (string) ( $data['description'] ?? '' ) ),

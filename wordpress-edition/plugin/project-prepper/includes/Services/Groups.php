@@ -189,11 +189,17 @@ class Groups {
 			return new WP_Error( 'pp_not_found', __( 'Group not found.', 'project-prepper' ), [ 'status' => 404 ] );
 		}
 
-		// Projekte mit Ersteller → dessen Solo-Arbeitsbereich (nicht löschen!).
+		// Projekte mit Ersteller → dessen Solo-Arbeitsbereich (nicht löschen!) —
+		// aber NUR, wenn er noch Mitglied ist (Audit STATE-23/LIFE-15/ACC-13): ein
+		// längst Ausgetretener bekäme sonst alles, was das Kollektiv nach seinem
+		// Austritt eingetragen hat. Die Mitgliedschaften stehen hier noch.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery -- Plugin-eigene Tabelle, eine Mengen-Aktualisierung.
 		$wpdb->query( $wpdb->prepare(
-			'UPDATE %i SET owner_user_id = created_by, owner_group_id = NULL WHERE owner_group_id = %d AND created_by IS NOT NULL AND created_by > 0',
+			'UPDATE %i p JOIN %i m ON m.group_id = p.owner_group_id AND m.user_id = p.created_by
+			 SET p.owner_user_id = p.created_by, p.owner_group_id = NULL
+			 WHERE p.owner_group_id = %d AND p.created_by > 0',
 			Schema::table( 'projects' ),
+			Schema::table( 'group_members' ),
 			$id
 		) );
 		// Rest (Ersteller unbekannt) → Site-Ebene wie bisher.
@@ -370,6 +376,43 @@ class Groups {
 		// ->color fehlt, solange die Spalte noch nicht migriert ist → automatisch.
 		$stored = CalendarEvents::sanitize_color( $group->color ?? '', '' );
 		return '' !== $stored ? $stored : self::auto_color( (int) ( $group->id ?? 0 ) );
+	}
+
+	/**
+	 * Farben aller Arbeitsbereiche EINES Users, ohne Doppelungen (Audit FLOW-14):
+	 * gewählte Farben zuerst, automatische weichen bei einer Kollision auf die
+	 * nächste noch freie Palettenfarbe aus. Stabil, solange sich die Gruppen des
+	 * Users nicht ändern. Erst ab mehr Kollektiven als Palettenfarben wiederholt
+	 * sich eine Farbe zwangsläufig.
+	 *
+	 * @param array<object> $groups Gruppen des Users (user_groups()).
+	 * @return array<int,string> group_id => #RRGGBB
+	 */
+	public static function workspace_colors( array $groups ): array {
+		$palette = CalendarEvents::COLORS;
+		$out     = [];
+		$used    = [];
+		foreach ( $groups as $g ) {
+			$stored = CalendarEvents::sanitize_color( $g->color ?? '', '' );
+			if ( '' !== $stored ) {
+				$out[ (int) $g->id ] = $stored;
+				$used[ $stored ]     = true;
+			}
+		}
+		foreach ( $groups as $g ) {
+			$gid = (int) $g->id;
+			if ( isset( $out[ $gid ] ) ) {
+				continue;
+			}
+			$color = self::auto_color( $gid );
+			$start = array_search( $color, $palette, true );
+			for ( $i = 0; $i < count( $palette ) && isset( $used[ $color ] ); $i++ ) {
+				$color = $palette[ ( (int) $start + $i + 1 ) % count( $palette ) ];
+			}
+			$out[ $gid ]     = $color;
+			$used[ $color ] = true;
+		}
+		return $out;
 	}
 
 	/**

@@ -85,6 +85,16 @@ class Availability {
 		// BUCHUNGSfenster: die geprüfte Anfrage ist selbst ein Vorgang mit Rüstzeit.
 		list( $from, $to ) = self::booking_window( $from, $to );
 
+		// Verbrauchsmaterial (0.45.0) kommt nicht zurück — jede offene Buchung
+		// verbraucht Bestand, egal WANN sie liegt (Audit AVAIL-18: Verleih im März
+		// und Projekt im Juni griffen sonst beide denselben Bestand; nach der
+		// Rückgabe war er aufgebraucht, das Projekt hielt ihn trotzdem). Also
+		// zählen alle offenen Vorgänge ohne Zeitfenster.
+		if ( ! empty( $item->is_consumable ) ) {
+			$from = '1000-01-01';
+			$to   = '9999-12-31';
+		}
+
 		$rented = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT COALESCE(SUM(ri.quantity), 0)
 			 FROM %i ri
@@ -111,6 +121,7 @@ class Availability {
 			 WHERE pi.item_id = %d
 			   AND p.id != %d
 			   AND p.status IN ('confirmed', 'running')
+			   AND pi.consumed_at IS NULL
 			   AND COALESCE(pi.date_from, p.date_start) IS NOT NULL
 			   AND COALESCE(pi.date_to, p.date_end) IS NOT NULL
 			   AND COALESCE(pi.date_from, p.date_start) <= %s
@@ -235,6 +246,7 @@ class Availability {
 				FROM %i pi
 				INNER JOIN %i p ON p.id = pi.project_id
 				WHERE p.status IN ('confirmed', 'running')
+				  AND pi.consumed_at IS NULL
 				  AND COALESCE(pi.date_from, p.date_start) IS NOT NULL
 				  AND COALESCE(pi.date_to, p.date_end) IS NOT NULL
 				UNION ALL

@@ -1505,7 +1505,10 @@ class MemberPortal {
 				$msg = 'invite_not_member';
 			} elseif ( 'pp_no_voters' === $code ) {
 				$msg = 'voters_all_voted';
-			} elseif ( 'pp_forbidden' === $code ) {
+			} elseif ( 'pp_forbidden' === $code && in_array( trim( (string) $result->get_error_message() ), [ '', 'forbidden' ], true ) ) {
+				// Nur der Platzhalter wird zur Sammelmeldung — ein genauer Text
+				// („jemand war schneller", „Gerät nicht mehr geteilt" …) geht über
+				// den Detail-Weg unten an den User (Audit SWITCH-19).
 				$msg = 'forbidden';
 			} elseif ( 'pp_project_readonly' === $code ) {
 				$msg = 'project_readonly';
@@ -1879,6 +1882,19 @@ class MemberPortal {
 		}
 		$error = null;
 		foreach ( $files as $file ) {
+			$pp_err = (int) ( $file['error'] ?? UPLOAD_ERR_NO_FILE );
+			if ( UPLOAD_ERR_NO_FILE === $pp_err ) {
+				continue;
+			}
+			if ( UPLOAD_ERR_OK !== $pp_err ) {
+				// Zu groß (Server-Limit) o. ä.: nicht still übergehen (Audit SWITCH-20).
+				$error = new \WP_Error(
+					'pp_photo_too_large',
+					/* translators: 1: file name, 2: maximum upload size, e.g. "8 MB". */
+					sprintf( __( 'The photo “%1$s” could not be uploaded — it is larger than this server allows (%2$s). Everything else was saved.', 'project-prepper' ), sanitize_file_name( (string) ( $file['name'] ?? '' ) ), size_format( wp_max_upload_size() ) )
+				);
+				continue;
+			}
 			if ( empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
 				continue;
 			}
@@ -2574,6 +2590,7 @@ class MemberPortal {
 			$solo_label   = '' !== trim( (string) $user->display_name ) ? (string) $user->display_name : __( 'Solo', 'project-prepper' );
 			// Alle Arbeitsbereiche (Solo zuerst), je mit eigener Farbe — der
 			// Umschalter hinterlegt jeden Bereich anders (User-Wunsch).
+			$ws_colors  = Groups::workspace_colors( $groups );
 			$ws_options = [ [
 				'ws'    => 'solo',
 				'label' => $solo_label,
@@ -2587,7 +2604,7 @@ class MemberPortal {
 					'label' => (string) $g->name,
 					'is'    => ( (int) $g->id === $active ),
 					'logo'  => self::group_logo_url( (int) ( $g->logo_id ?? 0 ) ),
-					'color' => Groups::workspace_color( $g ),
+					'color' => $ws_colors[ (int) $g->id ] ?? Groups::workspace_color( $g ),
 				];
 			}
 			$active_opt = $ws_options[0];
@@ -2972,7 +2989,7 @@ class MemberPortal {
 						}
 					}
 					// Farbmarke wie im Umschalter (kein Symbol, nur die Bereichsfarbe).
-					?><span class="pp-app__ws-dot" style="--pp-ws-color:<?php echo esc_attr( Groups::workspace_color( $grow ) ); ?>" aria-hidden="true"></span><?php
+					?><span class="pp-app__ws-dot" style="--pp-ws-color:<?php echo esc_attr( Groups::workspace_colors( $groups )[ (int) ( $grow->id ?? 0 ) ] ?? Groups::workspace_color( $grow ) ); ?>" aria-hidden="true"></span><?php
 					/* translators: %s: active group name. */
 					printf( esc_html__( 'Group: %s', 'project-prepper' ), esc_html( $gname ) );
 				} elseif ( $grp_count > 0 ) {
@@ -3473,11 +3490,12 @@ class MemberPortal {
 								// auf heute. Beides nebeneinander wäre ein Widerspruch, also
 								// erscheint er nur in der ungefilterten Ansicht.
 								if ( ! $period_ok ) {
+									$pp_usable = $pp_parts ? (int) $pp_qty_col : (int) $pp_qty_col - (int) ( $item->blocked_units ?? 0 );
 									self::when_chip(
 										$pp_parts ? self::set_timeline( $pp_parts, $pp_timeline ) : ( $pp_timeline[ (int) $item->id ] ?? null ),
-										(int) $pp_qty_col,
+										$pp_usable,
 										(int) $pp_avail,
-										$pp_blocked
+										$pp_blocked || $pp_usable <= 0
 									);
 								}
 								?>
@@ -3695,7 +3713,7 @@ class MemberPortal {
 						<span class="pp-portal__hint pp-modal-footer__hint"><?php esc_html_e( 'Changes are also saved automatically when you close this window.', 'project-prepper' ); ?></span>
 					<?php endif; ?>
 					<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal-close><?php esc_html_e( 'Close', 'project-prepper' ); ?></button>
-					<?php if ( ! empty( $ctx['borrowable'] ) ) : ?>
+					<?php if ( ! empty( $ctx['borrowable'] ) && Settings::feature_on( 'lending' ) ) : ?>
 						<button type="button" class="pp-portal__btn pp-portal__btn--sm<?php echo $can_edit ? ' pp-portal__btn--ghost' : ''; ?>" data-pp-modal="pp-borrow-<?php echo (int) $group_id; ?>-<?php echo (int) $iid; ?>"><?php esc_html_e( 'Borrow', 'project-prepper' ); ?></button>
 					<?php endif; ?>
 					<?php if ( $can_edit ) : ?>
@@ -5635,7 +5653,11 @@ class MemberPortal {
 
 	private static function member_delete_project( int $pid ) {
 		if ( ! self::member_deletable_project( $pid ) ) {
-			return self::project_denied( $pid );
+			// Eigene Meldung fürs Löschen (Audit SWITCH-22/FLOW-11): Mit-Bearbeiter
+			// dürfen ändern, aber nicht löschen; verwaiste Projekte erst übernehmen.
+			return self::member_workspace_project( $pid )
+				? new \WP_Error( 'pp_project_delete_denied', __( 'Only the project’s creator can delete it. A project without an active creator has to be taken over first.', 'project-prepper' ), [ 'status' => 403 ] )
+				: self::project_denied( $pid );
 		}
 		return Projects::delete( $pid ) ? true : new \WP_Error( 'pp_delete_failed', __( 'The project could not be deleted.', 'project-prepper' ) );
 	}
@@ -5915,6 +5937,10 @@ class MemberPortal {
 			return self::project_denied( $pid );
 		}
 		$uid = get_current_user_id();
+		// Set-Vorlagen sind Teil des Inventar-Bereichs (Audit SWITCH-08).
+		if ( ! Settings::feature_on( 'inventory' ) ) {
+			return new \WP_Error( 'pp_feature_off', __( 'This area is switched off on this site.', 'project-prepper' ) );
+		}
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
 		$tpl  = SetTemplates::get( (int) ( $_POST['pp_tpl'] ?? 0 ) );
 		$sel  = is_array( $_POST['pp_tplsel'] ?? null ) ? wp_unslash( $_POST['pp_tplsel'] ) : [];
@@ -5985,14 +6011,22 @@ class MemberPortal {
 		$items      = array_values( array_filter( $pool, static fn( $it ) => ! isset( $bundles[ (int) $it->id ] ) ) );
 		usort( $items, static fn( $a, $b ) => strcasecmp( (string) $a->name, (string) $b->name ) );
 		$has_period = '' !== (string) $p->date_start && '' !== (string) $p->date_end;
+		// Schon in DIESEM Projekt gebuchte Stücke: available_quantity() nimmt das
+		// eigene Projekt aus, die Anzeige muss sie abziehen (Audit AVAIL-27).
+		$own_booked = [];
+		foreach ( (array) ( $p->items ?? [] ) as $pp_l ) {
+			$own_booked[ (int) $pp_l->item_id ] = ( $own_booked[ (int) $pp_l->item_id ] ?? 0 ) + (int) $pp_l->quantity;
+		}
 		$free_cache = [];
-		$free       = static function ( object $it ) use ( $p, $has_period, &$free_cache ): ?int {
+		$free       = static function ( object $it ) use ( $p, $has_period, $own_booked, &$free_cache ): ?int {
 			if ( ! $has_period ) {
 				return null;
 			}
 			$id = (int) $it->id;
 			if ( ! isset( $free_cache[ $id ] ) ) {
-				$free_cache[ $id ] = Inventory::is_blocked( $it->item_condition ?? '' ) ? 0 : Availability::available_quantity( $id, (string) $p->date_start, (string) $p->date_end, 0, (int) $p->id );
+				$free_cache[ $id ] = Inventory::is_blocked( $it->item_condition ?? '' )
+					? 0
+					: max( 0, Availability::available_quantity( $id, (string) $p->date_start, (string) $p->date_end, 0, (int) $p->id ) - ( $own_booked[ $id ] ?? 0 ) );
 			}
 			return $free_cache[ $id ];
 		};
@@ -6005,7 +6039,7 @@ class MemberPortal {
 					<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
 				</div>
 				<div class="pp-modal-body">
-					<form class="pp-portal__form" id="<?php echo esc_attr( $form_id ); ?>" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<form class="pp-portal__form" id="<?php echo esc_attr( $form_id ); ?>" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-once>
 						<?php self::action_fields( 'project_tpl_book' ); ?>
 						<input type="hidden" name="pp_project" value="<?php echo (int) $p->id; ?>">
 						<input type="hidden" name="pp_tpl" value="<?php echo (int) $tpl->id; ?>">
@@ -7239,7 +7273,7 @@ class MemberPortal {
 				<section class="pp-card">
 					<h3 class="pp-card__title"><?php esc_html_e( 'Book equipment', 'project-prepper' ); ?></h3>
 					<p class="pp-portal__hint"><?php esc_html_e( 'Tick every item you want and set its quantity — you can book several at once.', 'project-prepper' ); ?></p>
-					<?php $pp_templates = SetTemplates::for_workspace( Projects::workspace_of( $p ), Projects::is_solo( $p ) ? (int) $p->owner_user_id : 0 ); ?>
+					<?php $pp_templates = Settings::feature_on( 'inventory' ) ? SetTemplates::for_workspace( Projects::workspace_of( $p ), Projects::is_solo( $p ) ? (int) $p->owner_user_id : 0 ) : []; ?>
 					<?php if ( $pp_templates ) : ?>
 						<div class="pp-tpl-book">
 							<span class="pp-portal__hint"><?php esc_html_e( 'Or add a set template:', 'project-prepper' ); ?></span>
@@ -11172,11 +11206,14 @@ class MemberPortal {
 								$pp_free_now  = $pp_blocked ? 0 : (int) ( $pp_parts ? $pp_set_free : max( 0, (int) $item->quantity - (int) ( $item->out_now ?? 0 ) ) );
 								$pp_total_now = (int) ( $pp_parts ? $pp_set_total : $item->quantity );
 								echo (int) $pp_free_now;
+								// Nutzbarer Bestand ohne gesperrte Exemplare (Audit AVAIL-24) —
+								// sonst meldete der Chip „frei ab …" für Stücke, die defekt sind.
+								$pp_usable = $pp_parts ? $pp_total_now : $pp_total_now - (int) ( $item->blocked_units ?? 0 );
 								self::when_chip(
 									$pp_parts ? self::set_timeline( $pp_parts, $pp_timeline ) : ( $pp_timeline[ (int) $item->id ] ?? null ),
-									$pp_total_now,
+									$pp_usable,
 									$pp_free_now,
-									$pp_blocked
+									$pp_blocked || $pp_usable <= 0
 								);
 								?>
 							</span>
@@ -11638,7 +11675,7 @@ class MemberPortal {
 			<?php endif; ?>
 			<?php if ( count( $gallery ) < ItemImages::MAX_PER_ITEM ) : ?>
 				<label class="pp-photos__add"><?php echo esc_html( $gallery ? __( 'Add photos', 'project-prepper' ) : __( 'Photos (optional, several possible)', 'project-prepper' ) ); ?>
-					<input type="file" name="pp_photos[]" accept="image/*" multiple>
+					<input type="file" name="pp_photos[]" accept="image/*" multiple data-pp-max-bytes="<?php echo (int) wp_max_upload_size(); ?>" data-pp-max-msg="<?php echo esc_attr( sprintf( /* translators: %s: maximum upload size, e.g. "8 MB". */ __( 'These photos are too large for this server (max. %s in total). Please choose fewer or smaller photos.', 'project-prepper' ), size_format( wp_max_upload_size() ) ) ); ?>">
 				</label>
 			<?php endif; ?>
 		</fieldset>
@@ -11764,6 +11801,8 @@ class MemberPortal {
 			</label>
 			<label><?php esc_html_e( 'Notes (optional)', 'project-prepper' ); ?>
 				<textarea name="pp_notes" rows="2"><?php echo esc_textarea( (string) $val( 'notes' ) ); ?></textarea>
+				<?php // Audit ACC-17: Notizen, Seriennummer, Exemplare und Dokumente stehen im Detail-Popup des Kollektiv-Inventars. ?>
+				<small class="pp-portal__hint"><?php esc_html_e( 'Like all details of the item, notes are visible to the members of the collectives you share it with.', 'project-prepper' ); ?></small>
 			</label>
 		<?php
 		self::item_custom_fields( $item );
@@ -12288,7 +12327,9 @@ class MemberPortal {
 		$user = wp_get_current_user();
 		$uid  = (int) $user->ID;
 
-		$pp_my_items = MemberInventory::my_items( $uid );
+		// Auch ausgemusterte Artikel gehören zu den Daten des Mitglieds (Audit LIFE-20).
+		$pp_my_items = MemberInventory::my_items( $uid, '', true );
+		$pp_units    = Units::for_items( array_map( static fn( $pp_i ) => (int) $pp_i->id, $pp_my_items ) );
 		// Eigene Felder aller Artikel in EINEM Query vorladen (Cache in ItemFields).
 		ItemFields::values_for( array_map( static fn( $pp_i ) => (int) $pp_i->id, $pp_my_items ) );
 
@@ -12300,7 +12341,7 @@ class MemberPortal {
 				'phone'        => \ProjectPrepper\Users::phone( $uid ),
 				'registered'   => $user->user_registered,
 			],
-			'inventory'   => array_map( static function ( $it ) {
+			'inventory'   => array_map( static function ( $it ) use ( $pp_units ) {
 				return [
 					'inventory_number' => $it->inventory_number ?? '',
 					'name'             => $it->name ?? '',
@@ -12318,6 +12359,14 @@ class MemberPortal {
 					'notes'            => $it->notes ?? '',
 					// Alle Fotos (Titelbild zuerst) als Adressen der Originalgröße.
 					'photos'           => array_column( ItemImages::gallery( $it ), 'large' ),
+					'consumable'       => ! empty( $it->is_consumable ),
+					// Einzelne Exemplare (Bezeichnung, Seriennummer, Zustand, Notiz).
+					'pieces'           => array_map( static fn( $u ) => [
+						'name'          => Units::label( $u ),
+						'serial_number' => (string) $u->serial_number,
+						'condition'     => (string) $u->unit_condition,
+						'notes'         => (string) $u->notes,
+					], $pp_units[ (int) $it->id ] ?? [] ),
 					// Eigene Felder: Bezeichnung => Wert (values_for() cached je Request).
 					'custom_fields'    => ItemFields::labelled( ItemFields::values_for( [ (int) $it->id ] )[ (int) $it->id ] ?? [] ),
 				];
@@ -12330,8 +12379,13 @@ class MemberPortal {
 			}, Groups::user_groups( $uid ) ),
 			'borrows_outgoing' => array_map( [ self::class, 'export_borrow_row' ], Borrowing::my_requests( $uid ) ),
 			'borrows_incoming' => array_map( [ self::class, 'export_borrow_row' ], Borrowing::incoming_requests( $uid ) ),
-			// Eigene Solo-Projekte + selbst angelegte Kollektiv-Projekte (Kernfelder).
+			// Eigene Solo-Projekte + selbst angelegte Projekte der Kollektive, in denen man noch Mitglied ist.
 			'projects'         => Projects::export_for_user( $uid ),
+			// Persönliche Set-Vorlagen (Kollektiv-Vorlagen gehören dem Kollektiv).
+			'set_templates'    => array_map( static fn( $t ) => [
+				'name'  => (string) $t->name,
+				'lines' => array_map( static fn( $l ) => (int) $l->quantity . '× ' . $l->label, $t->lines ),
+			], SetTemplates::for_workspace( 0, $uid ) ),
 		];
 
 		nocache_headers();

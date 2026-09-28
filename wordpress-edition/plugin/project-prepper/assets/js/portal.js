@@ -200,6 +200,30 @@
 		if ( head ) { head.textContent = n ? ' (' + n + ')' : ''; }
 	} );
 
+	/* Einmal-Formulare (data-pp-once, v0.147.0): Doppelklick schickt nur EINEN
+	 * POST (Set-Vorlage einbuchen — sonst doppelte Buchung + doppelte Mail). */
+	document.addEventListener( 'submit', function ( e ) {
+		var form = e.target;
+		if ( e.defaultPrevented || ! form || ! form.hasAttribute || ! form.hasAttribute( 'data-pp-once' ) ) { return; }
+		if ( form.hasAttribute( 'data-pp-submitting' ) ) { e.preventDefault(); return; }
+		form.setAttribute( 'data-pp-submitting', '1' );
+	} );
+
+	/* Foto-Upload (v0.147.0): Größe schon im Browser prüfen. Übersteigt die
+	 * Auswahl das Server-Limit, verwirft PHP das GANZE Formular (alle Eingaben
+	 * weg, Autosave inklusive) — deshalb vorher abfangen und die Auswahl leeren. */
+	document.addEventListener( 'change', function ( e ) {
+		var input = e.target;
+		if ( ! input.matches || ! input.matches( 'input[type=file][data-pp-max-bytes]' ) || ! input.files ) { return; }
+		var max = parseInt( input.getAttribute( 'data-pp-max-bytes' ), 10 ) || 0;
+		var sum = 0;
+		for ( var i = 0; i < input.files.length; i++ ) { sum += input.files[ i ].size; }
+		if ( max > 0 && sum > max * 0.95 ) {
+			window.alert( input.getAttribute( 'data-pp-max-msg' ) || '' );
+			input.value = '';
+		}
+	} );
+
 	/* Foto-Galerie (Kollektiv-Inventar, v0.147.0): Klick auf ein Vorschaubild
 	 * tauscht das große Bild. Ohne JS öffnet der Link das Bild in voller Größe. */
 	document.addEventListener( 'click', function ( e ) {

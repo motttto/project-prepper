@@ -45,6 +45,7 @@ class Plugin {
 		Frontend\RentalCancel::init();
 		Frontend\MemberAuth::init();
 		Services\SetTemplates::init();
+		Services\ItemImages::init();
 		CalDav\Server::init();
 
 		if ( is_admin() ) {

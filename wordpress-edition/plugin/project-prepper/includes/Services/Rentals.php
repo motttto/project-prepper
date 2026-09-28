@@ -379,6 +379,34 @@ class Rentals {
 	 * @param array $items [ ['item_id' => 1, 'quantity' => 2, 'daily_rate' => 5.0], … ]
 	 * @return int|WP_Error
 	 */
+	/**
+	 * Gezielt gewählte Exemplare aller Positionen prüfen (0.45.0): je Zeile
+	 * Units::validate_selection, nicht mehr Stücke als Menge und kein Stück in
+	 * zwei Zeilen (Audit AVAIL-23). Läuft in der Buchungs-Serialisierung.
+	 *
+	 * @return array|WP_Error Positionen mit bereinigten unit_ids.
+	 */
+	private static function check_unit_lines( array $items, string $from, string $to, int $exclude_rental = 0 ) {
+		$seen = [];
+		foreach ( $items as $i => $line ) {
+			$units = Units::validate_selection( (int) ( $line['item_id'] ?? 0 ), (array) ( $line['unit_ids'] ?? [] ), $from, $to, $exclude_rental );
+			if ( is_wp_error( $units ) ) {
+				return $units;
+			}
+			if ( count( $units ) > max( 1, (int) ( $line['quantity'] ?? 1 ) ) ) {
+				return new WP_Error( 'pp_unit_count', __( 'You picked more pieces than the booked quantity.', 'project-prepper' ), [ 'status' => 400 ] );
+			}
+			foreach ( $units as $uid ) {
+				if ( isset( $seen[ $uid ] ) ) {
+					return new WP_Error( 'pp_unit_taken', __( 'The same piece is picked in two lines.', 'project-prepper' ), [ 'status' => 409 ] );
+				}
+				$seen[ $uid ] = true;
+			}
+			$items[ $i ]['unit_ids'] = $units;
+		}
+		return $items;
+	}
+
 	public static function create( array $data, array $items ) {
 		// Buchungen serialisieren (Skill /wp-audit, AVAIL-04).
 		return Locking::serialized( static fn() => self::create_locked( $data, $items ) );
@@ -427,12 +455,9 @@ class Rentals {
 		// Gezielt gewählte Exemplare (0.45.0): gehören sie zum Artikel, sind sie
 		// frei? Läuft in der Buchungs-Serialisierung — zwei gleichzeitige Verleihe
 		// können nicht dasselbe Stück greifen.
-		foreach ( $items as $i => $line ) {
-			$units = Units::validate_selection( (int) $line['item_id'], (array) ( $line['unit_ids'] ?? [] ), (string) $data['date_from'], (string) $data['date_to'] );
-			if ( is_wp_error( $units ) ) {
-				return $units;
-			}
-			$items[ $i ]['unit_ids'] = $units;
+		$items = self::check_unit_lines( $items, (string) $data['date_from'], (string) $data['date_to'] );
+		if ( is_wp_error( $items ) ) {
+			return $items;
 		}
 
 		$now = current_time( 'mysql' );
@@ -588,14 +613,32 @@ class Rentals {
 			}
 		}
 
-		// Gezielt gewählte Exemplare prüfen (eigener Verleih ausgenommen).
+		// Gezielt gewählte Exemplare prüfen (eigener Verleih ausgenommen). Eine
+		// Position OHNE Angabe behält ihre bisherige Wahl (Audit AVAIL-22: das
+		// Backend-Formular kennt die Exemplare nicht und löschte sie still); ohne
+		// neue Positionen wird die bestehende Wahl gegen den neuen Zeitraum geprüft.
+		$prev_units = [];
+		foreach ( $rental->items as $pline ) {
+			$prev_units[ (int) $pline->id ] = Units::decode_ids( $pline->unit_ids ?? '' );
+		}
 		if ( null !== $items ) {
 			foreach ( $items as $i => $line ) {
-				$units = Units::validate_selection( (int) $line['item_id'], (array) ( $line['unit_ids'] ?? [] ), (string) $date_from, (string) $date_to, $id );
-				if ( is_wp_error( $units ) ) {
-					return $units;
+				if ( ! array_key_exists( 'unit_ids', $line ) && isset( $prev_units[ (int) ( $line['id'] ?? 0 ) ] ) ) {
+					$items[ $i ]['unit_ids'] = $prev_units[ (int) $line['id'] ];
 				}
-				$items[ $i ]['unit_ids'] = $units;
+			}
+			$items = self::check_unit_lines( $items, (string) $date_from, (string) $date_to, $id );
+			if ( is_wp_error( $items ) ) {
+				return $items;
+			}
+		} else {
+			$current = [];
+			foreach ( $rental->items as $pline ) {
+				$current[] = [ 'item_id' => (int) $pline->item_id, 'quantity' => (int) $pline->quantity, 'unit_ids' => $prev_units[ (int) $pline->id ] ];
+			}
+			$check = self::check_unit_lines( $current, (string) $date_from, (string) $date_to, $id );
+			if ( is_wp_error( $check ) ) {
+				return $check;
 			}
 		}
 
@@ -624,7 +667,7 @@ class Rentals {
 			$where['updated_at'] = $expect;
 		}
 		$rows = $wpdb->update( Schema::table( 'rentals' ), $fields, $where );
-		if ( null !== $expect && '' !== $expect && ! $rows ) {
+		if ( MemberInventory::is_stale( 'rentals', $id, $rows, $expect ) ) {
 			return MemberInventory::stale_error();
 		}
 

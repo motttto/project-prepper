@@ -120,13 +120,22 @@ class MemberInventory {
 		if ( self::owns( $user_id, $item_id ) ) {
 			return true;
 		}
+		// Das Recht hängt an der Freigabe DES EIGENTÜMERS — ist er aus dem
+		// Kollektiv ausgetreten, gilt sie nicht mehr (Audit ACC-12/LIFE-16: sonst
+		// bearbeiteten die Übrigen den Artikel eines Fremden weiter und löschten
+		// seine Fotos).
 		return (bool) $wpdb->get_var( $wpdb->prepare(
-			'SELECT 1 FROM %i s JOIN %i m ON m.group_id = s.group_id
-			 WHERE s.item_id = %d AND s.members_can_edit = 1 AND m.user_id = %d LIMIT 1',
+			'SELECT 1 FROM %i s
+			 JOIN %i i ON i.id = s.item_id
+			 JOIN %i m ON m.group_id = s.group_id AND m.user_id = %d
+			 JOIN %i mo ON mo.group_id = s.group_id AND mo.user_id = i.owner_user_id
+			 WHERE s.item_id = %d AND s.members_can_edit = 1 LIMIT 1',
 			Schema::table( 'item_group_shares' ),
+			Schema::table( 'items' ),
 			Schema::table( 'group_members' ),
-			$item_id,
-			$user_id
+			$user_id,
+			Schema::table( 'group_members' ),
+			$item_id
 		) );
 	}
 
@@ -148,6 +157,7 @@ class MemberInventory {
 		if ( ! self::owns( $user_id, $item_id ) ) {
 			$data = array_intersect_key( $data, array_flip( self::MEMBER_EDIT_FIELDS ) );
 		}
+		$data = self::floor_quantity( $item_id, $data );
 		unset( $data['owner_user_id'], $data['image_id'], $data['document_ids'], $data['inventory_number'] );
 		$name = trim( (string) ( $data['name'] ?? '' ) );
 		if ( '' === $name ) {
@@ -174,7 +184,7 @@ class MemberInventory {
 			return new WP_Error(
 				'pp_photo_limit',
 				/* translators: %d: maximum number of photos per item. */
-				sprintf( __( 'An item can have at most %d photos.', 'project-prepper' ), ItemImages::MAX_PER_ITEM ),
+				sprintf( __( 'An item can have at most %d photos — the remaining ones were not added. Everything else was saved.', 'project-prepper' ), ItemImages::MAX_PER_ITEM ),
 				[ 'status' => 400 ]
 			);
 		}
@@ -232,10 +242,48 @@ class MemberInventory {
 		}
 		// owner_user_id NICHT überschreibbar machen — bleibt beim Owner.
 		unset( $data['owner_user_id'] );
+		$data = self::floor_quantity( $item_id, $data );
 		if ( ! Inventory::update_item( $item_id, $data, $expect ) && null !== $expect && '' !== $expect ) {
 			return self::stale_error();
 		}
 		return true;
+	}
+
+	/**
+	 * Bestand 0 ist nur für Verbrauchsmaterial erlaubt (aufgebraucht) — maßgeblich
+	 * ist das gespeicherte bzw. im selben Formular gesetzte Flag, nicht ein
+	 * mitgeschicktes Formularfeld (Audit ACC-19).
+	 */
+	private static function floor_quantity( int $item_id, array $data ): array {
+		if ( ! array_key_exists( 'quantity', $data ) || (int) $data['quantity'] >= 1 ) {
+			return $data;
+		}
+		$consumable = array_key_exists( 'is_consumable', $data )
+			? ! empty( $data['is_consumable'] )
+			: ! empty( Inventory::get_item( $item_id )->is_consumable ?? 0 );
+		$data['quantity'] = $consumable ? 0 : 1;
+		return $data;
+	}
+
+	/**
+	 * Hat ein bedingtes UPDATE (WHERE updated_at = gelesener Stand) einen echten
+	 * Konflikt getroffen? 0 Zeilen heißt entweder „jemand anderes hat geändert"
+	 * (updated_at weicht ab) oder „nichts geändert, in derselben Sekunde" — MySQL
+	 * zählt Treffer ohne Änderung nicht mit. Letzteres ist kein Konflikt (Audit
+	 * FLOW-12: ein Speichern kurz nach dem Anlegen meldete sonst „veraltet").
+	 *
+	 * @param int|false $rows Rückgabe von $wpdb->update().
+	 */
+	public static function is_stale( string $table, int $id, $rows, ?string $expect ): bool {
+		global $wpdb;
+		if ( null === $expect || '' === $expect || $rows ) {
+			return false;
+		}
+		if ( false === $rows ) {
+			return true;
+		}
+		$now = $wpdb->get_var( $wpdb->prepare( 'SELECT updated_at FROM %i WHERE id = %d', Schema::table( $table ), $id ) );
+		return (string) $now !== (string) $expect;
 	}
 
 	/** Gemeinsame Konflikt-Meldung (Optimistic Locking). */

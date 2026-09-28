@@ -224,6 +224,12 @@ class Projects {
 	 * @return true|WP_Error
 	 */
 	public static function update( int $id, array $data, ?string $expect = null ) {
+		// Verschieben prüft alle Zeilen (check_lines) — im Buchungs-Schloss, sonst
+		// überholt eine gleichzeitige Buchung die Prüfung (Audit AVAIL-21).
+		return Locking::serialized( static fn() => self::update_locked( $id, $data, $expect ) );
+	}
+
+	private static function update_locked( int $id, array $data, ?string $expect = null ) {
 		global $wpdb;
 
 		$project = self::get( $id );
@@ -303,7 +309,7 @@ class Projects {
 			$where['updated_at'] = $expect;
 		}
 		$rows = $wpdb->update( Schema::table( 'projects' ), $fields, $where );
-		if ( null !== $expect && '' !== $expect && ! $rows ) {
+		if ( MemberInventory::is_stale( 'projects', $id, $rows, $expect ) ) {
 			return MemberInventory::stale_error();
 		}
 
@@ -323,6 +329,13 @@ class Projects {
 	 * @return true|WP_Error
 	 */
 	public static function set_status( int $id, string $status ) {
+		// Bestätigen macht die Buchungen wirksam und prüft sie vorher — beides im
+		// Buchungs-Schloss (Audit AVAIL-21: sonst Doppelvergabe bei gleichzeitiger
+		// Buchung). Das Schloss ist wiedereintrittsfähig (GET_LOCK je Verbindung).
+		return Locking::serialized( static fn() => self::set_status_locked( $id, $status ) );
+	}
+
+	private static function set_status_locked( int $id, string $status ) {
 		global $wpdb;
 
 		$project = self::get( $id );
@@ -788,6 +801,13 @@ class Projects {
 		$out   = [];
 		foreach ( $rows as $r ) {
 			$gid = (int) ( $r->owner_group_id ?? 0 );
+			// Nur, was der User heute sehen darf (Audit ACC-14): eigene Solo-Projekte
+			// und Projekte von Kollektiven, in denen er NOCH Mitglied ist — nicht den
+			// aktuellen Stand eines Kollektiv-Projekts, das er vor seinem Austritt
+			// angelegt hat.
+			if ( (int) ( $r->owner_user_id ?? 0 ) !== $user_id && ( $gid <= 0 || ! Groups::is_member( $gid, $user_id ) ) ) {
+				continue;
+			}
 			if ( $gid > 0 && ! isset( $names[ $gid ] ) ) {
 				$g             = Groups::get( $gid );
 				$names[ $gid ] = $g ? (string) $g->name : '';
@@ -1134,6 +1154,7 @@ class Projects {
 				 WHERE pi.project_id = %d
 				   AND pi.item_id = %d
 				   AND pi.id != %d
+				   AND pi.consumed_at IS NULL
 				   AND COALESCE(pi.date_from, %s) <= %s
 				   AND COALESCE(pi.date_to, %s) >= %s',
 				Schema::table( 'project_items' ),
@@ -1210,11 +1231,16 @@ class Projects {
 	public static function check_lines( object $project ) {
 		global $wpdb;
 		$lines = $wpdb->get_results( $wpdb->prepare(
-			'SELECT id, item_id, quantity, date_from, date_to, unit_ids FROM %i WHERE project_id = %d',
+			'SELECT id, item_id, quantity, date_from, date_to, unit_ids, consumed_at FROM %i WHERE project_id = %d',
 			Schema::table( 'project_items' ),
 			(int) $project->id
 		) ) ?: [];
 		foreach ( $lines as $line ) {
+			// Schon verbrauchtes Material ist vom Bestand abgezogen — es gegen den
+			// Restbestand zu prüfen hieße, es doppelt zu zählen (Audit AVAIL-19).
+			if ( ! empty( $line->consumed_at ) ) {
+				continue;
+			}
 			$res = self::validate_line(
 				$project,
 				[
