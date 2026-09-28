@@ -31,7 +31,10 @@ class Schema {
 	// 0.44.0: Eigene Artikel-Felder — item_field_defs (instanzweite Definitionen,
 	// von Mitgliedern angelegt) + item_field_values (Wert je Artikel+Feld). Zwei
 	// neue Tabellen via dbDelta, keine Datenmigration.
-	const VERSION    = '0.44.0';
+	// 0.45.0: Feedback-Runde 2026-09 — item_images (Zusatzfotos je Artikel; das
+	// Titelbild bleibt items.image_id), item_group_shares.members_can_edit
+	// (Kollektiv-Mitglieder dürfen Angaben bearbeiten). Alles additiv via dbDelta.
+	const VERSION    = '0.45.0';
 	const OPTION_KEY = 'pp_schema_version';
 
 	// Nach Schema-/Versions-Upgrades einmalig die Rewrite-Rules flushen
@@ -83,6 +86,7 @@ class Schema {
 		$bundle_p   = self::table( 'item_bundle_parts' );
 		$field_defs = self::table( 'item_field_defs' );
 		$field_vals = self::table( 'item_field_values' );
+		$item_imgs  = self::table( 'item_images' );
 		$borrows    = self::table( 'borrow_requests' );
 		$fed_in     = self::table( 'fed_borrow_in' );
 		$fed_out    = self::table( 'fed_borrow_out' );
@@ -355,6 +359,19 @@ class Schema {
 			PRIMARY KEY  (id),
 			UNIQUE KEY item_field (item_id,field_id),
 			KEY field_id (field_id)
+		) {$charset};" );
+
+		// Weitere Fotos je Artikel (0.45.0). Das Titelbild bleibt items.image_id —
+		// alle Listen lesen weiter nur das; hier liegen die zusätzlichen Bilder.
+		dbDelta( "CREATE TABLE {$item_imgs} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			item_id bigint(20) unsigned NOT NULL,
+			attachment_id bigint(20) unsigned NOT NULL,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY item_attachment (item_id,attachment_id),
+			KEY item_id (item_id)
 		) {$charset};" );
 
 		dbDelta( "CREATE TABLE {$p_lists} (
@@ -752,6 +769,7 @@ class Schema {
 				shared_by bigint(20) unsigned DEFAULT NULL,
 				daily_rate decimal(10,2) DEFAULT NULL,
 				requires_approval tinyint(1) NOT NULL DEFAULT 0,
+				members_can_edit tinyint(1) NOT NULL DEFAULT 0,
 				conditions_tags longtext,
 				conditions text,
 				created_at datetime NOT NULL,

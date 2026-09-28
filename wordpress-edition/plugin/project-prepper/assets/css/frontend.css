@@ -385,7 +385,8 @@ a.pp-front-card-media { text-decoration: none; }
 	overflow: hidden;
 }
 
-.pp-front-detail-media img {
+/* Nur das große Bild — die Vorschauleiste darunter behält ihre Kachelgröße. */
+.pp-front-detail-media > img {
 	width: 100%;
 	height: auto;
 	display: block;
@@ -393,6 +394,8 @@ a.pp-front-card-media { text-decoration: none; }
 }
 
 .pp-front-detail-media .pp-front-card-icon { font-size: 64px; }
+.pp-front-detail-media:has(.pp-gallery__thumbs) { flex-direction: column; }
+.pp-front-detail-media .pp-gallery__thumbs { padding: .5rem; align-self: stretch; }
 
 .pp-front-detail-body {
 	display: flex;
@@ -3200,6 +3203,41 @@ label.pp-swatch,
 .pp-cf-list__row { min-width: 0; }
 .pp-cf-list dt { font-size: .74rem; color: var(--pp-muted-foreground); }
 .pp-cf-list dd { margin: 0; font-size: .88rem; color: var(--pp-foreground); overflow-wrap: anywhere; }
+
+/* ==========================================================================
+   Feedback-Runde 2026-09 (v0.147.0): mehrere Fotos je Artikel, Artikel-Detail
+   im Kollektiv-Inventar
+   ========================================================================== */
+
+/* Foto-Abschnitt im Artikel-Formular: volle Zeile, Kacheln als Auto-Raster
+ * (keine Scrollbox — Skill /wp-css), je Kachel „Titelbild" + „Entfernen". */
+.pp-modal-body > .pp-portal__form > .pp-photos { grid-column: 1 / -1; }
+.pp-photos { border: 0; border-top: 1px solid var(--pp-muted); margin: 0; padding: .85rem 0 0; min-width: 0; }
+.pp-photos__title { padding: 0; font-weight: 600; font-size: .9rem; color: var(--pp-foreground); }
+.pp-photos__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(130px, 100%), 1fr)); gap: .6rem; margin: .5rem 0 .6rem; }
+.pp-photos__tile { display: flex; flex-direction: column; gap: .25rem; min-width: 0; }
+.pp-photos__img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border: 1px solid var(--pp-border); border-radius: 8px; background: var(--pp-muted); }
+.pp-portal__form label.pp-photos__opt { display: flex; flex-direction: row; align-items: center; gap: .35rem; font-size: .8rem; color: var(--pp-muted-foreground); }
+.pp-portal__form label.pp-photos__add { display: flex; flex-direction: column; gap: .25rem; font-size: .78rem; color: var(--pp-muted-foreground); }
+
+/* Galerie zum Ansehen: großes Bild, darunter die Vorschauleiste (bricht um). */
+.pp-gallery { margin: 0 0 1rem; }
+.pp-gallery__main { display: block; }
+.pp-gallery__main img { display: block; width: 100%; max-height: 45vh; object-fit: contain; border: 1px solid var(--pp-border); border-radius: 10px; background: var(--pp-muted); }
+.pp-gallery__thumbs { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .5rem; }
+.pp-gallery__thumb { display: block; width: 64px; height: 64px; border: 2px solid transparent; border-radius: 8px; overflow: hidden; }
+.pp-gallery__thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pp-gallery__thumb.is-active { border-color: var(--pp-primary); }
+
+/* Artikel-Detail: Fotos und Angaben nebeneinander, sobald die Breite reicht
+ * (Auto-Raster, keine feste Spaltenzahl — die Modal-Breite ist einstellbar);
+ * Freitexte darunter über die volle Breite. */
+.pp-idetail-top { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 1rem 1.25rem; align-items: start; margin-bottom: .9rem; }
+.pp-idetail-top > .pp-gallery { margin: 0; }
+.pp-idetail { margin: 0; align-content: start; }
+.pp-idetail__text { margin: 0 0 .8rem; font-size: .88rem; color: var(--pp-foreground); overflow-wrap: anywhere; }
+.pp-idetail__text p { margin: .15rem 0 0; }
+.pp-idetail__head { margin: 0; font-size: .74rem; font-weight: 400; color: var(--pp-muted-foreground); }
 .pp-bundle-edit { border-top: 1px solid var(--pp-muted); padding-top: .85rem; }
 .pp-bundle-edit__head { cursor: pointer; font-weight: 600; font-size: .9rem; list-style: none; }
 .pp-bundle-edit__head::-webkit-details-marker { display: none; }

@@ -41,6 +41,13 @@ if ( $pp_block_theme ) {
 	<div class="pp-front-detail-media">
 		<?php if ( $item['image_url'] ) : ?>
 			<img src="<?php echo esc_url( $item['image_url'] ); ?>" alt="<?php echo esc_attr( $item['name'] ); ?>">
+			<?php if ( ! empty( $item['images'] ) && count( $item['images'] ) > 1 ) : ?>
+				<div class="pp-gallery__thumbs">
+					<?php foreach ( $item['images'] as $pp_ph ) : ?>
+						<a class="pp-gallery__thumb" href="<?php echo esc_url( $pp_ph['large'] ); ?>" target="_blank" rel="noopener"><img src="<?php echo esc_url( $pp_ph['thumb'] ); ?>" alt="" loading="lazy"></a>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
 		<?php else : ?>
 			<span class="pp-front-card-icon"><?php echo esc_html( $item['category_icon'] ?: '📦' ); ?></span>
 		<?php endif; ?>

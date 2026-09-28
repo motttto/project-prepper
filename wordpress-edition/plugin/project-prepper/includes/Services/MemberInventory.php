@@ -104,6 +104,98 @@ class MemberInventory {
 	}
 
 	/**
+	 * Darf der User die Angaben des Artikels bearbeiten? Eigentümer immer; sonst
+	 * jedes Mitglied eines Kollektivs, mit dem der Eigentümer den Artikel geteilt
+	 * UND dabei „Mitglieder dürfen Angaben bearbeiten" angehakt hat (Feedback:
+	 * „Inventar Dunkelstrom würde ich gerne bearbeiten können").
+	 *
+	 * Gilt nur für Stammdaten und Fotos ({@see edit_details()}). Tagessatz,
+	 * Kategorie, Freigaben, Set-Inhalt, Dokumente und Löschen bleiben beim Eigentümer.
+	 */
+	public static function can_edit( int $user_id, int $item_id ): bool {
+		global $wpdb;
+		if ( $user_id <= 0 || $item_id <= 0 ) {
+			return false;
+		}
+		if ( self::owns( $user_id, $item_id ) ) {
+			return true;
+		}
+		return (bool) $wpdb->get_var( $wpdb->prepare(
+			'SELECT 1 FROM %i s JOIN %i m ON m.group_id = s.group_id
+			 WHERE s.item_id = %d AND s.members_can_edit = 1 AND m.user_id = %d LIMIT 1',
+			Schema::table( 'item_group_shares' ),
+			Schema::table( 'group_members' ),
+			$item_id,
+			$user_id
+		) );
+	}
+
+	/** Felder, die ein Mitglied mit Bearbeitungsrecht (Nicht-Eigentümer) ändern darf. */
+	const MEMBER_EDIT_FIELDS = [ 'name', 'quantity', 'condition', 'manufacturer', 'model', 'serial_number', 'location', 'dimensions', 'tags', 'description', 'notes', 'accessories' ];
+
+	/**
+	 * Stammdaten aus dem Kollektiv-Inventar heraus ändern (Eigentümer oder
+	 * Mitglied mit Bearbeitungsrecht). Für Nicht-Eigentümer werden nur die
+	 * Felder aus MEMBER_EDIT_FIELDS übernommen — ein manipuliertes Formular kann
+	 * weder Tagessatz noch Kategorie noch Eigentümer setzen.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function edit_details( int $user_id, int $item_id, array $data, ?string $expect = null ) {
+		if ( ! self::can_edit( $user_id, $item_id ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'You are not allowed to edit this item.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		if ( ! self::owns( $user_id, $item_id ) ) {
+			$data = array_intersect_key( $data, array_flip( self::MEMBER_EDIT_FIELDS ) );
+		}
+		unset( $data['owner_user_id'], $data['image_id'], $data['document_ids'], $data['inventory_number'] );
+		$name = trim( (string) ( $data['name'] ?? '' ) );
+		if ( '' === $name ) {
+			return new WP_Error( 'pp_missing_name', __( 'Please enter a name for the item.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		if ( ! Inventory::update_item( $item_id, $data, $expect ) && null !== $expect && '' !== $expect ) {
+			return self::stale_error();
+		}
+		ActivityLog::log( 'member_item_edited', 'item', $item_id, [ 'by' => $user_id ] );
+		return true;
+	}
+
+	/**
+	 * Foto hochgeladen → an den Artikel hängen (erstes = Titelbild). Eigentümer
+	 * oder Mitglied mit Bearbeitungsrecht. Über der Obergrenze → pp_photo_limit.
+	 *
+	 * @return true|WP_Error
+	 */
+	public static function add_photo( int $user_id, int $item_id, int $attachment_id ) {
+		if ( ! self::can_edit( $user_id, $item_id ) ) {
+			return new WP_Error( 'pp_forbidden', __( 'You are not allowed to edit this item.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		if ( ! ItemImages::add( $item_id, $attachment_id ) ) {
+			return new WP_Error(
+				'pp_photo_limit',
+				/* translators: %d: maximum number of photos per item. */
+				sprintf( __( 'An item can have at most %d photos.', 'project-prepper' ), ItemImages::MAX_PER_ITEM ),
+				[ 'status' => 400 ]
+			);
+		}
+		return true;
+	}
+
+	/** Foto entfernen (Titelbild → erstes Zusatzbild rückt nach). */
+	public static function remove_photo( int $user_id, int $item_id, int $attachment_id ): void {
+		if ( self::can_edit( $user_id, $item_id ) ) {
+			ItemImages::remove( $item_id, $attachment_id );
+		}
+	}
+
+	/** Zusatzbild zum Titelbild machen. */
+	public static function set_cover_photo( int $user_id, int $item_id, int $attachment_id ): void {
+		if ( self::can_edit( $user_id, $item_id ) ) {
+			ItemImages::set_cover( $item_id, $attachment_id );
+		}
+	}
+
+	/**
 	 * Neues eigenes Item anlegen.
 	 *
 	 * @return int|WP_Error Item-ID.
@@ -407,7 +499,9 @@ class MemberInventory {
 	 * Bedingungs-Tags + Freitext.
 	 *
 	 * @param array $opts daily_rate (float|string|null), requires_approval (bool),
-	 *                    conditions_tags (string[]), conditions (string).
+	 *                    conditions_tags (string[]), conditions (string),
+	 *                    members_can_edit (bool, optional — fehlt er, bleibt der
+	 *                    bisherige Wert erhalten).
 	 * @return true|WP_Error
 	 */
 	public static function set_share( int $user_id, int $item_id, int $group_id, array $opts ) {
@@ -428,6 +522,9 @@ class MemberInventory {
 			'conditions_tags'   => wp_json_encode( $tags ),
 			'conditions'        => sanitize_textarea_field( (string) ( $opts['conditions'] ?? '' ) ),
 		];
+		if ( array_key_exists( 'members_can_edit', $opts ) ) {
+			$data['members_can_edit'] = ! empty( $opts['members_can_edit'] ) ? 1 : 0;
+		}
 		$table = Schema::table( 'item_group_shares' );
 		$id    = $wpdb->get_var( $wpdb->prepare( 'SELECT id FROM %i WHERE item_id = %d AND group_id = %d', $table, $item_id, $group_id ) );
 		if ( $id ) {
@@ -445,14 +542,36 @@ class MemberInventory {
 	}
 
 	/**
+	 * Freigabe-Konditionen ALLER Artikel eines Kollektivs in einer Abfrage — für
+	 * die Detail-Ansicht im Kollektiv-Inventar. Aufrufer prüft die Mitgliedschaft.
+	 *
+	 * @return array<int,object> item_id => { daily_rate, requires_approval, members_can_edit, conditions_tags[], conditions }
+	 */
+	public static function group_shares( int $group_id ): array {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT item_id, daily_rate, requires_approval, members_can_edit, conditions_tags, conditions FROM %i WHERE group_id = %d',
+			Schema::table( 'item_group_shares' ),
+			$group_id
+		) ) ?: [];
+		$out = [];
+		foreach ( $rows as $r ) {
+			$tags                     = json_decode( (string) $r->conditions_tags, true );
+			$r->conditions_tags       = is_array( $tags ) ? $tags : [];
+			$out[ (int) $r->item_id ] = $r;
+		}
+		return $out;
+	}
+
+	/**
 	 * Freigabe-Konditionen eines Items je Gruppe (zur Vorbelegung im Modal).
 	 *
-	 * @return array<int,object> group_id => { daily_rate, requires_approval, conditions_tags[], conditions }
+	 * @return array<int,object> group_id => { daily_rate, requires_approval, members_can_edit, conditions_tags[], conditions }
 	 */
 	public static function share_settings( int $item_id ): array {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare(
-			'SELECT group_id, daily_rate, requires_approval, conditions_tags, conditions FROM %i WHERE item_id = %d',
+			'SELECT group_id, daily_rate, requires_approval, members_can_edit, conditions_tags, conditions FROM %i WHERE item_id = %d',
 			Schema::table( 'item_group_shares' ),
 			$item_id
 		) ) ?: [];

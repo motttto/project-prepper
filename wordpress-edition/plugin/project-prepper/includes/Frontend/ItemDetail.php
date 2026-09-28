@@ -133,6 +133,8 @@ class ItemDetail {
 			'quantity'         => (int) $row->quantity,
 			'tags'             => (array) $row->tags,
 			'image_url'        => $row->image_id ? ( wp_get_attachment_image_url( (int) $row->image_id, 'large' ) ?: $row->image_url ) : null,
+			// Alle Fotos (Titelbild zuerst) — ab zwei Bildern als Vorschauleiste.
+			'images'           => \ProjectPrepper\Services\ItemImages::gallery( $row ),
 			// Tagessatz nur, wenn öffentlich freigegeben (Einstellungen).
 			'cost_per_day'     => get_option( 'pp_public_show_rates', false ) ? $row->cost_per_day : null,
 		];

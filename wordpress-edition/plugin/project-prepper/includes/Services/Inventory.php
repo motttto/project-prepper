@@ -538,6 +538,9 @@ class Inventory {
 		Bundles::delete_for_item( $id );
 		$wpdb->delete( Schema::table( 'units' ), [ 'item_id' => $id ], [ '%d' ] );
 		ItemFields::delete_for_item( $id );
+		// Fotos (Titelbild + Zusatzbilder) samt Attachments — blieben sonst
+		// verwaist in der Mediathek liegen.
+		ItemImages::delete_for_item( $item );
 		$ok = false !== $wpdb->delete( Schema::table( 'items' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {
 			ActivityLog::log( 'item_deleted', 'item', $id, [ 'name' => $item->name, 'inventory_number' => $item->inventory_number ] );

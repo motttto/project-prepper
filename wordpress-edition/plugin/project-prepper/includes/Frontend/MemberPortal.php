@@ -8,6 +8,7 @@ use ProjectPrepper\Services\Groups;
 use ProjectPrepper\Services\GroupGovernance as Governance;
 use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Services\ItemFields;
+use ProjectPrepper\Services\ItemImages;
 use ProjectPrepper\Services\Feedback;
 use ProjectPrepper\Services\MemberInventory;
 use ProjectPrepper\Services\MemberInquiries;
@@ -442,7 +443,7 @@ class MemberPortal {
 		}
 		// Inventar-, Kategorie- und Gesamt-Freigabe-Aktionen kehren zur Inventar-
 		// Ansicht zurück (statt aufs Dashboard) — inkl. Artikel anlegen/bearbeiten/löschen.
-		if ( in_array( $do, [ 'item_create', 'item_update', 'item_save_all', 'item_delete', 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all', 'item_share', 'item_unshare', 'item_share_set' ], true ) ) {
+		if ( in_array( $do, [ 'item_create', 'item_update', 'item_save_all', 'item_save_details', 'item_delete', 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all', 'item_share', 'item_unshare', 'item_share_set' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		}
 		// Anfragen-Aktionen kehren zur Anfragen-Ansicht zurück — Bearbeiten und
@@ -631,6 +632,24 @@ class MemberPortal {
 					if ( is_wp_error( $pp_bundle_res ) ) {
 						$result = $pp_bundle_res;
 					} elseif ( is_wp_error( $pp_photo_res ) ) {
+						$result = $pp_photo_res;
+					} elseif ( is_wp_error( $pp_field_res ) ) {
+						$result = $pp_field_res;
+					}
+				}
+				$ok_msg = 'item_saved';
+				break;
+			case 'item_save_details':
+				// Bearbeiten aus dem Kollektiv-Inventar (Eigentümer oder Mitglied, dem
+				// der Eigentümer das Bearbeiten erlaubt hat): Stammdaten, eigene Felder
+				// und Fotos. Freigaben, Set-Inhalt, Dokumente und Löschen bleiben in
+				// „Mein Inventar" beim Eigentümer.
+				$pp_item = (int) ( $_POST['pp_item'] ?? 0 );
+				$result  = MemberInventory::edit_details( get_current_user_id(), $pp_item, self::item_input(), self::seen() );
+				if ( ! is_wp_error( $result ) ) {
+					$pp_field_res = self::apply_custom_field_input( get_current_user_id(), $pp_item );
+					$pp_photo_res = self::process_item_photo_input( get_current_user_id(), $pp_item );
+					if ( is_wp_error( $pp_photo_res ) ) {
 						$result = $pp_photo_res;
 					} elseif ( is_wp_error( $pp_field_res ) ) {
 						$result = $pp_field_res;
@@ -1659,6 +1678,8 @@ class MemberPortal {
 			'dimensions'    => sanitize_text_field( wp_unslash( (string) ( $_POST['pp_dimensions'] ?? '' ) ) ),
 			'tags'          => $tags,
 			'description'   => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_description'] ?? '' ) ) ),
+			'notes'         => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_notes'] ?? '' ) ) ),
+			'accessories'   => sanitize_textarea_field( wp_unslash( (string) ( $_POST['pp_accessories'] ?? '' ) ) ),
 		];
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 	}
@@ -1676,6 +1697,7 @@ class MemberPortal {
 		$appr  = is_array( $_POST['pp_share_approval'] ?? null ) ? $_POST['pp_share_approval'] : [];
 		$cond  = is_array( $_POST['pp_share_cond'] ?? null ) ? wp_unslash( $_POST['pp_share_cond'] ) : [];
 		$notes = is_array( $_POST['pp_share_notes'] ?? null ) ? wp_unslash( $_POST['pp_share_notes'] ) : [];
+		$edit  = is_array( $_POST['pp_share_edit'] ?? null ) ? $_POST['pp_share_edit'] : [];
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
 		$shared_now = MemberInventory::shared_group_ids( $item_id );
 		foreach ( Groups::user_groups( $user_id ) as $g ) {
@@ -1686,6 +1708,7 @@ class MemberPortal {
 					'requires_approval' => ! empty( $appr[ $gid ] ),
 					'conditions_tags'   => array_map( 'sanitize_key', (array) ( $cond[ $gid ] ?? [] ) ),
 					'conditions'        => (string) ( $notes[ $gid ] ?? '' ),
+					'members_can_edit'  => ! empty( $edit[ $gid ] ),
 				] );
 			} elseif ( in_array( $gid, $shared_now, true ) ) {
 				MemberInventory::unshare( $user_id, $item_id, $gid );
@@ -1694,38 +1717,94 @@ class MemberPortal {
 	}
 
 	/**
-	 * Foto-Feld des vereinten Artikel-Formulars verarbeiten: „Foto entfernen"-
-	 * Checkbox und/oder neuer Upload (ersetzt das bisherige Bild). Nichts
-	 * angegeben → true ohne Änderung. Upload-Fehler → WP_Error pp_photo_failed
-	 * (die übrigen Formulardaten sind zu diesem Zeitpunkt bereits gespeichert).
+	 * Foto-Abschnitt des Artikel-Formulars verarbeiten (mehrere Fotos, Schema
+	 * 0.45.0): erst Entfernen (pp_photo_remove_ids[]), dann Titelbild-Wahl
+	 * (pp_photo_cover), dann neue Uploads (pp_photos[], mehrfach). Das erste Foto
+	 * eines Artikels ohne Titelbild wird automatisch Titelbild. Alte Formulare mit
+	 * EINEM Feld (pp_photo / pp_photo_remove) funktionieren weiter.
+	 *
+	 * Rechte: MemberInventory::can_edit (Eigentümer oder Mitglied mit
+	 * Bearbeitungsrecht) — geprüft in den Service-Methoden.
+	 * Upload-Fehler → WP_Error; die übrigen Formulardaten sind dann schon gespeichert.
 	 *
 	 * @return true|\WP_Error
 	 */
 	private static function process_item_photo_input( int $user_id, int $item_id ) {
 		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Nonce wird im Dispatcher geprüft.
+		$remove = array_map( 'intval', (array) ( $_POST['pp_photo_remove_ids'] ?? [] ) );
+		$cover  = (int) ( $_POST['pp_photo_cover'] ?? 0 );
 		if ( ! empty( $_POST['pp_photo_remove'] ) ) {
-			MemberInventory::set_image( $user_id, $item_id, null );
+			$pp_item = Inventory::get_item( $item_id );
+			if ( $pp_item && $pp_item->image_id ) {
+				$remove[] = (int) $pp_item->image_id;
+			}
 		}
 		// phpcs:enable WordPress.Security.NonceVerification.Missing
-		if ( empty( $_FILES['pp_photo']['tmp_name'] ) || ! is_uploaded_file( $_FILES['pp_photo']['tmp_name'] ) ) {
-			return true;
+		foreach ( array_unique( array_filter( $remove ) ) as $att ) {
+			MemberInventory::remove_photo( $user_id, $item_id, (int) $att );
 		}
-		$attach_id = self::create_photo_attachment();
-		if ( is_wp_error( $attach_id ) ) {
-			return $attach_id;
+		if ( $cover > 0 && ! in_array( $cover, $remove, true ) ) {
+			MemberInventory::set_cover_photo( $user_id, $item_id, $cover );
 		}
-		MemberInventory::set_image( $user_id, $item_id, (int) $attach_id );
-		return true;
+		$files = self::uploaded_files( 'pp_photos' );
+		if ( ! empty( $_FILES['pp_photo']['tmp_name'] ) ) {
+			$files[] = $_FILES['pp_photo']; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- wird von wp_handle_upload validiert.
+		}
+		$error = null;
+		foreach ( $files as $file ) {
+			if ( empty( $file['tmp_name'] ) || ! is_uploaded_file( $file['tmp_name'] ) ) {
+				continue;
+			}
+			$attach_id = self::create_photo_attachment( $file );
+			if ( is_wp_error( $attach_id ) ) {
+				$error = $attach_id;
+				continue;
+			}
+			$added = MemberInventory::add_photo( $user_id, $item_id, (int) $attach_id );
+			if ( is_wp_error( $added ) ) {
+				wp_delete_attachment( (int) $attach_id, true );
+				$error = $added;
+				break; // Obergrenze erreicht oder kein Recht — die übrigen gar nicht erst ablegen.
+			}
+		}
+		return $error ?? true;
 	}
 
 	/**
-	 * Hochgeladenes pp_photo als Attachment ablegen (Bild-MIME-Whitelist).
-	 * Gemeinsame Kernlogik für handle_inventory_photo() und das vereinte
-	 * Artikel-Formular (item_create / item_save_all).
+	 * Mehrfach-Upload (`name="pp_photos[]"`) in einzelne $_FILES-Einträge zerlegen.
 	 *
+	 * @return array<int,array> je Datei name/type/tmp_name/error/size.
+	 */
+	private static function uploaded_files( string $field ): array {
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- reine Umordnung; Prüfung in wp_handle_upload.
+		$raw = $_FILES[ $field ] ?? null;
+		if ( ! is_array( $raw ) || ! isset( $raw['tmp_name'] ) ) {
+			return [];
+		}
+		if ( ! is_array( $raw['tmp_name'] ) ) {
+			return [ $raw ];
+		}
+		$out = [];
+		foreach ( array_keys( $raw['tmp_name'] ) as $i ) {
+			$out[] = [
+				'name'     => $raw['name'][ $i ] ?? '',
+				'type'     => $raw['type'][ $i ] ?? '',
+				'tmp_name' => $raw['tmp_name'][ $i ] ?? '',
+				'error'    => $raw['error'][ $i ] ?? UPLOAD_ERR_NO_FILE,
+				'size'     => $raw['size'][ $i ] ?? 0,
+			];
+		}
+		return $out;
+	}
+
+	/**
+	 * Eine hochgeladene Bilddatei als Attachment ablegen (Bild-MIME-Whitelist).
+	 * Gemeinsame Kernlogik für handle_inventory_photo() und das Artikel-Formular.
+	 *
+	 * @param array|null $file Ein $_FILES-Eintrag; null = das alte Einzelfeld pp_photo.
 	 * @return int|\WP_Error Attachment-ID.
 	 */
-	private static function create_photo_attachment() {
+	private static function create_photo_attachment( ?array $file = null ) {
 		require_once ABSPATH . 'wp-admin/includes/file.php';
 		require_once ABSPATH . 'wp-admin/includes/image.php';
 
@@ -1741,7 +1820,11 @@ class MemberPortal {
 		];
 		$failed = new \WP_Error( 'pp_photo_failed', __( 'The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file.', 'project-prepper' ) );
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- $_FILES wird von wp_handle_upload validiert (mimes-Whitelist).
-		$moved = wp_handle_upload( $_FILES['pp_photo'], $overrides );
+		$file  = $file ?? ( $_FILES['pp_photo'] ?? null );
+		if ( ! is_array( $file ) ) {
+			return $failed;
+		}
+		$moved = wp_handle_upload( $file, $overrides );
 		if ( ! is_array( $moved ) || isset( $moved['error'] ) ) {
 			return $failed;
 		}
@@ -3082,6 +3165,11 @@ class MemberPortal {
 		// Zeitfenster aller gezeigten Artikel (inkl. Set-Teile) in EINER Query —
 		// die Spalte „Verfügbar" rechnet auf heute, der Chip zeigt, was kommt.
 		$pp_timeline = self::timeline_for( $items, $pp_bundles );
+		// Detail-/Bearbeiten-Modal je Artikel: Freigabe-Bedingungen dieses
+		// Kollektivs und Zusatzfotos jeweils in EINER Abfrage.
+		$pp_shares = MemberInventory::group_shares( $group_id );
+		$pp_extras = ItemImages::extras_for( array_map( static fn( $it ) => (int) $it->id, $items ) );
+		$pp_cats   = [ 'own' => MemberInventory::own_categories( $uid ), 'templates' => MemberInventory::template_categories() ];
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title">
@@ -3091,9 +3179,13 @@ class MemberPortal {
 		</header>
 
 		<section class="pp-portal__section pp-ginv" data-pp-live-scope>
+			<div class="pp-inv-tools">
+				<span class="pp-inv-tools__spacer"></span>
+				<?php self::render_item_create_modal( $pp_cats, $conditions, $groups, [], $group_id ); ?>
+			</div>
 			<?php if ( ! $all_items && '' === $q ) : ?>
 				<p class="pp-portal__empty">
-					<?php esc_html_e( 'Nothing shared with this group yet. Members add equipment from their own inventory: switch your workspace to “Solo”, open “My inventory”, and use the share buttons on an item.', 'project-prepper' ); ?>
+					<?php esc_html_e( 'Nothing shared with this group yet. Use “Add item” — the item stays yours and is shared with this collective right away.', 'project-prepper' ); ?>
 				</p>
 			<?php else : ?>
 				<form class="pp-inv-search" method="get" data-pp-live>
@@ -3191,8 +3283,13 @@ class MemberPortal {
 							$pp_avail = 0;
 						}
 						?>
+						<?php
+						$pp_share    = $pp_shares[ (int) $item->id ] ?? null;
+						$pp_can_edit = $is_mine || ( $pp_share && ! empty( $pp_share->members_can_edit ) );
+						$pp_borrow   = ! $is_mine && ! $pp_blocked;
+						?>
 						<div data-pp-search-row>
-						<div class="pp-inv-row pp-ginv__row" data-pp-searchable>
+						<div class="pp-inv-row pp-ginv__row pp-inv-row--click" role="button" tabindex="0" data-pp-modal="pp-gitem-<?php echo (int) $group_id; ?>-<?php echo (int) $item->id; ?>" data-pp-searchable>
 							<span class="pp-col pp-col--name">
 								<?php if ( ! empty( $item->image_url ) ) : ?><img class="pp-portal__item-thumb" src="<?php echo esc_url( $item->image_url ); ?>" alt="" loading="lazy"><?php else : ?><span class="pp-portal__item-thumb pp-portal__item-thumb--empty" aria-hidden="true"></span><?php endif; ?>
 								<span class="pp-inv-name-wrap"><span class="pp-inv-name-top"><span class="pp-portal__group-name"><?php echo esc_html( $item->name ); ?></span> <?php if ( $pp_parts ) : ?><span class="pp-bundle-chip"><?php esc_html_e( 'Set', 'project-prepper' ); ?></span> <?php endif; ?><small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></span><?php if ( '' !== trim( (string) $pp_sub ) ) : ?><small class="pp-inv-name-sub"><?php echo esc_html( (string) $pp_sub ); ?></small><?php endif; ?></span>
@@ -3230,7 +3327,23 @@ class MemberPortal {
 								<?php endif; ?>
 							</span>
 						</div>
-						<?php if ( ! $is_mine && ! $pp_blocked ) : ?>
+						<?php
+						self::render_group_item_modal( $item, $group_id, [
+							'owner'      => $owner_lb,
+							'is_mine'    => $is_mine,
+							'can_edit'   => $pp_can_edit,
+							'borrowable' => $pp_borrow,
+							'share'      => $pp_share,
+							'custom'     => $pp_cf_map[ (int) $item->id ] ?? [],
+							'gallery'    => ItemImages::gallery( $item, $pp_extras[ (int) $item->id ] ?? [] ),
+							'qty'        => (int) $pp_qty_col,
+							'avail'      => (int) $pp_avail,
+							'parts'      => $pp_parts,
+							'conditions' => $conditions,
+							'categories' => $pp_cats,
+						] );
+						?>
+						<?php if ( $pp_borrow ) : ?>
 							<dialog class="pp-modal pp-modal--portal" id="pp-borrow-<?php echo (int) $group_id; ?>-<?php echo (int) $item->id; ?>">
 								<div class="pp-modal-header">
 									<h2 class="pp-modal__title"><?php echo esc_html( $item->name ); ?></h2>
@@ -3276,6 +3389,145 @@ class MemberPortal {
 				<?php endif; ?>
 			<?php endif; ?>
 		</section>
+		<?php
+	}
+
+	/**
+	 * Artikel-Detail im Kollektiv-Inventar (Feedback: „im Inventar kann ich bei
+	 * Dunkelstrom einen Artikel nicht öffnen und weitere Details lesen").
+	 *
+	 * Ein Klick auf die Zeile öffnet dieses Modal. Wer den Artikel nicht
+	 * bearbeiten darf, sieht Fotos, alle Angaben, eigene Felder, Dokumente und
+	 * die Freigabe-Bedingungen dieses Kollektivs. Eigentümer und Mitglieder mit
+	 * Bearbeitungsrecht ({@see MemberInventory::can_edit()}) bekommen dasselbe
+	 * Formular wie im Verwalten-Modal — ohne Freigaben, Set-Inhalt und Löschen
+	 * und für Nicht-Eigentümer ohne Kategorie und Tagessatz.
+	 *
+	 * @param array $ctx owner, is_mine, can_edit, borrowable, share, custom,
+	 *                   gallery, qty, avail, parts, conditions, categories.
+	 */
+	private static function render_group_item_modal( object $item, int $group_id, array $ctx ): void {
+		$iid      = (int) $item->id;
+		$can_edit = ! empty( $ctx['can_edit'] );
+		$is_mine  = ! empty( $ctx['is_mine'] );
+		$cfg      = $ctx['share'] ?? null;
+		$labels   = $ctx['conditions'] ?? [];
+		$presets  = MemberInventory::condition_presets();
+		$rows     = [];
+		$rows[ __( 'Owner', 'project-prepper' ) ] = (string) $ctx['owner'];
+		if ( ! empty( $item->category_name ) ) {
+			$rows[ __( 'Category', 'project-prepper' ) ] = trim( ( $item->category_icon ? $item->category_icon . ' ' : '' ) . (string) $item->category_name );
+		}
+		/* translators: 1: available now, 2: total quantity. */
+		$rows[ __( 'Available', 'project-prepper' ) ] = sprintf( __( '%1$d of %2$d', 'project-prepper' ), (int) $ctx['avail'], (int) $ctx['qty'] );
+		$rows[ __( 'Condition', 'project-prepper' ) ] = (string) ( $labels[ $item->condition ?? '' ] ?? ( $item->condition ?? '' ) );
+		if ( ! $can_edit ) {
+			foreach ( [
+				'location'      => __( 'Location', 'project-prepper' ),
+				'manufacturer'  => __( 'Manufacturer', 'project-prepper' ),
+				'model'         => __( 'Model', 'project-prepper' ),
+				'serial_number' => __( 'Serial number', 'project-prepper' ),
+				'dimensions'    => __( 'Dimensions', 'project-prepper' ),
+			] as $pp_field => $pp_label ) {
+				if ( '' !== trim( (string) ( $item->$pp_field ?? '' ) ) ) {
+					$rows[ $pp_label ] = (string) $item->$pp_field;
+				}
+			}
+			if ( ! empty( $item->tags ) ) {
+				$rows[ __( 'Tags', 'project-prepper' ) ] = implode( ', ', (array) $item->tags );
+			}
+		}
+		// Bedingungen DIESES Kollektivs — bisher nur im Projekt-Picker sichtbar.
+		$pp_rate = ( $cfg && null !== $cfg->daily_rate ) ? $cfg->daily_rate : ( $item->cost_per_day ?? null );
+		if ( null !== $pp_rate && '' !== $pp_rate ) {
+			$rows[ __( 'Daily rate', 'project-prepper' ) ] = number_format_i18n( (float) $pp_rate, 2 ) . ' €';
+		}
+		if ( $cfg ) {
+			$rows[ __( 'Approval', 'project-prepper' ) ] = ! empty( $cfg->requires_approval )
+				? __( 'The owner approves each request', 'project-prepper' )
+				: __( 'No approval needed', 'project-prepper' );
+			$pp_tags = array_values( array_filter( array_map( static fn( $t ) => $presets[ $t ] ?? '', (array) $cfg->conditions_tags ) ) );
+			if ( $pp_tags ) {
+				$rows[ __( 'Conditions', 'project-prepper' ) ] = implode( ', ', $pp_tags );
+			}
+		}
+		$form_id = 'pp-gitem-form-' . $group_id . '-' . $iid;
+		?>
+		<dialog class="pp-modal pp-modal--portal" id="pp-gitem-<?php echo (int) $group_id; ?>-<?php echo (int) $iid; ?>">
+			<div class="pp-modal-header">
+				<h2 class="pp-modal__title"><?php echo esc_html( $item->name ); ?> <small class="pp-portal__item-num"><?php echo esc_html( $item->inventory_number ); ?></small></h2>
+				<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+			</div>
+			<div class="pp-modal-body">
+				<div class="pp-idetail-top">
+					<?php if ( ! $can_edit ) : ?>
+						<?php self::item_gallery( $ctx['gallery'] ?? [] ); ?>
+					<?php endif; ?>
+					<dl class="pp-cf-list pp-idetail">
+						<?php foreach ( $rows as $pp_label => $pp_value ) : ?>
+							<?php if ( '' !== trim( (string) $pp_value ) ) : ?>
+								<div class="pp-cf-list__row"><dt><?php echo esc_html( $pp_label ); ?></dt><dd><?php echo esc_html( (string) $pp_value ); ?></dd></div>
+							<?php endif; ?>
+						<?php endforeach; ?>
+					</dl>
+				</div>
+				<?php if ( ! empty( $ctx['parts'] ) ) : ?>
+					<p class="pp-portal__hint"><?php echo esc_html( Bundles::parts_label( $ctx['parts'] ) ); ?></p>
+				<?php endif; ?>
+				<?php if ( $cfg && '' !== trim( (string) $cfg->conditions ) ) : ?>
+					<p class="pp-idetail__text"><strong><?php esc_html_e( 'Notes on sharing', 'project-prepper' ); ?>:</strong> <?php echo nl2br( esc_html( (string) $cfg->conditions ) ); ?></p>
+				<?php endif; ?>
+				<?php if ( ! $can_edit ) : ?>
+					<?php foreach ( [ 'description' => __( 'Description', 'project-prepper' ), 'accessories' => __( 'Accessories', 'project-prepper' ), 'notes' => __( 'Notes', 'project-prepper' ) ] as $pp_field => $pp_label ) : ?>
+						<?php if ( '' !== trim( (string) ( $item->$pp_field ?? '' ) ) ) : ?>
+							<div class="pp-idetail__text"><h3 class="pp-idetail__head"><?php echo esc_html( $pp_label ); ?></h3><p><?php echo nl2br( esc_html( (string) $item->$pp_field ) ); ?></p></div>
+						<?php endif; ?>
+					<?php endforeach; ?>
+					<?php self::custom_field_list( $ctx['custom'] ?? [] ); ?>
+				<?php endif; ?>
+				<?php if ( ! empty( $item->documents ) ) : ?>
+					<div class="pp-idetail__text">
+						<h3 class="pp-idetail__head"><?php esc_html_e( 'Documents', 'project-prepper' ); ?></h3>
+						<ul class="pp-portal__docs">
+							<?php foreach ( $item->documents as $pp_doc ) : ?>
+								<li class="pp-portal__doc"><a href="<?php echo esc_url( $pp_doc['url'] ); ?>" target="_blank" rel="noopener"><?php echo esc_html( $pp_doc['title'] ?: __( 'Document', 'project-prepper' ) ); ?></a></li>
+							<?php endforeach; ?>
+						</ul>
+					</div>
+				<?php endif; ?>
+				<?php if ( $can_edit ) : ?>
+					<p class="pp-portal__hint">
+						<?php
+						echo esc_html( $is_mine
+							? __( 'Sharing, set contents, documents and deleting are managed under “My inventory” in your own workspace.', 'project-prepper' )
+							: __( 'The owner allows members of this collective to edit this item. Price, category and sharing stay with the owner.', 'project-prepper' ) );
+						?>
+					</p>
+					<form class="pp-portal__form pp-item-form" id="<?php echo esc_attr( $form_id ); ?>" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-autosave data-pp-unsaved-msg="<?php esc_attr_e( 'You have unsaved changes to this item. They are lost if you continue — save first?', 'project-prepper' ); ?>">
+						<?php self::action_fields( 'item_save_details' ); ?>
+						<input type="hidden" name="pp_item" value="<?php echo (int) $iid; ?>">
+						<input type="hidden" name="pp_seen" value="<?php echo esc_attr( (string) ( $item->updated_at ?? '' ) ); ?>">
+						<?php self::item_fields( $ctx['categories'] ?? [], $labels, $item, ! $is_mine ); ?>
+						<?php self::item_photo_fields( $ctx['gallery'] ?? [] ); ?>
+					</form>
+				<?php endif; ?>
+			</div>
+			<div class="pp-modal-footer">
+				<span></span>
+				<div class="pp-modal-footer__actions">
+					<?php if ( $can_edit ) : ?>
+						<span class="pp-portal__hint pp-modal-footer__hint"><?php esc_html_e( 'Changes are also saved automatically when you close this window.', 'project-prepper' ); ?></span>
+					<?php endif; ?>
+					<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal-close><?php esc_html_e( 'Close', 'project-prepper' ); ?></button>
+					<?php if ( ! empty( $ctx['borrowable'] ) ) : ?>
+						<button type="button" class="pp-portal__btn pp-portal__btn--sm<?php echo $can_edit ? ' pp-portal__btn--ghost' : ''; ?>" data-pp-modal="pp-borrow-<?php echo (int) $group_id; ?>-<?php echo (int) $iid; ?>"><?php esc_html_e( 'Borrow', 'project-prepper' ); ?></button>
+					<?php endif; ?>
+					<?php if ( $can_edit ) : ?>
+						<button type="submit" form="<?php echo esc_attr( $form_id ); ?>" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+					<?php endif; ?>
+				</div>
+			</div>
+		</dialog>
 		<?php
 	}
 
@@ -9868,6 +10120,7 @@ class MemberPortal {
 					<span class="pp-col pp-col--manage"></span>
 				</div>
 				<?php ItemFields::values_for( array_map( static fn( $pp_i ) => (int) $pp_i->id, $items ) ); // Eigene Felder: ein Query für alle Modals. ?>
+				<?php $pp_extras = ItemImages::extras_for( array_map( static fn( $pp_i ) => (int) $pp_i->id, $items ) ); // Zusatzfotos: ein Query für alle Modals. ?>
 				<?php foreach ( $items as $item ) : ?>
 					<?php
 					$shared = $groups ? MemberInventory::shared_group_ids( (int) $item->id ) : [];
@@ -9938,18 +10191,8 @@ class MemberPortal {
 								<?php self::action_fields( 'item_save_all' ); ?>
 								<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
 								<input type="hidden" name="pp_seen" value="<?php echo esc_attr( (string) ( $item->updated_at ?? '' ) ); ?>">
-								<div class="pp-modal-photo">
-									<?php if ( ! empty( $item->image_url ) ) : ?>
-										<img class="pp-modal-photo__img" src="<?php echo esc_url( $item->image_url ); ?>" alt="">
-									<?php endif; ?>
-									<label class="pp-modal-photo__pick"><?php echo esc_html( empty( $item->image_url ) ? __( 'Photo (optional)', 'project-prepper' ) : __( 'Replace photo', 'project-prepper' ) ); ?>
-										<input type="file" name="pp_photo" accept="image/*">
-									</label>
-									<?php if ( ! empty( $item->image_url ) ) : ?>
-										<label class="pp-modal-photo__removecb"><input type="checkbox" name="pp_photo_remove" value="1"> <?php esc_html_e( 'Remove photo', 'project-prepper' ); ?></label>
-									<?php endif; ?>
-								</div>
 								<?php self::item_fields( $categories, $conditions, $item ); ?>
+								<?php self::item_photo_fields( ItemImages::gallery( $item, $pp_extras[ (int) $item->id ] ?? [] ) ); ?>
 								<?php self::item_bundle_fields( $bundle_candidates, $bundles_map[ (int) $item->id ] ?? [], $item ); ?>
 								<?php self::item_share_fields( $groups, $groups ? MemberInventory::share_settings( (int) $item->id ) : [] ); ?>
 							</form>
@@ -10102,32 +10345,127 @@ class MemberPortal {
 	 * optionales Foto und die Kollektiv-Freigaben (Feedback: nicht erst anlegen
 	 * und dann über „Verwalten" nachpflegen). Multipart wegen des Foto-Felds.
 	 */
-	private static function item_form( string $do, array $categories, array $conditions, ?object $item, array $groups = [], array $bundle_candidates = [] ): void {
+	private static function item_form( string $do, array $categories, array $conditions, ?object $item, array $groups = [], array $bundle_candidates = [], int $preshare_gid = 0, string $form_id = '' ): void {
 		?>
-		<form class="pp-portal__form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+		<form class="pp-portal__form pp-item-form" method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"<?php echo '' !== $form_id ? ' id="' . esc_attr( $form_id ) . '"' : ''; ?>>
 			<?php self::action_fields( $do ); ?>
 			<?php if ( $item ) : ?>
 				<input type="hidden" name="pp_item" value="<?php echo (int) $item->id; ?>">
 			<?php endif; ?>
 			<?php self::item_fields( $categories, $conditions, $item ); ?>
-			<label><?php esc_html_e( 'Photo (optional)', 'project-prepper' ); ?>
-				<input type="file" name="pp_photo" accept="image/*">
-			</label>
+			<?php self::item_photo_fields( [] ); ?>
 			<?php self::item_bundle_fields( $bundle_candidates, [], $item ); ?>
-			<?php self::item_share_fields( $groups, [] ); ?>
-			<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save item', 'project-prepper' ); ?></button>
+			<?php self::item_share_fields( $groups, [], $preshare_gid ); ?>
+			<?php if ( '' === $form_id ) : ?>
+				<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save item', 'project-prepper' ); ?></button>
+			<?php endif; ?>
 		</form>
 		<?php
 	}
 
-	/** Stammdaten-Felder eines Artikels (gemeinsam für Anlegen + Verwalten-Modal). */
-	private static function item_fields( array $categories, array $conditions, ?object $item ): void {
+	/**
+	 * „Artikel hinzufügen" als EIN Dialog (Feedback: „nur ein Dialog-Modal bei
+	 * neuen Artikeln") — gleiche Form wie das Verwalten-Modal, Speichern in der
+	 * Fußleiste. Im Kollektiv-Arbeitsbereich ist die Freigabe für dieses
+	 * Kollektiv vorangehakt; der Artikel gehört trotzdem dem Mitglied selbst.
+	 */
+	private static function render_item_create_modal( array $categories, array $conditions, array $groups, array $bundle_candidates = [], int $preshare_gid = 0 ): void {
+		?>
+		<button type="button" class="pp-portal__btn pp-portal__btn--sm pp-inv-tools__new" data-pp-modal="pp-item-new"><?php esc_html_e( 'Add item', 'project-prepper' ); ?></button>
+		<dialog class="pp-modal pp-modal--portal" id="pp-item-new">
+			<div class="pp-modal-header">
+				<h2 class="pp-modal__title"><?php esc_html_e( 'Add item', 'project-prepper' ); ?></h2>
+				<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+			</div>
+			<div class="pp-modal-body">
+				<?php self::item_form( 'item_create', $categories, $conditions, null, $groups, $bundle_candidates, $preshare_gid, 'pp-item-new-form' ); ?>
+			</div>
+			<div class="pp-modal-footer">
+				<div class="pp-modal-footer__actions">
+					<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal-close><?php esc_html_e( 'Cancel', 'project-prepper' ); ?></button>
+					<button type="submit" form="pp-item-new-form" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save item', 'project-prepper' ); ?></button>
+				</div>
+			</div>
+		</dialog>
+		<?php
+	}
+
+	/**
+	 * Foto-Abschnitt des Artikel-Formulars (mehrere Fotos, Schema 0.45.0): die
+	 * vorhandenen Bilder mit „Titelbild" (Radio) und „Entfernen" (Checkbox), dazu
+	 * ein Mehrfach-Upload. Ausgewertet von process_item_photo_input().
+	 *
+	 * @param array $gallery Aus ItemImages::gallery() — leer beim Anlegen.
+	 */
+	private static function item_photo_fields( array $gallery ): void {
+		?>
+		<fieldset class="pp-photos">
+			<legend class="pp-photos__title"><?php esc_html_e( 'Photos', 'project-prepper' ); ?></legend>
+			<?php if ( $gallery ) : ?>
+				<div class="pp-photos__grid">
+					<?php foreach ( $gallery as $pp_ph ) : ?>
+						<div class="pp-photos__tile">
+							<img class="pp-photos__img" src="<?php echo esc_url( $pp_ph['medium'] ); ?>" alt="" loading="lazy">
+							<?php if ( count( $gallery ) > 1 ) : ?>
+								<label class="pp-photos__opt"><input type="radio" name="pp_photo_cover" value="<?php echo (int) $pp_ph['id']; ?>" <?php checked( $pp_ph['cover'] ); ?>> <?php esc_html_e( 'Cover photo', 'project-prepper' ); ?></label>
+							<?php endif; ?>
+							<label class="pp-photos__opt"><input type="checkbox" name="pp_photo_remove_ids[]" value="<?php echo (int) $pp_ph['id']; ?>"> <?php esc_html_e( 'Remove', 'project-prepper' ); ?></label>
+						</div>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+			<?php if ( count( $gallery ) < ItemImages::MAX_PER_ITEM ) : ?>
+				<label class="pp-photos__add"><?php echo esc_html( $gallery ? __( 'Add photos', 'project-prepper' ) : __( 'Photos (optional, several possible)', 'project-prepper' ) ); ?>
+					<input type="file" name="pp_photos[]" accept="image/*" multiple>
+				</label>
+			<?php endif; ?>
+		</fieldset>
+		<?php
+	}
+
+	/**
+	 * Foto-Galerie zum Ansehen (Kollektiv-Inventar): großes Bild + Vorschauleiste.
+	 * Ein Klick auf ein Vorschaubild tauscht das große Bild (portal.js); ohne JS
+	 * öffnet der Link das Bild in voller Größe.
+	 */
+	private static function item_gallery( array $gallery ): void {
+		if ( ! $gallery ) {
+			return;
+		}
+		$first = $gallery[0];
+		?>
+		<div class="pp-gallery" data-pp-gallery>
+			<a class="pp-gallery__main" href="<?php echo esc_url( $first['large'] ); ?>" target="_blank" rel="noopener" data-pp-gallery-main>
+				<img src="<?php echo esc_url( $first['large'] ); ?>" alt="" loading="lazy">
+			</a>
+			<?php if ( count( $gallery ) > 1 ) : ?>
+				<div class="pp-gallery__thumbs">
+					<?php foreach ( $gallery as $pp_i => $pp_ph ) : ?>
+						<a class="pp-gallery__thumb<?php echo 0 === $pp_i ? ' is-active' : ''; ?>" href="<?php echo esc_url( $pp_ph['large'] ); ?>" target="_blank" rel="noopener" data-pp-gallery-src="<?php echo esc_url( $pp_ph['large'] ); ?>">
+							<img src="<?php echo esc_url( $pp_ph['thumb'] ); ?>" alt="" loading="lazy">
+						</a>
+					<?php endforeach; ?>
+				</div>
+			<?php endif; ?>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Stammdaten-Felder eines Artikels (gemeinsam für Anlegen, Verwalten-Modal
+	 * und das Bearbeiten aus dem Kollektiv-Inventar). $member_edit = ein Mitglied
+	 * bearbeitet einen FREMDEN Artikel: Kategorie und Tagessatz bleiben beim
+	 * Eigentümer und erscheinen nicht (MemberInventory::edit_details filtert sie
+	 * zusätzlich serverseitig).
+	 */
+	private static function item_fields( array $categories, array $conditions, ?object $item, bool $member_edit = false ): void {
 		$val      = static fn( string $field, $default = '' ) => $item && isset( $item->$field ) ? $item->$field : $default;
 		$selected = (int) $val( 'category_id', 0 );
 		?>
 			<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
 				<input type="text" name="pp_name" value="<?php echo esc_attr( (string) $val( 'name' ) ); ?>" required>
 			</label>
+			<?php if ( ! $member_edit ) : ?>
 			<label><?php esc_html_e( 'Category', 'project-prepper' ); ?>
 				<select name="pp_category">
 					<option value="0"><?php esc_html_e( '— none —', 'project-prepper' ); ?></option>
@@ -10147,6 +10485,7 @@ class MemberPortal {
 					<?php endif; ?>
 				</select>
 			</label>
+			<?php endif; ?>
 			<label><?php esc_html_e( 'Quantity', 'project-prepper' ); ?>
 				<input type="number" name="pp_quantity" min="1" value="<?php echo (int) $val( 'quantity', 1 ); ?>">
 			</label>
@@ -10157,9 +10496,11 @@ class MemberPortal {
 					<?php endforeach; ?>
 				</select>
 			</label>
+			<?php if ( ! $member_edit ) : ?>
 			<label><?php esc_html_e( 'Daily rate (€, optional)', 'project-prepper' ); ?>
 				<input type="number" name="pp_cost" step="0.01" min="0" value="<?php echo esc_attr( (string) $val( 'cost_per_day' ) ); ?>">
 			</label>
+			<?php endif; ?>
 			<label><?php esc_html_e( 'Manufacturer', 'project-prepper' ); ?>
 				<input type="text" name="pp_manufacturer" value="<?php echo esc_attr( (string) $val( 'manufacturer' ) ); ?>">
 			</label>
@@ -10180,6 +10521,12 @@ class MemberPortal {
 			</label>
 			<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
 				<textarea name="pp_description" rows="2"><?php echo esc_textarea( (string) $val( 'description' ) ); ?></textarea>
+			</label>
+			<label><?php esc_html_e( 'Accessories (optional)', 'project-prepper' ); ?>
+				<textarea name="pp_accessories" rows="2"><?php echo esc_textarea( (string) $val( 'accessories' ) ); ?></textarea>
+			</label>
+			<label><?php esc_html_e( 'Notes (optional)', 'project-prepper' ); ?>
+				<textarea name="pp_notes" rows="2"><?php echo esc_textarea( (string) $val( 'notes' ) ); ?></textarea>
 			</label>
 		<?php
 		self::item_custom_fields( $item );
@@ -10285,7 +10632,7 @@ class MemberPortal {
 	 * @param array<object>     $groups  Gruppen des Users (leer → keine Ausgabe).
 	 * @param array<int,object> $cfg_map group_id => bestehende Freigabe-Konditionen.
 	 */
-	private static function item_share_fields( array $groups, array $cfg_map ): void {
+	private static function item_share_fields( array $groups, array $cfg_map, int $preshare_gid = 0 ): void {
 		if ( ! $groups ) {
 			return;
 		}
@@ -10298,7 +10645,7 @@ class MemberPortal {
 				$cfg = $cfg_map[ $gid ] ?? null; ?>
 				<div class="pp-share__group">
 					<label class="pp-share__head">
-						<input type="checkbox" name="pp_share_on[<?php echo (int) $gid; ?>]" value="1" data-pp-share-toggle <?php checked( null !== $cfg ); ?>>
+						<input type="checkbox" name="pp_share_on[<?php echo (int) $gid; ?>]" value="1" data-pp-share-toggle <?php checked( null !== $cfg || $gid === $preshare_gid ); ?>>
 						<span class="pp-share__name"><?php echo esc_html( $g->name ); ?></span>
 					</label>
 					<div class="pp-share__body">
@@ -10307,6 +10654,7 @@ class MemberPortal {
 								<input type="number" step="0.01" min="0" name="pp_share_rate[<?php echo (int) $gid; ?>]" value="<?php echo ( $cfg && null !== $cfg->daily_rate ) ? esc_attr( number_format( (float) $cfg->daily_rate, 2, '.', '' ) ) : ''; ?>">
 							</label>
 							<label class="pp-share__approval"><input type="checkbox" name="pp_share_approval[<?php echo (int) $gid; ?>]" value="1" <?php checked( $cfg ? ! empty( $cfg->requires_approval ) : true ); ?>> <?php esc_html_e( 'Requires approval', 'project-prepper' ); ?></label>
+							<label class="pp-share__approval" title="<?php esc_attr_e( 'Members of this collective may change the description, notes, photos and quantity. Price, category, sharing and deleting stay with you.', 'project-prepper' ); ?>"><input type="checkbox" name="pp_share_edit[<?php echo (int) $gid; ?>]" value="1" <?php checked( $cfg && ! empty( $cfg->members_can_edit ) ); ?>> <?php esc_html_e( 'Members may edit details', 'project-prepper' ); ?></label>
 						</div>
 						<div class="pp-share__conds">
 							<?php foreach ( $presets as $pp_key => $pp_label ) :
@@ -10424,10 +10772,7 @@ class MemberPortal {
 			<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export (CSV)', 'project-prepper' ); ?></a>
 			<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-xlsx-export="<?php echo esc_url( $export_url ); ?>" data-pp-xlsx-name="mein-inventar-<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>"><?php esc_html_e( 'Export (Excel)', 'project-prepper' ); ?></button>
 			<span class="pp-inv-tools__spacer"></span>
-			<details class="pp-portal__add pp-inv-tools__new" id="pp-item-new">
-				<summary class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Add item', 'project-prepper' ); ?></summary>
-				<?php self::item_form( 'item_create', $categories, $conditions, null, $groups, $bundle_candidates ); ?>
-			</details>
+			<?php self::render_item_create_modal( $categories, $conditions, $groups, $bundle_candidates ); ?>
 		</div>
 		<?php
 	}
@@ -10633,6 +10978,11 @@ class MemberPortal {
 					'location'         => $it->location ?? '',
 					'cost_per_day'     => $it->cost_per_day ?? null,
 					'tags'             => (array) ( $it->tags ?? [] ),
+					'description'      => $it->description ?? '',
+					'accessories'      => $it->accessories ?? '',
+					'notes'            => $it->notes ?? '',
+					// Alle Fotos (Titelbild zuerst) als Adressen der Originalgröße.
+					'photos'           => array_column( ItemImages::gallery( $it ), 'large' ),
 					// Eigene Felder: Bezeichnung => Wert (values_for() cached je Request).
 					'custom_fields'    => ItemFields::labelled( ItemFields::values_for( [ (int) $it->id ] )[ (int) $it->id ] ?? [] ),
 				];

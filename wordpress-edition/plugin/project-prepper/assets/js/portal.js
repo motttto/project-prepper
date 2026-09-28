@@ -177,6 +177,23 @@
 		openModal( trigger.getAttribute( 'data-pp-modal' ) );
 	} );
 
+	/* Foto-Galerie (Kollektiv-Inventar, v0.147.0): Klick auf ein Vorschaubild
+	 * tauscht das große Bild. Ohne JS öffnet der Link das Bild in voller Größe. */
+	document.addEventListener( 'click', function ( e ) {
+		var thumb = e.target.closest ? e.target.closest( '[data-pp-gallery-src]' ) : null;
+		if ( ! thumb ) { return; }
+		var box  = thumb.closest( '[data-pp-gallery]' );
+		var main = box ? box.querySelector( '[data-pp-gallery-main]' ) : null;
+		var img  = main ? main.querySelector( 'img' ) : null;
+		if ( ! img ) { return; }
+		e.preventDefault();
+		var src = thumb.getAttribute( 'data-pp-gallery-src' );
+		img.src   = src;
+		main.href = src;
+		var all = box.querySelectorAll( '[data-pp-gallery-src]' );
+		for ( var i = 0; i < all.length; i++ ) { all[ i ].classList.toggle( 'is-active', all[ i ] === thumb ); }
+	} );
+
 	// Tastaturbedienung der Zeile (role="button").
 	document.addEventListener( 'keydown', function ( e ) {
 		if ( 'Enter' !== e.key && ' ' !== e.key ) { return; }
