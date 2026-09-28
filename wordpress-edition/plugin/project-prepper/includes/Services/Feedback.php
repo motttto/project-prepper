@@ -62,16 +62,33 @@ class Feedback {
 	}
 
 	/**
-	 * Alle Einträge, älteste zuletzt — Grundlage für den CSV-Export im Backend.
+	 * Einträge für den CSV-Export im Backend, älteste zuletzt. Standard: nur was
+	 * noch nicht erledigt ist — sonst landet Abgearbeitetes in jedem Export erneut.
 	 *
 	 * @return array<object>
 	 */
-	public static function all(): array {
+	public static function all( bool $include_done = false ): array {
 		global $wpdb;
+		if ( $include_done ) {
+			return $wpdb->get_results( $wpdb->prepare(
+				'SELECT * FROM %i ORDER BY created_at DESC',
+				Schema::table( 'app_feedback' )
+			) ) ?: [];
+		}
 		return $wpdb->get_results( $wpdb->prepare(
-			'SELECT * FROM %i ORDER BY created_at DESC',
-			Schema::table( 'app_feedback' )
+			'SELECT * FROM %i WHERE status <> %s ORDER BY created_at DESC',
+			Schema::table( 'app_feedback' ),
+			'done'
 		) ) ?: [];
+	}
+
+	/** Anzeigenamen der Status (new|read|done). */
+	public static function statuses(): array {
+		return [
+			'new'  => __( 'New', 'project-prepper' ),
+			'read' => _x( 'Read', 'feedback status', 'project-prepper' ),
+			'done' => __( 'Done', 'project-prepper' ),
+		];
 	}
 
 	/** Anzahl ungelesener (status = new) — für ein Badge im Backend. */
@@ -87,7 +104,7 @@ class Feedback {
 	/** Status setzen (new|read|done). */
 	public static function set_status( int $id, string $status ): void {
 		global $wpdb;
-		if ( ! in_array( $status, [ 'new', 'read', 'done' ], true ) ) {
+		if ( ! array_key_exists( $status, self::statuses() ) ) {
 			return;
 		}
 		$wpdb->update( Schema::table( 'app_feedback' ), [ 'status' => $status ], [ 'id' => $id ] );

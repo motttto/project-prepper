@@ -898,3 +898,6 @@
 #pp-admin .pp-hiw-step-title { font-weight: 600; font-size: 14px; color: var(--pp-foreground); }
 #pp-admin .pp-hiw-step-desc { font-size: 13px; color: var(--pp-muted-foreground); margin-top: 2px; }
 
+
+/* Feedback-Liste: erledigte Einträge zurücknehmen, Offenes steht im Vordergrund. */
+.pp-fb-done td { opacity: .55; }

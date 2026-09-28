@@ -17,6 +17,7 @@ class Menu {
 		add_action( 'admin_menu', [ self::class, 'register_menu' ] );
 		add_action( 'admin_enqueue_scripts', [ self::class, 'enqueue_assets' ] );
 		add_action( 'admin_post_pp_export_feedback', [ self::class, 'handle_feedback_export' ] );
+		add_action( 'admin_post_pp_feedback_status', [ self::class, 'handle_feedback_status' ] );
 	}
 
 	public static function register_menu(): void {
@@ -129,50 +130,70 @@ class Menu {
 
 	/** Mitglieder-Feedback (Liste + Status setzen). */
 	public static function render_feedback(): void {
-		if ( isset( $_POST['pp_fb_id'], $_POST['pp_fb_status'] ) && check_admin_referer( 'pp_feedback_status' ) ) {
-			\ProjectPrepper\Services\Feedback::set_status( (int) $_POST['pp_fb_id'], sanitize_key( wp_unslash( (string) $_POST['pp_fb_status'] ) ) );
-		}
-		$rows  = \ProjectPrepper\Services\Feedback::recent();
-		$types = \ProjectPrepper\Services\Feedback::types();
+		$rows     = \ProjectPrepper\Services\Feedback::recent();
+		$types    = \ProjectPrepper\Services\Feedback::types();
+		$statuses = \ProjectPrepper\Services\Feedback::statuses();
 		echo '<div class="wrap"><h1>' . esc_html__( 'Member feedback', 'project-prepper' ) . '</h1>';
 		if ( ! $rows ) {
 			echo '<p>' . esc_html__( 'No feedback yet.', 'project-prepper' ) . '</p></div>';
 			return;
 		}
-		// Sammel-Download aller Einträge als CSV (ohne E-Mail-Adressen — die Datei
-		// wird typischerweise weitergegeben).
+		// CSV-Download (ohne E-Mail-Adressen — die Datei wird typischerweise
+		// weitergegeben). Standard nur Offenes: Erledigtes soll nicht in jedem
+		// Export wieder auftauchen; das Archiv gibt es über den zweiten Link.
 		$export_url = wp_nonce_url(
 			admin_url( 'admin-post.php?action=pp_export_feedback' ),
 			'pp_export_feedback'
 		);
 		echo '<p><a class="button button-secondary" href="' . esc_url( $export_url ) . '">'
-			. esc_html__( 'Download all feedback (CSV)', 'project-prepper' ) . '</a> '
+			. esc_html__( 'Download open feedback (CSV)', 'project-prepper' ) . '</a> '
+			. '<a href="' . esc_url( add_query_arg( 'scope', 'all', $export_url ) ) . '">'
+			. esc_html__( 'Download everything including done entries', 'project-prepper' ) . '</a> '
 			. '<span class="description">'
-			. esc_html__( 'Contains all entries including status — without email addresses.', 'project-prepper' )
+			. esc_html__( 'Entries marked as done are left out — no email addresses in either file.', 'project-prepper' )
 			. '</span></p>';
 		echo '<table class="wp-list-table widefat fixed striped"><thead><tr>';
 		echo '<th>' . esc_html__( 'When', 'project-prepper' ) . '</th><th>' . esc_html__( 'From', 'project-prepper' ) . '</th><th>' . esc_html__( 'Type', 'project-prepper' ) . '</th><th>' . esc_html__( 'Message', 'project-prepper' ) . '</th><th>' . esc_html__( 'Status', 'project-prepper' ) . '</th><th></th></tr></thead><tbody>';
 		foreach ( $rows as $r ) {
 			$u    = $r->user_id ? get_userdata( (int) $r->user_id ) : null;
-			$next = 'done' === $r->status ? 'new' : ( 'read' === $r->status ? 'done' : 'read' );
-			echo '<tr>';
+			$done = 'done' === $r->status;
+			echo '<tr' . ( $done ? ' class="pp-fb-done"' : '' ) . '>';
 			echo '<td>' . esc_html( $r->created_at ) . '</td>';
 			echo '<td>' . esc_html( $u ? $u->display_name : '—' ) . '</td>';
 			echo '<td>' . esc_html( $types[ $r->feedback_type ] ?? $r->feedback_type ) . '</td>';
 			echo '<td>' . nl2br( esc_html( $r->message ) ) . '</td>';
-			echo '<td>' . esc_html( $r->status ) . '</td>';
-			echo '<td><form method="post" style="display:inline">';
+			echo '<td>' . esc_html( $statuses[ $r->status ] ?? $r->status ) . '</td>';
+			echo '<td><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '" style="display:inline">';
+			echo '<input type="hidden" name="action" value="pp_feedback_status">';
 			wp_nonce_field( 'pp_feedback_status' );
 			echo '<input type="hidden" name="pp_fb_id" value="' . (int) $r->id . '">';
-			/* translators: %s = next status (read/done/new). */
-			echo '<button class="button button-small" name="pp_fb_status" value="' . esc_attr( $next ) . '">' . esc_html( sprintf( __( 'Mark as %s', 'project-prepper' ), $next ) ) . '</button>';
+			echo $done
+				? '<button class="button button-small" name="pp_fb_status" value="new">' . esc_html__( 'Reopen', 'project-prepper' ) . '</button>'
+				: '<button class="button button-small button-primary" name="pp_fb_status" value="done">' . esc_html__( 'Mark as done', 'project-prepper' ) . '</button>';
 			echo '</form></td></tr>';
 		}
 		echo '</tbody></table></div>';
 	}
 
 	/**
-	 * CSV-Download aller Feedback-Einträge (Semikolon + BOM → deutsches Excel).
+	 * Status eines Feedback-Eintrags setzen. Eigener admin-post-Weg mit Redirect,
+	 * damit der Zähler im Menü sofort stimmt und ein Neuladen nichts erneut sendet.
+	 */
+	public static function handle_feedback_status(): void {
+		if ( ! current_user_can( Capabilities::OPERATE ) ) {
+			wp_die( esc_html__( 'You are not allowed to do this.', 'project-prepper' ), '', [ 'response' => 403 ] );
+		}
+		check_admin_referer( 'pp_feedback_status' );
+		if ( isset( $_POST['pp_fb_id'], $_POST['pp_fb_status'] ) ) {
+			\ProjectPrepper\Services\Feedback::set_status( (int) $_POST['pp_fb_id'], sanitize_key( wp_unslash( (string) $_POST['pp_fb_status'] ) ) );
+		}
+		wp_safe_redirect( admin_url( 'admin.php?page=pp-feedback' ) );
+		exit;
+	}
+
+	/**
+	 * CSV-Download der Feedback-Einträge (Semikolon + BOM → deutsches Excel).
+	 * Standard nur Offenes, `scope=all` auch Erledigtes.
 	 * Bewusst OHNE E-Mail-Adressen: die Datei wird erfahrungsgemäß weitergereicht.
 	 */
 	public static function handle_feedback_export(): void {
@@ -181,12 +202,13 @@ class Menu {
 		}
 		check_admin_referer( 'pp_export_feedback' );
 
-		$rows  = \ProjectPrepper\Services\Feedback::all();
+		$all   = isset( $_GET['scope'] ) && 'all' === sanitize_key( wp_unslash( (string) $_GET['scope'] ) );
+		$rows  = \ProjectPrepper\Services\Feedback::all( $all );
 		$types = \ProjectPrepper\Services\Feedback::types();
 
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
-		header( 'Content-Disposition: attachment; filename="project-prepper-feedback-' . gmdate( 'Y-m-d' ) . '.csv"' );
+		header( 'Content-Disposition: attachment; filename="project-prepper-feedback-' . ( $all ? 'all-' : '' ) . gmdate( 'Y-m-d' ) . '.csv"' );
 		echo "\xEF\xBB\xBF"; // UTF-8-BOM für Excel.
 
 		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen -- CSV-Streaming an die Ausgabe; WP_Filesystem ist dafür nicht vorgesehen.
