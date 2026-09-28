@@ -10842,11 +10842,20 @@ class MemberPortal {
 			<label><?php esc_html_e( 'Quantity', 'project-prepper' ); ?>
 				<input type="number" name="pp_quantity" min="0" value="<?php echo (int) $val( 'quantity', 1 ); ?>">
 			</label>
+			<?php if ( $member_edit ) : ?>
+				<?php // Mitglied bearbeitet fremden Artikel: der Haken bleibt beim Eigentümer
+				// (kein Marker → item_input() übernimmt ihn nicht). Der Wert geht trotzdem
+				// mit, damit ein aufgebrauchter Bestand (0) nicht auf 1 gehoben wird. ?>
+				<?php if ( ! empty( $val( 'is_consumable', false ) ) ) : ?>
+					<input type="hidden" name="pp_consumable" value="1">
+				<?php endif; ?>
+			<?php else : ?>
 			<?php // Eigener Wrapper: Direkte Label-Kinder des Modal-Formulars sind Spalten mit voller Eingabebreite. ?>
 			<div class="pp-consumable-field">
 				<input type="hidden" name="pp_consumable_field" value="1">
 				<label class="pp-gov__check"><input type="checkbox" name="pp_consumable" value="1" <?php checked( ! empty( $val( 'is_consumable', false ) ) ); ?>> <?php esc_html_e( 'Consumable (stock is reduced after lending)', 'project-prepper' ); ?></label>
 			</div>
+			<?php endif; ?>
 			<label><?php esc_html_e( 'Condition', 'project-prepper' ); ?>
 				<select name="pp_condition">
 					<?php foreach ( $conditions as $key => $label ) : ?>
