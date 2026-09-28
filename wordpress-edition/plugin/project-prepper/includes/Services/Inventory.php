@@ -547,6 +547,7 @@ class Inventory {
 		// Fotos (Titelbild + Zusatzbilder) samt Attachments — blieben sonst
 		// verwaist in der Mediathek liegen.
 		ItemImages::delete_for_item( $item );
+		SetTemplates::on_item_deleted( $id );
 		$ok = false !== $wpdb->delete( Schema::table( 'items' ), [ 'id' => $id ], [ '%d' ] );
 		if ( $ok ) {
 			ActivityLog::log( 'item_deleted', 'item', $id, [ 'name' => $item->name, 'inventory_number' => $item->inventory_number ] );

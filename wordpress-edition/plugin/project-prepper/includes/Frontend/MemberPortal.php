@@ -10,6 +10,7 @@ use ProjectPrepper\Services\Inventory;
 use ProjectPrepper\Services\ItemFields;
 use ProjectPrepper\Services\ItemImages;
 use ProjectPrepper\Services\Units;
+use ProjectPrepper\Services\SetTemplates;
 use ProjectPrepper\Services\Feedback;
 use ProjectPrepper\Services\MemberInventory;
 use ProjectPrepper\Services\MemberInquiries;
@@ -448,7 +449,7 @@ class MemberPortal {
 		}
 		// Inventar-, Kategorie- und Gesamt-Freigabe-Aktionen kehren zur Inventar-
 		// Ansicht zurück (statt aufs Dashboard) — inkl. Artikel anlegen/bearbeiten/löschen.
-		if ( in_array( $do, [ 'item_create', 'item_update', 'item_save_all', 'item_save_details', 'item_delete', 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all', 'item_share', 'item_unshare', 'item_share_set' ], true ) ) {
+		if ( in_array( $do, [ 'item_create', 'item_update', 'item_save_all', 'item_save_details', 'item_delete', 'inventory_tpl_save', 'inventory_tpl_delete', 'category_create', 'category_adopt', 'category_delete', 'inventory_share_all', 'inventory_unshare_all', 'item_share', 'item_unshare', 'item_share_set' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'inventory', self::portal_url() );
 		}
 		// Anfragen-Aktionen kehren zur Anfragen-Ansicht zurück — Bearbeiten und
@@ -669,6 +670,31 @@ class MemberPortal {
 					}
 				}
 				$ok_msg = 'item_saved';
+				break;
+			case 'inventory_tpl_save':
+				// Set-Vorlage des aktiven Arbeitsbereichs anlegen/ändern (Kollektiv:
+				// jedes Mitglied; Solo: nur man selbst — Gates in SetTemplates).
+				$pp_tpl_lines = [];
+				foreach ( (array) wp_unslash( $_POST['pp_tpl_line'] ?? [] ) as $pp_line ) {
+					if ( is_array( $pp_line ) ) {
+						$pp_tpl_lines[] = $pp_line;
+					}
+				}
+				$result = SetTemplates::save(
+					get_current_user_id(),
+					self::active_workspace_group(),
+					[
+						'name'        => (string) wp_unslash( $_POST['pp_tpl_name'] ?? '' ),
+						'description' => (string) wp_unslash( $_POST['pp_tpl_description'] ?? '' ),
+						'lines'       => $pp_tpl_lines,
+					],
+					(int) ( $_POST['pp_tpl'] ?? 0 )
+				);
+				$ok_msg = 'tpl_saved';
+				break;
+			case 'inventory_tpl_delete':
+				$result = SetTemplates::delete( get_current_user_id(), (int) ( $_POST['pp_tpl'] ?? 0 ) );
+				$ok_msg = 'tpl_deleted';
 				break;
 			case 'item_delete':
 				$result = MemberInventory::delete( get_current_user_id(), (int) ( $_POST['pp_item'] ?? 0 ) );
@@ -1560,6 +1586,8 @@ class MemberPortal {
 			'voted'         => [ 'ok', __( 'Your vote was recorded.', 'project-prepper' ) ],
 			'item_saved'    => [ 'ok', __( 'Item saved.', 'project-prepper' ) ],
 			'item_deleted'  => [ 'ok', __( 'Item deleted.', 'project-prepper' ) ],
+			'tpl_saved'     => [ 'ok', __( 'Set template saved.', 'project-prepper' ) ],
+			'tpl_deleted'   => [ 'ok', __( 'Set template deleted.', 'project-prepper' ) ],
 			'item_shared'   => [ 'ok', __( 'Item shared with the collective.', 'project-prepper' ) ],
 			'item_unshared'    => [ 'ok', __( 'Item is no longer shared.', 'project-prepper' ) ],
 			'inventory_shared_all'   => [ 'ok', __( 'Your whole inventory is now shared with the collective.', 'project-prepper' ) ],
@@ -3226,6 +3254,7 @@ class MemberPortal {
 
 		<section class="pp-portal__section pp-ginv" data-pp-live-scope>
 			<div class="pp-inv-tools">
+				<?php self::render_set_templates_tool( $group_id, $uid, $all_items ); ?>
 				<span class="pp-inv-tools__spacer"></span>
 				<?php self::render_item_create_modal( $pp_cats, $conditions, $groups, [], $group_id ); ?>
 			</div>
@@ -10434,6 +10463,127 @@ class MemberPortal {
 	}
 
 	/**
+	 * Set-Vorlagen des Arbeitsbereichs verwalten (Feedback „Systembundles anlegen,
+	 * z. B. Bubble, Haze, Eurokiste"): Knopf in der Inventar-Werkzeugleiste, ein
+	 * Dialog mit der Liste, je Vorlage ein Bearbeiten-Dialog. Eingebucht wird eine
+	 * Vorlage im Projekt (Reiter Technik).
+	 *
+	 * @param array<object> $pool Geräte, die als bevorzugtes Gerät wählbar sind.
+	 */
+	private static function render_set_templates_tool( int $group_id, int $user_id, array $pool ): void {
+		$templates = SetTemplates::for_workspace( $group_id, $user_id );
+		usort( $pool, static fn( $a, $b ) => strcasecmp( (string) $a->name, (string) $b->name ) );
+		?>
+		<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-tpl-list">
+			<?php esc_html_e( 'Set templates', 'project-prepper' ); ?><?php if ( $templates ) : ?> (<?php echo (int) count( $templates ); ?>)<?php endif; ?>
+		</button>
+		<dialog class="pp-modal pp-modal--portal" id="pp-tpl-list">
+			<div class="pp-modal-header">
+				<h2 class="pp-modal__title"><?php esc_html_e( 'Set templates', 'project-prepper' ); ?></h2>
+				<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+			</div>
+			<div class="pp-modal-body">
+				<p class="pp-portal__hint">
+					<?php
+					echo esc_html( $group_id > 0
+						? __( 'A set template is a packing list of the collective, e.g. “Bubble system: bubble machine, haze, euro crate”. The pieces may belong to different members — you pick the actual devices when you add the template to a project.', 'project-prepper' )
+						: __( 'A set template is a packing list, e.g. “Bubble system: bubble machine, haze, euro crate”. You pick the actual devices when you add the template to a project.', 'project-prepper' ) );
+					?>
+				</p>
+				<?php if ( $templates ) : ?>
+					<ul class="pp-tpl-list">
+						<?php foreach ( $templates as $tpl ) : ?>
+							<li class="pp-tpl-list__row">
+								<span class="pp-tpl-list__name"><?php echo esc_html( $tpl->name ); ?></span>
+								<small class="pp-tpl-list__lines"><?php echo esc_html( implode( ', ', array_map( static fn( $l ) => (int) $l->quantity . '× ' . $l->label, $tpl->lines ) ) ); ?></small>
+								<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal="pp-tpl-<?php echo (int) $tpl->id; ?>"><?php esc_html_e( 'Edit', 'project-prepper' ); ?></button>
+							</li>
+						<?php endforeach; ?>
+					</ul>
+				<?php else : ?>
+					<p class="pp-portal__empty"><?php esc_html_e( 'No set templates yet.', 'project-prepper' ); ?></p>
+				<?php endif; ?>
+			</div>
+			<div class="pp-modal-footer">
+				<span></span>
+				<div class="pp-modal-footer__actions">
+					<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal-close><?php esc_html_e( 'Close', 'project-prepper' ); ?></button>
+					<button type="button" class="pp-portal__btn pp-portal__btn--sm" data-pp-modal="pp-tpl-new"><?php esc_html_e( 'New template', 'project-prepper' ); ?></button>
+				</div>
+			</div>
+		</dialog>
+		<?php
+		self::render_set_template_modal( null, $pool );
+		foreach ( $templates as $tpl ) {
+			self::render_set_template_modal( $tpl, $pool );
+		}
+	}
+
+	/** Anlegen-/Bearbeiten-Dialog einer Set-Vorlage. */
+	private static function render_set_template_modal( ?object $tpl, array $pool ): void {
+		$mid     = $tpl ? 'pp-tpl-' . (int) $tpl->id : 'pp-tpl-new';
+		$form_id = $mid . '-form';
+		$lines   = $tpl ? $tpl->lines : [];
+		$blank   = max( 3, 5 - count( $lines ) );
+		?>
+		<dialog class="pp-modal pp-modal--portal" id="<?php echo esc_attr( $mid ); ?>">
+			<div class="pp-modal-header">
+				<h2 class="pp-modal__title"><?php echo $tpl ? esc_html( $tpl->name ) : esc_html__( 'New set template', 'project-prepper' ); ?></h2>
+				<button type="button" class="pp-modal-close" data-pp-modal-close aria-label="<?php esc_attr_e( 'Close', 'project-prepper' ); ?>">✕</button>
+			</div>
+			<div class="pp-modal-body">
+				<form class="pp-portal__form" id="<?php echo esc_attr( $form_id ); ?>" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<?php self::action_fields( 'inventory_tpl_save' ); ?>
+					<input type="hidden" name="pp_tpl" value="<?php echo (int) ( $tpl->id ?? 0 ); ?>">
+					<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+						<input type="text" name="pp_tpl_name" value="<?php echo esc_attr( (string) ( $tpl->name ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'e.g. Bubble system', 'project-prepper' ); ?>" required maxlength="190">
+					</label>
+					<label><?php esc_html_e( 'Description (optional)', 'project-prepper' ); ?>
+						<textarea name="pp_tpl_description" rows="2"><?php echo esc_textarea( (string) ( $tpl->description ?? '' ) ); ?></textarea>
+					</label>
+					<fieldset class="pp-tpl-edit">
+						<legend class="pp-photos__title"><?php esc_html_e( 'Contents', 'project-prepper' ); ?></legend>
+						<p class="pp-portal__hint"><?php esc_html_e( 'One line per device. The search word finds matching devices in the pool when booking (empty = the name); a preferred device is suggested first. Empty lines are ignored.', 'project-prepper' ); ?></p>
+						<?php
+						$pp_rows = array_merge( $lines, array_fill( 0, $blank, null ) );
+						foreach ( $pp_rows as $pp_i => $pp_line ) :
+							$pp_n = 'pp_tpl_line[' . (int) $pp_i . ']';
+							?>
+							<div class="pp-units-edit__row pp-tpl-edit__row">
+								<input type="number" name="<?php echo esc_attr( $pp_n ); ?>[quantity]" min="1" max="999" value="<?php echo (int) ( $pp_line->quantity ?? 1 ); ?>" aria-label="<?php esc_attr_e( 'Quantity', 'project-prepper' ); ?>" class="pp-tpl-edit__qty">
+								<input type="text" name="<?php echo esc_attr( $pp_n ); ?>[label]" value="<?php echo esc_attr( (string) ( $pp_line->label ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'Device, e.g. Haze machine', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Device', 'project-prepper' ); ?>" maxlength="190">
+								<input type="text" name="<?php echo esc_attr( $pp_n ); ?>[match_term]" value="<?php echo esc_attr( (string) ( $pp_line->match_term ?? '' ) ); ?>" placeholder="<?php esc_attr_e( 'Search word (optional)', 'project-prepper' ); ?>" aria-label="<?php esc_attr_e( 'Search word', 'project-prepper' ); ?>" maxlength="190">
+								<select name="<?php echo esc_attr( $pp_n ); ?>[item_id]" aria-label="<?php esc_attr_e( 'Preferred device', 'project-prepper' ); ?>">
+									<option value="0"><?php esc_html_e( '— no preferred device —', 'project-prepper' ); ?></option>
+									<?php foreach ( $pool as $pp_it ) : ?>
+										<option value="<?php echo (int) $pp_it->id; ?>" <?php selected( (int) ( $pp_line->item_id ?? 0 ), (int) $pp_it->id ); ?>><?php echo esc_html( $pp_it->name . ' · ' . $pp_it->inventory_number ); ?></option>
+									<?php endforeach; ?>
+								</select>
+							</div>
+						<?php endforeach; ?>
+					</fieldset>
+				</form>
+			</div>
+			<div class="pp-modal-footer">
+				<?php if ( $tpl ) : ?>
+					<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" data-pp-discard-ok onsubmit="return confirm('<?php echo esc_js( __( 'Delete this set template? Bookings made with it stay.', 'project-prepper' ) ); ?>');">
+						<?php self::action_fields( 'inventory_tpl_delete' ); ?>
+						<input type="hidden" name="pp_tpl" value="<?php echo (int) $tpl->id; ?>">
+						<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm pp-modal-footer__del"><?php esc_html_e( 'Delete', 'project-prepper' ); ?></button>
+					</form>
+				<?php else : ?>
+					<span></span>
+				<?php endif; ?>
+				<div class="pp-modal-footer__actions">
+					<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-modal-close><?php esc_html_e( 'Cancel', 'project-prepper' ); ?></button>
+					<button type="submit" form="<?php echo esc_attr( $form_id ); ?>" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Save', 'project-prepper' ); ?></button>
+				</div>
+			</div>
+		</dialog>
+		<?php
+	}
+
+	/**
 	 * „Artikel hinzufügen" als EIN Dialog (Feedback: „nur ein Dialog-Modal bei
 	 * neuen Artikeln") — gleiche Form wie das Verwalten-Modal, Speichern in der
 	 * Fußleiste. Im Kollektiv-Arbeitsbereich ist die Freigabe für dieses
@@ -10928,6 +11078,9 @@ class MemberPortal {
 			</details>
 			<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( $export_url ); ?>"><?php esc_html_e( 'Export (CSV)', 'project-prepper' ); ?></a>
 			<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" data-pp-xlsx-export="<?php echo esc_url( $export_url ); ?>" data-pp-xlsx-name="mein-inventar-<?php echo esc_attr( gmdate( 'Y-m-d' ) ); ?>"><?php esc_html_e( 'Export (Excel)', 'project-prepper' ); ?></button>
+			<?php if ( $user ) : ?>
+				<?php self::render_set_templates_tool( 0, (int) $user->ID, MemberInventory::my_items( (int) $user->ID ) ); ?>
+			<?php endif; ?>
 			<span class="pp-inv-tools__spacer"></span>
 			<?php self::render_item_create_modal( $categories, $conditions, $groups, $bundle_candidates ); ?>
 		</div>

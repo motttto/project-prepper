@@ -35,7 +35,8 @@ class Schema {
 	// Titelbild bleibt items.image_id), item_group_shares.members_can_edit
 	// (Kollektiv-Mitglieder dürfen Angaben bearbeiten), groups.color (Farbe im
 	// Arbeitsbereich-Umschalter, '' = automatisch), units.label/serial_number
-	// (Exemplare im Portal benennen). Alles additiv via dbDelta.
+	// (Exemplare im Portal benennen), set_templates + set_template_lines
+	// (Set-Vorlagen je Kollektiv/Mitglied). Alles additiv via dbDelta.
 	const VERSION    = '0.45.0';
 	const OPTION_KEY = 'pp_schema_version';
 
@@ -89,6 +90,8 @@ class Schema {
 		$field_defs = self::table( 'item_field_defs' );
 		$field_vals = self::table( 'item_field_values' );
 		$item_imgs  = self::table( 'item_images' );
+		$set_tpls   = self::table( 'set_templates' );
+		$set_lines  = self::table( 'set_template_lines' );
 		$borrows    = self::table( 'borrow_requests' );
 		$fed_in     = self::table( 'fed_borrow_in' );
 		$fed_out    = self::table( 'fed_borrow_out' );
@@ -375,6 +378,40 @@ class Schema {
 			created_at datetime NOT NULL,
 			PRIMARY KEY  (id),
 			UNIQUE KEY item_attachment (item_id,attachment_id),
+			KEY item_id (item_id)
+		) {$charset};" );
+
+		// Set-Vorlagen (0.45.0, Feedback „Systembundles anlegen, z. B. Bubble,
+		// Haze, Eurokiste"): eine Packliste, die NIEMANDEM gehört außer dem
+		// Kollektiv (owner_group_id) bzw. dem Mitglied (owner_user_id, Solo). Jede
+		// Zeile beschreibt ein Gerät (Bezeichnung, Stückzahl, Suchbegriff und
+		// optional ein bevorzugtes Gerät); die konkreten Geräte wählt man erst
+		// beim Einbuchen aus dem Pool — Buchung, Freigaben und Verfügbarkeit
+		// laufen danach über die normalen Buchungszeilen.
+		dbDelta( "CREATE TABLE {$set_tpls} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			owner_group_id bigint(20) unsigned DEFAULT NULL,
+			owner_user_id bigint(20) unsigned DEFAULT NULL,
+			name varchar(190) NOT NULL,
+			description text,
+			created_by bigint(20) unsigned DEFAULT NULL,
+			created_at datetime NOT NULL,
+			updated_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY owner_group_id (owner_group_id),
+			KEY owner_user_id (owner_user_id)
+		) {$charset};" );
+
+		dbDelta( "CREATE TABLE {$set_lines} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			template_id bigint(20) unsigned NOT NULL,
+			label varchar(190) NOT NULL,
+			quantity int(11) NOT NULL DEFAULT 1,
+			match_term varchar(190) NOT NULL DEFAULT '',
+			item_id bigint(20) unsigned DEFAULT NULL,
+			sort_order int(11) NOT NULL DEFAULT 0,
+			PRIMARY KEY  (id),
+			KEY template_id (template_id),
 			KEY item_id (item_id)
 		) {$charset};" );
 

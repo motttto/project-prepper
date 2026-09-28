@@ -198,6 +198,8 @@ class Groups {
 		$wpdb->delete( Schema::table( 'groups' ), [ 'id' => $id ], [ '%d' ] );
 
 		ActivityLog::log( 'group_deleted', 'group', $id, [ 'name' => $group->name ] );
+		// Set-Vorlagen gehören dem Kollektiv — ohne Kollektiv kein Sinn mehr.
+		SetTemplates::on_group_deleted( $id );
 		return true;
 	}
 
