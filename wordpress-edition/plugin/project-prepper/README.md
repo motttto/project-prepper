@@ -30,9 +30,9 @@ GET/DELETE     /wp-json/project-prepper/v1/rentals/{id}
 POST           /wp-json/project-prepper/v1/rentals/{id}/status   {"status": "active"}
 ```
 
-## Mitglieder-API (ab v0.149.0)
+## Mitglieder-API (ab v0.149.0, Schreiben ab v0.150.0)
 
-Jedes Mitglied liest **sein eigenes** Equipment und **seine eigenen** Verleihe — nur lesend, per
+Jedes Mitglied liest **sein eigenes** Equipment und **seine eigenen** Verleihe — standardmäßig nur lesend, per
 HTTP Basic Auth mit einem API-Passwort (WordPress-App-Passwort), das es im Portal unter
 **Mein Profil → API-Zugang** selbst anlegt, einsieht und widerruft. Betreiber-Schalter:
 Einstellungen → Funktionen → „Mitglieder-API erlauben" (Standard an); Drosselung unter Sicherheit.
@@ -42,10 +42,14 @@ GET /wp-json/project-prepper/v1/me                  {id, name, roles, groups}
 GET /wp-json/project-prepper/v1/me/items            eigene Artikel — Felder wie GET /items   ?search= &category_id= &out_only=1
 GET /wp-json/project-prepper/v1/me/rentals          selbst angelegte Verleihe — wie GET /rentals   ?status=
 GET /wp-json/project-prepper/v1/me/rentals/{id}     Kopf + items[] + billing{} — wie GET /rentals/{id}; fremd = 404
+GET /wp-json/project-prepper/v1/me/categories       eigene Kategorien {id, name, icon, prefix}                       (v0.150.0)
+POST /wp-json/project-prepper/v1/me/items           eigenen Artikel anlegen, Besitzer = du                         (v0.150.0, Schreib-Passwort)
+PUT /wp-json/project-prepper/v1/me/items/{id}       eigenen Artikel ändern, nur mitgeschickte Felder, "expect"      (v0.150.0, Schreib-Passwort)
 ```
 
 Ein Mitglieder-App-Passwort erreicht nur diese Routen (+ `GET /wp/v2/users/me`), alles andere
-antwortet `403 pp_api_read_only`. Die Betreiber-Routen oben bleiben unverändert Betreiber-only.
+antwortet `403 pp_api_read_only`. Schreiben (`POST`/`PUT` oben) nur mit einem Passwort, das im Portal mit
+„Lesen + mein Equipment bearbeiten" angelegt wurde; Löschen, Bilder und Verleihe bleiben im Portal. Die Betreiber-Routen oben bleiben unverändert Betreiber-only.
 Details, Fehlercodes, Sicherheitsmodell und Test: [docs/08-MITGLIEDER-API.md](../../docs/08-MITGLIEDER-API.md).
 
 ## Lokal testen (wp-env + Colima)

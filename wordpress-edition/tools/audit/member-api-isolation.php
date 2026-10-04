@@ -20,6 +20,7 @@ require_once ABSPATH . 'wp-admin/includes/user.php';
 
 use ProjectPrepper\MemberApi;
 use ProjectPrepper\Services\Groups;
+use ProjectPrepper\Services\MemberInventory;
 use ProjectPrepper\Services\MemberRentals;
 
 // wp eval-file bindet die Datei in einer Funktion ein — Zähler daher explizit global.
@@ -326,6 +327,48 @@ try {
 		$res = $get( '/project-prepper/v1/me/items', [] );
 		pp_check( 401 === wp_remote_retrieve_response_code( $res ) && 'rest_not_logged_in' === ( json_decode( wp_remote_retrieve_body( $res ), true )['code'] ?? '' ), 'HTTP ohne Zugangsdaten = rest_not_logged_in' );
 		pp_clear_http_lock(); // Der Fehlversuch oben zählt für die IP des cli-Containers.
+
+		// v0.150.0: Schreiben nur mit „Lesen + eigenes Equipment bearbeiten".
+		$post = static fn( string $route, array $hdr, array $body, string $method = 'POST' ) => wp_remote_request( $base . $route, [
+			'method' => $method, 'headers' => $hdr + [ 'Content-Type' => 'application/json' ], 'body' => wp_json_encode( $body ), 'timeout' => 10,
+		] );
+		$res = $post( '/project-prepper/v1/me/items', $h, [ 'name' => PP_AUDIT_PREFIX . ' HTTP RO' ] );
+		pp_check( 403 === wp_remote_retrieve_response_code( $res ) && 'pp_api_read_only' === ( json_decode( wp_remote_retrieve_body( $res ), true )['code'] ?? '' ), 'HTTP Basic: Nur-Lese-Passwort → POST /me/items 403' );
+		pp_dispatch( $u['a'], [ 'pp_do' => 'api_password_create', 'pp_name' => 'ZZ HTTP Schreiben', 'pp_scope' => 'inventory' ] );
+		$wnew = MemberApi::take_new_password( $u['a'] );
+		$hw   = $auth( 'zz-audit-api-a', (string) ( $wnew['pw'] ?? '' ) );
+		$res  = $post( '/project-prepper/v1/me/items', $hw, [ 'name' => PP_AUDIT_PREFIX . ' HTTP neu', 'quantity' => 2 ] );
+		$made = json_decode( wp_remote_retrieve_body( $res ), true );
+		$hid  = pp_audit_track( 'items', (int) ( $made['id'] ?? 0 ) );
+		pp_check( 201 === wp_remote_retrieve_response_code( $res ) && MemberInventory::owns( $u['a'], $hid ), 'HTTP Basic: Schreib-Passwort → POST /me/items 201, gehört A', wp_remote_retrieve_body( $res ) );
+		$res = $post( '/project-prepper/v1/me/items/' . $hid, $hw, [ 'location' => 'HTTP-Halle', 'expect' => (string) ( $made['updated_at'] ?? '' ) ], 'PUT' );
+		pp_check( 200 === wp_remote_retrieve_response_code( $res ) && 'HTTP-Halle' === \ProjectPrepper\Services\Inventory::get_item( $hid )->location, 'HTTP Basic: Schreib-Passwort → PUT /me/items/{id} 200' );
+		$res = $post( '/project-prepper/v1/me/items/' . $b1, $hw, [ 'name' => 'Gekapert' ], 'PUT' );
+		pp_check( 404 === wp_remote_retrieve_response_code( $res ), 'HTTP Basic: Schreib-Passwort → PUT auf B\'s Artikel 404' );
+		$res = $post( '/wp/v2/users/me', $hw, [ 'name' => 'Gekapert' ] );
+		pp_check( 403 === wp_remote_retrieve_response_code( $res ), 'HTTP Basic: Schreib-Passwort → POST /wp/v2/users/me 403' );
+		$res = $post( '/project-prepper/v1/me/items/' . $hid, $hw, [], 'DELETE' );
+		pp_check( 403 === wp_remote_retrieve_response_code( $res ) && null !== \ProjectPrepper\Services\Inventory::get_item( $hid ), 'HTTP Basic: Schreib-Passwort → DELETE 403' );
+		$wuuid = array_values( array_filter( MemberApi::passwords( $u['a'] ), static fn( $p ) => 'ZZ HTTP Schreiben' === $p['name'] ) )[0]['uuid'] ?? '';
+		pp_dispatch( $u['a'], [ 'pp_do' => 'api_password_revoke', 'pp_uuid' => $wuuid ] );
+
+		// ACC-W-02: Portal-Passwörter (auch von Managern) nie über XML-RPC; wp-admin-Passwort unverändert.
+		$xml = static fn( string $login, string $pw ) => wp_remote_post( 'http://wordpress/xmlrpc.php', [ 'timeout' => 10, 'headers' => [ 'Content-Type' => 'text/xml' ],
+			'body' => '<?xml version="1.0"?><methodCall><methodName>wp.getProfile</methodName><params><param><value><int>1</int></value></param>'
+				. '<param><value><string>' . esc_xml( $login ) . '</string></value></param><param><value><string>' . esc_xml( $pw ) . '</string></value></param></params></methodCall>' ] );
+		foreach ( [ 'read', 'inventory' ] as $scope ) {
+			pp_dispatch( $u['m'], [ 'pp_do' => 'api_password_create', 'pp_name' => 'ZZ XMLRPC ' . $scope, 'pp_scope' => $scope ] );
+			$mpw  = (string) ( MemberApi::take_new_password( $u['m'] )['pw'] ?? '' );
+			$body = wp_remote_retrieve_body( $xml( 'zz-audit-api-m', $mpw ) );
+			pp_check( false !== strpos( $body, '<fault>' ) && false === strpos( $body, 'zz-audit-api-m' ), "W-02: Manager-Portal-Passwort ({$scope}) über XML-RPC abgewiesen", substr( $body, 0, 200 ) );
+			$muuid = array_values( array_filter( MemberApi::passwords( $u['m'] ), static fn( $p ) => 'ZZ XMLRPC ' . $scope === $p['name'] ) )[0]['uuid'] ?? '';
+			pp_dispatch( $u['m'], [ 'pp_do' => 'api_password_revoke', 'pp_uuid' => $muuid ] );
+			pp_clear_http_lock();
+		}
+		$m_adm = WP_Application_Passwords::create_new_application_password( $u['m'], [ 'name' => 'zz xmlrpc wp-admin' ] ); // wie im wp-admin angelegt
+		$body  = wp_remote_retrieve_body( $xml( 'zz-audit-api-m', (string) $m_adm[0] ) );
+		pp_check( false === strpos( $body, '<fault>' ), 'W-02: wp-admin-Passwort des Managers über XML-RPC wie bisher', substr( $body, 0, 200 ) );
+		WP_Application_Passwords::delete_application_password( $u['m'], (string) $m_adm[1]['uuid'] );
 	}
 
 	pp_check( 'api_pw_revoked' === pp_dispatch( $u['a'], [ 'pp_do' => 'api_password_revoke', 'pp_uuid' => $uuid ] ), 'Portal: A widerruft sein Passwort' );
@@ -350,6 +393,163 @@ try {
 	[ $st ] = pp_rest_any( $u['m'], 'GET', '/project-prepper/v1/items' );
 	pp_check( 200 === $st, 'Manager mit wp-admin-Passwort: Admin-Route wie bisher', $st );
 	pp_as_app_password( false );
+
+	/* ---------- Schreiben: eigenes Equipment (v0.150.0) ---------- */
+	// Nur-Lese-Passwort (Mitglied, beliebige Kennung) darf nicht schreiben.
+	pp_as_app_password( true );
+	[ $st, $err ] = pp_rest_any( $u['a'], 'POST', '/project-prepper/v1/me/items', [ 'name' => PP_AUDIT_PREFIX . ' RO' ] );
+	pp_check( 403 === $st && 'pp_api_read_only' === ( $err['code'] ?? '' ), 'Nur-Lese-Passwort: POST /me/items gesperrt', [ $st, $err['code'] ?? null ] );
+	$GLOBALS['wp_rest_application_password_uuid'] = $m_pw; // Portal-Passwort „nur lesen" des Managers
+	[ $st ] = pp_rest_any( $u['m'], 'POST', '/project-prepper/v1/me/items', [ 'name' => PP_AUDIT_PREFIX . ' RO-M' ] );
+	pp_check( 403 === $st, 'Manager mit Nur-Lese-Portal-Passwort: POST /me/items gesperrt', $st );
+	pp_as_app_password( false );
+	pp_check( 'read' === ( MemberApi::passwords( $u['m'] )[0]['scope'] ?? '' ) || 'read' === ( MemberApi::passwords( $u['m'] )[1]['scope'] ?? '' ), 'Liste: Portal-Passwort ohne Wahl = read' );
+
+	// Passwort „Lesen + eigenes Equipment bearbeiten" im Portal anlegen.
+	pp_check( 'api_pw_created' === pp_dispatch( $u['a'], [ 'pp_do' => 'api_password_create', 'pp_name' => 'ZZ Schreiben', 'pp_scope' => 'inventory' ] ), 'Portal: Schreib-Passwort anlegen' );
+	MemberApi::take_new_password( $u['a'] );
+	$w_row = array_values( array_filter( MemberApi::passwords( $u['a'] ), static fn( $p ) => 'ZZ Schreiben' === $p['name'] ) )[0] ?? [];
+	pp_check( 'inventory' === ( $w_row['scope'] ?? '' ), 'Liste: Zugriffsart inventory', $w_row );
+	pp_check( 'api_pw_created' === pp_dispatch( $u['a'], [ 'pp_do' => 'api_password_create', 'pp_name' => 'ZZ Unbekannt', 'pp_scope' => 'admin' ] ), 'Portal: unbekannte Zugriffsart angelegt …' );
+	MemberApi::take_new_password( $u['a'] );
+	$x_row = array_values( array_filter( MemberApi::passwords( $u['a'] ), static fn( $p ) => 'ZZ Unbekannt' === $p['name'] ) )[0] ?? [];
+	pp_check( 'read' === ( $x_row['scope'] ?? '' ), '… und nur lesend', $x_row );
+	pp_dispatch( $u['a'], [ 'pp_do' => 'api_password_revoke', 'pp_uuid' => $x_row['uuid'] ?? '' ] );
+
+	$cat_a = MemberInventory::create_category( $u['a'], [ 'name' => PP_AUDIT_PREFIX . ' Kat A' ] );
+	$cat_b = MemberInventory::create_category( $u['b'], [ 'name' => PP_AUDIT_PREFIX . ' Kat B' ] );
+	pp_check( is_int( $cat_a ) && is_int( $cat_b ), 'Kategorien für A und B angelegt', [ $cat_a, $cat_b ] );
+	$GLOBALS['wp_rest_application_password_uuid'] = $w_row['uuid'] ?? '';
+	$W = static fn( string $m, string $r, ?array $b = null ) => pp_rest_any( $u['a'], $m, '/project-prepper/v1' . $r, $b );
+
+	[ $st ] = $W( 'GET', '/me/items' );
+	pp_check( 200 === $st, 'Schreib-Passwort: GET /me/items', $st );
+	[ $st, $cats ] = $W( 'GET', '/me/categories' );
+	pp_check( 200 === $st && [ (int) $cat_a ] === array_map( static fn( $c ) => (int) $c['id'], (array) $cats ), 'GET /me/categories: nur eigene', [ $st, $cats ] );
+
+	[ $st, $it ] = $W( 'POST', '/me/items', [ 'name' => PP_AUDIT_PREFIX . ' Neu', 'quantity' => 3, 'cost_per_day' => 12.5, 'condition' => 'fair',
+		'location' => 'Lager', 'tags' => [ 'x' ], 'owner_user_id' => $u['b'], 'image_id' => 1, 'category_id' => $cat_a ] );
+	$new_id = pp_audit_track( 'items', (int) ( $it->id ?? $it['id'] ?? 0 ) );
+	$row    = MemberInventory::owns( $u['a'], $new_id ) ? \ProjectPrepper\Services\Inventory::get_item( $new_id ) : null;
+	pp_check( 201 === $st && $row, 'POST /me/items: angelegt, Besitzer = A (owner_user_id im Body ignoriert)', [ $st, $it ] );
+	pp_check( $row && 3 === (int) $row->quantity && 'fair' === $row->item_condition && (int) $row->category_id === (int) $cat_a && empty( $row->image_id ), 'POST /me/items: Felder übernommen, image_id ignoriert', $row );
+	pp_check( $row && '' !== (string) $row->inventory_number, 'POST /me/items: Inventarnummer automatisch', $row->inventory_number ?? null );
+
+	[ $st, $err ] = $W( 'POST', '/me/items', [ 'quantity' => 1 ] );
+	pp_check( 400 === $st && 'pp_missing_name' === ( $err['code'] ?? '' ), 'POST ohne Namen → 400', [ $st, $err['code'] ?? null ] );
+	[ $st, $err ] = $W( 'POST', '/me/items', [ 'name' => PP_AUDIT_PREFIX . ' FremdKat', 'category_id' => $cat_b ] );
+	pp_check( 400 === $st && 'pp_bad_category' === ( $err['code'] ?? '' ), 'POST mit fremder Kategorie → 400', [ $st, $err['code'] ?? null ] );
+	[ $st, $err ] = $W( 'POST', '/me/items', [ 'name' => PP_AUDIT_PREFIX . ' Zustand', 'condition' => 'kaputt' ] );
+	pp_check( 400 === $st && 'pp_bad_condition' === ( $err['code'] ?? '' ), 'POST mit unbekanntem Zustand → 400', [ $st, $err['code'] ?? null ] );
+	$b2_nr = (string) \ProjectPrepper\Services\Inventory::get_item( $b2 )->inventory_number;
+	[ $st, $err ] = $W( 'POST', '/me/items', [ 'name' => PP_AUDIT_PREFIX . ' Doppelt', 'inventory_number' => $b2_nr ] );
+	pp_check( 409 === $st && 'pp_number_taken' === ( $err['code'] ?? '' ), 'POST mit vergebener Inventarnummer → 409', [ $st, $err['code'] ?? null ] );
+	[ $st, $err ] = $W( 'POST', '/me/items', [] );
+	pp_check( 400 === $st, 'POST ohne Body → 400', $st );
+
+	[ $st, $it ] = $W( 'PUT', '/me/items/' . $new_id, [ 'location' => 'Halle' ] );
+	$row = \ProjectPrepper\Services\Inventory::get_item( $new_id );
+	pp_check( 200 === $st && 'Halle' === $row->location && PP_AUDIT_PREFIX . ' Neu' === $row->name && 3 === (int) $row->quantity, 'PUT: nur mitgeschickte Felder geändert', [ $st, $row->location ?? null ] );
+	[ $st, $err ] = $W( 'PUT', '/me/items/' . $new_id, [ 'location' => 'Alt', 'expect' => '2000-01-01 00:00:00' ] );
+	pp_check( 409 === $st && 'pp_stale' === ( $err['code'] ?? '' ) && 'Halle' === \ProjectPrepper\Services\Inventory::get_item( $new_id )->location, 'PUT mit veraltetem expect → 409, nichts überschrieben', [ $st, $err['code'] ?? null ] );
+	[ $st ] = $W( 'PUT', '/me/items/' . $new_id, [ 'location' => 'Bühne', 'expect' => (string) $row->updated_at ] );
+	pp_check( 200 === $st && 'Bühne' === \ProjectPrepper\Services\Inventory::get_item( $new_id )->location, 'PUT mit aktuellem expect → 200', $st );
+	[ $st ] = $W( 'PATCH', '/me/items/' . $new_id, [ 'quantity' => 0 ] );
+	pp_check( 200 === $st && 1 === (int) \ProjectPrepper\Services\Inventory::get_item( $new_id )->quantity, 'PATCH: Menge 0 bei Gerät → 1 (wie im Portal)', $st );
+	[ $st, $err ] = $W( 'PUT', '/me/items/' . $new_id, [ 'name' => '  ' ] );
+	pp_check( 400 === $st, 'PUT mit leerem Namen → 400', $st );
+	$b1_before = \ProjectPrepper\Services\Inventory::get_item( $b1 );
+	[ $st, $err ] = $W( 'PUT', '/me/items/' . $b1, [ 'name' => 'Gekapert', 'location' => 'weg' ] );
+	pp_check( 404 === $st && 'pp_not_found' === ( $err['code'] ?? '' ), 'PUT auf B\'s Artikel → 404', [ $st, $err['code'] ?? null ] );
+	[ $st ] = $W( 'PUT', '/me/items/999999999', [ 'name' => 'x' ] );
+	pp_check( 404 === $st, 'PUT auf unbekannte ID → 404', $st );
+	pp_check( \ProjectPrepper\Services\Inventory::get_item( $b1 )->name === $b1_before->name && \ProjectPrepper\Services\Inventory::get_item( $b1 )->location === $b1_before->location, 'B\'s Artikel unverändert' );
+	foreach ( [
+		[ 'DELETE', '/project-prepper/v1/me/items/' . $new_id ],
+		[ 'POST', '/project-prepper/v1/me/items/' . $new_id ],
+		[ 'PUT', '/project-prepper/v1/me/items' ],
+		[ 'POST', '/project-prepper/v1/items' ],
+		[ 'PUT', '/project-prepper/v1/items/' . $new_id ],
+		[ 'POST', '/project-prepper/v1/items/' . $new_id . '/image' ],
+		[ 'POST', '/project-prepper/v1/me/rentals' ],
+		[ 'POST', '/project-prepper/v1/me' ],
+		[ 'POST', '/wp/v2/users/me' ],
+		[ 'POST', '/wp/v2/users/me/application-passwords' ],
+	] as [ $m, $r ] ) {
+		[ $st ] = pp_rest_any( $u['a'], $m, $r, [ 'name' => 'Gekapert' ] );
+		pp_check( 403 === $st, "Schreib-Passwort: {$m} {$r} gesperrt", $st );
+	}
+	pp_check( null !== \ProjectPrepper\Services\Inventory::get_item( $new_id ), 'Schreib-Passwort: Löschen nicht möglich' );
+	clean_user_cache( $u['a'] );
+	pp_check( get_userdata( $u['a'] )->display_name === $name_before, 'Schreib-Passwort: Profil unverändert' );
+	[ $st ] = pp_rest_any( $u['a'], 'POST', '/batch/v1', [ 'requests' => [ [ 'method' => 'DELETE', 'path' => '/project-prepper/v1/me/items/' . $new_id ] ] ] );
+	pp_check( null !== \ProjectPrepper\Services\Inventory::get_item( $new_id ), 'Schreib-Passwort: Batch löscht nichts', $st );
+	pp_audit_option( 'pp_features', $features( [ 'inventory' => false ] ) );
+	[ $st, $err ] = $W( 'POST', '/me/items', [ 'name' => PP_AUDIT_PREFIX . ' Aus' ] );
+	pp_check( 403 === $st && 'pp_feature_off' === ( $err['code'] ?? '' ), 'Inventar aus → POST /me/items 403', [ $st, $err['code'] ?? null ] );
+	pp_audit_option( 'pp_features', null );
+	pp_audit_option( 'pp_features', $features( [ 'api' => false ] ) );
+	[ $st ] = $W( 'PUT', '/me/items/' . $new_id, [ 'location' => 'aus' ] );
+	pp_check( 403 === $st, 'API aus → PUT /me/items 403', $st );
+	pp_audit_option( 'pp_features', null );
+	pp_as_app_password( false );
+
+	// Angemeldet im Portal (Cookie) geht es auch — wie „Mein Inventar".
+	[ $st, $it ] = pp_rest( $u['a'], 'POST', '/me/items', [ 'name' => PP_AUDIT_PREFIX . ' Cookie' ] );
+	pp_audit_track( 'items', (int) ( $it->id ?? 0 ) );
+	pp_check( 201 === $st, 'Cookie: POST /me/items', $st );
+	[ $st ] = pp_rest( $u['s'], 'POST', '/me/items', [ 'name' => PP_AUDIT_PREFIX . ' Abo' ] );
+	pp_check( 403 === $st, 'Abonnent ohne Prepper-Rolle: POST /me/items 403', $st );
+
+	/* ---------- Funde des Zugriffs-Audits v0.150.0 (ACC-W-01/03, C1/C3/C6) ---------- */
+	$GLOBALS['wp_rest_application_password_uuid'] = $w_row['uuid'] ?? '';
+	$nr_alt = (string) \ProjectPrepper\Services\Inventory::get_item( $new_id )->inventory_number;
+	[ $st, $err ] = $W( 'PUT', '/me/items/' . $new_id, [ 'inventory_number' => 'ZZ-ANDERS-1' ] );
+	pp_check( 400 === $st && 'pp_number_fixed' === ( $err['code'] ?? '' ) && $nr_alt === \ProjectPrepper\Services\Inventory::get_item( $new_id )->inventory_number, 'C1: Inventarnummer per PUT nicht änderbar', [ $st, $err['code'] ?? null ] );
+	[ $st ] = $W( 'PUT', '/me/items/' . $new_id, [ 'inventory_number' => $nr_alt, 'location' => 'gleiche Nr' ] );
+	pp_check( 200 === $st, 'C1: gleiche Inventarnummer mitschicken geht', $st );
+	[ $st, $err ] = $W( 'POST', '/me/items', [ 'name' => PP_AUDIT_PREFIX . ' Lang', 'inventory_number' => 'ZZAUDN-99999999999999999999' ] );
+	pp_check( 400 === $st && 'pp_bad_number' === ( $err['code'] ?? '' ), 'W-01: überlange Nummer per API abgelehnt', [ $st, $err['code'] ?? null ] );
+	[ $st, $err ] = $W( 'POST', '/me/items', [ 'name' => PP_AUDIT_PREFIX . ' Neg', 'category_id' => -5 ] );
+	pp_check( 400 === $st && 'pp_bad_category' === ( $err['code'] ?? '' ), 'C3: negative Kategorie → 400', [ $st, $err['code'] ?? null ] );
+	[ $st, $it ] = $W( 'POST', '/me/items', [ 'name' => PP_AUDIT_PREFIX . ' Array', 'location' => [ 'x' ], 'notes' => [ 'a' => 1 ] ] );
+	$arr_id = pp_audit_track( 'items', (int) ( is_object( $it ) ? $it->id : 0 ) );
+	pp_check( 201 === $st && '' === (string) \ProjectPrepper\Services\Inventory::get_item( $arr_id )->location, 'C6: Array in Textfeld wird ignoriert', [ $st ] );
+	pp_as_app_password( false );
+	// W-01: Nummernkreis überspringt überlange Endungen (z. B. aus einem Import).
+	global $wpdb;
+	$wpdb->insert( \ProjectPrepper\Schema::table( 'categories' ), [ 'name' => PP_AUDIT_PREFIX . ' Präfix', 'prefix' => 'ZZAUDX', 'owner_user_id' => $u['a'], 'created_at' => current_time( 'mysql' ) ] );
+	$cat_x = (int) $wpdb->insert_id;
+	wp_set_current_user( $u['a'] );
+	pp_audit_track( 'items', \ProjectPrepper\Services\Inventory::create_item( [ 'name' => PP_AUDIT_PREFIX . ' N7', 'inventory_number' => 'ZZAUDX-0007', 'owner_user_id' => $u['a'] ] ) );
+	pp_audit_track( 'items', \ProjectPrepper\Services\Inventory::create_item( [ 'name' => PP_AUDIT_PREFIX . ' Gift', 'inventory_number' => 'ZZAUDX-99999999999999999999', 'owner_user_id' => $u['a'] ] ) );
+	$nx = \ProjectPrepper\Services\Numbering::next_inventory_number( $cat_x );
+	pp_check( 'ZZAUDX-0008' === $nx, 'W-01: Nummernkreis ignoriert überlange Nummer', $nx );
+	$n8 = MemberInventory::create( $u['a'], [ 'name' => PP_AUDIT_PREFIX . ' N8', 'category_id' => $cat_x ] );
+	pp_audit_track( 'items', is_int( $n8 ) ? $n8 : 0 );
+	pp_check( is_int( $n8 ) && 'ZZAUDX-0008' === \ProjectPrepper\Services\Inventory::get_item( $n8 )->inventory_number, 'W-01: automatisches Anlegen klappt danach weiter', $n8 );
+	// W-03: fremde Kategorie auch über Portal und Service abgelehnt, Vorlage weiter erlaubt.
+	$msg = pp_dispatch( $u['a'], [ 'pp_do' => 'item_update', 'pp_item' => $a2, 'pp_name' => PP_AUDIT_PREFIX . ' A2 privat', 'pp_category' => $cat_b, 'pp_quantity' => 1, 'pp_condition' => 'good' ] );
+	pp_check( 'item_saved' !== $msg && (int) \ProjectPrepper\Services\Inventory::get_item( $a2 )->category_id !== (int) $cat_b, 'W-03: Portal item_update mit fremder Kategorie abgelehnt', $msg );
+	$fremd = MemberInventory::create( $u['a'], [ 'name' => PP_AUDIT_PREFIX . ' Fremd', 'category_id' => $cat_b ] );
+	pp_audit_track( 'items', is_int( $fremd ) ? $fremd : 0 );
+	pp_check( is_wp_error( $fremd ) && 'pp_bad_category' === $fremd->get_error_code(), 'W-03: Service create mit fremder Kategorie abgelehnt' );
+	$wpdb->insert( \ProjectPrepper\Schema::table( 'categories' ), [ 'name' => PP_AUDIT_PREFIX . ' Vorlage', 'prefix' => 'ZZAUDV', 'owner_user_id' => null, 'created_at' => current_time( 'mysql' ) ] );
+	$cat_v = (int) $wpdb->insert_id;
+	$vor = MemberInventory::create( $u['a'], [ 'name' => PP_AUDIT_PREFIX . ' Vorlage', 'category_id' => $cat_v ] );
+	pp_audit_track( 'items', is_int( $vor ) ? $vor : 0 );
+	pp_check( is_int( $vor ), 'W-03: Vorlage-Kategorie bleibt im Service erlaubt (Portal-Bestand)', $vor );
+	$wpdb->delete( \ProjectPrepper\Schema::table( 'categories' ), [ 'id' => $cat_x ] );
+	$wpdb->delete( \ProjectPrepper\Schema::table( 'categories' ), [ 'id' => $cat_v ] );
+
+	// Aufräumen dieses Abschnitts: Schreib-Passwort widerrufen (sonst zählt der Widerruf-Test unten mit), Kategorien weg.
+	pp_check( 'api_pw_revoked' === pp_dispatch( $u['a'], [ 'pp_do' => 'api_password_revoke', 'pp_uuid' => $w_row['uuid'] ?? '' ] ), 'Schreib-Passwort widerrufen' );
+	foreach ( [ [ $u['a'], $cat_a ], [ $u['b'], $cat_b ] ] as [ $cu, $cc ] ) {
+		if ( is_int( $cc ) ) {
+			wp_set_current_user( $cu );
+			MemberInventory::delete_category( $cu, $cc );
+		}
+	}
 
 	/* ---------- Deaktivierung/Deinstallation widerruft, was nur lesen durfte (ACC-API-04) ---------- */
 	WP_Application_Passwords::create_new_application_password( $u['a'], [ 'name' => 'zz alt' ] );

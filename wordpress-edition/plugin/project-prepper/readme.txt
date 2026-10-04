@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.149.1
+Stable tag: 0.150.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,14 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.150.0 =
+* Member API: members can now also add and change their own equipment from their own tools — if they want to. When creating an API password in the portal ("API access"), choose "Read only" (default, as before) or "Read + edit my equipment".
+* New routes under /wp-json/project-prepper/v1: GET /me/categories (your own categories), POST /me/items (add an item — you are always the owner) and PUT /me/items/{id} (change one of your items; only the fields you send; send "expect" with the last updated_at to avoid overwriting a change made in the meantime).
+* Safety: a "Read + edit my equipment" password can do exactly these two things in addition to reading. Deleting, photos, documents, rentals, your profile and all operator routes stay closed; someone else's item answers "not found". The inventory number is fixed once the item exists. All existing API passwords stay read only. The API passwords list shows the access of each password.
+* Safety: API passwords created in the member portal no longer work over XML-RPC — also those of managers and admins. Passwords created in wp-admin are unchanged.
+* Fix: a single very long inventory number (for example from an import) no longer blocks the automatic numbering for everyone using that prefix.
+* Fix: an item can no longer be put into another member's category (portal, import and API alike); the operator's template categories stay available.
 
 = 0.149.1 =
 * Member API: clearer answers when signing in fails. "Sign-in failed: username or API password is wrong" when login data arrived but did not match, and "No sign-in data arrived" when nothing arrived at all — before, both said only "please sign in".

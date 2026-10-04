@@ -650,7 +650,12 @@ class MemberPortal {
 			case 'api_password_create':
 				// Klartext geht NICHT über die URL: MemberApi legt es verschlüsselt
 				// für genau eine Anzeige ab (view_api holt es ab und löscht es).
-				$result = MemberApi::create_password( get_current_user_id(), sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ) );
+				// Zugriffsart (v0.150.0): „read" (Standard) oder „inventory" = darf eigenes Equipment anlegen/ändern.
+				$result = MemberApi::create_password(
+					get_current_user_id(),
+					sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ),
+					sanitize_key( wp_unslash( (string) ( $_POST['pp_scope'] ?? 'read' ) ) )
+				);
 				$ok_msg = 'api_pw_created';
 				break;
 			case 'api_password_revoke':
@@ -3340,7 +3345,7 @@ class MemberPortal {
 		?>
 		<header class="pp-app__page-head">
 			<h1 class="pp-app__page-title"><?php esc_html_e( 'API access', 'project-prepper' ); ?></h1>
-			<p class="pp-app__page-sub"><?php esc_html_e( 'Let your own programs — for example a personal dashboard — read your equipment and your rentals.', 'project-prepper' ); ?></p>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Let your own programs — for example a personal dashboard — read your equipment and your rentals and, if you allow it, edit your equipment.', 'project-prepper' ); ?></p>
 		</header>
 
 		<?php if ( $new ) : ?>
@@ -3367,7 +3372,7 @@ class MemberPortal {
 
 		<section class="pp-card">
 			<h2 class="pp-card__title"><?php esc_html_e( 'Create an API password', 'project-prepper' ); ?></h2>
-			<p class="pp-portal__hint"><?php esc_html_e( 'Read only: an API password can read your own equipment and the rentals you created — nothing else, and it cannot change anything. Create a separate password for each program, so you can revoke one without touching the others. Never enter your login password in another program.', 'project-prepper' ); ?></p>
+			<p class="pp-portal__hint"><?php esc_html_e( 'An API password can read your own equipment and the rentals you created — nothing else. With “Read + edit my equipment” it can also add items to your inventory and change them; deleting, photos, rentals and your profile stay here in the portal. Create a separate password for each program, so you can revoke one without touching the others. Never enter your login password in another program.', 'project-prepper' ); ?></p>
 			<?php if ( '' !== $reason ) : ?>
 				<div class="pp-portal__notice pp-portal__notice--err"><?php echo esc_html( $reason ); ?></div>
 			<?php elseif ( count( $passwords ) >= MemberApi::MAX_PASSWORDS ) : ?>
@@ -3383,6 +3388,12 @@ class MemberPortal {
 					<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
 						<input type="text" name="pp_name" maxlength="<?php echo (int) MemberApi::NAME_MAX_LEN; ?>" required
 							placeholder="<?php esc_attr_e( 'e.g. My dashboard', 'project-prepper' ); ?>">
+					</label>
+					<label><?php esc_html_e( 'Access', 'project-prepper' ); ?>
+						<select name="pp_scope">
+							<option value="read" selected><?php esc_html_e( 'Read only', 'project-prepper' ); ?></option>
+							<option value="inventory"><?php esc_html_e( 'Read + edit my equipment', 'project-prepper' ); ?></option>
+						</select>
 					</label>
 					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create API password', 'project-prepper' ); ?></button>
 				</form>
@@ -3403,7 +3414,15 @@ class MemberPortal {
 					</div>
 					<?php foreach ( $passwords as $pw ) : ?>
 						<div class="pp-list__row">
-							<span class="pp-list__cell pp-list__cell--grow"><?php echo esc_html( $pw['name'] ); ?></span>
+							<span class="pp-list__cell pp-list__cell--grow"><?php echo esc_html( $pw['name'] ); ?>
+								<?php if ( 'inventory' === $pw['scope'] ) : ?>
+									<span class="pp-portal__tag pp-portal__tag--warn"><?php esc_html_e( 'read + edit equipment', 'project-prepper' ); ?></span>
+								<?php elseif ( 'full' === $pw['scope'] ) : ?>
+									<span class="pp-portal__tag pp-portal__tag--muted" title="<?php esc_attr_e( 'Created in the WordPress admin — not limited by the member API.', 'project-prepper' ); ?>"><?php esc_html_e( 'not limited', 'project-prepper' ); ?></span>
+								<?php else : ?>
+									<span class="pp-portal__tag pp-portal__tag--muted"><?php esc_html_e( 'read only', 'project-prepper' ); ?></span>
+								<?php endif; ?>
+							</span>
 							<span class="pp-list__cell pp-api__when" data-label="<?php esc_attr_e( 'Created', 'project-prepper' ); ?>"><?php echo esc_html( wp_date( $fmt, $pw['created'] ) ); ?></span>
 							<span class="pp-list__cell pp-api__when" data-label="<?php esc_attr_e( 'Last used', 'project-prepper' ); ?>">
 								<?php
@@ -3449,6 +3468,12 @@ class MemberPortal {
 						<em><?php esc_html_e( '(switched off on this site)', 'project-prepper' ); ?></em>
 					<?php endif; ?>
 				</dd>
+				<dt><code>GET /me/categories</code></dt>
+				<dd><?php esc_html_e( 'Your own categories (ID, name, icon) — for category_id when adding or changing items.', 'project-prepper' ); ?></dd>
+				<dt><code>POST /me/items</code></dt>
+				<dd><?php esc_html_e( 'Only with “Read + edit my equipment”: add an item to your inventory (JSON body, name required; same field names as GET /me/items, condition one of new, good, fair, poor, maintenance, broken, lost, retired). Leave inventory_number empty to get the next free number.', 'project-prepper' ); ?></dd>
+				<dt><code>PUT /me/items/{id}</code></dt>
+				<dd><?php esc_html_e( 'Only with “Read + edit my equipment”: change one of your items — only the fields you send. Send "expect" with the updated_at you last read, and a change made here in the meantime answers 409 instead of being overwritten. Someone else’s item answers “not found”.', 'project-prepper' ); ?></dd>
 				<dt><code>GET /me/rentals</code></dt>
 				<dd>
 					<?php esc_html_e( 'The rentals you created — also those you created for a collective — with the number of items. Optional: ?status=reserved, active, returned or cancelled', 'project-prepper' ); ?>

@@ -1,8 +1,9 @@
-# 08 — Mitglieder-API (ab v0.149.0)
+# 08 — Mitglieder-API (ab v0.149.0, Schreiben ab v0.150.0)
 
 > Jedes Mitglied liest **sein eigenes Equipment und seine eigenen Verleihe** über die REST-API —
-> nur lesend, mit einem App-Passwort, das es im Portal selbst anlegt. Gedacht für eigene Werkzeuge,
-> z. B. ein persönliches Dashboard.
+> mit einem App-Passwort, das es im Portal selbst anlegt. Gedacht für eigene Werkzeuge,
+> z. B. ein persönliches Dashboard. Standard ist **nur lesen**; wer beim Anlegen „Lesen + mein
+> Equipment bearbeiten" wählt, kann damit zusätzlich eigene Artikel anlegen und ändern (ab v0.150.0).
 
 ## Kurzfassung
 
@@ -11,7 +12,7 @@
 | Adresse | `https://<instanz>/wp-json/project-prepper/v1` |
 | Anmeldung | HTTP Basic Auth: Benutzername (Login-Name oder E-Mail) + **API-Passwort** |
 | API-Passwort | Portal → Dashboard → Kachel „Mein Profil" → **API-Zugang** |
-| Rechte | nur `GET`, nur eigene Daten; fremde Verleihe antworten `404` |
+| Rechte | nur eigene Daten; fremde Verleihe/Artikel antworten `404`. Passwort „Nur lesen": nur `GET`. Passwort „Lesen + mein Equipment bearbeiten": zusätzlich `POST /me/items`, `PUT/PATCH /me/items/{id}` |
 | Betreiber-Schalter | wp-admin → Project Prepper → Einstellungen → Funktionen → **Mitglieder-API erlauben** (Standard: an) |
 | Drosselung | wp-admin → Project Prepper → Sicherheit → Mitglieder-API (Standard: 300 Anfragen/Minute je Mitglied) |
 | HTTPS | Pflicht (WordPress gibt App-Passwörter nur über HTTPS frei; lokal in wp-env auch ohne) |
@@ -72,11 +73,42 @@ Form wie `GET /rentals/{id}`: Kopfdaten + `items[]` (Positionen mit `item_name`,
 Ein Verleih, den jemand anderes angelegt hat, antwortet **`404 pp_not_found`** — genauso wie eine
 ID, die es nicht gibt. Wer IDs durchprobiert, erfährt nicht, ob es sie gibt.
 
+### Schreiben: eigenes Equipment (ab v0.150.0)
+
+Nur mit einem API-Passwort, das im Portal mit **„Lesen + mein Equipment bearbeiten"** angelegt wurde
+(Kennung `app_id` = `MemberApi::APP_ID_WRITE`) — oder angemeldet im Portal. Geschrieben wird über
+dieselben Wege wie „Mein Inventar" (`MemberInventory::create`/`update`): **Besitzer ist immer der
+angemeldete Nutzer** und nicht änderbar. Bild, Dokumente, Freigaben, Stücklisten und **Löschen**
+bleiben im Portal.
+
+- **`GET /me/categories`** — eigene Kategorien `[{id, name, icon, prefix}]` (Vorlagen-Kategorien des
+  Betreibers erst nach „Übernehmen" im Portal).
+- **`POST /me/items`** — Artikel anlegen, JSON-Body, `name` Pflicht → `201` + Artikel (Form wie
+  `GET /items/{id}`, mit `owner_name`). Feldnamen wie beim Lesen: `inventory_number` (leer = nächste
+  freie Nummer der Kategorie; sonst höchstens 40 Zeichen und am Ende höchstens 9 Ziffern), `name`, `category_id` (nur eigene), `quantity`, `is_consumable`,
+  `condition` (`new`, `good`, `fair`, `poor`, `maintenance`, `broken`, `lost`, `retired`), `location`,
+  `manufacturer`, `model`, `serial_number`, `cost_per_day`, `purchase_price`, `current_value`,
+  `purchase_date` (`JJJJ-MM-TT`), `dimensions`, `power_watts`, `accessories`, `tags[]`, `description`,
+  `notes`, `manufacturer_url`, `manual_url`, `ownership_type`, `funding_source`, Abschreibungsfelder.
+  `owner_user_id`, `image_id` und `document_ids` im Body werden ignoriert.
+- **`PUT` (oder `PATCH`) `/me/items/{id}`** — ändert **nur die mitgeschickten Felder**. Mit
+  `"expect": "<updated_at wie zuletzt gelesen>"` antwortet eine zwischenzeitliche Änderung (Portal,
+  anderes Programm) mit `409 pp_stale`, statt überschrieben zu werden. Leere Zahl/Datum = `null`.
+  Menge unter 1 wird bei Geräten 1 (wie im Portal). Fremder oder unbekannter Artikel → `404`.
+  Die **Inventarnummer steht ab dem Anlegen fest** (wie im Portal — Etiketten/QR-Codes zeigen auf sie):
+  eine andere Nummer → `400 pp_number_fixed`, dieselbe mitschicken ist erlaubt. Werte, die keine
+  einfachen Zahlen/Texte sind (Arrays in Textfeldern), werden ignoriert.
+
 ### Beispiel
 
 ```bash
 curl -u "mein-login:abcd efgh ijkl mnop qrst uvwx" \
   https://project-prepper.voxelwarp.com/wp-json/project-prepper/v1/me/items
+
+# nur mit „Lesen + mein Equipment bearbeiten":
+curl -u "mein-login:…" -X PUT -H "Content-Type: application/json" \
+  -d '{"location":"Lager","expect":"2026-10-04 12:00:00"}' \
+  https://project-prepper.voxelwarp.com/wp-json/project-prepper/v1/me/items/42
 ```
 
 Die Leerzeichen im API-Passwort sind egal (WordPress entfernt sie).
@@ -86,14 +118,18 @@ Die Leerzeichen im API-Passwort sind egal (WordPress entfernt sie).
 | Status | `code` | Bedeutung |
 |---|---|---|
 | 200 | — | Daten |
+| 201 | — | Artikel angelegt (`POST /me/items`) |
+| 400 | `pp_bad_request`, `pp_missing_name`, `pp_bad_category`, `pp_bad_condition`, `pp_bad_date`, `pp_bad_number`, `pp_number_fixed` | Schreiben: kein JSON, Name fehlt/leer, Kategorie nicht eigene, unbekannter Zustand, Kaufdatum nicht `JJJJ-MM-TT`, Inventarnummer zu lang / mehr als 9 Endziffern, Inventarnummer nachträglich geändert |
 | 401 | `rest_not_logged_in` | **keine** Anmeldedaten angekommen — Programm schickt keine, oder der Webserver reicht den `Authorization`-Header nicht weiter (siehe Fehlersuche) |
 | 401 | `pp_bad_credentials` | Anmeldedaten kamen an, aber Benutzername oder API-Passwort stimmt nicht (oder das Konto darf die API nicht nutzen) — welcher Teil, wird bewusst nicht verraten |
 | 401 | `pp_locked` | IP nach zu vielen Fehlversuchen gesperrt (Meldung nennt die Minuten) |
 | 403 | `rest_forbidden` | Nutzer hat keine Project-Prepper-Rolle |
 | 403 | `pp_member_api_off` | Betreiber hat die Mitglieder-API abgeschaltet |
 | 403 | `pp_feature_off` | Bereich Inventar (`/me/items`) bzw. Verleih (`/me/rentals…`) ist abgeschaltet |
-| 403 | `pp_api_read_only` | App-Passwort eines Mitglieds auf einer anderen Route oder mit Schreib-Methode |
-| 404 | `pp_not_found` | Verleih gibt es nicht oder er gehört jemand anderem |
+| 403 | `pp_api_read_only` | App-Passwort auf einer anderen Route oder mit Schreib-Methode (Passwort „Nur lesen", oder Schreiben außerhalb von `POST /me/items` / `PUT /me/items/{id}`) |
+| 404 | `pp_not_found` | Verleih bzw. Artikel gibt es nicht oder er gehört jemand anderem |
+| 409 | `pp_number_taken` | Inventarnummer schon vergeben |
+| 409 | `pp_stale` | `expect` passt nicht mehr: der Artikel wurde inzwischen geändert — neu lesen |
 | 404 | `rest_no_route` | Instanz hat noch keine Mitglieder-API (älter als v0.149.0) → Werkzeug kann auf die Betreiber-Routen zurückfallen |
 | 429 | `pp_rate_limited` | Drosselung; Header `Retry-After` nennt die Sekunden bis zum nächsten Minutenfenster |
 
@@ -109,6 +145,16 @@ Die Leerzeichen im API-Passwort sind egal (WordPress entfernt sie).
    Ändern des eigenen Profils oder Passworts — antwortet `403 pp_api_read_only`. Ein entwendetes
    API-Passwort liest höchstens, was der Nutzer ohnehin sieht, und ändert nichts. XML-RPC ist für
    Mitglieder-App-Passwörter gesperrt. Routen werden wie im Core ohne Groß-/Kleinschreibung verglichen.
+   **Ausnahme nach Wahl des Mitglieds (v0.150.0):** Ein Portal-Passwort „Lesen + mein Equipment
+   bearbeiten" (`MemberApi::APP_ID_WRITE`, `write_scope_request` + `write_route_allowed`) darf
+   zusätzlich genau `POST /me/items` und `PUT|PATCH /me/items/{id}` — kein Löschen, keine Bilder,
+   kein Profil, keine Verleihe, keine Betreiber-Routen, kein Batch. Ein entwendetes Passwort dieser
+   Art kann also eigene Artikel anlegen und ändern, aber nichts löschen und nichts Fremdes anfassen.
+   Die Art steht im Passwort (nicht in der Rolle), in der Portal-Liste sichtbar, und wird beim
+   Anlegen protokolliert (`api_password_created`, `write`).
+   **XML-RPC:** Im Portal angelegte Passwörter (beide Arten, jede Rolle) werden bei XML-RPC abgewiesen
+   (`wp_authenticate_application_password_errors` → `pp_api_no_xmlrpc`) — XML-RPC kennt die REST-Grenze
+   nicht (Zugriffs-Audit ACC-W-02). Im wp-admin angelegte Passwörter von Betreibern/Managern unverändert.
 3. **Verwalten nur im Portal.** Für Nutzer ohne Backend-Recht sind die Core-Rechte
    `create_app_password`, `edit_app_password`, `delete_app_password(s)` gesperrt (`map_meta_cap`) und
    die Core-Routen `/wp/v2/users/*/application-passwords` zum Schreiben zu (`pp_api_manage_in_portal`)
@@ -160,7 +206,7 @@ Die Leerzeichen im API-Passwort sind egal (WordPress entfernt sie).
 
 ## Prüfen
 
-Regressionstest für die Mandanten-Trennung, Nur-Lese-Grenze, Schalter und Drosselung (101 Prüfungen,
+Regressionstest für die Mandanten-Trennung, Nur-Lese-Grenze, Schreib-Passwörter, Schalter und Drosselung (164 Prüfungen,
 eigene Wegwerf-Nutzer, räumt auf) — nur lokale wp-env:
 
 ```bash
@@ -175,14 +221,22 @@ auch nicht B's Kollektiv-Verleih mit A's Equipment; Außenstehende sehen nichts;
 bekommen 401; die Betreiber-Routen bleiben für Mitglieder 403; ein Mitglieder-App-Passwort kann
 über echte HTTP-Basic-Auth nur `/me…` lesen. Dazu die Funde des Zugriffs-Audits vom 2026-10-04
 (Schreibweisen der Core-Routen, Batch, Portal-Passwort eines Managers, Widerruf bei Deaktivierung,
-Abonnent, Widerrufen bei abgeschalteter API, Sperr-Meldung).
+Abonnent, Widerrufen bei abgeschalteter API, Sperr-Meldung). Ab v0.150.0 zusätzlich: Nur-Lese-Passwörter
+(Mitglied und Manager) können nicht schreiben; ein Schreib-Passwort legt nur Eigenes an (Besitzer,
+Bild und fremde Kategorie im Body wirkungslos), ändert nur mitgeschickte Felder, respektiert `expect`,
+bekommt für fremde Artikel 404 und für Löschen, Bild, Profil, Verleihe, Betreiber-Routen und Batch 403
+— auch über echte HTTP-Basic-Auth. Dazu die Funde des Zugriffs-Audits vom 2026-10-04 zu v0.150.0: Nummernkreis
+überspringt überlange Endziffern (W-01), Portal-Passwörter über XML-RPC abgewiesen (W-02, echte HTTP-Anfrage,
+Gegenprobe wp-admin-Passwort), fremde Kategorie auch über Portal und Service abgelehnt, Vorlagen weiter erlaubt
+(W-03), Inventarnummer per PUT fest (C1), negative Kategorie (C3), Arrays in Textfeldern (C6).
 
 ## Code
 
 | Datei | Rolle |
 |---|---|
 | `includes/MemberApi.php` | Schalter, Nur-Lese-Grenze, Drosselung, App-Passwörter anlegen/widerrufen, Einmal-Anzeige, Protokoll |
-| `includes/Rest/MeController.php` | die vier `/me`-Routen |
+| `includes/Rest/MeController.php` | die `/me`-Routen (lesen; ab v0.150.0 `GET /me/categories`, `POST /me/items`, `PUT/PATCH /me/items/{id}`) |
+| `includes/Rest/ItemsController.php` | `item_payload()` — gemeinsame Feld-Bereinigung für Admin- und Mitglieder-Route |
 | `includes/Security.php` | `api_rate_limit`, App-Passwort-Fehlversuche in der Login-Sperre |
 | `includes/Frontend/MemberPortal.php` | View `api` („API-Zugang"), Aktionen `api_password_create` / `api_password_revoke`, Daten-Export |
 | `includes/Settings.php` | Feature-Schlüssel `api` |

@@ -29,6 +29,10 @@ defined( 'ABSPATH' ) || exit;
  *     Passwort kann damit nichts ändern und nichts lesen, was der Nutzer nicht
  *     ohnehin sieht. Im wp-admin angelegte Passwörter von Betreibern und Managern
  *     bleiben unverändert (Admin-Routen bleiben, wie sie sind).
+ *     Ausnahme nach Wahl des Mitglieds (v0.150.0): Ein im Portal mit „Lesen +
+ *     eigenes Equipment bearbeiten" angelegtes Passwort ({@see APP_ID_WRITE})
+ *     darf zusätzlich `POST /me/items` und `PUT|PATCH /me/items/{id}` — sonst
+ *     nichts (kein Löschen, keine Bilder, kein Profil, keine Verleihe).
  *  3. Drosselung: Anfragen je Nutzer und Minute (Sicherheit → `api_rate_limit`);
  *     Fehlanmeldungen mit App-Passwort zählen in die Login-Sperre je IP
  *     ({@see Security::init}).
@@ -56,11 +60,22 @@ class MemberApi {
 	 */
 	const APP_ID = 'fe05bff7-9327-447b-a2c7-9052bb60aaec';
 
+	/**
+	 * Kennung der im Portal mit „Lesen + eigenes Equipment bearbeiten" angelegten
+	 * Passwörter (v0.150.0): wie {@see APP_ID}, plus die Schreibrouten aus
+	 * {@see write_route_allowed}. Die Wahl steckt im Passwort, nicht in der Rolle.
+	 */
+	const APP_ID_WRITE = '9677f6f1-fbb9-439f-b28a-ab8c1ecf605e';
+
+	/** Zugriffsarten beim Anlegen im Portal: Kennung => app_id. */
+	const SCOPES = [ 'read' => self::APP_ID, 'inventory' => self::APP_ID_WRITE ];
+
 	/** Core-Rechte zum Verwalten von App-Passwörtern — für Mitglieder nur übers Portal. */
 	const MANAGE_CAPS = [ 'create_app_password', 'edit_app_password', 'delete_app_password', 'delete_app_passwords' ];
 
 	public static function init(): void {
 		add_filter( 'wp_is_application_passwords_available_for_user', [ self::class, 'filter_available_for_user' ], 10, 2 );
+		add_action( 'wp_authenticate_application_password_errors', [ self::class, 'block_portal_passwords_xmlrpc' ], 10, 3 );
 		add_filter( 'rest_pre_dispatch', [ self::class, 'guard_rest' ], 5, 3 );
 		// Verwalten (anlegen/umbenennen/löschen) nur im Portal: Höchstzahl, Namensregel
 		// und Schalter gelten dann auf JEDEM Weg — Core-REST in jeder Schreibweise,
@@ -121,6 +136,24 @@ class MemberApi {
 	}
 
 	/**
+	 * Im Portal angelegte Passwörter (beide Arten) gelten nie für XML-RPC — auch
+	 * nicht die von Managern und Admins (ACC-W-02): XML-RPC kennt die REST-Grenze
+	 * nicht, ein entwendetes Portal-Passwort hätte dort die vollen Rollenrechte.
+	 *
+	 * @param WP_Error $error
+	 * @param WP_User  $user
+	 * @param array    $item
+	 */
+	public static function block_portal_passwords_xmlrpc( $error, $user, $item ): void { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter
+		if ( ! ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST ) || ! $error instanceof WP_Error || ! is_array( $item ) ) {
+			return;
+		}
+		if ( in_array( (string) ( $item['app_id'] ?? '' ), self::SCOPES, true ) ) {
+			$error->add( 'pp_api_no_xmlrpc', __( 'API passwords from the member portal do not work over XML-RPC.', 'project-prepper' ) );
+		}
+	}
+
+	/**
 	 * Nur-Lese-Leitplanke für Mitglieder (siehe Klassenkommentar, Punkt 2), dazu:
 	 * App-Passwörter verwalten Mitglieder ausschließlich im Portal — dort gelten
 	 * Höchstzahl und Feature-Schalter. Die Schreibrouten des Core sind für sie zu.
@@ -160,6 +193,9 @@ class MemberApi {
 		if ( $read && self::read_route_allowed( $route ) ) {
 			return $result;
 		}
+		if ( self::write_route_allowed( $method, $route ) && self::write_scope_request( $user ) ) {
+			return $result;
+		}
 		return rest_convert_error_to_response( new WP_Error(
 			'pp_api_read_only',
 			__( 'This API password can only read your own equipment and rentals (GET /project-prepper/v1/me …).', 'project-prepper' ),
@@ -182,7 +218,36 @@ class MemberApi {
 			return true;
 		}
 		$item = WP_Application_Passwords::get_user_application_password( (int) $user->ID, (string) $uuid );
-		return is_array( $item ) && self::APP_ID === (string) ( $item['app_id'] ?? '' );
+		return is_array( $item ) && in_array( (string) ( $item['app_id'] ?? '' ), self::SCOPES, true );
+	}
+
+	/**
+	 * Ist diese Anfrage mit einem Portal-Passwort „Lesen + eigenes Equipment
+	 * bearbeiten" ({@see APP_ID_WRITE}) angemeldet? Die Rolle spielt keine Rolle.
+	 */
+	public static function write_scope_request( WP_User $user ): bool {
+		$uuid = rest_get_authenticated_app_password();
+		if ( null === $uuid || '' === (string) $uuid ) {
+			return false;
+		}
+		$item = WP_Application_Passwords::get_user_application_password( (int) $user->ID, (string) $uuid );
+		return is_array( $item ) && self::APP_ID_WRITE === (string) ( $item['app_id'] ?? '' );
+	}
+
+	/** Schreibrouten für Passwörter mit {@see APP_ID_WRITE} (Route kleingeschrieben). */
+	public static function write_route_allowed( string $method, string $route ): bool {
+		$base = '#^/' . preg_quote( Rest\BaseController::REST_NAMESPACE, '#' ) . '/me/items';
+		return ( 'POST' === $method && 1 === preg_match( $base . '$#', $route ) )
+			|| ( in_array( $method, [ 'PUT', 'PATCH' ], true ) && 1 === preg_match( $base . '/\d+$#', $route ) );
+	}
+
+	/** Zugriffsart eines App-Passworts für die Liste im Portal: read | inventory | full. */
+	public static function scope_of( WP_User $user, array $item ): string {
+		$app_id = (string) ( $item['app_id'] ?? '' );
+		if ( self::APP_ID_WRITE === $app_id ) {
+			return 'inventory';
+		}
+		return ( self::APP_ID === $app_id || self::is_restricted( $user ) ) ? 'read' : 'full';
 	}
 
 	/**
@@ -284,9 +349,11 @@ class MemberApi {
 	 * @return array<int,array{uuid:string,name:string,created:int,last_used:?int,last_ip:string}>
 	 */
 	public static function passwords( int $user_id ): array {
-		$out = [];
+		$out  = [];
+		$user = get_userdata( $user_id );
 		foreach ( WP_Application_Passwords::get_user_application_passwords( $user_id ) as $item ) {
 			$out[] = [
+				'scope'     => $user ? self::scope_of( $user, $item ) : 'read',
 				'uuid'      => (string) ( $item['uuid'] ?? '' ),
 				'name'      => (string) ( $item['name'] ?? '' ),
 				'created'   => (int) ( $item['created'] ?? 0 ),
@@ -305,7 +372,7 @@ class MemberApi {
 	 *
 	 * @return true|WP_Error
 	 */
-	public static function create_password( int $user_id, string $name ) {
+	public static function create_password( int $user_id, string $name, string $scope = 'read' ) {
 		$user = get_userdata( $user_id );
 		if ( ! $user ) {
 			return new WP_Error( 'pp_forbidden', 'forbidden' );
@@ -332,7 +399,8 @@ class MemberApi {
 		if ( WP_Application_Passwords::application_name_exists_for_user( $user_id, $name ) ) {
 			return new WP_Error( 'pp_api_name_taken', __( 'You already have an API password with this name. Please choose another name.', 'project-prepper' ) );
 		}
-		$created = WP_Application_Passwords::create_new_application_password( $user_id, [ 'name' => $name, 'app_id' => self::APP_ID ] );
+		$app_id  = self::SCOPES[ $scope ] ?? self::APP_ID; // Unbekannt = nur lesen.
+		$created = WP_Application_Passwords::create_new_application_password( $user_id, [ 'name' => $name, 'app_id' => $app_id ] );
 		if ( is_wp_error( $created ) ) {
 			return $created;
 		}
@@ -371,7 +439,7 @@ class MemberApi {
 		$restricted = self::is_restricted( $user );
 		$count      = 0;
 		foreach ( WP_Application_Passwords::get_user_application_passwords( $user_id ) as $item ) {
-			if ( $restricted || self::APP_ID === (string) ( $item['app_id'] ?? '' ) ) {
+			if ( $restricted || in_array( (string) ( $item['app_id'] ?? '' ), self::SCOPES, true ) ) {
 				if ( true === WP_Application_Passwords::delete_application_password( $user_id, (string) $item['uuid'] ) ) {
 					++$count;
 				}
@@ -440,7 +508,10 @@ class MemberApi {
 	 * @param array $item Neuer Eintrag (uuid, name, …) — ohne Klartext.
 	 */
 	public static function log_created( $user_id, $item ): void {
-		ActivityLog::log( 'api_password_created', 'user', (int) $user_id, [ 'name' => (string) ( $item['name'] ?? '' ) ] );
+		ActivityLog::log( 'api_password_created', 'user', (int) $user_id, [
+			'name'  => (string) ( $item['name'] ?? '' ),
+			'write' => self::APP_ID_WRITE === (string) ( $item['app_id'] ?? '' ),
+		] );
 	}
 
 	/**

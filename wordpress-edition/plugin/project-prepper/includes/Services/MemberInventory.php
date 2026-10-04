@@ -159,6 +159,10 @@ class MemberInventory {
 		}
 		$data = self::floor_quantity( $item_id, $data );
 		unset( $data['owner_user_id'], $data['image_id'], $data['document_ids'], $data['inventory_number'] );
+		$pp_owner = (int) ( Inventory::get_item( $item_id )->owner_user_id ?? 0 );
+		if ( isset( $data['category_id'] ) && ! self::category_allowed( $pp_owner, (int) $data['category_id'] ) ) {
+			return self::category_error();
+		}
 		$name = trim( (string) ( $data['name'] ?? '' ) );
 		if ( '' === $name ) {
 			return new WP_Error( 'pp_missing_name', __( 'Please enter a name for the item.', 'project-prepper' ), [ 'status' => 400 ] );
@@ -210,9 +214,34 @@ class MemberInventory {
 	 *
 	 * @return int|WP_Error Item-ID.
 	 */
+	/**
+	 * Darf diese Kategorie an einen Artikel von $owner_id? Ja für „keine" (0),
+	 * eine Vorlage des Betreibers (ohne Besitzer) und eigene Kategorien des
+	 * Artikel-Besitzers — nicht für die eines anderen Mitglieds (ACC-W-03: sonst
+	 * ließen sich fremde Kategorienamen über durchprobierte IDs auslesen).
+	 */
+	public static function category_allowed( int $owner_id, int $category_id ): bool {
+		global $wpdb;
+		if ( 0 === $category_id ) {
+			return true;
+		}
+		if ( $category_id < 0 ) {
+			return false;
+		}
+		$row = $wpdb->get_row( $wpdb->prepare( 'SELECT owner_user_id FROM %i WHERE id = %d', Schema::table( 'categories' ), $category_id ) );
+		return $row && ( null === $row->owner_user_id || (int) $row->owner_user_id === $owner_id );
+	}
+
+	private static function category_error(): WP_Error {
+		return new WP_Error( 'pp_bad_category', __( 'This category is not one of yours.', 'project-prepper' ), [ 'status' => 400 ] );
+	}
+
 	public static function create( int $user_id, array $data ) {
 		if ( ! $user_id || ! current_user_can( Capabilities::COLLECTIVES ) ) {
 			return new WP_Error( 'pp_forbidden', __( 'You are not allowed to add inventory.', 'project-prepper' ), [ 'status' => 403 ] );
+		}
+		if ( isset( $data['category_id'] ) && ! self::category_allowed( $user_id, (int) $data['category_id'] ) ) {
+			return self::category_error();
 		}
 		$name = trim( (string) ( $data['name'] ?? '' ) );
 		if ( '' === $name ) {
@@ -242,6 +271,9 @@ class MemberInventory {
 		}
 		// owner_user_id NICHT überschreibbar machen — bleibt beim Owner.
 		unset( $data['owner_user_id'] );
+		if ( isset( $data['category_id'] ) && ! self::category_allowed( $user_id, (int) $data['category_id'] ) ) {
+			return self::category_error();
+		}
 		$data = self::floor_quantity( $item_id, $data );
 		if ( ! Inventory::update_item( $item_id, $data, $expect ) && null !== $expect && '' !== $expect ) {
 			return self::stale_error();

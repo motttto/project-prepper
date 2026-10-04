@@ -135,11 +135,27 @@ class ItemsController extends BaseController {
 	 * Eingabe-Payload säubern (Whitelist + Typen).
 	 */
 	private function payload( WP_REST_Request $request ): array {
-		$json = $request->get_json_params() ?: [];
-		$data = $this->sanitize_text_fields( $json, [
+		return self::item_payload( $request->get_json_params() ?: [] );
+	}
+
+	/**
+	 * Artikel-Felder aus einem JSON-Body bereinigen — nur Schlüssel, die im Body
+	 * stehen (Teil-Updates). Gemeinsam für die Admin-Route und die Schreibrouten
+	 * der Mitglieder-API ({@see MeController}), die danach Eigentum, Bild und
+	 * Dokumente herausnimmt.
+	 */
+	public static function item_payload( array $json ): array {
+		// Arrays/Objekte in Text- und Zahlenfeldern fallen weg (sonst „Array" + PHP-Warnung).
+		$json = array_filter( $json, static fn( $v, $k ) => in_array( $k, [ 'tags', 'document_ids' ], true ) || null === $v || is_scalar( $v ), ARRAY_FILTER_USE_BOTH );
+		$data = [];
+		foreach ( [
 			'inventory_number', 'name', 'manufacturer', 'model', 'serial_number', 'condition', 'location', 'purchase_date', 'dimensions',
 			'ownership_type', 'funding_source', 'depreciation_method',
-		] );
+		] as $key ) {
+			if ( array_key_exists( $key, $json ) ) {
+				$data[ $key ] = sanitize_text_field( (string) $json[ $key ] );
+			}
+		}
 
 		foreach ( [ 'manufacturer_url', 'manual_url' ] as $key ) {
 			if ( array_key_exists( $key, $json ) ) {

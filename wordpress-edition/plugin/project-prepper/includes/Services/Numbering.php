@@ -31,11 +31,15 @@ class Numbering {
 			}
 		}
 
+		// Nur Endungen aus 1–9 Ziffern zählen (ACC-W-01): Eine einzelne überlange
+		// Nummer (z. B. „PP-99999999999999999999") ließe sonst MAX+1 überlaufen
+		// und blockierte das automatische Nummerieren unter dem Präfix für alle.
 		$like = $wpdb->esc_like( $prefix . '-' ) . '%';
 		$max  = (int) $wpdb->get_var( $wpdb->prepare(
 			"SELECT MAX(CAST(SUBSTRING_INDEX(inventory_number, '-', -1) AS UNSIGNED))
 			 FROM %i
-			 WHERE inventory_number LIKE %s",
+			 WHERE inventory_number LIKE %s
+			   AND SUBSTRING_INDEX(inventory_number, '-', -1) REGEXP '^[0-9]{1,9}$'",
 			Schema::table( 'items' ),
 			$like
 		) );
