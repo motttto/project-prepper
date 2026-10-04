@@ -3669,6 +3669,52 @@ label.pp-swatch--auto,
 }
 
 /* ==========================================================================
+   API-Zugang (v0.149.0, Mitglieder-API): App-Passwörter + Routen-Übersicht.
+   Baut auf .pp-card, .pp-dl und .pp-list auf; eigene Regeln nur für das
+   Passwort-Feld, die Kopierzeile und die Spalten der Passwort-Liste.
+   ========================================================================== */
+.pp-api__new { border-color: var(--pp-primary); }
+.pp-api__copy { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: .6rem 0; }
+.pp-api__secret {
+	flex: 1 1 260px;
+	min-width: 0;
+	font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: .85rem;
+	color: var(--pp-foreground);
+	background: var(--pp-muted);
+	border: 1px solid var(--pp-border);
+	border-radius: 8px;
+	padding: 7px 10px;
+}
+.pp-api__new .pp-api__secret { font-size: 1rem; letter-spacing: .02em; }
+.pp-api__create { max-width: none; flex-direction: row; flex-wrap: wrap; align-items: flex-end; gap: .5rem .75rem; padding: 0; border: 0; background: none; }
+.pp-api__create label { flex: 1 1 240px; min-width: 0; }
+.pp-api__when { flex: 0 0 9.5rem; color: var(--pp-muted-foreground); }
+.pp-api__action { flex: 0 0 6.5rem; text-align: right; }
+.pp-api__action form { margin: 0; }
+.pp-api__list .pp-list__row { align-items: center; }
+.pp-api__routes { margin: .75rem 0; }
+.pp-api__routes dt { white-space: nowrap; }
+.pp-api__routes dd { overflow-wrap: anywhere; }
+.pp-api__example {
+	margin: .3rem 0 .6rem;
+	padding: 8px 10px;
+	background: var(--pp-muted);
+	border: 1px solid var(--pp-border);
+	border-radius: 8px;
+	font-size: .8rem;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}
+@media (max-width: 640px) {
+	.pp-api__routes { grid-template-columns: 1fr; }
+	.pp-api__routes dd { margin-bottom: .4rem; }
+	.pp-api__when { flex-basis: auto; }
+	.pp-api__when::before { content: attr(data-label); margin-right: .3rem; }
+	.pp-api__action { flex-basis: 100%; text-align: left; }
+}
+
+/* ==========================================================================
    Scrollbars (Skill /wp-css): erst vermeiden, und wo sie bleiben müssen,
    unauffällig. Bewusst am DATEIENDE, damit die Regeln alles davor überstimmen.
    1. Native Flächen (Scrollbalken, Datumswähler, Selects) folgen dem Theme —

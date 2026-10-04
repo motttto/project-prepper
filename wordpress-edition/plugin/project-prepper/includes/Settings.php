@@ -137,6 +137,9 @@ class Settings {
 			'polls'     => true,
 			'network'   => true,
 			'howto'     => true,
+			// Mitglieder-API (v0.149.0): eigenes Equipment + eigene Verleihe per
+			// App-Passwort lesen ({@see MemberApi}). Standard an.
+			'api'       => true,
 		];
 	}
 
@@ -152,6 +155,7 @@ class Settings {
 			'polls'     => __( 'Polls', 'project-prepper' ),
 			'network'   => __( 'Network (federation)', 'project-prepper' ),
 			'howto'     => __( 'How the platform works', 'project-prepper' ),
+			'api'       => __( 'Allow member API (read-only access to own equipment and rentals with an API password)', 'project-prepper' ),
 		];
 	}
 

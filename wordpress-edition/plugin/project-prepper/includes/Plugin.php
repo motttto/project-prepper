@@ -33,6 +33,7 @@ class Plugin {
 		Services\ConsumableStock::init();
 		Privacy::init();
 		Security::init();
+		MemberApi::init();
 		Federation::init();
 		Updater::init();
 		Users::init();
@@ -76,5 +77,6 @@ class Plugin {
 		( new Rest\EmailTemplatesController() )->register_routes();
 		( new Rest\InstanceController() )->register_routes();
 		( new Rest\PresenceController() )->register_routes();
+		( new Rest\MeController() )->register_routes();
 	}
 }

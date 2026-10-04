@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.148.0
+Stable tag: 0.149.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,15 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.149.0 =
+* Member API: every member can now read their own equipment and their own rentals through the REST API — read only, for their own tools such as a personal dashboard. New routes GET /me, /me/items, /me/rentals and /me/rentals/{id} under /wp-json/project-prepper/v1, with the same fields as the operator routes. Someone else's rental answers "not found".
+* "API access" in the portal (button in the "My profile" tile): create an API password with a name, copy it — it is shown only once —, see when it was last used and revoke it. Up to 10 per member. The page also shows the API address, the routes and an example.
+* Safety: an API password created in the portal can only read /me… (and /wp/v2/users/me) — for members, managers and admins alike. It cannot change anything, not even the own profile. Members manage API passwords only in the portal. Wrong API passwords count towards the login lock-out per IP address (the API then says so), requests are limited per member and minute (Security → Member API, default 300), and creating or revoking an API password appears in the activity log.
+* Operators: new switch "Allow member API" under Settings → Features (on by default). Switched off, the routes answer 403, no new API passwords can be created and existing member API passwords stop working; members can still see and revoke theirs. API passwords that admins and managers create in wp-admin and the operator routes are unchanged.
+* Privacy: "Download my data (JSON)" lists your API passwords (name, created, last used, last IP address — never the password). Deactivating or uninstalling the plugin revokes all read-only API passwords.
+* Fix: a blocked request inside a REST batch request no longer ends in a server error (also for the media guard).
+* Note: API passwords need HTTPS. This update does not change the database (schema stays 0.46.0).
 
 = 0.148.0 =
 * Offers and invoices from a rental: the rental card has a new section "Offers & invoices" for the person who created the rental. You can prepare several offers and invoices per rental, and "Turn into invoice" starts an invoice from an offer with its lines, texts, discount and VAT.

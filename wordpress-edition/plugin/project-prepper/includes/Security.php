@@ -33,6 +33,9 @@ class Security {
 			'allow_self_registration' => false,
 			// Zwei-Faktor für Mitglieder — vorbereitet, Aktivierung folgt in eigenem Lauf.
 			'member_2fa'              => false,
+			// Mitglieder-API (v0.149.0): Anfragen je Nutzer und Minute auf /me… (0 = unbegrenzt).
+			// Großzügig, weil ein Dashboard je Verleih einzeln nachlädt; bremst nur Ausreißer.
+			'api_rate_limit'          => 300,
 		];
 	}
 
@@ -59,6 +62,10 @@ class Security {
 			add_filter( 'authenticate', [ self::class, 'block_if_locked' ], 30, 1 );
 			add_action( 'wp_login_failed', [ self::class, 'record_failed_login' ], 10, 1 );
 			add_action( 'wp_login', [ self::class, 'clear_failed_login' ], 10, 1 );
+			// App-Passwörter (Mitglieder-API, Basic Auth) laufen an `authenticate`
+			// vorbei — ohne diese zwei Haken wären sie von der Sperre ausgenommen.
+			add_action( 'application_password_failed_authentication', [ self::class, 'record_failed_app_password' ], 10, 1 );
+			add_filter( 'wp_authenticate_application_password_errors', [ self::class, 'block_app_password_if_locked' ], 10, 1 );
 		}
 		// Selbst-Registrierung (nur wenn aktiviert) — sonst bleibt es invite-only.
 		if ( self::on( 'allow_self_registration' ) ) {
@@ -86,8 +93,10 @@ class Security {
 	 */
 	public static function guard_media_rest( $result, $server, $request ) {
 		$route = (string) $request->get_route();
-		if ( 0 === strpos( $route, '/wp/v2/media' ) && ! current_user_can( 'upload_files' ) ) {
-			return new \WP_Error( 'rest_forbidden', __( 'Sorry, you are not allowed to do that.', 'project-prepper' ), [ 'status' => rest_authorization_required_code() ] );
+		// Groß-/Kleinschreibung egal wie im Core-Routing; Antwort als Response, sonst
+		// Fatal bei /batch/v1 (Audit ACC-API-05, gleiches Muster wie MemberApi::guard_rest).
+		if ( 0 === strpos( strtolower( $route ), '/wp/v2/media' ) && ! current_user_can( 'upload_files' ) ) {
+			return rest_convert_error_to_response( new \WP_Error( 'rest_forbidden', __( 'Sorry, you are not allowed to do that.', 'project-prepper' ), [ 'status' => rest_authorization_required_code() ] ) );
 		}
 		return $result;
 	}
@@ -124,6 +133,49 @@ class Security {
 		return $user;
 	}
 
+	/**
+	 * Gesperrte IP: auch ein RICHTIGES App-Passwort wird abgewiesen — wie beim
+	 * Login-Formular ({@see block_if_locked}), sonst ließe sich die Sperre über
+	 * die API umgehen.
+	 *
+	 * @param \WP_Error $errors
+	 * @return \WP_Error
+	 */
+	public static function block_app_password_if_locked( $errors ) {
+		$max = self::int( 'login_max_attempts' );
+		if ( $max > 0 && (int) get_transient( self::ip_key() ) >= $max && $errors instanceof \WP_Error ) {
+			$errors->add(
+				'pp_locked',
+				sprintf(
+					/* translators: %d: minutes until the next login attempt is allowed. */
+					__( 'Too many failed attempts. Please try again in about %d minutes.', 'project-prepper' ),
+					self::int( 'login_lockout_minutes' )
+				)
+			);
+		}
+		return $errors;
+	}
+
+	/**
+	 * Nur echte Fehlversuche zählen (falscher Name, falsches Passwort). Eine
+	 * Abweisung, weil die Mitglieder-API aus ist oder die IP schon gesperrt ist,
+	 * zählt nicht — ein Dashboard, das weiter abfragt, verlängerte sonst die
+	 * Sperre endlos und sperrte damit auch den Portal-Login derselben IP.
+	 *
+	 * @param \WP_Error $error
+	 */
+	public static function record_failed_app_password( $error ): void {
+		if ( $error instanceof \WP_Error && in_array( $error->get_error_code(), [ 'incorrect_password', 'invalid_username', 'invalid_email' ], true ) ) {
+			self::record_failed_login();
+		}
+	}
+
+	/** Ist die aktuelle IP gerade gesperrt? (Für verständliche API-Fehler.) */
+	public static function is_locked(): bool {
+		$max = self::int( 'login_max_attempts' );
+		return self::on( 'login_throttle' ) && $max > 0 && (int) get_transient( self::ip_key() ) >= $max;
+	}
+
 	public static function record_failed_login(): void {
 		$key      = self::ip_key();
 		$attempts = (int) get_transient( $key ) + 1;
@@ -152,6 +204,7 @@ class Security {
 			'invites_per_day'         => max( 0, (int) ( $in['invites_per_day'] ?? 0 ) ),
 			'allow_self_registration' => ! empty( $in['allow_self_registration'] ),
 			'member_2fa'              => ! empty( $in['member_2fa'] ),
+			'api_rate_limit'          => max( 0, (int) ( $in['api_rate_limit'] ?? self::defaults()['api_rate_limit'] ) ),
 		];
 		update_option( self::OPTION, $data );
 		return self::all();

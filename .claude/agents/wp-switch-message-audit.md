@@ -13,7 +13,10 @@ nichtssagendes „Fehler" ankommt.
 
 Quelle: `includes/Settings.php` (Feature-Schalter `pp_features`, Verleih-Sichtbarkeit, Zeitstatus,
 Rüstzeiten, Modal-Breite) plus verstreute Optionen (`pp_public_show_rates`, Mail/SMTP, Sicherheit,
-Föderation, Telegram). Je Schalter eine Zeile, je Wirkungsort eine Spalte:
+Föderation, Telegram). Der Schalter `api` (Mitglieder-API, docs/08) wirkt zusätzlich auf die
+REST-Routen `/me…` (403 `pp_member_api_off`) und auf die App-Passwörter reiner Mitglieder
+(`wp_is_application_passwords_available_for_user`); `/me/items` folgt `inventory`, `/me/rentals…`
+`lending`. Je Schalter eine Zeile, je Wirkungsort eine Spalte:
 
 | Wirkungsort | Prüfung |
 |-------------|---------|

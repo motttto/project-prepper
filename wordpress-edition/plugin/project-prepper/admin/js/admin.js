@@ -1644,6 +1644,9 @@
 			inventory_imported: __("imported inventory", "project-prepper"),
 			inventory_exported: __("exported inventory", "project-prepper"),
 			gdpr_erasure: __("ran a GDPR erasure", "project-prepper"),
+			api_password_created: __("created an API password", "project-prepper"),
+			api_password_revoked: __("revoked an API password", "project-prepper"),
+			api_rate_limited: __("hit the member API request limit", "project-prepper"),
 			fed_borrow_received: __("received a network request", "project-prepper"),
 			fed_borrow_decided: __("decided a network request", "project-prepper"),
 			fed_borrow_returned: __("marked a network loan returned", "project-prepper"),
@@ -1818,6 +1821,7 @@
 			var invitesPerDay = num(s.invites_per_day, 0);
 			var selfReg = check(s.allow_self_registration);
 			var member2fa = check(s.member_2fa);
+			var apiRate = num(s.api_rate_limit, 0);
 
 			root.appendChild(el("div", { class: "pp-card" }, [
 				el("h2", { text: __("Member login & sign-up", "project-prepper") }),
@@ -1840,6 +1844,18 @@
 				el("div", { class: "pp-muted", style: "margin-top:6px", text: __("0 = unlimited. Invitations counted per member over a rolling 24 hours.", "project-prepper") })
 			]));
 
+			root.appendChild(el("div", { class: "pp-card" }, [
+				el("h2", { text: __("Member API", "project-prepper") }),
+				el("div", { class: "pp-row", style: "gap:18px" }, [
+					field(__("Requests per minute and member", "project-prepper"), apiRate)
+				]),
+				el("div", { class: "pp-muted", style: "margin-top:6px" }, [
+					document.createTextNode(__("0 = unlimited. Applies to the read-only /me routes members use with their API passwords. Wrong API passwords count towards the login lock-out above. Switch the member API on or off under", "project-prepper") + " "),
+					el("a", { class: "pp-link", href: "admin.php?page=pp-settings", text: __("Settings → Features", "project-prepper") }),
+					document.createTextNode(".")
+				])
+			]));
+
 			var saveBtn = el("button", {
 				class: "pp-btn pp-btn-primary", text: __("Save security settings", "project-prepper"),
 				onclick: function () {
@@ -1852,7 +1868,8 @@
 							groups_per_user: parseInt(groupsPerUser.value, 10) || 0,
 							invites_per_day: parseInt(invitesPerDay.value, 10) || 0,
 							allow_self_registration: selfReg.checked,
-							member_2fa: member2fa.checked
+							member_2fa: member2fa.checked,
+							api_rate_limit: parseInt(apiRate.value, 10) || 0
 						})
 					}).then(function () { toast(__("Security settings saved.", "project-prepper")); }).catch(function (e) { toast(e.message, "error"); });
 				}

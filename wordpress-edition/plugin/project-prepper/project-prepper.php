@@ -3,7 +3,7 @@
  * Plugin Name:       Project Prepper
  * Plugin URI:        https://github.com/motttto/project-prepper
  * Description:       Equipment inventory, projects & rentals for teams — categories with number ranges, unit tracking, availability checks and rental management.
- * Version:           0.148.0
+ * Version:           0.149.0
  * Requires at least: 6.4
  * Requires PHP:      8.0
  * Author:            motttto
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PP_VERSION', '0.148.0' );
+define( 'PP_VERSION', '0.149.0' );
 define( 'PP_PLUGIN_FILE', __FILE__ );
 define( 'PP_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'PP_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -44,6 +44,9 @@ register_deactivation_hook( __FILE__, function () {
 	// Daten und Rollen bleiben erhalten — Aufräumen passiert erst in uninstall.php.
 	// Nur der eigene .htaccess-Regel-Block wird geleert.
 	\ProjectPrepper\Performance::remove();
+	// Mitglieder-API: Ohne Plugin fehlt die Nur-Lese-Grenze — Passwörter, die nur
+	// lesen durften, werden widerrufen (Updates deaktivieren still, ohne diesen Haken).
+	\ProjectPrepper\MemberApi::revoke_all_unguarded();
 } );
 
 add_action( 'plugins_loaded', function () {

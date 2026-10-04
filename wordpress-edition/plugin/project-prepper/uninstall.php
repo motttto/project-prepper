@@ -10,6 +10,13 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 require_once __DIR__ . '/includes/Schema.php';
 require_once __DIR__ . '/includes/Capabilities.php';
+require_once __DIR__ . '/includes/MemberApi.php';
+
+// Mitglieder-API: Passwörter, die nur lesen durften, widerrufen — ohne das Plugin
+// fehlt ihre Nur-Lese-Grenze (MemberApi::guard_rest), sie könnten dann das Profil
+// ändern. Alle Nutzer ohne Backend-Recht (auch Abonnenten) plus alle im Portal
+// angelegten. Immer, nicht nur mit Datenlöschung, und VOR dem Entfernen der Rollen.
+\ProjectPrepper\MemberApi::revoke_all_unguarded();
 
 \ProjectPrepper\Capabilities::uninstall();
 

@@ -29,6 +29,12 @@ Bericht nicht ins Repo), Setup, Testgerüst und Befund-Format gelten verbindlich
    Jedes `__return_true` begründen. Betreiber-Routen brauchen `Capabilities::OPERATE`; Routen für
    Mitglieder müssen mandanten-gescoped sein (History: Cross-Tenant-Read auf /items /rentals /inquiries,
    IDOR, Media-BOLA — prüfen, dass das zu bleibt).
+   **Mitglieder-API** (`Rest/MeController.php`, `MemberApi.php`, docs/08): `/me…` liefert NUR
+   `owner_user_id` = angemeldeter Nutzer, fremder Verleih per ID = 404. Ein Mitglied mit
+   App-Passwort darf nur GET auf `/project-prepper/v1/me…` + `/wp/v2/users/me` (`guard_rest`) —
+   Umgehungen probieren (Groß-/Kleinschreibung, `?rest_route=`, `_method`, `/batch/v1`, `_embed`).
+   Erst den Regressionstest laufen lassen (`tools/audit/member-api-isolation.php`, siehe
+   `/wp-audit`), dann gezielt nach dem suchen, was er nicht abdeckt.
 4. **Öffentliche Ausgabe** — Shortcodes, `/equipment-item/{nr}`, iCal-Feed (`calendar.ics?token=`),
    Föderations-Endpunkte: nur Whitelist-Felder (nie Kaufpreis, Seriennummer, Leiher-Daten, E-Mails),
    Token nicht erratbar, Feed zeigt nur, was der Token-Inhaber sehen darf.

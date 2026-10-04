@@ -83,6 +83,18 @@ Gruppe 23 ist (`Groups::user_groups()` prüfen).
 | `pp_audit_track( 'rentals', $id )` | selbst angelegtes Objekt vormerken (`items`/`rentals`/`projects`/`inquiries`/`item_field_defs`/`attachments`) |
 | `pp_audit_cleanup()` | alles mit `ZZ-AUDIT` entfernen (abhängige Zeilen generisch über `item_id`/`part_item_id`/`bundle_item_id`/`rental_id`/`project_id`/`inquiry_id`/`field_id`) |
 
+**Fertige Regressionstests** (eigenständig, legen eigene Wegwerf-Nutzer an und räumen auf — brauchen
+keine Bestandsnutzer; Ausgabe PASS/FAIL, Exit-Code 1 bei Fehler):
+
+| Skript | Prüft |
+|--------|-------|
+| `tools/audit/member-api-isolation.php` | Mitglieder-API (`/me…`, docs/08): Mandanten-Trennung A/B/Außenstehender, 404 für fremde Verleihe, Nur-Lese-Grenze für App-Passwörter (auch per echter HTTP-Basic-Auth), Schalter, Drosselung, Login-Sperre, Portal-Aktionen |
+
+```bash
+docker cp wordpress-edition/tools/audit/member-api-isolation.php "$CLI":/tmp/api-isolation.php
+( cd wordpress-edition/plugin/project-prepper && npx @wordpress/env run cli wp eval-file /tmp/api-isolation.php )
+```
+
 ⚠️ **Was du selbst anlegst, sofort `pp_audit_track()`n** — sonst findet das Aufräumen es nicht mehr,
 sobald der Test es über den Plugin-Weg gelöscht hat, und seine Kindzeilen bleiben liegen (genau so
 blieben im ersten Großlauf Leih-Anfragen, Föderations- und Team-Zeilen zurück). `pp_audit_item()`

@@ -9615,3 +9615,219 @@ msgstr "Die Rechnungsnummer „%s“ wird bereits von einer anderen Rechnung ver
 #: includes/Services/RentalDocuments.php:281
 msgid "The document could not be saved."
 msgstr "Das Dokument konnte nicht gespeichert werden."
+
+#: includes/Frontend/MemberPortal.php:1821
+msgid "API password created."
+msgstr "API-Passwort erstellt."
+
+#: includes/Frontend/MemberPortal.php:1822
+msgid "API password revoked. Programs using it can no longer sign in."
+msgstr "API-Passwort widerrufen. Programme, die es nutzen, können sich nicht mehr anmelden."
+
+#: includes/Frontend/MemberPortal.php:3284
+#: includes/Frontend/MemberPortal.php:3336
+msgid "API access"
+msgstr "API-Zugang"
+
+#: includes/Frontend/MemberPortal.php:3337
+msgid "Let your own programs — for example a personal dashboard — read your equipment and your rentals."
+msgstr "Lass eigene Programme – zum Beispiel ein persönliches Dashboard – dein Equipment und deine Verleihe lesen."
+
+#: includes/Frontend/MemberPortal.php:3342
+msgid "Your new API password"
+msgstr "Dein neues API-Passwort"
+
+#: includes/Frontend/MemberPortal.php:3343
+msgid "Copy it now — it is shown only this once."
+msgstr "Kopiere es jetzt – es wird nur dieses eine Mal angezeigt."
+
+#: includes/Frontend/MemberPortal.php:3343
+msgid "If you lose it, revoke it below and create a new one."
+msgstr "Geht es verloren, widerrufe es unten und lege ein neues an."
+
+#: includes/Frontend/MemberPortal.php:3352
+msgid "API password"
+msgstr "API-Passwort"
+
+#: includes/Frontend/MemberPortal.php:3363
+msgid "Create an API password"
+msgstr "API-Passwort anlegen"
+
+#: includes/Frontend/MemberPortal.php:3364
+msgid "Read only: an API password can read your own equipment and the rentals you created — nothing else, and it cannot change anything. Create a separate password for each program, so you can revoke one without touching the others. Never enter your login password in another program."
+msgstr "Nur lesen: Ein API-Passwort kann dein eigenes Equipment und die Verleihe lesen, die du angelegt hast – sonst nichts, und es kann nichts ändern. Lege für jedes Programm ein eigenes Passwort an, dann kannst du eins widerrufen, ohne die anderen anzufassen. Gib dein Login-Passwort nie in einem anderen Programm ein."
+
+#. translators: %d: maximum number of API passwords per member.
+#: includes/Frontend/MemberPortal.php:3371
+msgid "You have reached the maximum of %d API passwords. Revoke one you no longer need to create a new one."
+msgstr "Du hast die Höchstzahl von %d API-Passwörtern erreicht. Widerrufe eins, das du nicht mehr brauchst, um ein neues anzulegen."
+
+#: includes/Frontend/MemberPortal.php:3379
+msgid "e.g. My dashboard"
+msgstr "z. B. Mein Dashboard"
+
+#: includes/Frontend/MemberPortal.php:3381
+msgid "Create API password"
+msgstr "API-Passwort anlegen"
+
+#: includes/Frontend/MemberPortal.php:3387
+msgid "Your API passwords"
+msgstr "Deine API-Passwörter"
+
+#: includes/Frontend/MemberPortal.php:3389
+msgid "No API passwords yet."
+msgstr "Noch keine API-Passwörter."
+
+#: includes/Frontend/MemberPortal.php:3394
+#: includes/Frontend/MemberPortal.php:3401
+msgid "Created"
+msgstr "Angelegt"
+
+#: includes/Frontend/MemberPortal.php:3395
+#: includes/Frontend/MemberPortal.php:3402
+msgid "Last used"
+msgstr "Zuletzt genutzt"
+
+#: includes/Frontend/MemberPortal.php:3407
+msgid "never"
+msgstr "nie"
+
+#: includes/Frontend/MemberPortal.php:3413
+msgid "Revoke this API password? Programs using it can no longer sign in."
+msgstr "Dieses API-Passwort widerrufen? Programme, die es nutzen, können sich dann nicht mehr anmelden."
+
+#: includes/Frontend/MemberPortal.php:3416
+msgid "Revoke"
+msgstr "Widerrufen"
+
+#: includes/Frontend/MemberPortal.php:3422
+msgid "“Last used” is updated at most once a day."
+msgstr "„Zuletzt genutzt“ wird höchstens einmal am Tag aktualisiert."
+
+#: includes/Frontend/MemberPortal.php:3427
+msgid "How to connect"
+msgstr "So verbindest du ein Programm"
+
+#: includes/Frontend/MemberPortal.php:3428
+msgid "Your program signs in with HTTP Basic authentication: username = your login name, password = the API password. All addresses start with:"
+msgstr "Dein Programm meldet sich per HTTP-Basic-Authentifizierung an: Benutzername = dein Login-Name, Passwort = das API-Passwort. Alle Adressen beginnen mit:"
+
+#: includes/Frontend/MemberPortal.php:3431
+msgid "API address"
+msgstr "API-Adresse"
+
+#: includes/Frontend/MemberPortal.php:3438
+msgid "Who you are: ID, name, roles and your collectives."
+msgstr "Wer du bist: ID, Name, Rollen und deine Kollektive."
+
+#: includes/Frontend/MemberPortal.php:3441
+msgid "Your own equipment with the same fields as in the inventory (number, name, category, quantity, condition, prices, photo, currently out). Optional: ?search=, ?category_id=, ?out_only=1"
+msgstr "Dein eigenes Equipment mit denselben Feldern wie im Inventar (Nummer, Name, Kategorie, Menge, Zustand, Preise, Foto, gerade unterwegs). Optional: ?search=, ?category_id=, ?out_only=1"
+
+#: includes/Frontend/MemberPortal.php:3443
+#: includes/Frontend/MemberPortal.php:3450
+msgid "(switched off on this site)"
+msgstr "(auf dieser Website abgeschaltet)"
+
+#: includes/Frontend/MemberPortal.php:3448
+msgid "The rentals you created — also those you created for a collective — with the number of items. Optional: ?status=reserved, active, returned or cancelled"
+msgstr "Die Verleihe, die du angelegt hast – auch die für ein Kollektiv –, mit der Zahl der Positionen. Optional: ?status=reserved, active, returned oder cancelled"
+
+#: includes/Frontend/MemberPortal.php:3454
+msgid "One of your rentals with all lines and the billing (days, line totals, subtotal, discount, net, VAT, total, deposit). Someone else’s rental answers “not found”."
+msgstr "Einer deiner Verleihe mit allen Positionen und der Abrechnung (Tage, Zeilensummen, Zwischensumme, Rabatt, netto, USt, Gesamt, Kaution). Ein fremder Verleih antwortet mit „nicht gefunden“."
+
+#: includes/Frontend/MemberPortal.php:3456
+msgid "Example:"
+msgstr "Beispiel:"
+
+#. translators: %d: allowed API requests per minute.
+#: includes/Frontend/MemberPortal.php:3462
+msgid "Limits: up to %d requests per minute."
+msgstr "Grenzen: bis zu %d Anfragen pro Minute."
+
+#: includes/Frontend/MemberPortal.php:3464
+msgid "Repeated wrong passwords lock your internet address for a while — for the API and for signing in here."
+msgstr "Mehrfach falsche Passwörter sperren deine Internetadresse für eine Weile – für die API und für die Anmeldung hier."
+
+#: includes/MemberApi.php:131
+msgid "Manage your API passwords in the member portal under “API access”."
+msgstr "Verwalte deine API-Passwörter im Mitgliederportal unter „API-Zugang“."
+
+#: includes/MemberApi.php:144
+msgid "This API password can only read your own equipment and rentals (GET /project-prepper/v1/me …)."
+msgstr "Dieses API-Passwort kann nur dein eigenes Equipment und deine eigenen Verleihe lesen (GET /project-prepper/v1/me …)."
+
+#: includes/MemberApi.php:205
+#: includes/Rest/MeController.php:83
+msgid "The member API is switched off on this site."
+msgstr "Die Mitglieder-API ist auf dieser Website abgeschaltet."
+
+#: includes/MemberApi.php:208
+msgid "API passwords need an encrypted connection (HTTPS). Please ask the operators to switch this site to HTTPS."
+msgstr "API-Passwörter brauchen eine verschlüsselte Verbindung (HTTPS). Bitte die Betreiber, die Website auf HTTPS umzustellen."
+
+#: includes/MemberApi.php:211
+msgid "API passwords are switched off on this site. Please ask the operators."
+msgstr "API-Passwörter sind auf dieser Website abgeschaltet. Bitte wende dich an die Betreiber."
+
+#: includes/MemberApi.php:254
+msgid "Please give the API password a name, e.g. the program that will use it."
+msgstr "Bitte gib dem API-Passwort einen Namen, z. B. den des Programms, das es nutzen soll."
+
+#. translators: %d: maximum number of API passwords per member.
+#: includes/MemberApi.php:262
+msgid "You already have %d API passwords. Please revoke one you no longer need first."
+msgstr "Du hast schon %d API-Passwörter. Bitte widerrufe zuerst eins, das du nicht mehr brauchst."
+
+#: includes/MemberApi.php:268
+msgid "You already have an API password with this name. Please choose another name."
+msgstr "Du hast schon ein API-Passwort mit diesem Namen. Bitte wähle einen anderen Namen."
+
+#: includes/Rest/MeController.php:75
+msgid "Please sign in with your username and an API password from the member portal (“API access”)."
+msgstr "Bitte melde dich mit deinem Benutzernamen und einem API-Passwort aus dem Mitgliederportal an („API-Zugang“)."
+
+#: includes/Rest/MeController.php:95
+msgid "Too many requests. Please wait a minute and try again."
+msgstr "Zu viele Anfragen. Bitte warte eine Minute und versuche es dann erneut."
+
+#: includes/Settings.php:158
+msgid "Allow member API (read-only access to own equipment and rentals with an API password)"
+msgstr "Mitglieder-API erlauben (Lesezugriff auf eigenes Equipment und eigene Verleihe per API-Passwort)"
+
+#: admin/js/admin.js:1647
+msgid "created an API password"
+msgstr "hat ein API-Passwort angelegt"
+
+#: admin/js/admin.js:1648
+msgid "revoked an API password"
+msgstr "hat ein API-Passwort widerrufen"
+
+#: admin/js/admin.js:1649
+msgid "hit the member API request limit"
+msgstr "hat das Anfrage-Limit der Mitglieder-API erreicht"
+
+#: admin/js/admin.js:1848
+msgid "Member API"
+msgstr "Mitglieder-API"
+
+#: admin/js/admin.js:1850
+msgid "Requests per minute and member"
+msgstr "Anfragen pro Minute und Mitglied"
+
+#: admin/js/admin.js:1853
+msgid "0 = unlimited. Applies to the read-only /me routes members use with their API passwords. Wrong API passwords count towards the login lock-out above. Switch the member API on or off under"
+msgstr "0 = unbegrenzt. Gilt für die lesenden /me-Routen, die Mitglieder mit ihren API-Passwörtern nutzen. Falsche API-Passwörter zählen zur Login-Sperre oben. Die Mitglieder-API selbst schaltest du ein oder aus unter"
+
+#: admin/js/admin.js:1854
+msgid "Settings → Features"
+msgstr "Einstellungen → Funktionen"
+
+#: includes/MemberApi.php:265
+msgid "Your account has no access to the member API."
+msgstr "Dein Konto hat keinen Zugang zur Mitglieder-API."
+
+#: includes/MemberApi.php:270
+msgid "API passwords cannot be created while viewing the portal as another member."
+msgstr "Während du das Portal als ein anderes Mitglied ansiehst, lassen sich keine API-Passwörter anlegen."

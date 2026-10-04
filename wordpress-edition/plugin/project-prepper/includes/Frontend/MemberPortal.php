@@ -44,6 +44,7 @@ use ProjectPrepper\Services\Presence;
 use ProjectPrepper\Rest\CalendarController;
 use ProjectPrepper\CalDav\Server as CalDavServer;
 use ProjectPrepper\Federation;
+use ProjectPrepper\MemberApi;
 use WP_User;
 
 defined( 'ABSPATH' ) || exit;
@@ -510,6 +511,11 @@ class MemberPortal {
 		if ( in_array( $do, [ 'project_create', 'project_delete' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'projects', self::portal_url() );
 		}
+		// API-Zugang: Anlegen/Widerrufen bleibt auf der API-Seite — dort steht das
+		// neue Passwort genau einmal.
+		if ( in_array( $do, [ 'api_password_create', 'api_password_revoke' ], true ) ) {
+			$back = add_query_arg( 'pp_view', 'api', self::portal_url() );
+		}
 		// Freigabe-Entscheidungen kehren zur Freigaben-Ansicht zurück.
 		if ( in_array( $do, [ 'booking_approve', 'booking_reject', 'booking_decide_bulk', 'rental_decide_bulk' ], true ) ) {
 			$back = add_query_arg( 'pp_view', 'approvals', self::portal_url() );
@@ -640,6 +646,16 @@ class MemberPortal {
 					}
 				}
 				$ok_msg = 'profile_saved';
+				break;
+			case 'api_password_create':
+				// Klartext geht NICHT über die URL: MemberApi legt es verschlüsselt
+				// für genau eine Anzeige ab (view_api holt es ab und löscht es).
+				$result = MemberApi::create_password( get_current_user_id(), sanitize_text_field( wp_unslash( (string) ( $_POST['pp_name'] ?? '' ) ) ) );
+				$ok_msg = 'api_pw_created';
+				break;
+			case 'api_password_revoke':
+				$result = MemberApi::revoke_password( get_current_user_id(), sanitize_text_field( wp_unslash( (string) ( $_POST['pp_uuid'] ?? '' ) ) ) );
+				$ok_msg = 'api_pw_revoked';
 				break;
 			case 'item_create':
 				// Anlegen in EINEM Schritt: Stammdaten + optionales Foto + Set-Inhalt
@@ -1802,6 +1818,8 @@ class MemberPortal {
 			'photo_removed'    => [ 'ok', __( 'Photo removed.', 'project-prepper' ) ],
 			'photo_failed'     => [ 'err', __( 'The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file.', 'project-prepper' ) ],
 			'profile_saved'    => [ 'ok', __( 'Profile updated.', 'project-prepper' ) ],
+			'api_pw_created'   => [ 'ok', __( 'API password created.', 'project-prepper' ) ],
+			'api_pw_revoked'   => [ 'ok', __( 'API password revoked. Programs using it can no longer sign in.', 'project-prepper' ) ],
 			'avatar_saved'     => [ 'ok', __( 'Profile photo saved.', 'project-prepper' ) ],
 			'avatar_removed'   => [ 'ok', __( 'Profile photo removed.', 'project-prepper' ) ],
 			'avatar_failed'    => [ 'err', __( 'The image could not be uploaded. Please use a JPG, PNG, GIF or WebP file.', 'project-prepper' ) ],
@@ -2469,6 +2487,9 @@ class MemberPortal {
 							case 'howto':
 								self::view_howto();
 								break;
+							case 'api':
+								self::view_api( $user );
+								break;
 							default:
 								self::view_dashboard( $user, $groups );
 						}
@@ -2533,12 +2554,17 @@ class MemberPortal {
 	private static function current_view(): string {
 		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- reine Navigation
 		$view    = isset( $_GET['pp_view'] ) ? sanitize_key( wp_unslash( $_GET['pp_view'] ) ) : 'dashboard';
-		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'inquiries', 'calendar', 'costs', 'polls', 'network', 'collectives', 'approvals', 'howto' ];
+		$allowed = [ 'dashboard', 'inventory', 'lending', 'projects', 'inquiries', 'calendar', 'costs', 'polls', 'network', 'collectives', 'approvals', 'howto', 'api' ];
 		if ( ! in_array( $view, $allowed, true ) ) {
 			return 'dashboard';
 		}
 		// Abgeschalteter Bereich (Betreiber-Schalter): per URL nicht erreichbar,
 		// still zurück aufs Dashboard — das Menü zeigt ihn ohnehin nicht.
+		// Ausnahme API-Zugang: Wer noch Passwörter hat, soll sie auch bei
+		// abgeschalteter API sehen und widerrufen können (Audit ACC-API-06).
+		if ( 'api' === $view && ! self::view_feature_on( $view ) ) {
+			return MemberApi::passwords( get_current_user_id() ) ? 'api' : 'dashboard';
+		}
 		return self::view_feature_on( $view ) ? $view : 'dashboard';
 	}
 
@@ -2577,6 +2603,8 @@ class MemberPortal {
 			'calendar'  => [ 'event_', 'calgroup_', 'ical_' ],
 			'polls'     => [ 'gpoll_' ],
 			'network'   => [ 'fed_', 'fedborrow_' ],
+			// Nur das ANLEGEN hängt am Schalter — widerrufen geht immer (ACC-API-06).
+			'api'       => [ 'api_password_create' ],
 		];
 		foreach ( $prefixes as $feature => $list ) {
 			foreach ( $list as $prefix ) {
@@ -3258,6 +3286,9 @@ class MemberPortal {
 						</details>
 						<?php // Konto & Daten gehört zum Profil — vorher ein eigener Abschnitt unter den Spalten. ?>
 						<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( wp_nonce_url( admin_url( 'admin-post.php?action=pp_member_data' ), 'pp_member_data', 'pp_nonce' ) ); ?>"><?php esc_html_e( 'Download my data (JSON)', 'project-prepper' ); ?></a>
+						<?php if ( self::view_feature_on( 'api' ) || MemberApi::passwords( (int) $user->ID ) ) : ?>
+							<a class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm" href="<?php echo esc_url( self::view_url( 'api' ) ); ?>"><?php esc_html_e( 'API access', 'project-prepper' ); ?></a>
+						<?php endif; ?>
 					</div>
 					<p class="pp-portal__hint pp-dash-profile__gdpr"><?php esc_html_e( 'Download a copy of the data this platform holds about you — your profile, inventory, collectives and borrow records (GDPR Art. 15/20).', 'project-prepper' ); ?></p>
 				</div>
@@ -3290,6 +3321,156 @@ class MemberPortal {
 		<div class="pp-howto">
 			<?php self::render_how_it_works(); ?>
 		</div>
+		<?php
+	}
+
+	/**
+	 * API-Zugang (v0.149.0, Mitglieder-API): App-Passwörter anlegen, einmal
+	 * anzeigen, auflisten, widerrufen — dazu die Adresse und die /me-Routen.
+	 * Erreichbar über „API-Zugang" in der Profil-Kachel; Schalter `api`.
+	 */
+	private static function view_api( WP_User $user ): void {
+		$uid       = (int) $user->ID;
+		$new       = MemberApi::take_new_password( $uid );
+		$passwords = MemberApi::passwords( $uid );
+		$reason    = MemberApi::unavailable_reason( $user );
+		$base      = rest_url( \ProjectPrepper\Rest\BaseController::REST_NAMESPACE );
+		$limit     = Security::int( 'api_rate_limit' );
+		$fmt       = (string) get_option( 'date_format' );
+		?>
+		<header class="pp-app__page-head">
+			<h1 class="pp-app__page-title"><?php esc_html_e( 'API access', 'project-prepper' ); ?></h1>
+			<p class="pp-app__page-sub"><?php esc_html_e( 'Let your own programs — for example a personal dashboard — read your equipment and your rentals.', 'project-prepper' ); ?></p>
+		</header>
+
+		<?php if ( $new ) : ?>
+			<section class="pp-card pp-api__new">
+				<h2 class="pp-card__title"><?php esc_html_e( 'Your new API password', 'project-prepper' ); ?></h2>
+				<p class="pp-portal__hint"><strong><?php esc_html_e( 'Copy it now — it is shown only this once.', 'project-prepper' ); ?></strong> <?php esc_html_e( 'If you lose it, revoke it below and create a new one.', 'project-prepper' ); ?></p>
+				<dl class="pp-dl">
+					<dt><?php esc_html_e( 'Name', 'project-prepper' ); ?></dt>
+					<dd><?php echo esc_html( $new['name'] ); ?></dd>
+					<dt><?php esc_html_e( 'Username', 'project-prepper' ); ?></dt>
+					<dd><code><?php echo esc_html( $user->user_login ); ?></code></dd>
+				</dl>
+				<div class="pp-api__copy">
+					<input type="text" class="pp-api__secret" id="pp-api-new-pw" readonly autocomplete="off" spellcheck="false"
+						aria-label="<?php esc_attr_e( 'API password', 'project-prepper' ); ?>"
+						value="<?php echo esc_attr( \WP_Application_Passwords::chunk_password( $new['pw'] ) ); ?>"
+						onclick="this.select()">
+					<button type="button" class="pp-portal__btn pp-portal__btn--sm"
+						data-pp-copy="pp-api-new-pw"
+						data-copied-label="<?php esc_attr_e( 'Copied!', 'project-prepper' ); ?>"><?php esc_html_e( 'Copy', 'project-prepper' ); ?></button>
+				</div>
+			</section>
+		<?php endif; ?>
+
+		<section class="pp-card">
+			<h2 class="pp-card__title"><?php esc_html_e( 'Create an API password', 'project-prepper' ); ?></h2>
+			<p class="pp-portal__hint"><?php esc_html_e( 'Read only: an API password can read your own equipment and the rentals you created — nothing else, and it cannot change anything. Create a separate password for each program, so you can revoke one without touching the others. Never enter your login password in another program.', 'project-prepper' ); ?></p>
+			<?php if ( '' !== $reason ) : ?>
+				<div class="pp-portal__notice pp-portal__notice--err"><?php echo esc_html( $reason ); ?></div>
+			<?php elseif ( count( $passwords ) >= MemberApi::MAX_PASSWORDS ) : ?>
+				<p class="pp-portal__empty">
+					<?php
+					/* translators: %d: maximum number of API passwords per member. */
+					echo esc_html( sprintf( __( 'You have reached the maximum of %d API passwords. Revoke one you no longer need to create a new one.', 'project-prepper' ), MemberApi::MAX_PASSWORDS ) );
+					?>
+				</p>
+			<?php else : ?>
+				<form class="pp-portal__form pp-api__create" method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+					<?php self::action_fields( 'api_password_create' ); ?>
+					<label><?php esc_html_e( 'Name', 'project-prepper' ); ?>
+						<input type="text" name="pp_name" maxlength="<?php echo (int) MemberApi::NAME_MAX_LEN; ?>" required
+							placeholder="<?php esc_attr_e( 'e.g. My dashboard', 'project-prepper' ); ?>">
+					</label>
+					<button type="submit" class="pp-portal__btn pp-portal__btn--sm"><?php esc_html_e( 'Create API password', 'project-prepper' ); ?></button>
+				</form>
+			<?php endif; ?>
+		</section>
+
+		<section class="pp-card">
+			<h2 class="pp-card__title"><?php esc_html_e( 'Your API passwords', 'project-prepper' ); ?></h2>
+			<?php if ( ! $passwords ) : ?>
+				<p class="pp-portal__empty"><?php esc_html_e( 'No API passwords yet.', 'project-prepper' ); ?></p>
+			<?php else : ?>
+				<div class="pp-list pp-api__list">
+					<div class="pp-list__row pp-list__head">
+						<span class="pp-list__cell pp-list__cell--grow"><?php esc_html_e( 'Name', 'project-prepper' ); ?></span>
+						<span class="pp-list__cell pp-api__when"><?php esc_html_e( 'Created', 'project-prepper' ); ?></span>
+						<span class="pp-list__cell pp-api__when"><?php esc_html_e( 'Last used', 'project-prepper' ); ?></span>
+						<span class="pp-list__cell pp-api__action" aria-hidden="true"></span>
+					</div>
+					<?php foreach ( $passwords as $pw ) : ?>
+						<div class="pp-list__row">
+							<span class="pp-list__cell pp-list__cell--grow"><?php echo esc_html( $pw['name'] ); ?></span>
+							<span class="pp-list__cell pp-api__when" data-label="<?php esc_attr_e( 'Created', 'project-prepper' ); ?>"><?php echo esc_html( wp_date( $fmt, $pw['created'] ) ); ?></span>
+							<span class="pp-list__cell pp-api__when" data-label="<?php esc_attr_e( 'Last used', 'project-prepper' ); ?>">
+								<?php
+								if ( $pw['last_used'] ) {
+									echo esc_html( wp_date( $fmt, $pw['last_used'] ) . ( '' !== $pw['last_ip'] ? ' · ' . $pw['last_ip'] : '' ) );
+								} else {
+									esc_html_e( 'never', 'project-prepper' );
+								}
+								?>
+							</span>
+							<span class="pp-list__cell pp-api__action">
+								<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>"
+									onsubmit="return confirm('<?php echo esc_js( __( 'Revoke this API password? Programs using it can no longer sign in.', 'project-prepper' ) ); ?>');">
+									<?php self::action_fields( 'api_password_revoke' ); ?>
+									<input type="hidden" name="pp_uuid" value="<?php echo esc_attr( $pw['uuid'] ); ?>">
+									<button type="submit" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"><?php esc_html_e( 'Revoke', 'project-prepper' ); ?></button>
+								</form>
+							</span>
+						</div>
+					<?php endforeach; ?>
+				</div>
+				<p class="pp-portal__hint"><?php esc_html_e( '“Last used” is updated at most once a day.', 'project-prepper' ); ?></p>
+			<?php endif; ?>
+		</section>
+
+		<section class="pp-card">
+			<h2 class="pp-card__title"><?php esc_html_e( 'How to connect', 'project-prepper' ); ?></h2>
+			<p class="pp-portal__hint"><?php esc_html_e( 'Your program signs in with HTTP Basic authentication: username = your login name, password = the API password. All addresses start with:', 'project-prepper' ); ?></p>
+			<div class="pp-api__copy">
+				<input type="text" class="pp-api__secret" id="pp-api-base" readonly value="<?php echo esc_attr( $base ); ?>" onclick="this.select()"
+					aria-label="<?php esc_attr_e( 'API address', 'project-prepper' ); ?>">
+				<button type="button" class="pp-portal__btn pp-portal__btn--ghost pp-portal__btn--sm"
+					data-pp-copy="pp-api-base"
+					data-copied-label="<?php esc_attr_e( 'Copied!', 'project-prepper' ); ?>"><?php esc_html_e( 'Copy', 'project-prepper' ); ?></button>
+			</div>
+			<dl class="pp-dl pp-api__routes">
+				<dt><code>GET /me</code></dt>
+				<dd><?php esc_html_e( 'Who you are: ID, name, roles and your collectives.', 'project-prepper' ); ?></dd>
+				<dt><code>GET /me/items</code></dt>
+				<dd>
+					<?php esc_html_e( 'Your own equipment with the same fields as in the inventory (number, name, category, quantity, condition, prices, photo, currently out). Optional: ?search=, ?category_id=, ?out_only=1', 'project-prepper' ); ?>
+					<?php if ( ! Settings::feature_on( 'inventory' ) ) : ?>
+						<em><?php esc_html_e( '(switched off on this site)', 'project-prepper' ); ?></em>
+					<?php endif; ?>
+				</dd>
+				<dt><code>GET /me/rentals</code></dt>
+				<dd>
+					<?php esc_html_e( 'The rentals you created — also those you created for a collective — with the number of items. Optional: ?status=reserved, active, returned or cancelled', 'project-prepper' ); ?>
+					<?php if ( ! Settings::feature_on( 'lending' ) ) : ?>
+						<em><?php esc_html_e( '(switched off on this site)', 'project-prepper' ); ?></em>
+					<?php endif; ?>
+				</dd>
+				<dt><code>GET /me/rentals/{id}</code></dt>
+				<dd><?php esc_html_e( 'One of your rentals with all lines and the billing (days, line totals, subtotal, discount, net, VAT, total, deposit). Someone else’s rental answers “not found”.', 'project-prepper' ); ?></dd>
+			</dl>
+			<p class="pp-portal__hint"><?php esc_html_e( 'Example:', 'project-prepper' ); ?></p>
+			<pre class="pp-api__example"><code><?php echo esc_html( 'curl -u "' . $user->user_login . ':xxxx xxxx xxxx xxxx xxxx xxxx" ' . $base . '/me/items' ); ?></code></pre>
+			<p class="pp-portal__hint">
+				<?php
+				if ( $limit > 0 ) {
+					/* translators: %d: allowed API requests per minute. */
+					echo esc_html( sprintf( __( 'Limits: up to %d requests per minute.', 'project-prepper' ), $limit ) ) . ' ';
+				}
+				esc_html_e( 'Repeated wrong passwords lock your internet address for a while — for the API and for signing in here.', 'project-prepper' );
+				?>
+			</p>
+		</section>
 		<?php
 	}
 
@@ -12684,6 +12865,14 @@ class MemberPortal {
 				'name'  => (string) $t->name,
 				'lines' => array_map( static fn( $l ) => (int) $l->quantity . '× ' . $l->label, $t->lines ),
 			], SetTemplates::for_workspace( 0, $uid ) ),
+			// API-Passwörter (Mitglieder-API): Name, Anlage, letzte Nutzung samt IP —
+			// nie der Hash oder das Passwort selbst.
+			'api_passwords'    => array_map( static fn( $pw ) => [
+				'name'      => $pw['name'],
+				'created'   => gmdate( 'c', $pw['created'] ),
+				'last_used' => $pw['last_used'] ? gmdate( 'c', $pw['last_used'] ) : null,
+				'last_ip'   => $pw['last_ip'],
+			], MemberApi::passwords( $uid ) ),
 		];
 
 		nocache_headers();
