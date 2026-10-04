@@ -320,7 +320,11 @@ try {
 		$res = $get( '/wp/v2/users/me', $h );
 		pp_check( 200 === wp_remote_retrieve_response_code( $res ) && (int) ( json_decode( wp_remote_retrieve_body( $res ), true )['id'] ?? 0 ) === $u['a'], 'HTTP Basic: /wp/v2/users/me identifiziert A' );
 		$res = $get( '/project-prepper/v1/me/items', $auth( 'zz-audit-api-b', $new['pw'] ) );
-		pp_check( 401 === wp_remote_retrieve_response_code( $res ), 'HTTP Basic: A\'s Passwort mit B\'s Namen = 401', wp_remote_retrieve_response_code( $res ) );
+		pp_check( 401 === wp_remote_retrieve_response_code( $res ) && 'pp_bad_credentials' === ( json_decode( wp_remote_retrieve_body( $res ), true )['code'] ?? '' ), 'HTTP Basic: A\'s Passwort mit B\'s Namen = 401 pp_bad_credentials', wp_remote_retrieve_body( $res ) );
+		$res = $get( '/project-prepper/v1/me/items', $auth( 'zz-gibt-es-nicht-4711', 'falsch' ) );
+		pp_check( 'pp_bad_credentials' === ( json_decode( wp_remote_retrieve_body( $res ), true )['code'] ?? '' ), 'HTTP Basic: unbekannter Name = pp_bad_credentials (gleiche Meldung, keine Aufzählung)' );
+		$res = $get( '/project-prepper/v1/me/items', [] );
+		pp_check( 401 === wp_remote_retrieve_response_code( $res ) && 'rest_not_logged_in' === ( json_decode( wp_remote_retrieve_body( $res ), true )['code'] ?? '' ), 'HTTP ohne Zugangsdaten = rest_not_logged_in' );
 		pp_clear_http_lock(); // Der Fehlversuch oben zählt für die IP des cli-Containers.
 	}
 
@@ -328,7 +332,7 @@ try {
 	pp_check( [] === MemberApi::passwords( $u['a'] ), 'Portal: Liste danach leer' );
 	if ( ! is_wp_error( $probe ) ) {
 		$res = wp_remote_get( $base . '/project-prepper/v1/me', [ 'headers' => $auth( 'zz-audit-api-a', $new['pw'] ), 'timeout' => 10 ] );
-		pp_check( 401 === wp_remote_retrieve_response_code( $res ), 'HTTP Basic: widerrufenes Passwort = 401', wp_remote_retrieve_response_code( $res ) );
+		pp_check( 401 === wp_remote_retrieve_response_code( $res ) && 'pp_bad_credentials' === ( json_decode( wp_remote_retrieve_body( $res ), true )['code'] ?? '' ), 'HTTP Basic: widerrufenes Passwort = 401 pp_bad_credentials', wp_remote_retrieve_response_code( $res ) );
 		pp_clear_http_lock();
 	}
 
@@ -368,6 +372,17 @@ try {
 	pp_check( false === strpos( pp_render( $u['c'], 'api', [], true ), 'pp-api__' ) || [] !== MemberApi::passwords( $u['c'] ), 'API aus: ohne Passwörter keine API-Seite' );
 	pp_check( 'api_pw_revoked' === pp_dispatch( $u['a'], [ 'pp_do' => 'api_password_revoke', 'pp_uuid' => $off_uuid ] ), 'API aus: Widerrufen klappt' );
 	pp_audit_option( 'pp_features', null );
+
+	/* ---------- .htaccess-Block: im CLI nicht als erledigt markieren (v0.149.1) ---------- */
+	$perf_before = get_option( \ProjectPrepper\Performance::OPTION_KEY );
+	pp_audit_option( \ProjectPrepper\Performance::OPTION_KEY, null );
+	delete_option( \ProjectPrepper\Performance::OPTION_KEY );
+	\ProjectPrepper\Performance::install();
+	pp_check( false === get_option( \ProjectPrepper\Performance::OPTION_KEY ), 'Performance::install() im CLI: Version bleibt offen, Web-Request schreibt den Block' );
+	if ( false !== $perf_before ) {
+		update_option( \ProjectPrepper\Performance::OPTION_KEY, $perf_before );
+	}
+	pp_check( in_array( "\t" . 'SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1', \ProjectPrepper\Performance::rules(), true ), '.htaccess-Regeln reichen den Authorization-Header durch' );
 
 	/* ---------- Höchstzahl ---------- */
 	for ( $i = 0; $i < MemberApi::MAX_PASSWORDS; $i++ ) {

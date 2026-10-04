@@ -84,9 +84,21 @@ class MeController extends BaseController {
 						[ 'status' => 401 ]
 					);
 				}
+				// Core meldet einen FEHLGESCHLAGENEN App-Passwort-Versuch hier nur als
+				// „nicht angemeldet" (Reihenfolge der Prüfungen). Für die Fehlersuche
+				// zählt aber, ob Zugangsdaten ankamen und falsch waren — oder gar keine
+				// ankamen (Server reicht den Authorization-Header nicht weiter). Welcher
+				// Teil falsch ist, bleibt offen (keine Nutzer-Aufzählung).
+				if ( is_wp_error( $GLOBALS['wp_rest_application_password_status'] ?? null ) ) {
+					return new WP_Error(
+						'pp_bad_credentials',
+						__( 'Sign-in failed: the username or the API password is wrong, or this account cannot use the member API.', 'project-prepper' ),
+						[ 'status' => 401 ]
+					);
+				}
 				return new WP_Error(
 					'rest_not_logged_in',
-					__( 'Please sign in with your username and an API password from the member portal (“API access”).', 'project-prepper' ),
+					__( 'No sign-in data arrived. Sign in with your username and an API password from the member portal (“API access”). If your program does send them, the web server is not passing the login on to WordPress.', 'project-prepper' ),
 					[ 'status' => 401 ]
 				);
 			}

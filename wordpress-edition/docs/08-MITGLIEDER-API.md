@@ -86,9 +86,9 @@ Die Leerzeichen im API-Passwort sind egal (WordPress entfernt sie).
 | Status | `code` | Bedeutung |
 |---|---|---|
 | 200 | — | Daten |
-| 401 | `rest_not_logged_in` | nicht angemeldet (kein/falsches API-Passwort, falscher Name) |
+| 401 | `rest_not_logged_in` | **keine** Anmeldedaten angekommen — Programm schickt keine, oder der Webserver reicht den `Authorization`-Header nicht weiter (siehe Fehlersuche) |
+| 401 | `pp_bad_credentials` | Anmeldedaten kamen an, aber Benutzername oder API-Passwort stimmt nicht (oder das Konto darf die API nicht nutzen) — welcher Teil, wird bewusst nicht verraten |
 | 401 | `pp_locked` | IP nach zu vielen Fehlversuchen gesperrt (Meldung nennt die Minuten) |
-| 401 | `incorrect_password`, `invalid_username`, `application_passwords_disabled_for_user` | Anmeldung abgelehnt (falsch, API aus) |
 | 403 | `rest_forbidden` | Nutzer hat keine Project-Prepper-Rolle |
 | 403 | `pp_member_api_off` | Betreiber hat die Mitglieder-API abgeschaltet |
 | 403 | `pp_feature_off` | Bereich Inventar (`/me/items`) bzw. Verleih (`/me/rentals…`) ist abgeschaltet |
@@ -141,9 +141,17 @@ Die Leerzeichen im API-Passwort sind egal (WordPress entfernt sie).
 
 ## Betrieb / Fehlersuche
 
-- **401, obwohl das Passwort stimmt:** Manche Apache-/FastCGI-Setups reichen den
-  `Authorization`-Header nicht an PHP weiter. WordPress' Standard-`.htaccess` enthält dafür
-  `RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]` — fehlt die Zeile, ergänzen.
+- **401 `pp_bad_credentials`:** Login-Name prüfen (wp-admin → Benutzer, Spalte „Benutzername" — nicht
+  der Anzeigename) und ob das API-Passwort unter genau diesem Konto angelegt wurde.
+- **401 `rest_not_logged_in`, obwohl das Programm Zugangsdaten schickt:** Apache mit FastCGI/FPM
+  reicht den `Authorization`-Header manchmal nicht an PHP weiter — WordPress sieht dann gar keine
+  Anmeldung. WordPress' eigener `.htaccess`-Block enthält dafür eine RewriteRule; zusätzlich
+  schreibt das Plugin seit v0.149.1 in seinen eigenen `.htaccess`-Block
+  (`# BEGIN Project Prepper Performance`, nach jedem Update neu) die Zeile
+  `SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1`. Ist die `.htaccess` nicht beschreibbar,
+  die Zeile von Hand eintragen. Test ohne gültige Zugangsdaten:
+  `curl -u "gibt-es-nicht:x" https://<instanz>/wp-json/project-prepper/v1/me` muss
+  `pp_bad_credentials` liefern; `rest_not_logged_in` heißt: Header kommt nicht an.
 - **„API-Passwörter brauchen eine verschlüsselte Verbindung":** Die Instanz läuft ohne HTTPS
   (oder `is_ssl()` erkennt es hinter einem Proxy nicht).
 - **429:** Werkzeug fragt zu schnell (z. B. jeden Verleih einzeln in einer Schleife) — `Retry-After`
@@ -152,7 +160,7 @@ Die Leerzeichen im API-Passwort sind egal (WordPress entfernt sie).
 
 ## Prüfen
 
-Regressionstest für die Mandanten-Trennung, Nur-Lese-Grenze, Schalter und Drosselung (97 Prüfungen,
+Regressionstest für die Mandanten-Trennung, Nur-Lese-Grenze, Schalter und Drosselung (101 Prüfungen,
 eigene Wegwerf-Nutzer, räumt auf) — nur lokale wp-env:
 
 ```bash

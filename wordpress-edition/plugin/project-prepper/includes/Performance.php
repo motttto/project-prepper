@@ -19,6 +19,13 @@ defined( 'ABSPATH' ) || exit;
  *    und fremde Regeln bleiben unangetastet.
  *  - Kein Expires auf text/html — Portal-Seiten sind personalisiert.
  *  - Deaktivieren des Plugins leert den Block wieder.
+ *
+ * Seit v0.149.1 steht hier außerdem die Durchreichung des Authorization-Headers
+ * (kein Performance-Thema, aber derselbe verwaltete Block): Auf Apache mit
+ * FastCGI/FPM — z. B. manitu — kommt HTTP Basic Auth sonst nicht bei PHP an.
+ * Dann melden die Mitglieder-API (App-Passwörter) und CalDAV „nicht angemeldet",
+ * obwohl Name und Passwort stimmen. WordPress liest HTTP_AUTHORIZATION selbst
+ * aus (wp_populate_basic_auth_from_authorization_header).
  */
 class Performance {
 
@@ -36,6 +43,12 @@ class Performance {
 
 	/** Regel-Block schreiben/aktualisieren (Aktivierung + nach Updates). */
 	public static function install(): void {
+		// Nur im Web-Request: wp-cli kennt kein SERVER_SOFTWARE, write() wäre ein
+		// No-op — die Version darf dann nicht als erledigt gelten, sonst wartet der
+		// Block bis zum nächsten Update (gesehen nach dem wp-env-Start, v0.149.1).
+		if ( defined( 'WP_CLI' ) && WP_CLI ) {
+			return;
+		}
 		update_option( self::OPTION_KEY, PP_VERSION );
 		self::write( self::rules() );
 	}
@@ -51,6 +64,11 @@ class Performance {
 	 */
 	public static function rules(): array {
 		return [
+			// Basic Auth an PHP durchreichen (Mitglieder-API, CalDAV) — braucht nur das
+			// FileInfo-Override, das AddOutputFilterByType unten ohnehin voraussetzt.
+			'<IfModule mod_setenvif.c>',
+			"\t" . 'SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1',
+			'</IfModule>',
 			'<IfModule mod_deflate.c>',
 			"\tAddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json application/xml image/svg+xml",
 			'</IfModule>',

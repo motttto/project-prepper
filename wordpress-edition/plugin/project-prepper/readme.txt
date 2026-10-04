@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.149.0
+Stable tag: 0.149.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.149.1 =
+* Member API: clearer answers when signing in fails. "Sign-in failed: username or API password is wrong" when login data arrived but did not match, and "No sign-in data arrived" when nothing arrived at all — before, both said only "please sign in".
+* Fix: API passwords (member API) and CalDAV also work on hosts where Apache does not pass the login header to PHP (e.g. Apache with FastCGI/FPM). The plugin adds one line to its own block in the .htaccess file; it is written automatically after the update.
+* Fix: the plugin's .htaccess block is no longer skipped when the plugin was updated or activated with WP-CLI; the next normal page view writes it.
 
 = 0.149.0 =
 * Member API: every member can now read their own equipment and their own rentals through the REST API — read only, for their own tools such as a personal dashboard. New routes GET /me, /me/items, /me/rentals and /me/rentals/{id} under /wp-json/project-prepper/v1, with the same fields as the operator routes. Someone else's rental answers "not found".

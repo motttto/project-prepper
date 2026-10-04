@@ -9831,3 +9831,11 @@ msgstr "Dein Konto hat keinen Zugang zur Mitglieder-API."
 #: includes/MemberApi.php:270
 msgid "API passwords cannot be created while viewing the portal as another member."
 msgstr "Während du das Portal als ein anderes Mitglied ansiehst, lassen sich keine API-Passwörter anlegen."
+
+#: includes/Rest/MeController.php:95
+msgid "Sign-in failed: the username or the API password is wrong, or this account cannot use the member API."
+msgstr "Anmeldung fehlgeschlagen: Benutzername oder API-Passwort stimmt nicht – oder dieses Konto kann die Mitglieder-API nicht nutzen."
+
+#: includes/Rest/MeController.php:101
+msgid "No sign-in data arrived. Sign in with your username and an API password from the member portal (“API access”). If your program does send them, the web server is not passing the login on to WordPress."
+msgstr "Es sind keine Anmeldedaten angekommen. Melde dich mit deinem Benutzernamen und einem API-Passwort aus dem Mitgliederportal an („API-Zugang“). Schickt dein Programm sie doch mit, reicht der Webserver die Anmeldung nicht an WordPress weiter."
