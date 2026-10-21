@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.150.0
+Stable tag: 0.150.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,11 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.150.1 =
+* Fix: on hosts whose firewall blocks every upload-type request (multipart/form-data) with "403 Forbidden" — even without a file — saving forms in the member portal failed, for example "Add item" or editing an item. Forms with a file field are now only sent as an upload when a file is actually selected, otherwise as a normal form. Adding and editing items without a photo works again behind such a firewall.
+* Note: uploads WITH a file (photos, documents, import, avatar, group logo, project files) stay blocked on such hosts until the host lifts the block — please contact your host if that happens.
+* This update does not change the database (schema stays 0.46.0).
 
 = 0.150.0 =
 * Member API: members can now also add and change their own equipment from their own tools — if they want to. When creating an API password in the portal ("API access"), choose "Read only" (default, as before) or "Read + edit my equipment".
