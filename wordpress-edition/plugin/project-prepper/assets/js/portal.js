@@ -82,6 +82,7 @@
 		if ( form.hasAttribute( 'data-pp-submitting' ) ) { return; }
 		form.setAttribute( 'data-pp-submitting', '1' );
 		form.removeAttribute( 'data-pp-dirty' );
+		fitEnctype( form );
 		form.submit();
 	}
 
@@ -280,6 +281,31 @@
 		if ( e.defaultPrevented || ! form || ! form.hasAttribute || ! form.hasAttribute( 'data-pp-once' ) ) { return; }
 		if ( form.hasAttribute( 'data-pp-submitting' ) ) { e.preventDefault(); return; }
 		form.setAttribute( 'data-pp-submitting', '1' );
+	} );
+
+	/* Upload-Format nur mit Datei (Notlösung Hoster-Firewall): Manche Hoster
+	 * (manitu, Okt. 2026) blocken JEDE Anfrage im Upload-Format
+	 * multipart/form-data mit einem Server-403 — auch ganz ohne Datei. Formulare
+	 * mit Datei-Feld gehen deshalb nur dann als Upload raus, wenn wirklich eine
+	 * Datei ausgewählt ist, sonst als normales Formular. PHP liest $_POST in
+	 * beiden Fällen gleich; die Datei-Handler kommen ohne $_FILES aus. */
+	function fitEnctype( form ) {
+		var els = form.elements || [];
+		var hasFileField = false;
+		for ( var i = 0; i < els.length; i++ ) {
+			if ( 'file' !== els[ i ].type || els[ i ].disabled ) { continue; }
+			hasFileField = true;
+			if ( els[ i ].files && els[ i ].files.length ) {
+				form.enctype = 'multipart/form-data';
+				return;
+			}
+		}
+		if ( hasFileField ) { form.enctype = 'application/x-www-form-urlencoded'; }
+	}
+	document.addEventListener( 'submit', function ( e ) {
+		var form = e.target;
+		if ( e.defaultPrevented || ! form || 'FORM' !== form.tagName ) { return; }
+		fitEnctype( form );
 	} );
 
 	/* Foto-Upload (v0.147.0): Größe schon im Browser prüfen. Übersteigt die
