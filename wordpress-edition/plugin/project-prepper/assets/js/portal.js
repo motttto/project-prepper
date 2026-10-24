@@ -283,12 +283,14 @@
 		form.setAttribute( 'data-pp-submitting', '1' );
 	} );
 
-	/* Upload-Format nur mit Datei (Notlösung Hoster-Firewall): Manche Hoster
-	 * (manitu, Okt. 2026) blocken JEDE Anfrage im Upload-Format
-	 * multipart/form-data mit einem Server-403 — auch ganz ohne Datei. Formulare
-	 * mit Datei-Feld gehen deshalb nur dann als Upload raus, wenn wirklich eine
-	 * Datei ausgewählt ist, sonst als normales Formular. PHP liest $_POST in
-	 * beiden Fällen gleich; die Datei-Handler kommen ohne $_FILES aus. */
+	/* Upload-Format nur mit Datei (bleibt dauerhaft): Hoster können zeitweise
+	 * JEDE Anfrage im Upload-Format multipart/form-data mit einem Server-403
+	 * blocken — auch ganz ohne Datei (manitu, 21.–24.10.2026, Wartung wegen
+	 * PHP-Sicherheitslücke). Formulare mit Datei-Feld gehen deshalb nur dann
+	 * als Upload raus, wenn wirklich eine Datei ausgewählt ist, sonst als
+	 * normales Formular; so geht z. B. „Artikel anlegen" ohne Foto auch bei
+	 * einer solchen Sperre. PHP liest $_POST in beiden Fällen gleich; die
+	 * Datei-Handler kommen ohne $_FILES aus. Nicht wieder ausbauen. */
 	function fitEnctype( form ) {
 		var els = form.elements || [];
 		var hasFileField = false;
