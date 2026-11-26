@@ -1,9 +1,9 @@
 {
-  "version": "0.150.1",
-  "package": "https://github.com/motttto/project-prepper/releases/download/v0.150.1/project-prepper-0.150.1.zip",
-  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.150.1",
-  "published": "2026-10-21",
+  "version": "0.151.0",
+  "package": "https://github.com/motttto/project-prepper/releases/download/v0.151.0/project-prepper-0.151.0.zip",
+  "url": "https://github.com/motttto/project-prepper/releases/tag/v0.151.0",
+  "published": "2026-11-26",
   "requires": "6.4",
   "requires_php": "8.0",
-  "changelog": "* Fehlerbehebung: Bei Hostern, deren Firewall jede Anfrage im Upload-Format (multipart/form-data) mit „403 Forbidden“ abweist — auch ganz ohne Datei —, ließen sich Formulare im Mitglieder-Portal nicht speichern, z. B. „Artikel anlegen“ oder einen Artikel bearbeiten. Formulare mit Datei-Feld werden jetzt nur noch als Upload gesendet, wenn wirklich eine Datei ausgewählt ist, sonst als normales Formular. Artikel ohne Foto anlegen und bearbeiten klappt hinter so einer Firewall dadurch wieder.\n* Hinweis: Uploads MIT Datei (Fotos, Dokumente, Import, Profilbild, Gruppen-Logo, Projektdateien) bleiben bei solchen Hostern gesperrt, bis der Hoster die Sperre aufhebt — bitte in dem Fall an den Hoster wenden.\n* Hinweis: Dieses Update ändert die Datenbank nicht (Schema bleibt 0.46.0)."
+  "changelog": "* Dunkelmodus des Portals neu gestaltet: warm-neutraler, fast schwarzer Grund mit dezenten Rahmen statt des dunklen Indigo-Looks; dazu ein leichter warmer Schein am unteren Seitenrand.\n* Akzente im Dunkelmodus sind jetzt hell statt indigo: Buttons, aktive Filter und „heute“ im Kalender zeigen dunkle Schrift auf heller Fläche.\n* Die Sidebar ist im Dunkelmodus neutral dunkel; der aktive Menüpunkt ist nur leicht aufgehellt.\n* Der Hover-Schimmer im Dunkelmodus ist Bernstein statt Indigo; Links ohne eigene Farbe sind hell statt im Blau des Themes.\n* Der helle Modus bleibt unverändert, ebenso Statusfarben und Gruppen-Farbmarken.\n* Hinweis: Dieses Update ändert die Datenbank nicht (Schema bleibt 0.46.0)."
 }
