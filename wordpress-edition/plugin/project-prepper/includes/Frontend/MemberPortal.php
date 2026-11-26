@@ -117,7 +117,41 @@ class MemberPortal {
 
 		// Private Instanz: nach außen gibt es nur das Login. Alle Frontend-Anfragen
 		// Ausgeloggter gehen aufs Portal; Ausnahme nur die Rechtstexte.
-		add_action( 'template_redirect', [ self::class, 'restrict_public_to_portal' ] );
+		// Priorität 0: VOR dem `redirect_canonical` des Kerns (Prio 10), das eine
+		// Anhang-Seite (`?attachment_id=N`) sonst schon auf die Datei umgeleitet
+		// hat, bevor diese Sperre läuft (Audit ACC-21).
+		add_action( 'template_redirect', [ self::class, 'restrict_public_to_portal' ], 0 );
+		// Dieselbe Sperre für die Kern-Schnittstellen, die Seiteninhalte und
+		// Anhänge ohne Login ausliefern.
+		add_filter( 'rest_pre_dispatch', [ self::class, 'guard_public_rest' ], 10, 3 );
+	}
+
+	/**
+	 * Gegenstück zu restrict_public_to_portal() für die REST-Schnittstelle des
+	 * WordPress-Kerns: Ausgeloggte bekommen weder `/wp/v2/…` (Seiten samt fertig
+	 * gerenderter Shortcodes — Katalog, Anfrage-Formular; Audit ACC-22) noch
+	 * `/oembed/1.0/embed` (Titel, Name und Login zu jedem Anhang; Audit ACC-21).
+	 * Eingeloggte (Cookie mit Nonce oder App-Passwort) sind nicht betroffen; die
+	 * Plugin-eigenen Routen haben ihre eigenen Rechteprüfungen. Abschaltbar über
+	 * denselben Filter `pp_restrict_public_pages`.
+	 *
+	 * @param mixed            $result
+	 * @param \WP_REST_Server  $server
+	 * @param \WP_REST_Request $request
+	 * @return mixed
+	 */
+	public static function guard_public_rest( $result, $server, $request ) {
+		if ( is_user_logged_in() || ! apply_filters( 'pp_restrict_public_pages', true ) ) {
+			return $result;
+		}
+		if ( (int) get_option( self::PAGE_OPTION ) <= 0 ) {
+			return $result; // Portal noch nicht angelegt → nicht aussperren.
+		}
+		$route = strtolower( (string) $request->get_route() );
+		if ( '/wp/v2' === $route || 0 === strpos( $route, '/wp/v2/' ) || 0 === strpos( $route, '/oembed/1.0/embed' ) ) {
+			return rest_convert_error_to_response( new \WP_Error( 'rest_forbidden', __( 'Sorry, you are not allowed to do that.', 'project-prepper' ), [ 'status' => rest_authorization_required_code() ] ) );
+		}
+		return $result;
 	}
 
 	/**

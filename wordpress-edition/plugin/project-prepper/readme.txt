@@ -4,7 +4,7 @@ Tags: inventory, rental, equipment, availability, booking
 Requires at least: 6.4
 Tested up to: 7.1
 Requires PHP: 8.0
-Stable tag: 0.151.0
+Stable tag: 0.151.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -81,6 +81,13 @@ for the admin UI, so no external font request is made at runtime. Inter is licen
 SIL Open Font License 1.1 (see `admin/fonts/LICENSE`), Copyright (c) 2016 The Inter Project Authors.
 
 == Changelog ==
+
+= 0.151.1 =
+* Fixed: the first invitation into a newly founded collective (with only one member) reported "accepted" but did not add the person. Anyone affected can simply accept again after the update.
+* Fixed: within one project, consumables could be booked beyond the stock by using two lines with different dates.
+* Security: attachment pages (`?attachment_id=…`) now send logged-out visitors to the login instead of to the file.
+* Security: the WordPress core interface (`/wp-json/wp/v2/…`) and the oEmbed lookup are closed to logged-out visitors; logged-in users and application passwords are not affected.
+* This update does not change the database (schema stays 0.46.0).
 
 = 0.151.0 =
 * Dark mode of the portal redesigned: a warm, neutral, almost black background with subtle borders instead of the dark indigo look, plus a faint warm glow at the bottom edge of the page.

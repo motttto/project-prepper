@@ -150,14 +150,29 @@ class GroupGovernance {
 			$inv->invited_user_id = $uid;
 		}
 
+		// Annahme beanspruchen: nur wer die Zeile von `pending` auf `voting` dreht,
+		// macht weiter. Eine gleichzeitig abgebrochene oder schon angenommene
+		// Einladung lebt so nicht wieder auf (Audit STATE-18).
+		$claimed = $wpdb->update(
+			Schema::table( 'group_invitations' ),
+			[ 'status' => 'voting' ],
+			[ 'id' => $invitation_id, 'status' => 'pending' ],
+			[ '%s' ],
+			[ '%d', '%s' ]
+		);
+		if ( ! $claimed ) {
+			return new WP_Error( 'pp_bad_state', __( 'This invitation can no longer be accepted.', 'project-prepper' ), [ 'status' => 400 ] );
+		}
+		$inv->status = 'voting';
+		ActivityLog::log( 'group_invitation_accepted', 'group', (int) $inv->group_id, [ 'invitation_id' => $invitation_id ] );
+
 		$active = self::active_member_count( (int) $inv->group_id );
 		if ( $active <= 1 ) {
 			// Nur der Gründer → Einstimmigkeit trivial erfüllt: sofort aufnehmen.
+			// approve_and_join() erwartet `voting` — deshalb steht der Wechsel oben
+			// VOR diesem Zweig (Audit STATE-31: sonst „angenommen" ohne Beitritt).
 			return self::approve_and_join( $inv );
 		}
-
-		$wpdb->update( Schema::table( 'group_invitations' ), [ 'status' => 'voting' ], [ 'id' => $invitation_id ], [ '%s' ], [ '%d' ] );
-		ActivityLog::log( 'group_invitation_accepted', 'group', (int) $inv->group_id, [ 'invitation_id' => $invitation_id ] );
 		return true;
 	}
 

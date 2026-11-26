@@ -1148,6 +1148,15 @@ class Projects {
 			// bleibt das Gerät ohnehin beim selben Team und wird nicht zwischen
 			// zwei eigenen Zeilen aufbereitet. Ein Puffer hier würde die eigene
 			// Binnenplanung ohne Grund blockieren.
+			// Verbrauchsmaterial kommt nicht zurück: wie in Availability zählen
+			// dann ALLE eigenen Zeilen, egal wann sie liegen (Audit AVAIL-29 — zwei
+			// Zeilen mit getrennten Terminen banden sonst mehr als den Bestand).
+			$own_from = $eff_from;
+			$own_to   = $eff_to;
+			if ( ! empty( $line_item->is_consumable ) ) {
+				$own_from = '1000-01-01';
+				$own_to   = '9999-12-31';
+			}
 			$own_booked = (int) $wpdb->get_var( $wpdb->prepare(
 				'SELECT COALESCE(SUM(pi.quantity), 0)
 				 FROM %i pi
@@ -1162,9 +1171,9 @@ class Projects {
 				$item_id,
 				$exclude_line_id,
 				(string) $project->date_start,
-				$eff_to,
+				$own_to,
 				(string) $project->date_end,
-				$eff_from
+				$own_from
 			) );
 			$available = max( 0, $available - $own_booked );
 
