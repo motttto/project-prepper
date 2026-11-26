@@ -58,6 +58,8 @@
 	--pp-info: #3b82f6;
 	--pp-info-light: #eff6ff;
 	--pp-primary-light: #eef2ff;
+	--pp-on-primary: #fff;
+	--pp-sidebar-bg: #1e1b4b;
 	--pp-radius: 12px;
 	--pp-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
 }
@@ -291,7 +293,7 @@
 .pp-front-btn-primary {
 	background: var(--pp-primary);
 	border-color: var(--pp-primary);
-	color: #fff;
+	color: var(--pp-on-primary);
 	align-self: flex-start;
 }
 
@@ -510,7 +512,7 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-portal--login .button-primary {
 	display: inline-block;
 	background: var(--pp-primary);
-	color: #fff;
+	color: var(--pp-on-primary);
 	border: 1px solid var(--pp-primary);
 	border-radius: 8px;
 	padding: .55rem 1rem;
@@ -523,7 +525,7 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-portal--login .button-primary:hover {
 	background: var(--pp-primary-hover);
 	border-color: var(--pp-primary-hover);
-	color: #fff;
+	color: var(--pp-on-primary);
 }
 .pp-portal__btn--ghost {
 	background: transparent;
@@ -1120,7 +1122,7 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-portal__chip--on {
 	background: var(--pp-primary);
 	border-color: var(--pp-primary);
-	color: #fff;
+	color: var(--pp-on-primary);
 }
 .pp-portal__edit, .pp-portal__add { display: inline-block; }
 .pp-portal__edit summary, .pp-portal__add summary {
@@ -1402,7 +1404,7 @@ a.pp-front-card-media { text-decoration: none; }
 .pp-share__approval { display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem; }
 .pp-share__conds { display: flex; flex-wrap: wrap; gap: .35rem; margin-bottom: .55rem; }
 .pp-share__conds .pp-portal__chip { cursor: pointer; }
-.pp-share__conds label:has( input:checked ) { background: var(--pp-primary, var(--pp-primary)); color: #fff; border-color: var(--pp-primary, var(--pp-primary)); }
+.pp-share__conds label:has( input:checked ) { background: var(--pp-primary, var(--pp-primary)); color: var(--pp-on-primary); border-color: var(--pp-primary, var(--pp-primary)); }
 
 /* Projekt-Detail: Reiter-Leiste wie die App-TabBar (muted Container,
  * aktiver Reiter = Surface + Schatten). Auf schmalen Screens scrollbar. */
@@ -1599,7 +1601,7 @@ body.pp-app-body--login .pp-portal--login { max-width: 400px; margin: 0 auto; }
 	left: 0;
 	bottom: 0;
 	width: 260px;
-	background: #1e1b4b;
+	background: var(--pp-sidebar-bg);
 	color: #e0e7ff;
 	display: flex;
 	flex-direction: column;
@@ -1667,7 +1669,7 @@ body.admin-bar .pp-app__sidebar { top: 32px; }
 	gap: 8px;
 	list-style: none;
 	cursor: pointer;
-	background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 40%, #1e1b4b);
+	background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 40%, var(--pp-sidebar-bg));
 	box-shadow: inset 4px 0 0 var(--pp-ws-color, #4f46e5);
 }
 .pp-app__ws > summary .pp-app__workspace-label,
@@ -1682,7 +1684,7 @@ body.admin-bar .pp-app__sidebar { top: 32px; }
 .pp-app__ws-opt {
 	width: 100%;
 	text-align: left;
-	background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 40%, #1e1b4b);
+	background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 40%, var(--pp-sidebar-bg));
 	border: none;
 	box-shadow: inset 4px 0 0 var(--pp-ws-color, #4f46e5);
 	color: #e0e7ff;
@@ -1694,10 +1696,10 @@ body.admin-bar .pp-app__sidebar { top: 32px; }
 	cursor: pointer;
 	transition: background .12s;
 }
-.pp-app__ws-opt:hover { background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 50%, #1e1b4b); color: #fff; }
+.pp-app__ws-opt:hover { background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 50%, var(--pp-sidebar-bg)); color: #fff; }
 /* Aktiv: kräftigere Farbe + weißer Ring + fett — nicht nur über die Farbe. */
 .pp-app__ws-opt.is-active {
-	background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 58%, #1e1b4b);
+	background: color-mix(in srgb, var(--pp-ws-color, #4f46e5) 58%, var(--pp-sidebar-bg));
 	box-shadow: inset 0 0 0 2px #fff, inset 5px 0 0 var(--pp-ws-color, #4f46e5);
 	color: #fff;
 	font-weight: 600;
@@ -1928,7 +1930,7 @@ body.admin-bar .pp-app__topbar { top: 32px; }
 	height: 26px;
 	border-radius: 999px;
 	background: var(--pp-primary);
-	color: #fff;
+	color: var(--pp-on-primary);
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
@@ -2413,7 +2415,7 @@ button.pp-checkitem__box--on { background: var(--pp-success); }
 	pointer-events: none;
 }
 .pp-cal__grid--month .pp-cal__cell--today + .pp-cal__daynum {
-	color: #fff;
+	color: var(--pp-on-primary);
 	background: var(--pp-primary);
 	border-radius: 999px;
 	width: 21px;
@@ -2455,8 +2457,8 @@ a.pp-cal__span:hover { filter: brightness(1.08); }
 	border-top-right-radius: 0;
 	border-bottom-right-radius: 0;
 }
-.pp-cal__span--event    { background: var(--pp-primary-hover); }
-.pp-cal__span--project  { background: var(--pp-primary); }
+.pp-cal__span--event    { background: var(--pp-primary-hover); color: var(--pp-on-primary); }
+.pp-cal__span--project  { background: var(--pp-primary); color: var(--pp-on-primary); }
 .pp-cal__span--schedule { background: var(--pp-info); }
 .pp-cal__span--borrow   { background: var(--pp-success); }
 .pp-cal__grid--month .pp-cal__more { z-index: 1; align-self: center; padding-left: 8px; line-height: 1.2; }
@@ -2499,7 +2501,7 @@ a.pp-cal__span:hover { filter: brightness(1.08); }
 	font-weight: 700;
 	font-size: .95rem;
 }
-.pp-cal__tg-dayhead--today .pp-cal__tg-daynum { background: var(--pp-primary); color: #fff; }
+.pp-cal__tg-dayhead--today .pp-cal__tg-daynum { background: var(--pp-primary); color: var(--pp-on-primary); }
 .pp-cal__tg-allday { border-bottom: 1px solid var(--pp-border); }
 .pp-cal__tg-alllabel {
 	font-size: .62rem;
@@ -2638,7 +2640,7 @@ a.pp-cal__tg-ev:hover { filter: brightness(1.05); }
 .pp-cal__cell--today { border-color: var(--pp-primary); box-shadow: 0 0 0 1px var(--pp-primary); }
 .pp-cal__daynum { font-size: .8rem; font-weight: 600; color: var(--pp-muted-foreground); }
 .pp-cal__cell--today .pp-cal__daynum {
-	color: #fff;
+	color: var(--pp-on-primary);
 	background: var(--pp-primary);
 	border-radius: 999px;
 	width: 22px;
@@ -2758,14 +2760,16 @@ a.pp-cal__chip:hover { filter: brightness(.97); }
 @media (prefers-color-scheme: dark) {
 	.pp-front,
 	.pp-app {
-		--pp-foreground: #e2e8f0;
-		--pp-primary: #818cf8;
-		--pp-primary-hover: #a5b4fc;
-		--pp-primary-light: #1e1b4b;
-		--pp-surface: #1a1833;
-		--pp-muted: #1e1b4b;
-		--pp-muted-foreground: #b0bec9;
-		--pp-border: #312e81;
+		--pp-foreground: #f4f2ee;
+		--pp-primary: #ebe7df;
+		--pp-primary-hover: #ffffff;
+		--pp-primary-light: #2b2925;
+		--pp-on-primary: #171613;
+		--pp-sidebar-bg: #121110;
+		--pp-surface: #1f1e1b;
+		--pp-muted: #292723;
+		--pp-muted-foreground: #a39f97;
+		--pp-border: #34322d;
 		--pp-success: #34d399;
 		--pp-success-light: #022c22;
 		--pp-warning: #fbbf24;
@@ -2777,9 +2781,9 @@ a.pp-cal__chip:hover { filter: brightness(.97); }
 		--pp-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.3);
 	}
 	/* Seiten-/Strukturhintergründe (nicht variabel verdrahtet) */
-	body.pp-app-body { background: #0c0a1d; }
-	.pp-app__main-wrap { background: #0c0a1d; }
-	.pp-app__topbar { background: rgba(12, 10, 29, .85); }
+	body.pp-app-body { background: #171613; }
+	.pp-app__main-wrap { background: #171613; }
+	.pp-app__topbar { background: rgba(23, 22, 19, .85); }
 	/* Modal-Backdrop etwas dunkler */
 	.pp-modal::backdrop { background: rgba(0, 0, 0, .65); }
 }
@@ -3032,7 +3036,7 @@ label.pp-swatch--auto,
 .pp-pack-desc { font-size: .8rem; color: var(--pp-muted-foreground); }
 .pp-pack-status { font-size: .8rem; color: var(--pp-muted-foreground); }
 .pp-pack-form { margin: 0; }
-.pp-portal__chip--done { background: var(--pp-primary); border-color: var(--pp-primary); color: #fff; }
+.pp-portal__chip--done { background: var(--pp-primary); border-color: var(--pp-primary); color: var(--pp-on-primary); }
 
 /* Abhak-Kästchen — auf dem Bildschirm dezent, im Druck das Kern-Element. */
 .pp-pack-box {
@@ -3049,7 +3053,7 @@ label.pp-swatch--auto,
 	position: absolute;
 	left: 5px; top: 1px;
 	width: 5px; height: 10px;
-	border: solid #fff;
+	border: solid var(--pp-on-primary);
 	border-width: 0 2px 2px 0;
 	transform: rotate(45deg);
 }
@@ -3739,3 +3743,45 @@ label.pp-swatch--auto,
 html:has(body.pp-app-body) { scrollbar-gutter: stable; }
 html:has(dialog.pp-modal[open]) { overflow: hidden; }
 
+
+/* ==========================================================================
+   Dunkelmodus — warm-neutraler Look (2026-11): fast schwarzer, warmer Grund,
+   kaum sichtbare Rahmen, helle statt indigofarbene Akzente, Bernstein-Schimmer
+   beim Hover. Der helle Modus bleibt unverändert. Die Farben selbst stehen im
+   Haupt-Dark-Block (Tokens); hier nur die Strukturflächen der Sidebar und der
+   Schimmer. Bewusst am DATEIENDE.
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+	/* Hover-Schimmer: Bernstein statt Indigo */
+	.pp-app__main,
+	.pp-front { --pp-glow: 226, 160, 96; }
+
+	/* Seitengrund mit warmem Schein von unten (liegt fest, scrollt nicht mit) */
+	.pp-app__main-wrap {
+		background:
+			radial-gradient(110% 70% at 50% 100%, rgba(150, 96, 44, .13), transparent 65%) fixed,
+			#171613;
+	}
+
+	/* Sidebar: neutral dunkel, dünne Trennlinie zum Inhalt */
+	.pp-app__sidebar { color: #dedad2; border-right: 1px solid var(--pp-border); }
+	.pp-app__brand-mark { background: var(--pp-primary); color: var(--pp-on-primary); }
+	.pp-app__workspace-label,
+	.pp-app__ws-caret,
+	.pp-app__ws > summary .pp-app__workspace-label,
+	.pp-app__ws > summary .pp-app__ws-caret,
+	.pp-app__nav-item--muted { color: #a39f97; }
+	.pp-app__ws-opt { color: #dedad2; }
+	.pp-app__ws-opt:focus-visible { outline-color: var(--pp-primary); }
+	.pp-app__nav-item { color: #c4c0b8; }
+	.pp-app__nav-item:hover { background: rgba(255, 255, 255, .06); color: #fff; }
+	.pp-app__nav-item.is-active { background: rgba(255, 255, 255, .11); color: #fff; }
+
+	/* Links ohne eigene Farbregel: hell statt Theme-/Browser-Blau. Spezifität
+	 * bewusst 0,0,2 (:where zählt nicht, `a:is(a)` doppelt): schlägt die
+	 * Link-Regel des Themes (0,0,1), verliert gegen jede Komponenten-Klasse. */
+	:where(.pp-app__main, .pp-front) a:is(a) { color: var(--pp-primary); }
+
+	/* „So funktioniert die Plattform": neutraler Rahmen statt Indigo */
+	.pp-hiw { border-color: var(--pp-border); }
+}
